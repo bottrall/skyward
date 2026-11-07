@@ -14,6 +14,12 @@ module BootFixtures
     def greet(name:) = { message: "Hello, #{name}" }
   end
 
+  Failing = Class.new(Skyward::API) do
+    get "/", to: :fail
+
+    def fail = raise("todo 42 is secret")
+  end
+
   Todos = Class.new(Skyward::API) do
     get "/", to: :index, summary: "List todos."
     get "/done/", to: :index

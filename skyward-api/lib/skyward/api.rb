@@ -22,8 +22,8 @@ class Skyward::API
 end
 
 module Skyward
-  # @rbs (?signatures: String, ?logger: API::_Logger?) { (API::Builder) -> void } -> API::RequestId
-  def self.app(signatures: "sig", logger: API::LineLogger.new($stdout), &)
+  # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
+  def self.app(signatures: "sig", logger: API::LineLogger.new($stdout), on_error: nil, &)
     raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
 
     builder = API::Builder.new
@@ -31,7 +31,12 @@ module Skyward
     builder.freeze
     reader = Types::Reader.new(Signatures.load(signatures))
     router = API::Router.new(API::Boot.endpoints(builder.mounts, reader:))
-    app = API::App.new(router, builder.middleware)
+    app = API::Rescue.new(
+      API::App.new(router, builder.middleware),
+      logger:,
+      on_error:,
+      development: ENV.fetch("RACK_ENV") { ENV.fetch("APP_ENV", nil) } == "development"
+    )
     logged =
       if logger
         API::RequestLog.new(

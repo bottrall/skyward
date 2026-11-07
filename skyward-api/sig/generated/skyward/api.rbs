@@ -7,6 +7,6 @@ class Skyward::API
 end
 
 module Skyward
-  # @rbs (?signatures: String, ?logger: API::_Logger?) { (API::Builder) -> void } -> API::RequestId
-  def self.app: (?signatures: String, ?logger: API::_Logger?) { (API::Builder) -> void } -> API::RequestId
+  # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
+  def self.app: (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
 end

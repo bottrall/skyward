@@ -16,6 +16,10 @@ module BootFixtures
     def greet: (name: String) -> { message: String }
   end
 
+  class Failing < Skyward::API
+    def fail: () -> untyped
+  end
+
   class Todos < Skyward::API
     def index: (?done: bool?, ?tags: Array[:low | :high]) -> Array[Todo]
     def show: (id: Integer) -> (Todo | :gone)

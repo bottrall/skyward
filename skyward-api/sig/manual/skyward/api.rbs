@@ -10,4 +10,8 @@ class Skyward::API
   interface _Logger
     def info: (String message) -> void
   end
+
+  interface _OnError
+    def call: (StandardError exception, Hash[String, untyped] env) -> void
+  end
 end

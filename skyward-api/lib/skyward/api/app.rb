@@ -42,8 +42,6 @@ class Skyward::API::App
   # @rbs return: response
   def respond(match)
     json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **match.params))
-  rescue StandardError
-    problem(500, "Internal Server Error")
   end
 
   # @rbs verb: String

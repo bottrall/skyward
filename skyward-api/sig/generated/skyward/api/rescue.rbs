@@ -1,0 +1,41 @@
+# Generated from lib/skyward/api/rescue.rb with RBS::Inline
+
+class Skyward::API::Rescue
+  @app: Skyward::API::_RackApp
+
+  @logger: Skyward::API::_Logger?
+
+  @on_error: Skyward::API::_OnError?
+
+  @development: bool
+
+  # @rbs (Skyward::API::_RackApp app, logger: Skyward::API::_Logger?, on_error: Skyward::API::_OnError?,
+  #       development: bool) -> void
+  def initialize: (Skyward::API::_RackApp app, logger: Skyward::API::_Logger?, on_error: Skyward::API::_OnError?, development: bool) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+
+  private
+
+  # @rbs exception: StandardError
+  # @rbs request_id: String?
+  # @rbs return: void
+  def log: (StandardError exception, String? request_id) -> void
+
+  # @rbs exception: StandardError
+  # @rbs env: Hash[String, untyped]
+  # @rbs request_id: String?
+  # @rbs return: void
+  def report: (StandardError exception, Hash[String, untyped] env, String? request_id) -> void
+
+  # @rbs exception: StandardError
+  # @rbs request_id: String?
+  # @rbs return: Hash[Symbol, untyped]
+  def problem: (StandardError exception, String? request_id) -> Hash[Symbol, untyped]
+
+  # @rbs exception: StandardError
+  # @rbs return: String
+  def message: (StandardError exception) -> String
+end
