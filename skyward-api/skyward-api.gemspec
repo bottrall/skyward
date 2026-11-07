@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir["lib/**/*.rb", "sig/**/*.rbs", "README.md"]
+  spec.files = Dir["lib/**/*.{rb,ru}", "sig/**/*.rbs", "README.md"]
   spec.require_paths = ["lib"]
 
   # The Skyward gems release in lockstep, so each pins the others exactly.

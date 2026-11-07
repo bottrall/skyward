@@ -1,0 +1,46 @@
+# Generated from lib/skyward/api/serve/reloader.rb with RBS::Inline
+
+class Skyward::API::Serve::Reloader
+  INTERVAL: Float
+
+  @watch: ^() -> Hash[String, Time]
+
+  @load: ^() -> Skyward::API::_RackApp
+
+  @clock: ^() -> Float
+
+  @mutex: Thread::Mutex
+
+  @checked_at: Float
+
+  @files: Hash[String, Time]
+
+  @app: Skyward::API::_RackApp
+
+  # @rbs watch: ^() -> Hash[String, Time]
+  # @rbs load: ^() -> Skyward::API::_RackApp
+  # @rbs clock: ^() -> Float
+  # @rbs return: void
+  def initialize: (watch: ^() -> Hash[String, Time], load: ^() -> Skyward::API::_RackApp, clock: ^() -> Float) -> void
+
+  # The app is taken under the lock but called outside it, so a request in
+  # flight finishes on the app it started with.
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+
+  private
+
+  # @rbs return: Skyward::API::_RackApp
+  def current: () -> Skyward::API::_RackApp
+
+  # @rbs return: Skyward::API::_RackApp
+  def attempt: () -> Skyward::API::_RackApp
+
+  # The development 500 that Skyward::API::Rescue answers, without a request
+  # ID: the app that assigns them is the one that failed to load.
+  # @rbs error: Exception
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def failure: (Exception error, Hash[String, untyped] env) -> Skyward::API::rack_response
+end

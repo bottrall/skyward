@@ -7,8 +7,10 @@ module Skyward::API::Declarations
   # @rbs @routes: Array[Skyward::API::Route]?
   # @rbs @class_description: String?
 
+  # A class that hasn't declared a route, or whose routes were cleared, has its
+  # parent's, so a reopened subclass declares its own after them again.
   # @rbs return: Array[Skyward::API::Route]
-  def routes = @routes || []
+  def routes = @routes || inherited_routes
 
   # @rbs return: String?
   def class_description = @class_description
@@ -19,6 +21,14 @@ module Skyward::API::Declarations
     raise ArgumentError, "#{self} already has a description" if @class_description
 
     @class_description = text.dup.freeze
+  end
+
+  # skyward serve's reloading runs a reopened class's declarations again, on
+  # the same class, so it clears them first.
+  # @rbs return: void
+  def clear_declarations
+    @routes = nil
+    @class_description = nil
   end
 
   # @rbs path: String
@@ -68,11 +78,11 @@ module Skyward::API::Declarations
 
   private
 
-  # @rbs subclass: Class
-  # @rbs return: void
-  def inherited(subclass)
-    super
-    subclass.instance_variable_set(:@routes, routes)
+  # @rbs return: Array[Skyward::API::Route]
+  def inherited_routes
+    parent = superclass
+    # Steep types a superclass as a plain Class, but an API class's superclass extends Declarations too.
+    parent.is_a?(Skyward::API::Declarations) ? parent.routes : [] # steep:ignore UnreachableBranch
   end
 
   # @rbs verb: Symbol
