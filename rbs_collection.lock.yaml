@@ -49,11 +49,19 @@ gems:
     revision: f7a1647651e333fcb55b7f8a7a4ddec9bcb756c2
     remote: https://github.com/ruby/gem_rbs_collection.git
     repo_dir: gems
+- name: random-formatter
+  version: '0'
+  source:
+    type: stdlib
 - name: rbs
   version: 4.2.0
   source:
     type: rubygems
 - name: rdoc
+  version: '0'
+  source:
+    type: stdlib
+- name: securerandom
   version: '0'
   source:
     type: stdlib
