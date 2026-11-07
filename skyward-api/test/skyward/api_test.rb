@@ -43,6 +43,13 @@ describe Skyward do
       assert_equal [200, 404], statuses
     end
 
+    it "freezes the builder once the block returns" do
+      kept = nil
+      Skyward.app { |builder| kept = builder }
+
+      assert_predicate kept, :frozen?
+    end
+
     it "runs the app inside the middleware the block uses, inside the request ID" do
       app = Skyward.app do |builder|
         builder.use Rack::Cors do
@@ -58,13 +65,6 @@ describe Skyward do
 
       assert_equal [200, "https://example.com"], [response.status, response.headers["access-control-allow-origin"]]
       assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, response.headers["x-request-id"])
-    end
-
-    it "freezes the builder once the block returns" do
-      kept = nil
-      Skyward.app { |builder| kept = builder }
-
-      assert_predicate kept, :frozen?
     end
 
     it "answers even a 404 with a random UUID request ID" do

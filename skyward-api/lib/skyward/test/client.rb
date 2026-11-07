@@ -16,9 +16,9 @@ class Skyward::Test::Client
   # Rack takes these two headers without the HTTP_ prefix the others get.
   UNPREFIXED = %w[CONTENT_TYPE CONTENT_LENGTH].freeze #: Array[String]
 
-  # @rbs @app: Skyward::Test::_App
+  # @rbs @app: Skyward::API::_RackApp
 
-  # @rbs (Skyward::Test::_App app) -> void
+  # @rbs (Skyward::API::_RackApp app) -> void
   def initialize(app)
     @app = app
     freeze

@@ -23,10 +23,10 @@ class Skyward::Test::Client
   # Rack takes these two headers without the HTTP_ prefix the others get.
   UNPREFIXED: Array[String]
 
-  @app: Skyward::Test::_App
+  @app: Skyward::API::_RackApp
 
-  # @rbs (Skyward::Test::_App app) -> void
-  def initialize: (Skyward::Test::_App app) -> void
+  # @rbs (Skyward::API::_RackApp app) -> void
+  def initialize: (Skyward::API::_RackApp app) -> void
 
   # @rbs path: String
   # @rbs json: untyped
