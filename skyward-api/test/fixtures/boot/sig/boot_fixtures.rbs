@@ -4,6 +4,12 @@ module BootFixtures
     attr_reader title: String
   end
 
+  # Declares no password_hash, so it's never written.
+  class User
+    attr_reader id: Integer
+    attr_reader name: String
+  end
+
   class Holder
     attr_reader tags: Hash[Symbol, untyped]
   end
@@ -124,5 +130,21 @@ module BootFixtures
 
   class SelfReferring < Skyward::API
     def index: () -> Node
+  end
+
+  class Responding < Skyward::API
+    def show: (id: Integer) -> (Todo | Skyward::NotFound)
+    def user: (id: Integer) -> User
+    def misfit: (id: Integer) -> Todo
+    def create: (body: { title: String }) -> Skyward::Created[Todo]
+    def destroy: (id: Integer) -> (Skyward::NoContent | Skyward::Conflict | Skyward::Unprocessable)?
+  end
+
+  class CreatedHash < Skyward::API
+    def create: () -> Skyward::Created[Hash[Symbol, untyped]]
+  end
+
+  class CreatedBare < Skyward::API
+    def create: () -> Skyward::Created
   end
 end

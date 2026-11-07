@@ -43,9 +43,7 @@ class Skyward::API::App
 
   # @rbs match: Skyward::API::Router::Match
   # @rbs return: response
-  def respond(match)
-    json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **match.params))
-  end
+  def respond(match) = match.serializer.call(match.api.public_send(match.to, **match.params))
 
   # @rbs verb: String
   # @rbs allowed: Array[String]

@@ -19,6 +19,7 @@ class Skyward::API
   # @rbs! type rack_response = [Integer, Hash[String, untyped], untyped]
 
   extend Declarations
+  include Responses
 end
 
 module Skyward

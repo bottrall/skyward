@@ -30,7 +30,8 @@ module Skyward::API::Boot
     verb = route.verb.upcase.name
     pattern = pattern(path)
     label = "#{mount.api.class}##{route.to} (#{verb} #{path})"
-    result = summary(route) || shadowing(verb, pattern, built) || endpoint(mount.api, route, verb, pattern, reader)
+    result = summary(route) || shadowing(verb, pattern, built) ||
+             endpoint(mount.api, route, verb, pattern, label, reader)
     case result
     when String then raise Skyward::BootError, "#{label}\n  #{result}"
     else [label, result]
@@ -89,9 +90,10 @@ module Skyward::API::Boot
   # @rbs route: Skyward::API::Route
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
+  # @rbs label: String
   # @rbs reader: Skyward::Types::Reader
   # @rbs return: Skyward::API::Router::Endpoint | String
-  def endpoint(api, route, verb, pattern, reader)
+  def endpoint(api, route, verb, pattern, label, reader)
     method_type = method_type(api.class, route.to, reader)
     return method_type if method_type.is_a?(String)
 
@@ -110,10 +112,11 @@ module Skyward::API::Boot
 
     keywords = read.grep(Skyward::API::Router::Keyword) #: Array[Skyward::API::Router::Keyword]
 
-    returns = returns(reader.read(method_type.type.return_type))
+    returns = returns(method_type.type.return_type, reader)
     return returns if returns.is_a?(String)
 
-    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to: route.to, keywords:, returns:)
+    serializer = Skyward::API::Serializer.new(returns, label:)
+    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to: route.to, keywords:, returns:, serializer:)
   # The reader raises for a type it can't read at all, such as one that refers
   # to itself, and that's this route's problem too.
   rescue Skyward::BootError => e
@@ -245,17 +248,59 @@ module Skyward::API::Boot
     end
   end
 
-  # @rbs type: Skyward::Types::result
-  # @rbs return: Array[Skyward::Types::t] | String
-  def returns(type)
+  # Response values are found in the signature, because the reader can't read them.
+  # @rbs type: RBS::Types::t
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Array[Skyward::API::Router::returned] | String
+  def returns(type, reader)
+    read = parts(type).map { |part| response(part, reader) || reader.read(part) }
+    unreadable = read.find { |member| member.is_a?(Skyward::Types::Unreadable) }
+    return unreadable("The return type", unreadable) if unreadable.is_a?(Skyward::Types::Unreadable)
+
+    readable = read.grep_v(Skyward::Types::Unreadable) #: Array[Skyward::API::Router::returned]
+    readable.flat_map { |member| members(member) }.uniq
+  end
+
+  # @rbs type: RBS::Types::t
+  # @rbs return: Array[RBS::Types::t]
+  def parts(type)
     case type
-    when Skyward::Types::Unreadable then unreadable("The return type", type)
-    else members(type)
+    when RBS::Types::Union then type.types.flat_map { |member| parts(member) }
+    when RBS::Types::Optional then [*parts(type.type), RBS::Types::Bases::Nil.new(location: nil)]
+    else [type]
     end
   end
 
-  # @rbs type: Skyward::Types::t
-  # @rbs return: Array[Skyward::Types::t]
+  # @rbs type: RBS::Types::t
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil
+  def response(type, reader)
+    return unless type.is_a?(RBS::Types::ClassInstance)
+
+    name = type.name.to_s
+    return created(type, reader) if name == "::Skyward::Created"
+
+    klass = Skyward::API::Serializer::RESPONSES.find { |response| name == "::#{response.name}" }
+    Skyward::API::Router::Response.new(klass:) if klass
+  end
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Skyward::API::Router::Created | Skyward::Types::Unreadable
+  def created(type, reader)
+    unless type.args.size == 1
+      return Skyward::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Created[T]")
+    end
+
+    read = reader.read(type.args.fetch(0))
+    case read
+    when Skyward::Types::Unreadable then read
+    else Skyward::API::Router::Created.new(type: read)
+    end
+  end
+
+  # @rbs type: Skyward::API::Router::returned
+  # @rbs return: Array[Skyward::API::Router::returned]
   def members(type)
     case type
     when Skyward::Types::Union then type.types

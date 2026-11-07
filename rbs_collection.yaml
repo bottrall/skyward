@@ -22,6 +22,7 @@ gems:
   # Ignoring the Skyward gems also drops their dependencies and the standard
   # libraries they require, so name those here.
   - name: rbs
+  - name: date
   - name: json
   - name: securerandom
   - name: time

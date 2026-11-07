@@ -1,0 +1,4 @@
+# Generated from lib/skyward/api/return_type_error.rb with RBS::Inline
+
+class Skyward::API::ReturnTypeError < StandardError
+end

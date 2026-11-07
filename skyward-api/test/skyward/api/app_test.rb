@@ -13,7 +13,12 @@ describe Skyward::API::App do
     end.new
   end
   let(:middleware) { [] }
+  let(:returns) do
+    id = Skyward::Types::Field.new(name: :id, type: Skyward::Types::Scalar.new(name: :string), required: true)
+    [Skyward::Types::Record.new(fields: [id])]
+  end
   let(:app) do
+    serializer = Skyward::API::Serializer.new(returns, label: "Todos#show")
     endpoints = [
       ["GET", :id, :show],
       ["DELETE", :id, :destroy],
@@ -26,7 +31,8 @@ describe Skyward::API::App do
         api: todos,
         to:,
         keywords: [],
-        returns: []
+        returns:,
+        serializer:
       )
     end
     static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: File.join(root, "public"))])
@@ -105,8 +111,8 @@ describe Skyward::API::App do
       end
     end
 
-    it "calls the matched method with the path parameters and answers with its return value as JSON" do
-      expected = [200, { "content-type" => "application/json" }, ['{"id":"42","title":"Ship it"}']]
+    it "calls the matched method with the path parameters and answers with its serializer's response" do
+      expected = [200, { "content-type" => "application/json" }, ['{"id":"42"}']]
 
       assert_equal expected, request("GET", "/todos/42")
     end

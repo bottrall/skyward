@@ -73,6 +73,32 @@ describe Skyward do
       assert_match(%r{\ABootFixtures::Unsigned#index \(GET /\)\n}, error.message)
     end
 
+    describe "answering by the return type" do
+      let(:client) do
+        Skyward::Test.client(
+          Skyward.app(signatures:, logger: nil) do |builder|
+            builder.mount BootFixtures::Responding.new
+          end
+        )
+      end
+
+      it "writes only the fields the return type declares" do
+        assert_equal({ id: 1, name: "Ada" }, client.get("/users/1").json)
+      end
+
+      it "answers a response value with its status" do
+        response = client.get("/2")
+
+        assert_equal [404, "Todo 2 does not exist"], [response.status, response.json[:detail]]
+      end
+
+      it "answers a value that doesn't fit with a 500 that sends none of it" do
+        response = client.get("/users/1/todo")
+
+        assert_equal [500, false], [response.status, response.body.include?("Ada")]
+      end
+    end
+
     it "runs the app inside the middleware the block uses, inside the request ID" do
       app = Skyward.app(signatures:, logger: nil) do |builder|
         builder.use Rack::Cors do

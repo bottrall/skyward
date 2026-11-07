@@ -48,9 +48,10 @@ module Skyward::API::Boot
   # @rbs route: Skyward::API::Route
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
+  # @rbs label: String
   # @rbs reader: Skyward::Types::Reader
   # @rbs return: Skyward::API::Router::Endpoint | String
-  def endpoint: (Skyward::API api, Skyward::API::Route route, String verb, Array[String | Symbol] pattern, Skyward::Types::Reader reader) -> (Skyward::API::Router::Endpoint | String)
+  def endpoint: (Skyward::API api, Skyward::API::Route route, String verb, Array[String | Symbol] pattern, String label, Skyward::Types::Reader reader) -> (Skyward::API::Router::Endpoint | String)
 
   # @rbs klass: Class
   # @rbs to: Symbol
@@ -99,13 +100,29 @@ module Skyward::API::Boot
   # @rbs return: String?
   def uncarried: (Skyward::Types::t type, :path | :query | :array within) -> String?
 
-  # @rbs type: Skyward::Types::result
-  # @rbs return: Array[Skyward::Types::t] | String
-  def returns: (Skyward::Types::result type) -> (Array[Skyward::Types::t] | String)
+  # Response values are found in the signature, because the reader can't read them.
+  # @rbs type: RBS::Types::t
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Array[Skyward::API::Router::returned] | String
+  def returns: (RBS::Types::t type, Skyward::Types::Reader reader) -> (Array[Skyward::API::Router::returned] | String)
 
-  # @rbs type: Skyward::Types::t
-  # @rbs return: Array[Skyward::Types::t]
-  def members: (Skyward::Types::t type) -> Array[Skyward::Types::t]
+  # @rbs type: RBS::Types::t
+  # @rbs return: Array[RBS::Types::t]
+  def parts: (RBS::Types::t type) -> Array[RBS::Types::t]
+
+  # @rbs type: RBS::Types::t
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil
+  def response: (RBS::Types::t type, Skyward::Types::Reader reader) -> (Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil)
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Skyward::API::Router::Created | Skyward::Types::Unreadable
+  def created: (RBS::Types::ClassInstance type, Skyward::Types::Reader reader) -> (Skyward::API::Router::Created | Skyward::Types::Unreadable)
+
+  # @rbs type: Skyward::API::Router::returned
+  # @rbs return: Array[Skyward::API::Router::returned]
+  def members: (Skyward::API::Router::returned type) -> Array[Skyward::API::Router::returned]
 
   # @rbs subject: String
   # @rbs type: Skyward::Types::Unreadable

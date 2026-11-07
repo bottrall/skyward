@@ -1,0 +1,15 @@
+# Generated from lib/skyward/created.rb with RBS::Inline
+
+# @rbs generic out T
+class Skyward::Created[out T]
+  # @dynamic value
+  attr_reader value: T
+
+  # @dynamic headers
+  attr_reader headers: Hash[String, String]
+
+  # @rbs value: T
+  # @rbs headers: Hash[String, String]
+  # @rbs return: void
+  def initialize: (value: T, headers: Hash[String, String]) -> void
+end

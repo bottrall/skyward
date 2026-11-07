@@ -1,0 +1,10 @@
+# Generated from lib/skyward/no_content.rb with RBS::Inline
+
+class Skyward::NoContent
+  # @dynamic headers
+  attr_reader headers: Hash[String, String]
+
+  # @rbs headers: Hash[String, String]
+  # @rbs return: void
+  def initialize: (headers: Hash[String, String]) -> void
+end
