@@ -1,0 +1,24 @@
+# Generated from lib/skyward/api/route.rb with RBS::Inline
+
+# rbs-inline only types a Data.define assigned to a bare constant name, so
+# Route is assigned inside the class rather than as Skyward::API::Route.
+class Skyward::API
+  class Route < Data
+    attr_reader verb(): Symbol
+
+    attr_reader path(): String
+
+    attr_reader to(): Symbol
+
+    attr_reader summary(): String?
+
+    attr_reader description(): String?
+
+    def self.new: (Symbol verb, String path, Symbol to, String? summary, String? description) -> instance
+                | (verb: Symbol, path: String, to: Symbol, summary: String?, description: String?) -> instance
+
+    def self.members: () -> [ :verb, :path, :to, :summary, :description ]
+
+    def members: () -> [ :verb, :path, :to, :summary, :description ]
+  end
+end

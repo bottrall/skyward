@@ -1,0 +1,75 @@
+# Generated from lib/skyward/api/declarations.rb with RBS::Inline
+
+# @rbs module-self Class
+module Skyward::API::Declarations : Class
+  PARAMETER_NAME: Regexp
+
+  @routes: Array[Skyward::API::Route]?
+
+  @class_description: String?
+
+  # @rbs return: Array[Skyward::API::Route]
+  def routes: () -> Array[Skyward::API::Route]
+
+  # @rbs return: String?
+  def class_description: () -> String?
+
+  # @rbs text: String
+  # @rbs return: void
+  def description: (String text) -> void
+
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def get: (String path, to: Symbol, ?summary: String?, ?description: String?) -> void
+
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def post: (String path, to: Symbol, ?summary: String?, ?description: String?) -> void
+
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def put: (String path, to: Symbol, ?summary: String?, ?description: String?) -> void
+
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def patch: (String path, to: Symbol, ?summary: String?, ?description: String?) -> void
+
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def delete: (String path, to: Symbol, ?summary: String?, ?description: String?) -> void
+
+  private
+
+  # @rbs subclass: Class
+  # @rbs return: void
+  def inherited: (Class subclass) -> void
+
+  # @rbs verb: Symbol
+  # @rbs path: String
+  # @rbs to: Symbol
+  # @rbs summary: String?
+  # @rbs description: String?
+  # @rbs return: void
+  def declare: (Symbol verb, String path, Symbol to, String? summary, String? description) -> void
+
+  # Untyped: a caller that Steep doesn't check can pass anything.
+  # @rbs path: untyped
+  # @rbs to: untyped
+  # @rbs return: String?
+  def problem_with: (untyped path, untyped to) -> String?
+end

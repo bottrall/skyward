@@ -9,4 +9,8 @@ describe Skyward::API do
 
     assert_includes Zeitwerk::Loader.all_dirs, File.expand_path("../../lib/skyward", __dir__)
   end
+
+  it "gives every API class the route declarations" do
+    assert_kind_of Skyward::API::Declarations, Skyward::API
+  end
 end

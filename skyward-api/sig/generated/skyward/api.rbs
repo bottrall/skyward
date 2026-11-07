@@ -1,2 +1,5 @@
 # Generated from lib/skyward/api.rb with RBS::Inline
 
+class Skyward::API
+  extend Declarations
+end

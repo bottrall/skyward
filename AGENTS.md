@@ -12,7 +12,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 
 ## Code layout
 
-- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first.
+- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first. A `Data.define` constant also nests inside its compact-style owner (`class Skyward::API; Route = Data.define(...)`), because rbs-inline only types one assigned to a bare constant name.
 - Tests are Minitest spec style (`describe`/`it`) and mirror the code they test. Each gem's tests run in that gem's own bundle (its `Gemfile`), so they can't load a gem it doesn't depend on.
 
 ## Ruby
