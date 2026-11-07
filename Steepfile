@@ -10,13 +10,14 @@ GEMS = {
   skyward: { dir: "skyward", depends_on: %i[core api orm] }
 }.freeze
 
-# Steep shares every target's signature files with every other target unless
-# the target is `unreferenced!`. Every target is, and loads only its own
-# signatures and its dependencies', so reaching into a Skyward gem it doesn't
-# depend on is a type error.
+# Steep gives a signature file to the first target that lists it, and other
+# targets see it only when that owner isn't `unreferenced!`. Every gem depends
+# on core, so core's signatures are shared. Every other target is
+# unreferenced!, so its signatures stay private to it, and api and orm can't
+# reach into each other.
 GEMS.each do |name, gem|
   target name do
-    unreferenced!
+    unreferenced! unless name == :core
 
     [name, *gem.fetch(:depends_on)].each { |part| signature "#{GEMS.fetch(part).fetch(:dir)}/sig" }
 

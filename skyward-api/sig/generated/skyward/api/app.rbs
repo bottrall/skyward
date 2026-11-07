@@ -1,0 +1,32 @@
+# Generated from lib/skyward/api/app.rb with RBS::Inline
+
+class Skyward::API::App
+  type response = [ Integer, Hash[String, String], Array[String] ]
+
+  @router: Skyward::API::Router
+
+  # @rbs router: Skyward::API::Router
+  # @rbs return: void
+  def initialize: (Skyward::API::Router router) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: response
+  def call: (Hash[String, untyped] env) -> response
+
+  private
+
+  # @rbs match: Skyward::API::Router::Match
+  # @rbs return: response
+  def respond: (Skyward::API::Router::Match match) -> response
+
+  # @rbs status: Integer
+  # @rbs title: String
+  # @rbs return: response
+  def problem: (Integer status, String title) -> response
+
+  # @rbs status: Integer
+  # @rbs content_type: String
+  # @rbs value: untyped
+  # @rbs return: response
+  def json: (Integer status, String content_type, untyped value) -> response
+end

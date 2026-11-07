@@ -1,0 +1,80 @@
+# Generated from lib/skyward/api/router.rb with RBS::Inline
+
+class Skyward::API::Router
+  class Endpoint < Data
+    attr_reader verb(): String
+
+    attr_reader pattern(): Array[String | Symbol]
+
+    attr_reader api(): Skyward::API
+
+    attr_reader to(): Symbol
+
+    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to) -> instance
+                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol) -> instance
+
+    def self.members: () -> [ :verb, :pattern, :api, :to ]
+
+    def members: () -> [ :verb, :pattern, :api, :to ]
+  end
+
+  class Match < Data
+    attr_reader api(): Skyward::API
+
+    attr_reader to(): Symbol
+
+    attr_reader params(): Hash[Symbol, String]
+
+    def self.new: (Skyward::API api, Symbol to, Hash[Symbol, String] params) -> instance
+                | (api: Skyward::API, to: Symbol, params: Hash[Symbol, String]) -> instance
+
+    def self.members: () -> [ :api, :to, :params ]
+
+    def members: () -> [ :api, :to, :params ]
+  end
+
+  ESCAPE: Regexp
+
+  @endpoints: Array[Endpoint]
+
+  # @rbs mounts: Array[Skyward::API::Builder::Mount]
+  # @rbs return: void
+  def initialize: (Array[Skyward::API::Builder::Mount] mounts) -> void
+
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: Match?
+  def match: (String verb, String path) -> Match?
+
+  private
+
+  # @rbs mount: Skyward::API::Builder::Mount
+  # @rbs return: Array[Endpoint]
+  def endpoints: (Skyward::API::Builder::Mount mount) -> Array[Endpoint]
+
+  # @rbs prefix: String
+  # @rbs path: String
+  # @rbs return: String
+  def full_path: (String prefix, String path) -> String
+
+  # @rbs path: String
+  # @rbs return: Array[String | Symbol]
+  def pattern: (String path) -> Array[String | Symbol]
+
+  # @rbs endpoint: Endpoint
+  # @rbs verb: String
+  # @rbs segments: Array[String]
+  # @rbs return: Match?
+  def match_endpoint: (Endpoint endpoint, String verb, Array[String] segments) -> Match?
+
+  # @rbs pattern: Array[String | Symbol]
+  # @rbs segments: Array[String]
+  # @rbs return: Hash[Symbol, String]?
+  def params_for: (Array[String | Symbol] pattern, Array[String] segments) -> Hash[Symbol, String]?
+
+  # Lenient, unlike URI.decode_uri_component, because servers pass the path
+  # through undecoded and a malformed escape is the client's to send.
+  # @rbs segment: String
+  # @rbs return: String
+  def decode: (String segment) -> String
+end

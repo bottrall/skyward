@@ -3,3 +3,9 @@
 class Skyward::API
   extend Declarations
 end
+
+module Skyward
+  # @rbs &: (API::Builder) -> void
+  # @rbs return: API::App
+  def self.app: () { (API::Builder) -> void } -> API::App
+end

@@ -93,6 +93,12 @@ Style/Documentation:
 Style/ModuleFunction:
   EnforcedStyle: extend_self
 
+# A gem's entry file opens Skyward beside its own class to add the gem's
+# methods on Skyward itself (Skyward.app, Skyward.connect).
+Style/OneClassPerFile:
+  AllowedClasses:
+    - Skyward
+
 # Matches the READMEs, which are the spec.
 Style/StringLiterals:
   EnforcedStyle: double_quotes

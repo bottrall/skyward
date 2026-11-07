@@ -1,0 +1,27 @@
+# Generated from lib/skyward/api/builder.rb with RBS::Inline
+
+class Skyward::API::Builder
+  class Mount < Data
+    attr_reader api(): Skyward::API
+
+    attr_reader at(): String
+
+    def self.new: (Skyward::API api, String at) -> instance
+                | (api: Skyward::API, at: String) -> instance
+
+    def self.members: () -> [ :api, :at ]
+
+    def members: () -> [ :api, :at ]
+  end
+
+  # @dynamic mounts
+  attr_reader mounts: Array[Mount]
+
+  # @rbs return: void
+  def initialize: () -> void
+
+  # @rbs api: Skyward::API
+  # @rbs at: String
+  # @rbs return: void
+  def mount: (Skyward::API api, ?at: String) -> void
+end

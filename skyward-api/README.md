@@ -1,7 +1,7 @@
 # Skyward API
 
 > [!CAUTION]
-> **Work in progress: Skyward API doesn't serve anything yet.** Version 0.1 is a skeleton. The gems install and load, but only the parts listed under [Status](#status) are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
+> **Work in progress: Skyward API is barely started.** Version 0.1 is a skeleton. The gems install and load, but only the parts listed under [Status](#status) are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
 
 A small, fast Ruby web framework where **an endpoint is a method**.
 
@@ -560,4 +560,5 @@ Skyward API's commands run in your app's directory, and load `app.rb`, which ass
 
 This README is the spec. Skyward 0.1 is a skeleton: the gem installs and loads, and only the parts listed here are built. Skyward API is built first, and this section lists each part as it lands.
 
-- **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. Nothing serves the routes yet: building an app and the checks at boot are still to come.
+- **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. The checks at boot are still to come.
+- **Building an app.** `Skyward.app` yields a builder and returns a frozen Rack app, and the builder is frozen once the block returns. `mount` attaches an API object at a prefix (`at:`, `/` by default), and raises `Skyward::BootError` given anything but a `Skyward::API` instance. One object can be mounted at several prefixes. A request matches a route when its method and whole path match, trailing slash included, with each path parameter matching one non-empty segment, percent-decoded. Routes are tried in mount order, then declaration order. The method is called with its path parameters as `String` keywords, and its return value is answered as JSON with status 200. A request no route matches gets a 404 problem+json, and an exception from the method a 500 that doesn't reveal it. Other inputs, types, the response helpers, and `Skyward.app`'s other options are still to come.

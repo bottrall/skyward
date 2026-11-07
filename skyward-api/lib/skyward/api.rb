@@ -13,3 +13,15 @@ loader.setup
 class Skyward::API
   extend Declarations
 end
+
+module Skyward
+  # @rbs &: (API::Builder) -> void
+  # @rbs return: API::App
+  def self.app(&)
+    raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
+
+    builder = API::Builder.new
+    yield builder
+    API::App.new(API::Router.new(builder.freeze.mounts))
+  end
+end
