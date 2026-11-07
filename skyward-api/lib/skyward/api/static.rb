@@ -77,7 +77,7 @@ class Skyward::API::Static
 
     type = TYPES.fetch(File.extname(file).downcase(:ascii), "application/octet-stream")
     headers = { "content-type" => type, "content-length" => stat.size.to_s, **validators }
-    [200, headers, env["REQUEST_METHOD"] == "HEAD" ? [] : [File.binread(file)]]
+    [200, headers, [File.binread(file)]]
   end
 
   # @rbs stat: File::Stat

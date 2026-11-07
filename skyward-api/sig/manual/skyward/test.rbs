@@ -1,7 +1,3 @@
 module Skyward::Test
   extend ::Skyward::Test
-
-  interface _App
-    def call: (Hash[String, untyped] env) -> [Integer, Hash[String, untyped], untyped]
-  end
 end

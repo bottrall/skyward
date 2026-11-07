@@ -1,0 +1,18 @@
+# Generated from lib/skyward/api/request_log.rb with RBS::Inline
+
+class Skyward::API::RequestLog
+  @app: Skyward::API::_RackApp
+
+  @logger: Skyward::API::_Logger
+
+  @now: ^() -> Time
+
+  @clock_ms: ^() -> Float
+
+  # @rbs (Skyward::API::_RackApp app, logger: Skyward::API::_Logger, now: ^() -> Time, clock_ms: ^() -> Float) -> void
+  def initialize: (Skyward::API::_RackApp app, logger: Skyward::API::_Logger, now: ^() -> Time, clock_ms: ^() -> Float) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+end

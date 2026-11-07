@@ -7,29 +7,42 @@ class Skyward::API::App
 
   @static: Skyward::API::Static
 
+  @stack: Skyward::API::_RackApp
+
   # @rbs router: Skyward::API::Router
   # @rbs static: Skyward::API::Static
+  # @rbs middleware: Array[Skyward::API::Builder::Use]
   # @rbs return: void
-  def initialize: (Skyward::API::Router router, Skyward::API::Static static) -> void
+  def initialize: (Skyward::API::Router router, Skyward::API::Static static, Array[Skyward::API::Builder::Use] middleware) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+
+  private
 
   # @rbs env: Hash[String, untyped]
   # @rbs return: response
-  def call: (Hash[String, untyped] env) -> response
-
-  private
+  def route: (Hash[String, untyped] env) -> response
 
   # @rbs match: Skyward::API::Router::Match
   # @rbs return: response
   def respond: (Skyward::API::Router::Match match) -> response
 
-  # @rbs status: Integer
-  # @rbs title: String
+  # @rbs verb: String
+  # @rbs allowed: Array[String]
   # @rbs return: response
-  def problem: (Integer status, String title) -> response
+  def unmatched: (String verb, Array[String] allowed) -> response
 
   # @rbs status: Integer
-  # @rbs content_type: String
+  # @rbs title: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: response
+  def problem: (Integer status, String title, ?Hash[String, String] headers) -> response
+
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
   # @rbs value: untyped
   # @rbs return: response
-  def json: (Integer status, String content_type, untyped value) -> response
+  def json: (Integer status, Hash[String, String] headers, untyped value) -> response
 end

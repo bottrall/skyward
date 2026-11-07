@@ -152,10 +152,8 @@ describe Skyward::API::Static do
       assert_equal served("application/octet-stream", "bin"), request("/assets/data.bin")
     end
 
-    it "answers HEAD like GET, without the body" do
-      expected = [200, { "content-type" => "text/css", "content-length" => "7", **validators(7) }, []]
-
-      assert_equal expected, request("/assets/style.css", method: "HEAD")
+    it "answers HEAD like GET, leaving the app to drop the body" do
+      assert_equal served("text/css", "body {}"), request("/assets/style.css", method: "HEAD")
     end
 
     it "matches a weak ETag in If-None-Match" do

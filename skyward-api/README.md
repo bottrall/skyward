@@ -382,9 +382,20 @@ run App
 ```
 
 - `mount` attaches an API object at a prefix.
-- `use` is ordinary Rack middleware.
+- `use` is ordinary Rack middleware, and takes the same arguments as `Rack::Builder#use`. It wraps the whole app, in declaration order: the first `use` is outermost, wherever it sits among the other calls.
 - `static` serves files from a directory.
 - `Skyward.app` returns a frozen Rack app. Nothing about it changes after boot.
+
+Skyward API doesn't build CORS, compression or sessions, because Rack already has them. CORS, for example, is [rack-cors](https://github.com/cyu/rack-cors) through `use`, which answers a preflight `OPTIONS` before it reaches your routes:
+
+```ruby
+app.use Rack::Cors do
+  allow do
+    origins "https://todos.example"
+    resource "*", headers: :any, methods: %i[get post delete]
+  end
+end
+```
 
 ---
 
@@ -452,6 +463,29 @@ Boot also catches a route that names a method the class doesn't have, a route th
 
 When your code raises at runtime, Skyward API responds with a 500 problem+json that carries the request ID and logs the exception. In development, the response also includes the backtrace.
 
+```json
+{
+  "type": "about:blank",
+  "title": "Internal Server Error",
+  "status": 500,
+  "request_id": "5f0c6e1a-7a4e-4a43-9a8e-2f1d3c4b5a69"
+}
+```
+
+To send exceptions to Sentry or a similar service, pass `on_error:`. It's called once per exception, after it's logged, with the exception and the Rack env, and takes anything that responds to `call(exception, env)`:
+
+```ruby
+report = ->(exception, env) { Sentry.capture_exception(exception, tags: { request_id: env["skyward.request_id"] }) }
+
+App = Skyward.app(on_error: report) do |app|
+  app.mount TodosAPI.new(todos:), at: "/todos"
+end
+```
+
+If the hook raises, that's logged too, and the client still gets the original 500. A returned error like `not_found` is a response, not an exception, so it's never reported.
+
+The app is in development when `RACK_ENV`, or `APP_ENV` if `RACK_ENV` isn't set, is `development`, as `skyward serve` sets it. Anything else, including neither being set, is production.
+
 ---
 
 ## Testing
@@ -495,8 +529,8 @@ Here's what you get without configuring anything:
 
 - **Boot does the work. Requests don't.** Routes are compiled into a single matcher, and signatures are compiled into coercers and validators, all at boot. API objects are created once. A request is a route lookup, a coercion and a method call.
 - **Request IDs.** Skyward API honours an incoming `X-Request-Id`, generates one when it's missing, and returns it on every response.
-- **Structured logs.** Every request logs one JSON line with its method, path, status, duration and request ID. Pass your own with `Skyward.app(logger: ...)`.
-- **Safe errors.** In production, a 500 never leaks a backtrace.
+- **Structured logs.** Every request logs one JSON line with its method, path, status, duration and request ID, to standard output. Pass `Skyward.app(logger: ...)` to send it elsewhere: any object with `info(String)` will do, such as a stdlib `Logger` whose formatter writes the message alone, so each line stays one JSON object. `logger: nil` turns logging off.
+- **Safe errors.** In production, a 500 never leaks a backtrace or an exception's message.
 - **Strict mode.** Use `Skyward.app(strict: true)` and the app refuses to boot if any endpoint is untyped.
 - **YJIT-friendly.** Hot paths are plain method calls with stable object shapes, with no `instance_exec` and no `method_missing`.
 
@@ -560,9 +594,14 @@ Skyward API's commands run in your app's directory. `skyward serve` runs `config
 
 This README is the spec. Skyward 0.1 is a skeleton: the gem installs and loads, and only the parts listed here are built. Skyward API is built first, and this section lists each part as it lands.
 
-- **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. The checks at boot are still to come.
-- **Building an app.** `Skyward.app` yields a builder and returns a frozen Rack app, and the builder is frozen once the block returns. `mount` attaches an API object at a prefix (`at:`, `/` by default), and raises `Skyward::BootError` given anything but a `Skyward::API` instance. One object can be mounted at several prefixes. A request matches a route when its method and whole path match, trailing slash included, with each path parameter matching one non-empty segment, percent-decoded. Routes are tried in mount order, then declaration order. The method is called with its path parameters as `String` keywords, and its return value is answered as JSON with status 200. A request no route matches gets a 404 problem+json, and an exception from the method a 500 that doesn't reveal it. Other inputs, types, the response helpers, and `Skyward.app`'s other options are still to come.
-- **Request IDs.** The app `Skyward.app` returns gives every request an ID: an incoming `X-Request-Id` of 1 to 200 visible ASCII characters with no spaces, or else a random UUID from `SecureRandom`. The ID is stored in the Rack env as `skyward.request_id` before anything else runs, and every response carries it as `x-request-id`, replacing one the app set. Logging it and putting it in a 500's body are still to come.
+- **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. The rest is checked at boot, below.
+- **Building an app.** `Skyward.app` yields a builder and returns a frozen Rack app, and the builder is frozen once the block returns. `mount` attaches an API object at a prefix (`at:`, `/` by default), and raises `Skyward::BootError` given anything but a `Skyward::API` instance. One object can be mounted at several prefixes. A request matches a route when its method and whole path match, trailing slash included, with each path parameter matching one non-empty segment, percent-decoded. Routes are tried in mount order, then declaration order. The method is called with its path parameters as `String` keywords, and its return value is answered as JSON with status 200. A request whose path no route matches gets a 404 problem+json. Other inputs, types, the response helpers, and `Skyward.app`'s options besides `signatures:`, `logger:` and `on_error:` are still to come.
+- **Checks at boot.** `Skyward.app` loads the RBS signatures under `signatures:` (`"sig"` by default, relative to the current directory) along with Skyward API's own, so an app's signatures can subclass `Skyward::API`. It refuses to boot with a `Skyward::BootError` on the first problem it finds, and the message starts with the route's label, such as `TodosAPI#show (GET /todos/:id)`, then says what's wrong and how to fix it. It refuses a `summary:` with a line break; a route that an earlier one with the same verb, in any mount, matches every path of, as `/todos/:id` does `/todos/new`; a method that isn't public, or that takes positional arguments or `**rest`; a class or method with no signature; a signature whose keywords differ from the method's, in name or in being required, which means it's stale; a path parameter with no keyword of its name; a type that can't be read; and a path or query keyword typed as a record, a class, or an array in a path or inside an array. Each endpoint keeps its keywords, with each one's name, its source (the path for a path parameter, the body for `body:`, and otherwise the query string), whether it's required and its type, and keeps the members of its return type. So for now every routed method needs a signature: untyped endpoints and `strict:`, `request:` and provided keywords, source excerpts and "Did you mean" are still to come.
+- **Request IDs.** The app `Skyward.app` returns gives every request an ID: an incoming `X-Request-Id` of 1 to 200 visible ASCII characters with no spaces, or else a random UUID from `SecureRandom`. The ID is stored in the Rack env as `skyward.request_id` before anything else runs, and every response carries it as `x-request-id`, replacing one the app set.
+- **HTTP's own answers.** A path that matches routes only under other methods gets a 405 problem+json with an `allow` header listing the methods of every route matching it, in the order `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS`, with `HEAD` wherever there's `GET` and always `OPTIONS`. `HEAD` runs the GET route and answers its status and headers with an empty body. `OPTIONS` on a routed path answers 204 with `allow`, and on any other path 404. CORS is still to come.
 - **`skyward serve`.** Skyward API registers it with the `skyward` command. It runs the current directory's `config.ru`, needing no `app.rb`, under one Falcon process bound to `localhost`, on `PORT` (9292 by default), with `RACK_ENV=development` unless it's already set. It writes no files. With no `config.ru`, or no Falcon in the bundle `skyward` runs in, it exits 1 saying what to do. Under `bundle exec` that's the app's bundle; run bare, `skyward` sees every installed gem. Reloading on file changes, and the other commands, are still to come.
 - **The test client.** `Skyward::Test.client(app)` drives any object with `call(env)` in-process, with no server, and never loads Minitest or RSpec. Its `get`, `post`, `put`, `patch`, `delete`, `head` and `options` each take a path, which may include a query string. `json:` sends a JSON body with `content-type: application/json`, and without it no body is sent. `headers:` sends request headers by their HTTP names, and `cookies:` sends a Hash as a `cookie` header. Each returns a frozen response with `status`, `headers` as the app returned them, `body` as text, and `json`, the body parsed with Symbol keys when the content type is JSON or `+json` and the body isn't empty, and `nil` otherwise. The client reads the whole body and closes it when it responds to `close`.
-- **Static files.** `static` serves a directory's files under a URL prefix, for GET and HEAD. Its `from:` is resolved against the current directory at boot, and a directory that doesn't exist raises `Skyward::BootError`. Routes take precedence over files, and several `static` calls are tried in order until one has the file. The prefix itself, or any path ending in `/`, serves that directory's `index.html`. A missing file, a directory without a trailing slash, or a path with a `..` segment, escaped or not, falls through to the 404. A file carries a `content-type` from its extension (`application/octet-stream` when unknown), its `content-length`, `last-modified`, an `etag` built from its modification time in nanoseconds and its size, and `cache-control: no-cache`. A matching `If-None-Match`, or an `If-Modified-Since` no earlier than the modification time, answers 304 with no body.
+- **Middleware.** `use` adds Rack middleware, with the same arguments as `Rack::Builder#use`, so CORS comes from rack-cors. Middleware wraps the routes in declaration order, the first `use` outermost, wherever it sits relative to `mount`. Request IDs and request logs sit outside it, so a response from middleware still carries an ID and is logged. The stack is built once, at boot, and the app stays frozen, though the middleware objects themselves aren't frozen. Error handling sits outside it too, so an exception from middleware is still answered with a 500.
+- **Request logs.** Unless `Skyward.app` is given `logger: nil`, every request logs one JSON object on one line, whatever answered it, including a 404 or a 500: `time` (when the request arrived, ISO 8601 in UTC to the millisecond), `method`, `path` (Rack's `SCRIPT_NAME` and `PATH_INFO`, so never the query string), `status`, `duration_ms` (until the app returns its response, to two decimal places) and `request_id`. It writes to `$stdout`, or calls `info` on the `logger:` it's given.
+- **Errors.** A `StandardError` raised inside the app, from an endpoint, serializing its return value, or middleware, is caught just inside the request log, so the request still logs with status 500 and the ID. Other exceptions, like `Interrupt`, aren't caught. The response is a 500 `application/problem+json` with `type`, `title`, `status` and `request_id`, and an empty body for `HEAD`. The exception is logged first, as one JSON line through the `logger:` with `level` (`"error"`), `request_id`, `class`, `message` and `backtrace`, unless `logger: nil`. Then it's handed to `Skyward.app(on_error:)`, anything with `call(exception, env)`; if that raises, its exception is logged the same way and the client still gets the original 500. In development, when `RACK_ENV`, or else `APP_ENV`, is `development`, the body adds `detail` (the exception's class and message) and `backtrace` (an array of lines). Errors while reloading are still to come.
+- **Static files.** `static` serves a directory's files under a URL prefix, for GET and HEAD, inside the middleware. Its `from:` is resolved against the current directory at boot, and a directory that doesn't exist raises `Skyward::BootError`. A matching route takes precedence over a file, and several `static` calls are tried in order until one has the file. A path routed only under other methods still serves its file to GET and HEAD, and answers the rest with the 405. The prefix itself, or any path ending in `/`, serves that directory's `index.html`. A missing file, a directory without a trailing slash, or a path with a `..` segment, escaped or not, is answered as if there were no `static`: a 404, or a 405 on a path routed under other methods. A file carries a `content-type` from its extension (`application/octet-stream` when unknown), its `content-length`, `last-modified`, an `etag` built from its modification time in nanoseconds and its size, and `cache-control: no-cache`, and `HEAD` answers them with no body. A matching `If-None-Match`, or an `If-Modified-Since` no earlier than the modification time, answers 304 with no body.

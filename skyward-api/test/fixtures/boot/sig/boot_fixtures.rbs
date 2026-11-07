@@ -1,0 +1,128 @@
+module BootFixtures
+  class Todo
+    attr_reader id: Integer
+    attr_reader title: String
+  end
+
+  class Holder
+    attr_reader tags: Hash[Symbol, untyped]
+  end
+
+  class Node
+    attr_reader next: Node?
+  end
+
+  class Hello < Skyward::API
+    def greet: (name: String) -> { message: String }
+  end
+
+  class Failing < Skyward::API
+    def fail: () -> untyped
+  end
+
+  class Todos < Skyward::API
+    def index: (?done: bool?, ?tags: Array[:low | :high]) -> Array[Todo]
+    def show: (id: Integer) -> (Todo | :gone)
+    def create: (body: { title: String }) -> Todo
+    def destroy: (id: Integer) -> (Todo | :gone)?
+  end
+
+  class NewForm < Skyward::API
+    def new_form: () -> { title: String }
+  end
+
+  class StaticFirst < Skyward::API
+    def new_form: () -> { title: String }
+    def show: (id: Integer) -> Todo
+  end
+
+  class RootLast < Skyward::API
+    def show: (id: Integer) -> Todo
+    def index: () -> Array[Todo]
+  end
+
+  class StaticLast < Skyward::API
+    def show: (id: Integer) -> Todo
+    def new_form: () -> { title: String }
+  end
+
+  class SameShape < Skyward::API
+    def show: (id: Integer) -> Todo
+    def find: (todo_id: Integer) -> Todo
+  end
+
+  class Summarised < Skyward::API
+    def index: () -> Array[Todo]
+  end
+
+  class UnsignedMethod < Skyward::API
+  end
+
+  class Positional < Skyward::API
+    def show: (Integer id) -> Todo
+  end
+
+  class KeywordRest < Skyward::API
+    def index: (**String filters) -> Array[Todo]
+  end
+
+  class Renamed < Skyward::API
+    def index: (count: Integer) -> Array[Todo]
+  end
+
+  class MadeOptional < Skyward::API
+    def index: (limit: Integer) -> Array[Todo]
+  end
+
+  class SignedPositionally < Skyward::API
+    def show: (Integer id) -> Todo
+  end
+
+  class SignedUntyped < Skyward::API
+    def show: (?) -> Todo
+  end
+
+  class Unnamed < Skyward::API
+    def show: (todo_id: Integer) -> Todo
+  end
+
+  class TupleQuery < Skyward::API
+    def index: (range: [Integer, Integer]) -> Array[Todo]
+  end
+
+  class HashBody < Skyward::API
+    def create: (body: Holder) -> Todo
+  end
+
+  class ArrayPath < Skyward::API
+    def show: (ids: Array[Integer]) -> Array[Todo]
+  end
+
+  class ClassPath < Skyward::API
+    def show: (todo: Todo) -> Todo
+  end
+
+  class RecordQuery < Skyward::API
+    def index: (filter: { done: bool }) -> Array[Todo]
+  end
+
+  class NullableClassQuery < Skyward::API
+    def index: (?like: Todo?) -> Array[Todo]
+  end
+
+  class UnionQuery < Skyward::API
+    def index: (near: Integer | Todo) -> Array[Todo]
+  end
+
+  class NestedArrayQuery < Skyward::API
+    def index: (grid: Array[Array[Integer]]) -> Array[Todo]
+  end
+
+  class HashReturn < Skyward::API
+    def index: () -> Hash[Symbol, untyped]
+  end
+
+  class SelfReferring < Skyward::API
+    def index: () -> Node
+  end
+end

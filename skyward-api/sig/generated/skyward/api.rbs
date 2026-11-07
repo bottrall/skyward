@@ -1,11 +1,12 @@
 # Generated from lib/skyward/api.rb with RBS::Inline
 
 class Skyward::API
+  type rack_response = [ Integer, Hash[String, untyped], untyped ]
+
   extend Declarations
 end
 
 module Skyward
-  # @rbs &: (API::Builder) -> void
-  # @rbs return: API::RequestId
-  def self.app: () { (API::Builder) -> void } -> API::RequestId
+  # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
+  def self.app: (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
 end

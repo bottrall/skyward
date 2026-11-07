@@ -1,0 +1,13 @@
+# Generated from lib/skyward/api/line_logger.rb with RBS::Inline
+
+class Skyward::API::LineLogger
+  @io: IO
+
+  # @rbs io: IO
+  # @rbs return: void
+  def initialize: (IO io) -> void
+
+  # @rbs message: String
+  # @rbs return: void
+  def info: (String message) -> void
+end
