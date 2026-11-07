@@ -7,8 +7,9 @@ module Skyward::API::Boot
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: Array[Skyward::API::Router::Endpoint]
-  def endpoints: (Array[Skyward::API::Builder::Mount] mounts, reader: Skyward::Types::Reader) -> Array[Skyward::API::Router::Endpoint]
+  def endpoints: (Array[Skyward::API::Builder::Mount] mounts, reader: Skyward::Types::Reader, max_body_size: Integer) -> Array[Skyward::API::Router::Endpoint]
 
   private
 
@@ -16,8 +17,9 @@ module Skyward::API::Boot
   # @rbs route: Skyward::API::Route
   # @rbs built: Array[[String, Skyward::API::Router::Endpoint]]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: [String, Skyward::API::Router::Endpoint]
-  def boot: (Skyward::API::Builder::Mount mount, Skyward::API::Route route, Array[[ String, Skyward::API::Router::Endpoint ]] built, Skyward::Types::Reader reader) -> [ String, Skyward::API::Router::Endpoint ]
+  def boot: (Skyward::API::Builder::Mount mount, Skyward::API::Route route, Array[[ String, Skyward::API::Router::Endpoint ]] built, Skyward::Types::Reader reader, Integer max_body_size) -> [ String, Skyward::API::Router::Endpoint ]
 
   # @rbs route: Skyward::API::Route
   # @rbs return: String?
@@ -49,8 +51,9 @@ module Skyward::API::Boot
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Router::Endpoint | String
-  def endpoint: (Skyward::API api, Skyward::API::Route route, String verb, Array[String | Symbol] pattern, Skyward::Types::Reader reader) -> (Skyward::API::Router::Endpoint | String)
+  def endpoint: (Skyward::API api, Skyward::API::Route route, String verb, Array[String | Symbol] pattern, Skyward::Types::Reader reader, Integer max_body_size) -> (Skyward::API::Router::Endpoint | String)
 
   # @rbs klass: Class
   # @rbs to: Symbol

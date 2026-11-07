@@ -23,8 +23,9 @@ class Skyward::API::App
   def route: (Hash[String, untyped] env) -> response
 
   # @rbs match: Skyward::API::Router::Match
+  # @rbs env: Hash[String, untyped]
   # @rbs return: response
-  def respond: (Skyward::API::Router::Match match) -> response
+  def respond: (Skyward::API::Router::Match match, Hash[String, untyped] env) -> response
 
   # @rbs verb: String
   # @rbs allowed: Array[String]
@@ -34,8 +35,9 @@ class Skyward::API::App
   # @rbs status: Integer
   # @rbs title: String
   # @rbs headers: Hash[String, String]
+  # @rbs **members: untyped
   # @rbs return: response
-  def problem: (Integer status, String title, ?Hash[String, String] headers) -> response
+  def problem: (Integer status, String title, ?Hash[String, String] headers, **untyped members) -> response
 
   # @rbs status: Integer
   # @rbs headers: Hash[String, String]

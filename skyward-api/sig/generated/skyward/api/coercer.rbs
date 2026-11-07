@@ -1,0 +1,156 @@
+# Generated from lib/skyward/api/coercer.rb with RBS::Inline
+
+module Skyward::API::Coercer
+  type result = Ok | Invalid
+
+  type t = ^(untyped raw, String at) -> result
+
+  class Error < Data
+    attr_reader at(): String
+
+    attr_reader message(): String
+
+    def self.new: (String at, String message) -> instance
+                | (at: String, message: String) -> instance
+
+    def self.members: () -> [ :at, :message ]
+
+    def members: () -> [ :at, :message ]
+  end
+
+  class Ok < Data
+    attr_reader value(): untyped
+
+    def self.new: (untyped value) -> instance
+                | (value: untyped) -> instance
+
+    def self.members: () -> [ :value ]
+
+    def members: () -> [ :value ]
+  end
+
+  class Invalid < Data
+    attr_reader errors(): Array[Error]
+
+    def self.new: (Array[Error] errors) -> instance
+                | (errors: Array[Error]) -> instance
+
+    def self.members: () -> [ :errors ]
+
+    def members: () -> [ :errors ]
+  end
+
+  # INTEGER, DATE and TIME match a String's bytes, because a path parameter
+  # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
+  INTEGER: Regexp
+
+  BOOLEANS: Hash[String, bool]
+
+  DATE: Regexp
+
+  TIME: Regexp
+
+  NAMES: Hash[Skyward::Types::scalar, String]
+
+  FORMATS: Hash[Skyward::Types::scalar, String]
+
+  # Path and query values are Strings, so with strings: true a coercer also
+  # parses numbers and booleans, and takes one value as a one-item array.
+  # @rbs type: Skyward::Types::t
+  # @rbs strings: bool
+  # @rbs return: t
+  def compile: (Skyward::Types::t type, strings: bool) -> t
+
+  # @rbs type: Skyward::Types::t
+  # @rbs required: bool
+  # @rbs at: String
+  # @rbs return: result?
+  def absent: (Skyward::Types::t type, bool required, String at) -> result?
+
+  # @rbs results: Hash[Symbol, result]
+  # @rbs return: result
+  def combine: (Hash[Symbol, result] results) -> result
+
+  private
+
+  # @rbs type: Skyward::Types::t
+  # @rbs parse: ^(untyped) -> Ok?
+  # @rbs return: t
+  def scalar: (Skyward::Types::t type, ^(untyped) -> Ok? parse) -> t
+
+  # @rbs name: Skyward::Types::scalar
+  # @rbs strings: bool
+  # @rbs return: ^(untyped) -> Ok?
+  def parser: (Skyward::Types::scalar name, bool strings) -> ^(untyped) -> Ok?
+
+  # @rbs raw: untyped
+  # @rbs strings: bool
+  # @rbs return: Ok?
+  def integer: (untyped raw, bool strings) -> Ok?
+
+  # @rbs raw: untyped
+  # @rbs strings: bool
+  # @rbs return: Ok?
+  def float: (untyped raw, bool strings) -> Ok?
+
+  # @rbs raw: untyped
+  # @rbs strings: bool
+  # @rbs return: Ok?
+  def bool: (untyped raw, bool strings) -> Ok?
+
+  # @rbs raw: untyped
+  # @rbs return: Ok?
+  def date: (untyped raw) -> Ok?
+
+  # @rbs raw: untyped
+  # @rbs return: Ok?
+  def time: (untyped raw) -> Ok?
+
+  # @rbs type: Skyward::Types::Literal
+  # @rbs strings: bool
+  # @rbs return: t
+  def literal: (Skyward::Types::Literal type, bool strings) -> t
+
+  # @rbs type: Skyward::Types::Enum
+  # @rbs return: t
+  def enum: (Skyward::Types::Enum type) -> t
+
+  # @rbs coercer: t
+  # @rbs return: t
+  def nullable: (t coercer) -> t
+
+  # @rbs type: Skyward::Types::ArrayOf
+  # @rbs item: t
+  # @rbs strings: bool
+  # @rbs return: t
+  def array: (Skyward::Types::ArrayOf type, t item, bool strings) -> t
+
+  # @rbs type: Skyward::Types::Record | Skyward::Types::Named
+  # @rbs strings: bool
+  # @rbs &build: (Hash[Symbol, untyped]) -> untyped
+  # @rbs return: t
+  def object: (Skyward::Types::Record | Skyward::Types::Named type, bool strings) { (Hash[Symbol, untyped]) -> untyped } -> t
+
+  # @rbs type: Skyward::Types::Union
+  # @rbs coercers: Array[t]
+  # @rbs return: t
+  def union: (Skyward::Types::Union type, Array[t] coercers) -> t
+
+  # @rbs results: Array[result]
+  # @rbs return: Array[Error]
+  def errors: (Array[result] results) -> Array[Error]
+
+  # @rbs type: Skyward::Types::t
+  # @rbs raw: untyped
+  # @rbs at: String
+  # @rbs return: Invalid
+  def mismatch: (Skyward::Types::t type, untyped raw, String at) -> Invalid
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: String
+  def written: (Skyward::Types::t type) -> String
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: String
+  def nullable_written: (Skyward::Types::t type) -> String
+end

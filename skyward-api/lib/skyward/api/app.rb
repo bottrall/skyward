@@ -34,14 +34,22 @@ class Skyward::API::App
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
     match = @router.match(verb, path)
-    status, headers, body = match ? respond(match) : unmatched(verb, @router.allowed(path))
+    status, headers, body = match ? respond(match, env) : unmatched(verb, @router.allowed(path))
     [status, headers, verb == "HEAD" ? [] : body]
   end
 
   # @rbs match: Skyward::API::Router::Match
+  # @rbs env: Hash[String, untyped]
   # @rbs return: response
-  def respond(match)
-    json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **match.params))
+  def respond(match, env)
+    inputs = match.inputs.call(env, match.params)
+    case inputs
+    when Skyward::API::Coercer::Ok
+      json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **inputs.value))
+    when Skyward::API::Coercer::Invalid then problem(422, "Unprocessable Content", errors: inputs.errors.map(&:to_h))
+    when :content_too_large then problem(413, "Content Too Large")
+    else problem(415, "Unsupported Media Type")
+    end
   end
 
   # @rbs verb: String
@@ -57,9 +65,11 @@ class Skyward::API::App
   # @rbs status: Integer
   # @rbs title: String
   # @rbs headers: Hash[String, String]
+  # @rbs **members: untyped
   # @rbs return: response
-  def problem(status, title, headers = {})
-    json(status, { "content-type" => "application/problem+json", **headers }, { type: "about:blank", title:, status: })
+  def problem(status, title, headers = {}, **members)
+    body = { type: "about:blank", title:, status:, **members }
+    json(status, { "content-type" => "application/problem+json", **headers }, body)
   end
 
   # @rbs status: Integer

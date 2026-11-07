@@ -63,6 +63,41 @@ describe Skyward do
       assert_match(%r{\ABootFixtures::Unsigned#index \(GET /\)\n}, error.message)
     end
 
+    describe "inputs" do
+      def client(**options)
+        app = Skyward.app(signatures:, logger: nil, **options) { |builder| builder.mount BootFixtures::Todos.new }
+        Skyward::Test.client(app)
+      end
+
+      it "coerces them to their types before the method runs" do
+        assert_equal({ id: 42 }, client.get("/42").json)
+      end
+
+      it "answers ones that don't fit with a 422 listing every problem" do
+        expected = {
+          type: "about:blank",
+          title: "Unprocessable Content",
+          status: 422,
+          errors: [{ at: "path.id", message: 'expected Integer, got "x"' }]
+        }
+
+        assert_equal expected, client.get("/x").json
+      end
+
+      it "reads a body of up to 1 MiB by default" do
+        # 12 bytes of JSON around the title.
+        assert_equal 200, client.post("/", json: { title: "a" * (1_048_576 - 12) }).status
+      end
+
+      it "refuses a body over 1 MiB by default" do
+        assert_equal 413, client.post("/", json: { title: "a" * (1_048_576 - 11) }).status
+      end
+
+      it "reads a body of up to max_body_size bytes" do
+        assert_equal 413, client(max_body_size: 10).post("/", json: { title: "Ship it" }).status
+      end
+    end
+
     it "runs the app inside the middleware the block uses, inside the request ID" do
       app = Skyward.app(signatures:, logger: nil) do |builder|
         builder.use Rack::Cors do

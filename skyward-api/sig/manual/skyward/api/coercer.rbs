@@ -1,0 +1,3 @@
+module Skyward::API::Coercer
+  extend ::Skyward::API::Coercer
+end

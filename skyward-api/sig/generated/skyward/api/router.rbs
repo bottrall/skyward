@@ -31,12 +31,14 @@ class Skyward::API::Router
 
     attr_reader returns(): Array[Skyward::Types::t]
 
-    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to, Array[Keyword] keywords, Array[Skyward::Types::t] returns) -> instance
-                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol, keywords: Array[Keyword], returns: Array[Skyward::Types::t]) -> instance
+    attr_reader inputs(): Skyward::API::Inputs
 
-    def self.members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns ]
+    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to, Array[Keyword] keywords, Array[Skyward::Types::t] returns, Skyward::API::Inputs inputs) -> instance
+                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol, keywords: Array[Keyword], returns: Array[Skyward::Types::t], inputs: Skyward::API::Inputs) -> instance
 
-    def members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns ]
+    def self.members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns, :inputs ]
+
+    def members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns, :inputs ]
   end
 
   class Match < Data
@@ -44,14 +46,16 @@ class Skyward::API::Router
 
     attr_reader to(): Symbol
 
+    attr_reader inputs(): Skyward::API::Inputs
+
     attr_reader params(): Hash[Symbol, String]
 
-    def self.new: (Skyward::API api, Symbol to, Hash[Symbol, String] params) -> instance
-                | (api: Skyward::API, to: Symbol, params: Hash[Symbol, String]) -> instance
+    def self.new: (Skyward::API api, Symbol to, Skyward::API::Inputs inputs, Hash[Symbol, String] params) -> instance
+                | (api: Skyward::API, to: Symbol, inputs: Skyward::API::Inputs, params: Hash[Symbol, String]) -> instance
 
-    def self.members: () -> [ :api, :to, :params ]
+    def self.members: () -> [ :api, :to, :inputs, :params ]
 
-    def members: () -> [ :api, :to, :params ]
+    def members: () -> [ :api, :to, :inputs, :params ]
   end
 
   ESCAPE: Regexp

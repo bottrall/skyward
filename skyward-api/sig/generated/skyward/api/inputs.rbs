@@ -1,0 +1,59 @@
+# Generated from lib/skyward/api/inputs.rb with RBS::Inline
+
+class Skyward::API::Inputs
+  type refusal = :content_too_large | :unsupported_media_type
+
+  type body = Skyward::API::Coercer::result | refusal | nil
+
+  JSON_TYPE: Regexp
+
+  MALFORMED_QUERY: Skyward::API::Coercer::Invalid
+
+  INVALID_JSON: Skyward::API::Coercer::Invalid
+
+  @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
+
+  @query: bool
+
+  @body: bool
+
+  @max_body_size: Integer
+
+  # @rbs keywords: Array[Skyward::API::Router::Keyword]
+  # @rbs max_body_size: Integer
+  # @rbs return: void
+  def initialize: (Array[Skyward::API::Router::Keyword] keywords, max_body_size: Integer) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs params: Hash[Symbol, String]
+  # @rbs return: Skyward::API::Coercer::result | refusal
+  def call: (Hash[String, untyped] env, Hash[Symbol, String] params) -> (Skyward::API::Coercer::result | refusal)
+
+  private
+
+  # @rbs params: Hash[Symbol, String]
+  # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
+  # @rbs body: Skyward::API::Coercer::result?
+  # @rbs return: Skyward::API::Coercer::result
+  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body) -> Skyward::API::Coercer::result
+
+  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs coercer: Skyward::API::Coercer::t
+  # @rbs params: Hash[Symbol, String]
+  # @rbs query: Hash[String, String | Array[String]]
+  # @rbs body: Skyward::API::Coercer::result?
+  # @rbs return: [Symbol, Skyward::API::Coercer::result]?
+  def argument: (Skyward::API::Router::Keyword keyword, Skyward::API::Coercer::t coercer, Hash[Symbol, String] params, Hash[String, String | Array[String]] query, Skyward::API::Coercer::result? body) -> [ Symbol, Skyward::API::Coercer::result ]?
+
+  # @rbs string: String
+  # @rbs return: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
+  def query: (String string) -> (Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid)
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: body
+  def body: (Hash[String, untyped] env) -> body
+
+  # @rbs text: String
+  # @rbs return: Skyward::API::Coercer::result
+  def parse: (String text) -> Skyward::API::Coercer::result
+end

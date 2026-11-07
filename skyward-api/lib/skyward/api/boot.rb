@@ -9,11 +9,14 @@ module Skyward::API::Boot
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: Array[Skyward::API::Router::Endpoint]
-  def endpoints(mounts, reader:)
+  def endpoints(mounts, reader:, max_body_size:)
     none = [] #: Array[[String, Skyward::API::Router::Endpoint]]
     booted = mounts.reduce(none) do |built, mount|
-      mount.api.class.routes.reduce(built) { |so_far, route| [*so_far, boot(mount, route, so_far, reader)] }
+      mount.api.class.routes.reduce(built) do |so_far, route|
+        [*so_far, boot(mount, route, so_far, reader, max_body_size)]
+      end
     end
     booted.map(&:last)
   end
@@ -24,13 +27,15 @@ module Skyward::API::Boot
   # @rbs route: Skyward::API::Route
   # @rbs built: Array[[String, Skyward::API::Router::Endpoint]]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: [String, Skyward::API::Router::Endpoint]
-  def boot(mount, route, built, reader)
+  def boot(mount, route, built, reader, max_body_size)
     path = full_path(mount.at, route.path)
     verb = route.verb.upcase.name
     pattern = pattern(path)
     label = "#{mount.api.class}##{route.to} (#{verb} #{path})"
-    result = summary(route) || shadowing(verb, pattern, built) || endpoint(mount.api, route, verb, pattern, reader)
+    result = summary(route) || shadowing(verb, pattern, built) ||
+             endpoint(mount.api, route, verb, pattern, reader, max_body_size)
     case result
     when String then raise Skyward::BootError, "#{label}\n  #{result}"
     else [label, result]
@@ -90,8 +95,9 @@ module Skyward::API::Boot
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
   # @rbs reader: Skyward::Types::Reader
+  # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Router::Endpoint | String
-  def endpoint(api, route, verb, pattern, reader)
+  def endpoint(api, route, verb, pattern, reader, max_body_size)
     method_type = method_type(api.class, route.to, reader)
     return method_type if method_type.is_a?(String)
 
@@ -113,7 +119,8 @@ module Skyward::API::Boot
     returns = returns(reader.read(method_type.type.return_type))
     return returns if returns.is_a?(String)
 
-    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to: route.to, keywords:, returns:)
+    inputs = Skyward::API::Inputs.new(keywords, max_body_size:)
+    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to: route.to, keywords:, returns:, inputs:)
   # The reader raises for a type it can't read at all, such as one that refers
   # to itself, and that's this route's problem too.
   rescue Skyward::BootError => e
