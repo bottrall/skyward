@@ -4,14 +4,12 @@ class Skyward::API::RequestId
   # Visible ASCII only, so a client can't put a space or a line break in the logs.
   VALID: Regexp
 
-  @app: Skyward::API::App
+  @app: Skyward::API::_RackApp
 
   @generate: ^() -> String
 
-  # @rbs app: Skyward::API::App
-  # @rbs generate: ^() -> String
-  # @rbs return: void
-  def initialize: (Skyward::API::App app, generate: ^() -> String) -> void
+  # @rbs (Skyward::API::_RackApp app, generate: ^() -> String) -> void
+  def initialize: (Skyward::API::_RackApp app, generate: ^() -> String) -> void
 
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::API::rack_response

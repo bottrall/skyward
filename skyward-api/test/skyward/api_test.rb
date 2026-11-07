@@ -27,6 +27,7 @@ describe Skyward do
         def greet(name:) = { message: "Hello, #{name}" }
       end.new
     end
+    let(:not_found) { { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/" } }
 
     it "requires a block" do
       error = assert_raises(ArgumentError) { Skyward.app }
@@ -35,7 +36,7 @@ describe Skyward do
     end
 
     it "returns an app that serves what the block mounts" do
-      app = Skyward.app { |builder| builder.mount hello, at: "/hello" }
+      app = Skyward.app(logger: nil) { |builder| builder.mount hello, at: "/hello" }
       statuses = ["/hello/ruby", "/ruby"].map do |path|
         app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => path }).first
       end
@@ -45,13 +46,13 @@ describe Skyward do
 
     it "freezes the builder once the block returns" do
       kept = nil
-      Skyward.app { |builder| kept = builder }
+      Skyward.app(logger: nil) { |builder| kept = builder }
 
       assert_predicate kept, :frozen?
     end
 
     it "runs the app inside the middleware the block uses, inside the request ID" do
-      app = Skyward.app do |builder|
+      app = Skyward.app(logger: nil) do |builder|
         builder.use Rack::Cors do
           allow do
             origins "https://example.com"
@@ -67,8 +68,55 @@ describe Skyward do
       assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, response.headers["x-request-id"])
     end
 
+    it "logs each request to standard output by default, as a JSON line with its request ID" do
+      responses = nil
+      out, = capture_io do
+        app = Skyward.app { |builder| builder.mount hello, at: "/hello" }
+        responses = ["/hello/ruby", "/ruby"].map { |path| app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => path }) }
+      end
+      lines = out.lines.map { |line| JSON.parse(line, symbolize_names: true) }
+      ids = responses.map { |(_status, headers)| headers["x-request-id"] }
+      expected = [[200, "/hello/ruby", ids[0]], [404, "/ruby", ids[1]]]
+
+      assert_equal(expected, lines.map { |line| line.values_at(:status, :path, :request_id) })
+      assert_match(/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\z/, lines.first[:time])
+      assert_kind_of Float, lines.first[:duration_ms]
+    end
+
+    it "logs to the logger it's given instead" do
+      logger = Struct.new(:lines) { def info(message) = lines << message }.new([])
+      out, = capture_io { Skyward.app(logger:) { |builder| builder.mount hello }.call(not_found) }
+
+      assert_empty out
+      assert_equal([404], logger.lines.map { |line| JSON.parse(line).fetch("status") })
+    end
+
+    it "logs nothing given a nil logger" do
+      out, = capture_io { Skyward.app(logger: nil) { |builder| builder.mount hello }.call(not_found) }
+
+      assert_empty out
+    end
+
+    it "logs a request the middleware answers" do
+      logger = Struct.new(:lines) { def info(message) = lines << message }.new([])
+      app = Skyward.app(logger:) do |builder|
+        builder.use Rack::Cors do
+          allow do
+            origins "https://example.com"
+            resource "*", methods: %i[get]
+          end
+        end
+        builder.mount hello, at: "/hello"
+      end
+      headers = { "Origin" => "https://example.com", "Access-Control-Request-Method" => "GET" }
+      Skyward::Test.client(app).options("/hello/ruby", headers:)
+      line = JSON.parse(logger.lines.first, symbolize_names: true)
+
+      assert_equal({ method: "OPTIONS", path: "/hello/ruby", status: 200 }, line.slice(:method, :path, :status))
+    end
+
     it "answers even a 404 with a random UUID request ID" do
-      app = Skyward.app { |builder| builder.mount hello, at: "/hello" }
+      app = Skyward.app(logger: nil) { |builder| builder.mount hello, at: "/hello" }
       status, headers, _body = app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/ruby" })
 
       assert_equal 404, status

@@ -10,7 +10,7 @@ describe Skyward::Test do
 
         def greet(name:) = { message: "Hello, #{name}" }
       end.new
-      client = Skyward::Test.client(Skyward.app { |app| app.mount hello, at: "/hello" })
+      client = Skyward::Test.client(Skyward.app(logger: nil) { |app| app.mount hello, at: "/hello" })
 
       assert_equal({ message: "Hello, ruby" }, client.get("/hello/ruby").json)
     end

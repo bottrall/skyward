@@ -6,4 +6,8 @@ class Skyward::API
   interface _Middleware
     def new: (_RackApp app, *untyped, **untyped) ?{ (?) -> untyped } -> _RackApp
   end
+
+  interface _Logger
+    def info: (String message) -> void
+  end
 end

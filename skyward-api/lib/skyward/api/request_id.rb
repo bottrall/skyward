@@ -4,12 +4,10 @@ class Skyward::API::RequestId
   # Visible ASCII only, so a client can't put a space or a line break in the logs.
   VALID = /\A[!-~]{1,200}\z/ #: Regexp
 
-  # @rbs @app: Skyward::API::App
+  # @rbs @app: Skyward::API::_RackApp
   # @rbs @generate: ^() -> String
 
-  # @rbs app: Skyward::API::App
-  # @rbs generate: ^() -> String
-  # @rbs return: void
+  # @rbs (Skyward::API::_RackApp app, generate: ^() -> String) -> void
   def initialize(app, generate:)
     @app = app
     @generate = generate
