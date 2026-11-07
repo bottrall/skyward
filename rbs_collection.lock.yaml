@@ -5,6 +5,18 @@ gems:
   version: '0'
   source:
     type: stdlib
+- name: json
+  version: '0'
+  source:
+    type: stdlib
+- name: logger
+  version: '1.7'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f7a1647651e333fcb55b7f8a7a4ddec9bcb756c2
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
 - name: minitest
   version: '5.25'
   source:
@@ -13,6 +25,14 @@ gems:
     revision: f7a1647651e333fcb55b7f8a7a4ddec9bcb756c2
     remote: https://github.com/ruby/gem_rbs_collection.git
     repo_dir: gems
+- name: monitor
+  version: '0'
+  source:
+    type: stdlib
+- name: optparse
+  version: '0'
+  source:
+    type: stdlib
 - name: pathname
   version: '0'
   source:
@@ -29,6 +49,18 @@ gems:
     revision: f7a1647651e333fcb55b7f8a7a4ddec9bcb756c2
     remote: https://github.com/ruby/gem_rbs_collection.git
     repo_dir: gems
+- name: rbs
+  version: 4.2.0
+  source:
+    type: rubygems
+- name: rdoc
+  version: '0'
+  source:
+    type: stdlib
+- name: tsort
+  version: '0'
+  source:
+    type: stdlib
 - name: zeitwerk
   version: '2.8'
   source:

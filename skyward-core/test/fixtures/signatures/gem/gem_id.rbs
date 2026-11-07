@@ -1,0 +1,1 @@
+type gem_id = Integer

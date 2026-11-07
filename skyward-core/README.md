@@ -34,3 +34,5 @@ Skyward supports every Ruby that isn't end-of-life (3.3 and later, as of Novembe
 This README is the spec. Skyward 0.1 is a skeleton: the gem installs, opens the `Skyward` namespace and sets up its loader. This section lists each part as it lands.
 
 - **The `skyward` command.** The executable loads each installed gem's `commands.rb`, `Skyward::Commands.register` adds a command, and `skyward` lists them and runs one, as [Adding commands](#adding-commands) describes. No gem registers a command yet.
+- **Loading RBS signatures.** `Skyward::Signatures.load(directory)` returns an `RBS::DefinitionBuilder` over every `.rbs` file under `directory`, the `sig/` of each Skyward gem that has registered it with `Skyward::Signatures.register(path)`, and the `date` and `time` libraries. Skyward Core registers its own. A directory that doesn't exist contributes nothing. A file that doesn't parse, a name declared twice, or a class whose declarations disagree on its type parameters raises `Skyward::BootError` naming the file and line.
+- **`Skyward::BootError`**, for any Skyward gem to raise when an app can't boot.

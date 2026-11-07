@@ -1,0 +1,4 @@
+class Todo
+  attr_reader due_on: Date
+  attr_reader created_at: Time
+end

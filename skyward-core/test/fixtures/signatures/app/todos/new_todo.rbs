@@ -1,0 +1,3 @@
+class NewTodo
+  attr_reader title: String
+end

@@ -1,0 +1,16 @@
+# Generated from lib/skyward/signatures/loader.rb with RBS::Inline
+
+class Skyward::Signatures::Loader
+  @gems: Array[String]
+
+  # @rbs return: void
+  def initialize: () -> void
+
+  # @rbs path: String
+  # @rbs return: void
+  def register: (String path) -> void
+
+  # @rbs directory: String
+  # @rbs return: RBS::DefinitionBuilder
+  def load: (String directory) -> RBS::DefinitionBuilder
+end

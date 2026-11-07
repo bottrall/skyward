@@ -1,0 +1,4 @@
+# Generated from lib/skyward/boot_error.rb with RBS::Inline
+
+class Skyward::BootError < StandardError
+end

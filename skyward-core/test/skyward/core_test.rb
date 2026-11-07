@@ -9,4 +9,10 @@ describe Skyward::Core do
 
     assert_includes Zeitwerk::Loader.all_dirs, File.expand_path("../../lib/skyward", __dir__)
   end
+
+  it "registers its own signatures" do
+    builder = Skyward::Signatures.load(File.expand_path("missing", __dir__))
+
+    assert builder.env.class_decl?(RBS::TypeName.parse("::Skyward::BootError"))
+  end
 end

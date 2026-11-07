@@ -1,0 +1,15 @@
+# Generated from lib/skyward/signatures.rb with RBS::Inline
+
+module Skyward::Signatures
+  # One for the process, so the sig/ each Skyward gem registers when required
+  # is in every load the app boots from.
+  LOADER: Loader
+
+  # @rbs path: String
+  # @rbs return: void
+  def register: (String path) -> void
+
+  # @rbs directory: String
+  # @rbs return: RBS::DefinitionBuilder
+  def load: (String directory) -> RBS::DefinitionBuilder
+end

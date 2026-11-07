@@ -9,3 +9,6 @@ loader = Zeitwerk::Loader.for_gem_extension(Skyward)
 # The skyward executable loads it, and it defines no constant.
 loader.ignore("#{__dir__}/core/commands.rb")
 loader.setup
+
+dir = __dir__ #: String
+Skyward::Signatures.register(File.expand_path("../../sig", dir))

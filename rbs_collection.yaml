@@ -20,4 +20,5 @@ gems:
   - name: skyward-orm
     ignore: true
   # Ignoring the Skyward gems also drops their dependencies, so name those here.
+  - name: rbs
   - name: zeitwerk
