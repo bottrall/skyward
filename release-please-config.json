@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "ruby",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "package-name": "skyward",
+      "component": "skyward",
+      "version-file": "skyward/lib/skyward/version.rb",
+      "extra-files": [
+        "skyward-core/lib/skyward/core/version.rb",
+        "skyward-api/lib/skyward/api/version.rb",
+        "skyward-orm/lib/skyward/orm/version.rb"
+      ]
+    }
+  }
+}

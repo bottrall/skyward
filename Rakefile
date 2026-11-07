@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
 require "bundler"
-require "date"
 require "fileutils"
 require "rake/testtask"
 require "rubocop/rake_task"
 require "tmpdir"
-require_relative "tooling/lib/changelog"
 require_relative "tooling/lib/release"
 
 # In dependency order, which is the order they're built, installed and
@@ -161,36 +159,17 @@ namespace :package do
   end
 end
 
+desc "Update every lockfile (the dev bundle's and each gem's) after a version change"
+task :lock do
+  Bundler.with_unbundled_env { [".", *GEMS].each { |dir| sh "bundle", "lock", chdir: dir } }
+end
+
 namespace :release do
-  desc "Set every gem to VERSION, add its changelog section and update the lockfiles"
-  task :prepare, [:version] do |_task, args|
-    version = args[:version].to_s
-    abort "Usage: bin/release VERSION, where VERSION looks like 1.2.3 or 1.2.3.rc1" unless Release.valid?(version)
-
-    Release::VERSION_FILES.each { |file| File.write(file, Release.bump(File.read(file), version)) }
-
-    last_tag = `git describe --tags --abbrev=0 2>/dev/null`.strip
-    subjects = `git log --format=%s #{last_tag.empty? ? "HEAD" : "#{last_tag}..HEAD"}`.lines(chomp: true)
-    section = Changelog.section(version, Date.today, subjects)
-    File.write("CHANGELOG.md", Changelog.prepend(File.read("CHANGELOG.md"), section))
-
-    Bundler.with_unbundled_env { [".", *GEMS].each { |dir| sh "bundle", "lock", chdir: dir } }
-
-    puts <<~NEXT
-
-      Every gem is at #{version}. Review CHANGELOG.md, then open a PR titled
-      `chore: release #{version}`. Once it's merged, tag the merge commit and push
-      the tag, which publishes the gems:
-
-        git tag v#{version} <merge commit> && git push origin v#{version}
-    NEXT
-  end
-
-  desc "Fail unless every gem's version matches the tag being released (vX.Y.Z)"
+  desc "Fail unless every gem's version matches TAG (vX.Y.Z), the release being published"
   task :verify, [:tag] do |_task, args|
-    tag = args[:tag] || ENV.fetch("GITHUB_REF_NAME")
+    tag = args[:tag] || abort("Usage: rake release:verify[vX.Y.Z]")
     shared = Release.shared(Release::VERSION_FILES.map { |file| File.read(file) })
-    abort "The gems' versions disagree; run bin/release" unless shared
+    abort "The gems' versions disagree: #{Release::VERSION_FILES.join(", ")}" unless shared
     abort "#{tag} doesn't match the gems' version, #{shared}" unless tag == "v#{shared}"
   end
 end

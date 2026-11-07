@@ -1,7 +1,7 @@
 name: pr-title
 
-# PR titles become the squash commits on main, which bin/release turns into
-# the changelog, so each must be a Conventional Commit.
+# PR titles become the squash commits on main, which release-please turns
+# into the version bump and changelog, so each must be a Conventional Commit.
 on:
   pull_request:
     types:

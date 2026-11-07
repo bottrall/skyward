@@ -31,4 +31,4 @@ PR titles are [Conventional Commits](https://www.conventionalcommits.org/) with 
 
 ## Releasing
 
-The gems release together, at one version. `bin/release 0.2.0` sets every gem's version, adds the changelog section and updates the lockfiles. Merge that as `chore: release 0.2.0`, then tag the merge commit `v0.2.0` and push the tag. `release.yml` checks the versions, builds and installs the gems, and publishes them with RubyGems trusted publishing.
+The gems release together, at one version, through [release-please](https://github.com/googleapis/release-please). Every push to `main` updates its release PR, which bumps every gem's version, adds the changelog section and updates the lockfiles. Merging that PR tags the release, and `release.yml` then checks the versions, builds and installs the gems, and publishes them with RubyGems trusted publishing. There's nothing to run by hand.

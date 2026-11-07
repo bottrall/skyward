@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Usage: bin/release VERSION
-set -e
-exec bundle exec rake "release:prepare[${1:-}]"

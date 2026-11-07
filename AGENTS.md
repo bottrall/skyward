@@ -6,7 +6,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 
 - Run every chore through its `bin/` script (`bin/setup`, `bin/test`, `bin/lint`, `bin/typecheck`, `bin/rbs`, `bin/ci`), never rake directly. Run `bin/ci` before pushing.
 - Never hand-edit generated files: `*/sig/generated` (`bin/rbs`). `bin/typecheck` fails when they're stale.
-- PR titles are Conventional Commits with a scope naming the gem (`feat(api): ...`, `fix(orm): ...`, `core`, `skyward`), and become the squash commit on `main`. `bin/release` builds the changelog from them.
+- PR titles are Conventional Commits with a scope naming the gem (`feat(api): ...`, `fix(orm): ...`, `core`, `skyward`), and become the squash commit on `main`. release-please builds the changelog from them.
 - Build each gem only as far as its README specifies. The gems never require a Skyward gem they don't depend on: `skyward-api` and `skyward-orm` depend on `skyward-core` only, and never on each other.
 - Work headless: never open a browser window or GUI app. Start a server on a non-default port, and stop it when you're done.
 
@@ -41,7 +41,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 ## Releasing
 
 - The gems release in lockstep: one version, and each pins the others exactly.
-- `bin/release VERSION` sets every gem's version, adds the changelog section and updates the lockfiles. Merge that as `chore: release VERSION`, then push a `vVERSION` tag; `release.yml` publishes the gems with RubyGems trusted publishing.
+- release-please keeps a release PR open that bumps every gem's version, adds the changelog section and updates the lockfiles. Merging it tags the release, and `release.yml` publishes the gems with RubyGems trusted publishing. Never bump a version by hand.
 
 ## Comments
 
