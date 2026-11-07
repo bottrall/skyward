@@ -1,0 +1,105 @@
+# Generated from lib/skyward/types/reader.rb with RBS::Inline
+
+class Skyward::Types::Reader
+  @builder: RBS::DefinitionBuilder
+
+  SCALARS: Hash[String, Skyward::Types::scalar]
+
+  NIL_LITERAL: Skyward::Types::Literal
+
+  # @rbs builder: RBS::DefinitionBuilder
+  # @rbs return: void
+  def initialize: (RBS::DefinitionBuilder builder) -> void
+
+  # @rbs type: RBS::Types::t
+  # @rbs return: Skyward::Types::result
+  def read: (RBS::Types::t type) -> Skyward::Types::result
+
+  # @rbs klass: Module
+  # @rbs return: RBS::TypeName?
+  def type_name: (Module klass) -> RBS::TypeName?
+
+  # @rbs type_name: RBS::TypeName
+  # @rbs method_name: Symbol
+  # @rbs return: RBS::MethodType?
+  def method_type: (RBS::TypeName type_name, Symbol method_name) -> RBS::MethodType?
+
+  private
+
+  # @rbs type: RBS::Types::t
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def read_within: (RBS::Types::t type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs value: RBS::Types::Literal::literal
+  # @rbs return: Skyward::Types::t
+  def literal: (RBS::Types::Literal::literal value) -> Skyward::Types::t
+
+  # @rbs types: Array[Skyward::Types::t]
+  # @rbs return: Skyward::Types::t
+  def union: (Array[Skyward::Types::t] types) -> Skyward::Types::t
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: Array[Skyward::Types::t]
+  def flatten: (Skyward::Types::t type) -> Array[Skyward::Types::t]
+
+  # @rbs type: RBS::Types::Alias
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def alias_type: (RBS::Types::Alias type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs type: RBS::Types::Record
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def record: (RBS::Types::Record type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def instance: (RBS::Types::ClassInstance type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def named: (RBS::Types::ClassInstance type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs type_name: RBS::TypeName
+  # @rbs return: Array[RBS::AST::Members::AttrReader]
+  def public_readers: (RBS::TypeName type_name) -> Array[RBS::AST::Members::AttrReader]
+
+  # @rbs decl: RBS::AST::Declarations::Class
+  # @rbs return: Array[RBS::AST::Members::AttrReader]
+  def declared_public_readers: (RBS::AST::Declarations::Class decl) -> Array[RBS::AST::Members::AttrReader]
+
+  # @rbs name: String
+  # @rbs return: Class
+  def ruby_class: (String name) -> Class
+
+  # @rbs name: String
+  # @rbs path: Array[String]
+  # @rbs return: Array[String]
+  def enter: (String name, Array[String] path) -> Array[String]
+
+  # @rbs keys: Array[[Symbol, bool]]
+  # @rbs types: Array[Skyward::Types::t]
+  # @rbs return: Array[Skyward::Types::Field]
+  def fields: (Array[[ Symbol, bool ]] keys, Array[Skyward::Types::t] types) -> Array[Skyward::Types::Field]
+
+  # @rbs result: Skyward::Types::result
+  # @rbs at: String
+  # @rbs return: Skyward::Types::result
+  def locate: (Skyward::Types::result result, String at) -> Skyward::Types::result
+
+  # @rbs results: Array[Skyward::Types::result]
+  # @rbs &: (Array[Skyward::Types::t]) -> Skyward::Types::result
+  # @rbs return: Skyward::Types::result
+  def all_readable: (Array[Skyward::Types::result] results) { (Array[Skyward::Types::t]) -> Skyward::Types::result } -> Skyward::Types::result
+
+  # @rbs type: RBS::Types::t
+  # @rbs instead: String
+  # @rbs return: Skyward::Types::Unreadable
+  def unreadable: (RBS::Types::t type, ?String instead) -> Skyward::Types::Unreadable
+
+  # @rbs (_ToS name) -> String
+  def written: (_ToS name) -> String
+end

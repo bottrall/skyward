@@ -1,0 +1,24 @@
+module ReaderFixtures
+  type priority = :low | :normal | :high
+  type number = Integer | Float
+  type list[T] = Array[T]
+  type tree = { children: Array[tree] }
+
+  class Todo
+    attr_reader id: Integer
+    attr_reader self.count: Integer
+    def done?: () -> bool
+    attr_reader title: String
+    private attr_reader token: String
+
+    private
+
+    attr_reader secret: String
+
+    public
+
+    attr_reader priority: priority
+
+    private
+  end
+end

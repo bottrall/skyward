@@ -1,0 +1,3 @@
+class ReaderFixtures::Todo
+  attr_reader due_on: Date?
+end

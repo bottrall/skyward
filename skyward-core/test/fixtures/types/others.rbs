@@ -1,0 +1,59 @@
+module ReaderFixtures
+  interface _Named
+    def name: () -> String
+  end
+
+  class Plain
+    def call: () -> void
+  end
+
+  class Hidden
+    private
+
+    attr_reader id: Integer
+  end
+
+  module Mixin
+    attr_reader id: Integer
+  end
+
+  class Orphan
+    attr_reader id: Integer
+  end
+
+  class NotAClass
+    attr_reader id: Integer
+  end
+
+  class Holder
+    attr_reader tags: Hash[Symbol, untyped]
+  end
+
+  class Outer
+    attr_reader holder: Holder
+  end
+
+  class Pair
+    attr_reader first: Todo
+    attr_reader second: Todo
+  end
+
+  class Node
+    attr_reader next: Node?
+  end
+
+  class Parent
+    attr_reader child: Child
+  end
+
+  class Child
+    attr_reader parent: Parent
+  end
+
+  class API
+    def show: (id: Integer) -> Todo
+  end
+
+  class Mismatched < String
+  end
+end
