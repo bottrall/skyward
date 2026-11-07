@@ -17,8 +17,11 @@ class Skyward::API::App
   # @rbs env: Hash[String, untyped]
   # @rbs return: response
   def call(env)
-    match = @router.match(env["REQUEST_METHOD"], env["PATH_INFO"])
-    match ? respond(match) : problem(404, "Not Found")
+    verb = env["REQUEST_METHOD"]
+    path = env["PATH_INFO"]
+    match = @router.match(verb, path)
+    status, headers, body = match ? respond(match) : unmatched(verb, @router.allowed(path))
+    [status, headers, verb == "HEAD" ? [] : body]
   end
 
   private
@@ -26,21 +29,32 @@ class Skyward::API::App
   # @rbs match: Skyward::API::Router::Match
   # @rbs return: response
   def respond(match)
-    json(200, "application/json", match.api.public_send(match.to, **match.params))
+    json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **match.params))
   rescue StandardError
     problem(500, "Internal Server Error")
   end
 
-  # @rbs status: Integer
-  # @rbs title: String
+  # @rbs verb: String
+  # @rbs allowed: Array[String]
   # @rbs return: response
-  def problem(status, title)
-    json(status, "application/problem+json", { type: "about:blank", title:, status: })
+  def unmatched(verb, allowed)
+    return problem(404, "Not Found") if allowed.empty?
+
+    allow = { "allow" => allowed.join(", ") }
+    verb == "OPTIONS" ? [204, allow, []] : problem(405, "Method Not Allowed", allow)
   end
 
   # @rbs status: Integer
-  # @rbs content_type: String
+  # @rbs title: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: response
+  def problem(status, title, headers = {})
+    json(status, { "content-type" => "application/problem+json", **headers }, { type: "about:blank", title:, status: })
+  end
+
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
   # @rbs value: untyped
   # @rbs return: response
-  def json(status, content_type, value) = [status, { "content-type" => content_type }, [JSON.generate(value)]]
+  def json(status, headers, value) = [status, headers, [JSON.generate(value)]]
 end

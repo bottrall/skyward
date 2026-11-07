@@ -35,6 +35,8 @@ class Skyward::API::Router
 
   ESCAPE: Regexp
 
+  METHODS: Array[String]
+
   @endpoints: Array[Endpoint]
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
@@ -45,6 +47,10 @@ class Skyward::API::Router
   # @rbs path: String
   # @rbs return: Match?
   def match: (String verb, String path) -> Match?
+
+  # @rbs path: String
+  # @rbs return: Array[String]
+  def allowed: (String path) -> Array[String]
 
   private
 

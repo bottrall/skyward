@@ -19,14 +19,20 @@ class Skyward::API::App
   # @rbs return: response
   def respond: (Skyward::API::Router::Match match) -> response
 
-  # @rbs status: Integer
-  # @rbs title: String
+  # @rbs verb: String
+  # @rbs allowed: Array[String]
   # @rbs return: response
-  def problem: (Integer status, String title) -> response
+  def unmatched: (String verb, Array[String] allowed) -> response
 
   # @rbs status: Integer
-  # @rbs content_type: String
+  # @rbs title: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: response
+  def problem: (Integer status, String title, ?Hash[String, String] headers) -> response
+
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
   # @rbs value: untyped
   # @rbs return: response
-  def json: (Integer status, String content_type, untyped value) -> response
+  def json: (Integer status, Hash[String, String] headers, untyped value) -> response
 end

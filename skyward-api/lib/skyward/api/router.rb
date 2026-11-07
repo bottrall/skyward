@@ -16,6 +16,8 @@ class Skyward::API::Router
 
   ESCAPE = /%\h\h/ #: Regexp
 
+  METHODS = %w[GET HEAD POST PUT PATCH DELETE OPTIONS].freeze #: Array[String]
+
   # @rbs @endpoints: Array[Endpoint]
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
@@ -29,7 +31,19 @@ class Skyward::API::Router
   # @rbs return: Match?
   def match(verb, path)
     segments = path.split("/", -1)
-    @endpoints.lazy.filter_map { |endpoint| match_endpoint(endpoint, verb, segments) }.first
+    routed = verb == "HEAD" ? "GET" : verb
+    @endpoints.lazy.filter_map { |endpoint| match_endpoint(endpoint, routed, segments) }.first
+  end
+
+  # @rbs path: String
+  # @rbs return: Array[String]
+  def allowed(path)
+    segments = path.split("/", -1)
+    verbs = @endpoints.filter_map { |endpoint| endpoint.verb if params_for(endpoint.pattern, segments) }
+    return [] if verbs.empty?
+
+    implied = verbs.include?("GET") ? %w[HEAD OPTIONS] : %w[OPTIONS]
+    METHODS & (verbs + implied)
   end
 
   private

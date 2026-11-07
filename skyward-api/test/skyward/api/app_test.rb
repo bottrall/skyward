@@ -6,7 +6,9 @@ describe Skyward::API::App do
   let(:todos) do
     Class.new(Skyward::API) do
       get "/:id", to: :show
+      delete "/:id", to: :destroy
       get "/:id/fail", to: :fail
+      post "/:id/complete", to: :complete
 
       def show(id:) = { id:, title: "Ship it" }
 
@@ -21,9 +23,9 @@ describe Skyward::API::App do
     app.call({ "REQUEST_METHOD" => method, "PATH_INFO" => path })
   end
 
-  def problem(status, title)
+  def problem(status, title, headers = {})
     body = %({"type":"about:blank","title":"#{title}","status":#{status}})
-    [status, { "content-type" => "application/problem+json" }, [body]]
+    [status, { "content-type" => "application/problem+json", **headers }, [body]]
   end
 
   it "is frozen" do
@@ -43,6 +45,36 @@ describe Skyward::API::App do
 
     it "answers a request no route matches with a 404 problem" do
       assert_equal problem(404, "Not Found"), request("GET", "/todos")
+    end
+
+    it "answers OPTIONS on a path no route matches with a 404 problem" do
+      assert_equal problem(404, "Not Found"), request("OPTIONS", "/todos")
+    end
+
+    it "answers OPTIONS on a routed path with a 204 that lists its methods in allow" do
+      assert_equal [204, { "allow" => "GET, HEAD, DELETE, OPTIONS" }, []], request("OPTIONS", "/todos/42")
+    end
+
+    it "answers a path routed only under other methods with a 405 problem that lists them in allow" do
+      assert_equal problem(405, "Method Not Allowed", "allow" => "POST, OPTIONS"), request("GET", "/todos/42/complete")
+    end
+
+    it "answers HEAD with the GET route's status and headers and an empty body" do
+      assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/todos/42")
+    end
+
+    it "answers HEAD on a GET route that raises with a 500 and an empty body" do
+      assert_equal [500, { "content-type" => "application/problem+json" }, []], request("HEAD", "/todos/42/fail")
+    end
+
+    it "answers HEAD on a path no route matches with a 404 and an empty body" do
+      assert_equal [404, { "content-type" => "application/problem+json" }, []], request("HEAD", "/todos")
+    end
+
+    it "answers HEAD on a path routed only under other methods with a 405 and an empty body" do
+      expected = [405, { "content-type" => "application/problem+json", "allow" => "POST, OPTIONS" }, []]
+
+      assert_equal expected, request("HEAD", "/todos/42/complete")
     end
   end
 end
