@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "tmpdir"
 
 describe Skyward::API::Builder do
   let(:builder) { Skyward::API::Builder.new }
@@ -64,6 +65,50 @@ describe Skyward::API::Builder do
       builder.freeze
 
       assert_raises(FrozenError) { builder.use middleware }
+    end
+  end
+
+  describe "#static" do
+    let(:root) { Dir.mktmpdir }
+
+    before do
+      Dir.mkdir(File.join(root, "public"))
+      Dir.mkdir(File.join(root, "assets"))
+    end
+
+    after { FileUtils.remove_entry(root) }
+
+    def static(prefix, from)
+      Skyward::API::Builder::Static.new(prefix:, from:)
+    end
+
+    it "resolves from against the current directory" do
+      expected = Dir.chdir(root) do
+        builder.static "/", from: "public"
+        [static("/", File.join(Dir.pwd, "public"))]
+      end
+
+      assert_equal expected, builder.statics
+    end
+
+    it "raises a BootError when the directory doesn't exist" do
+      missing = File.join(root, "missing")
+      error = assert_raises(Skyward::BootError) { builder.static "/", from: missing }
+
+      assert_equal %(static "/": no directory at #{missing}), error.message
+    end
+
+    it "keeps statics in the order they're declared" do
+      builder.static "/", from: File.join(root, "public")
+      builder.static "/", from: File.join(root, "assets")
+
+      assert_equal [static("/", File.join(root, "public")), static("/", File.join(root, "assets"))], builder.statics
+    end
+
+    it "raises a FrozenError once the builder is frozen" do
+      builder.freeze
+
+      assert_raises(FrozenError) { builder.static "/", from: root }
     end
   end
 end

@@ -13,16 +13,25 @@ class Skyward::API::Builder
     :block #: (^(?) -> untyped)?
   )
 
+  Static = Data.define(
+    :prefix, #: String
+    :from #: String
+  )
+
   # @dynamic mounts
   attr_reader :mounts #: Array[Mount]
 
   # @dynamic middleware
   attr_reader :middleware #: Array[Use]
 
+  # @dynamic statics
+  attr_reader :statics #: Array[Static]
+
   # @rbs return: void
   def initialize
     @mounts = []
     @middleware = []
+    @statics = []
   end
 
   # @rbs api: Skyward::API
@@ -40,5 +49,15 @@ class Skyward::API::Builder
   # @rbs (Skyward::API::_Middleware middleware, *untyped args, **untyped kwargs) ?{ (?) -> untyped } -> void
   def use(middleware, *args, **kwargs, &block)
     @middleware = [*@middleware, Use.new(middleware:, args:, kwargs:, block:)]
+  end
+
+  # @rbs prefix: String
+  # @rbs from: String
+  # @rbs return: void
+  def static(prefix, from:)
+    directory = File.expand_path(from)
+    raise Skyward::BootError, "static #{prefix.inspect}: no directory at #{directory}" unless File.directory?(directory)
+
+    @statics = [*@statics, Static.new(prefix:, from: directory)]
   end
 end

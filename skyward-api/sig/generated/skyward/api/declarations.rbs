@@ -8,6 +8,8 @@ module Skyward::API::Declarations : Class
 
   @class_description: String?
 
+  # A class that hasn't declared a route, or whose routes were cleared, has its
+  # parent's, so a reopened subclass declares its own after them again.
   # @rbs return: Array[Skyward::API::Route]
   def routes: () -> Array[Skyward::API::Route]
 
@@ -17,6 +19,11 @@ module Skyward::API::Declarations : Class
   # @rbs text: String
   # @rbs return: void
   def description: (String text) -> void
+
+  # skyward serve's reloading runs a reopened class's declarations again, on
+  # the same class, so it clears them first.
+  # @rbs return: void
+  def clear_declarations: () -> void
 
   # @rbs path: String
   # @rbs to: Symbol
@@ -55,9 +62,8 @@ module Skyward::API::Declarations : Class
 
   private
 
-  # @rbs subclass: Class
-  # @rbs return: void
-  def inherited: (Class subclass) -> void
+  # @rbs return: Array[Skyward::API::Route]
+  def inherited_routes: () -> Array[Skyward::API::Route]
 
   # @rbs verb: Symbol
   # @rbs path: String

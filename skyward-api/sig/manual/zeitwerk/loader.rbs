@@ -1,0 +1,6 @@
+# The collection's signatures leave out unload and unregister, which skyward
+# serve uses to drop a loader the app sets up again.
+class Zeitwerk::Loader
+  def unload: () -> void
+  def unregister: () -> void
+end

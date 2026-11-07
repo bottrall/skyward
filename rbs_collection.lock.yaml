@@ -69,6 +69,10 @@ gems:
   version: '0'
   source:
     type: stdlib
+- name: time
+  version: '0'
+  source:
+    type: stdlib
 - name: tsort
   version: '0'
   source:

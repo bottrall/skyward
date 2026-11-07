@@ -58,8 +58,6 @@ class Skyward::API::Router
     def members: () -> [ :api, :to, :inputs, :params ]
   end
 
-  ESCAPE: Regexp
-
   METHODS: Array[String]
 
   @endpoints: Array[Endpoint]
@@ -89,10 +87,4 @@ class Skyward::API::Router
   # @rbs segments: Array[String]
   # @rbs return: Hash[Symbol, String]?
   def params_for: (Array[String | Symbol] pattern, Array[String] segments) -> Hash[Symbol, String]?
-
-  # Lenient, unlike URI.decode_uri_component, because servers pass the path
-  # through undecoded and a malformed escape is the client's to send.
-  # @rbs segment: String
-  # @rbs return: String
-  def decode: (String segment) -> String
 end

@@ -49,6 +49,24 @@ describe Skyward::API::Declarations do
     end
   end
 
+  describe "#clear_declarations" do
+    it "clears the routes and the description" do
+      api.description "Things to do."
+      api.get "/", to: :index
+      api.clear_declarations
+
+      assert_equal [[], nil], [api.routes, api.class_description]
+    end
+
+    it "lets the class be described again" do
+      api.description "Things to do."
+      api.clear_declarations
+      api.description "Things to avoid."
+
+      assert_equal "Things to avoid.", api.class_description
+    end
+  end
+
   describe "#get" do
     it "declares a GET route" do
       api.get "/", to: :index
@@ -113,6 +131,15 @@ describe Skyward::API::Declarations do
       Class.new(parent).get "/:id", to: :show
 
       assert_equal [route(:get, "/", :index)], parent.routes
+    end
+
+    it "starts a cleared subclass after the routes its cleared parent declares again" do
+      child = Class.new(parent) { get "/:id", to: :show }
+      [parent, child].each(&:clear_declarations)
+      parent.get "/done", to: :done
+      child.get "/:id", to: :show
+
+      assert_equal [route(:get, "/done", :done), route(:get, "/:id", :show)], child.routes
     end
 
     it "doesn't pass on the parent's description" do

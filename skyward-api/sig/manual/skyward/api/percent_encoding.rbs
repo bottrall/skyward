@@ -1,0 +1,3 @@
+module Skyward::API::PercentEncoding
+  extend ::Skyward::API::PercentEncoding
+end

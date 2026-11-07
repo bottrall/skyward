@@ -33,7 +33,7 @@ module Skyward
     reader = Types::Reader.new(Signatures.load(signatures))
     router = API::Router.new(API::Boot.endpoints(builder.mounts, reader:, max_body_size:))
     app = API::Rescue.new(
-      API::App.new(router, builder.middleware),
+      API::App.new(router, API::Static.new(builder.statics), builder.middleware),
       logger:,
       on_error:,
       development: ENV.fetch("RACK_ENV") { ENV.fetch("APP_ENV", nil) } == "development"

@@ -1,0 +1,43 @@
+# Generated from lib/skyward/api/static.rb with RBS::Inline
+
+class Skyward::API::Static
+  TYPES: Hash[String, String]
+
+  @statics: Array[Skyward::API::Builder::Static]
+
+  # @rbs statics: Array[Skyward::API::Builder::Static]
+  # @rbs return: void
+  def initialize: (Array[Skyward::API::Builder::Static] statics) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::App::response?
+  def call: (Hash[String, untyped] env) -> Skyward::API::App::response?
+
+  private
+
+  # @rbs static: Skyward::API::Builder::Static
+  # @rbs path: String
+  # @rbs return: String?
+  def find: (Skyward::API::Builder::Static static, String path) -> String?
+
+  # @rbs file: String
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::App::response
+  def serve: (String file, Hash[String, untyped] env) -> Skyward::API::App::response
+
+  # @rbs stat: File::Stat
+  # @rbs return: String
+  def etag: (File::Stat stat) -> String
+
+  # If-Modified-Since only counts without If-None-Match (RFC 9110, 13.2.2),
+  # and to the second, the precision of last-modified.
+  # @rbs env: Hash[String, untyped]
+  # @rbs etag: String
+  # @rbs modified: Time
+  # @rbs return: bool
+  def fresh?: (Hash[String, untyped] env, String etag, Time modified) -> bool
+
+  # @rbs value: String?
+  # @rbs return: Time?
+  def http_date: (String? value) -> Time?
+end

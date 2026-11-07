@@ -2,8 +2,10 @@
 
 require "stringio"
 require "test_helper"
+require "tmpdir"
 
 describe Skyward::API::App do
+  let(:root) { Dir.mktmpdir }
   let(:todos) do
     Class.new(Skyward::API) do
       def show(id:) = { id:, title: "Ship it" }
@@ -35,8 +37,19 @@ describe Skyward::API::App do
         inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10)
       )
     end
-    Skyward::API::App.new(Skyward::API::Router.new(endpoints), middleware)
+    static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: File.join(root, "public"))])
+    Skyward::API::App.new(Skyward::API::Router.new(endpoints), static, middleware)
   end
+
+  before do
+    FileUtils.mkdir_p(File.join(root, "public/todos/7"))
+    File.write(File.join(root, "public/todos/42"), "A static todo")
+    File.write(File.join(root, "public/todos/7/complete"), "Done")
+    File.write(File.join(root, "public/hello.txt"), "Hello")
+    File.write(File.join(root, "secret.txt"), "hunter2")
+  end
+
+  after { FileUtils.remove_entry(root) }
 
   def request(method, path, body: nil, type: "application/json")
     input = body ? { "CONTENT_TYPE" => type, "rack.input" => StringIO.new(body) } : {}
@@ -133,7 +146,25 @@ describe Skyward::API::App do
       assert_equal "todo 42 is secret", error.message
     end
 
-    it "answers a request no route matches with a 404 problem" do
+    it "serves a static file when no route matches" do
+      assert_equal ["Hello"], request("GET", "/hello.txt").last
+    end
+
+    it "lets a route take precedence over a static file" do
+      assert_equal ['{"id":"42","title":"Ship it"}'], request("GET", "/todos/42").last
+    end
+
+    it "serves a static file at a path routed only under other methods" do
+      assert_equal ["Done"], request("GET", "/todos/7/complete").last
+    end
+
+    it "answers a path that climbs out of a static directory with a 404 problem" do
+      responses = ["/../secret.txt", "/%2e%2e/secret.txt"].map { |path| request("GET", path) }
+
+      assert_equal [problem(404, "Not Found")] * 2, responses
+    end
+
+    it "answers a request no route or file matches with a 404 problem" do
       assert_equal problem(404, "Not Found"), request("GET", "/todos")
     end
 
@@ -149,8 +180,18 @@ describe Skyward::API::App do
       assert_equal problem(405, "Method Not Allowed", "allow" => "POST, OPTIONS"), request("GET", "/todos/42/complete")
     end
 
+    it "answers a method other than GET or HEAD on a static file's path as if there were no file" do
+      assert_equal problem(405, "Method Not Allowed", "allow" => "POST, OPTIONS"), request("PUT", "/todos/7/complete")
+    end
+
     it "answers HEAD with the GET route's status and headers and an empty body" do
       assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/todos/42")
+    end
+
+    it "answers HEAD on a static file with its status and headers and an empty body" do
+      status, headers, body = request("HEAD", "/hello.txt")
+
+      assert_equal [200, "5", []], [status, headers["content-length"], body]
     end
 
     it "answers HEAD on a path no route matches with a 404 and an empty body" do
