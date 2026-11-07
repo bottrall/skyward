@@ -1,0 +1,24 @@
+# Generated from lib/skyward/commands.rb with RBS::Inline
+
+module Skyward::Commands
+  REGISTRY: Registry
+
+  # @rbs name: String
+  # @rbs description: String
+  # @rbs &: (Array[String]) -> void
+  # @rbs return: void
+  def register: (String name, String description) { (Array[String]) -> void } -> void
+
+  # @rbs paths: Array[String]
+  # @rbs return: Array[String]
+  def first_per_gem: (Array[String] paths) -> Array[String]
+
+  # @rbs (Array[String] argv, registry: Registry, out: _Writer) -> Integer
+  def run: (Array[String] argv, registry: Registry, out: _Writer) -> Integer
+
+  private
+
+  # @rbs registry: Registry
+  # @rbs return: String
+  def help: (Registry registry) -> String
+end

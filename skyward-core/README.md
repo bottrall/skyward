@@ -1,7 +1,7 @@
 # Skyward Core
 
 > [!CAUTION]
-> **Work in progress: Skyward Core doesn't do anything yet.** Version 0.1 is a skeleton. The gems install and load, but none of the features described here are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
+> **Work in progress: Skyward Core is barely started.** Version 0.1 is a skeleton. The gems install and load, and only the parts [Status](#status) lists are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
 
 The plumbing that [Skyward API](../skyward-api/README.md) and [Skyward ORM](../skyward-orm/README.md) share. You don't add it to your Gemfile: each of them depends on it, at exactly the same version.
 
@@ -23,7 +23,7 @@ Skyward::Commands.register("routes", "List every route and the method that serve
 end
 ```
 
-`skyward` with no command, or `skyward help`, lists every registered command with its description. An unknown command prints the same list and exits with status 1. A command fails by exiting (`abort "why"`); one that returns has succeeded.
+`skyward` with no command, `skyward help`, `--help` or `-h` lists every registered command with its description. An unknown command prints the same list and exits with status 1. A command fails by exiting (`abort "why"`); one that returns has succeeded.
 
 ## Ruby
 
@@ -31,4 +31,6 @@ Skyward supports every Ruby that isn't end-of-life (3.3 and later, as of Novembe
 
 ## Status
 
-This README is the spec. Skyward 0.1 is a skeleton: the gem installs, opens the `Skyward` namespace and sets up its loader, and nothing else is built yet. This section lists each part as it lands.
+This README is the spec. Skyward 0.1 is a skeleton: the gem installs, opens the `Skyward` namespace and sets up its loader. This section lists each part as it lands.
+
+- **The `skyward` command.** The executable loads each installed gem's `commands.rb`, `Skyward::Commands.register` adds a command, and `skyward` lists them and runs one, as [Adding commands](#adding-commands) describes. No gem registers a command yet.

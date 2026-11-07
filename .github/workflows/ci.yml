@@ -21,8 +21,8 @@ jobs:
             run: bundle exec rake rbs:collection_install typecheck
           - name: tooling
             run: bundle exec rake test:tooling
-          # Builds every gem, installs them into an empty GEM_HOME and loads
-          # them, which catches a file the gemspec leaves out.
+          # Builds every gem, installs them into an empty GEM_HOME, loads them
+          # and runs skyward, which catches a file the gemspec leaves out.
           - name: package
             run: bundle exec rake package:check
 

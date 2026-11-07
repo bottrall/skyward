@@ -1,0 +1,36 @@
+# Generated from lib/skyward/commands/registry.rb with RBS::Inline
+
+class Skyward::Commands::Registry
+  @commands: Hash[String, Command]
+
+  class Command < Data
+    attr_reader name(): String
+
+    attr_reader description(): String
+
+    attr_reader action(): ^(Array[String]) -> void
+
+    def self.new: (String name, String description, ^(Array[String]) -> void action) -> instance
+                | (name: String, description: String, action: ^(Array[String]) -> void) -> instance
+
+    def self.members: () -> [ :name, :description, :action ]
+
+    def members: () -> [ :name, :description, :action ]
+  end
+
+  # @rbs return: void
+  def initialize: () -> void
+
+  # @rbs name: String
+  # @rbs description: String
+  # @rbs &action: (Array[String]) -> void
+  # @rbs return: void
+  def register: (String name, String description) { (Array[String]) -> void } -> void
+
+  # @rbs name: String
+  # @rbs return: Command?
+  def find: (String name) -> Command?
+
+  # @rbs return: Array[Command]
+  def commands: () -> Array[Command]
+end

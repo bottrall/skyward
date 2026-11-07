@@ -2,6 +2,7 @@
 
 require "bundler"
 require "fileutils"
+require "open3"
 require "rake/testtask"
 require "rubocop/rake_task"
 require "tmpdir"
@@ -142,7 +143,7 @@ namespace :package do
     end
   end
 
-  desc "Install the built gems into an empty GEM_HOME and load them, as a user would"
+  desc "Install the built gems into an empty GEM_HOME, load them and run skyward, as a user would"
   task check: :build do
     Dir.mktmpdir("skyward-gems") do |home|
       env = { "GEM_HOME" => home, "GEM_PATH" => home }
@@ -154,6 +155,10 @@ namespace :package do
           Zeitwerk::Loader.eager_load_all
           puts "Installed and loaded skyward \#{Skyward::VERSION} from #{PKG}/"
         RUBY
+        output, status = Open3.capture2e(env, File.join(home, "bin", "skyward"))
+        puts output
+        usage = output.start_with?("Usage: skyward COMMAND [ARGS]\n")
+        abort "The installed skyward didn't exit 0 and print its usage" unless status.success? && usage
       end
     end
   end

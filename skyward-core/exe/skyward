@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "skyward/core"
+
+Skyward::Commands.first_per_gem(Gem.find_files("skyward/*/commands.rb")).each { |file| load file }
+exit Skyward::Commands.run(ARGV, registry: Skyward::Commands::REGISTRY, out: $stdout)
