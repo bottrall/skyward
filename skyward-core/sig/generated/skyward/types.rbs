@@ -1,0 +1,133 @@
+# Generated from lib/skyward/types.rb with RBS::Inline
+
+module Skyward::Types
+  type scalar = :integer | :float | :string | :bool | :date | :time | :untyped
+
+  type literal = String | Integer | bool | nil
+
+  type t = Scalar | Literal | Enum | Nullable | ArrayOf | Record | Named | Union
+
+  type result = t | Unreadable
+
+  class Scalar < Data
+    attr_reader name(): scalar
+
+    def self.new: (scalar name) -> instance
+                | (name: scalar) -> instance
+
+    def self.members: () -> [ :name ]
+
+    def members: () -> [ :name ]
+  end
+
+  class Literal < Data
+    attr_reader value(): literal
+
+    def self.new: (literal value) -> instance
+                | (value: literal) -> instance
+
+    def self.members: () -> [ :value ]
+
+    def members: () -> [ :value ]
+  end
+
+  class Enum < Data
+    attr_reader symbols(): Array[Symbol]
+
+    def self.new: (Array[Symbol] symbols) -> instance
+                | (symbols: Array[Symbol]) -> instance
+
+    def self.members: () -> [ :symbols ]
+
+    def members: () -> [ :symbols ]
+  end
+
+  class Nullable < Data
+    attr_reader type(): t
+
+    def self.new: (t type) -> instance
+                | (type: t) -> instance
+
+    def self.members: () -> [ :type ]
+
+    def members: () -> [ :type ]
+  end
+
+  class ArrayOf < Data
+    attr_reader type(): t
+
+    def self.new: (t type) -> instance
+                | (type: t) -> instance
+
+    def self.members: () -> [ :type ]
+
+    def members: () -> [ :type ]
+  end
+
+  class Field < Data
+    attr_reader name(): Symbol
+
+    attr_reader type(): t
+
+    attr_reader required(): bool
+
+    def self.new: (Symbol name, t type, bool required) -> instance
+                | (name: Symbol, type: t, required: bool) -> instance
+
+    def self.members: () -> [ :name, :type, :required ]
+
+    def members: () -> [ :name, :type, :required ]
+  end
+
+  class Record < Data
+    attr_reader fields(): Array[Field]
+
+    def self.new: (Array[Field] fields) -> instance
+                | (fields: Array[Field]) -> instance
+
+    def self.members: () -> [ :fields ]
+
+    def members: () -> [ :fields ]
+  end
+
+  class Named < Data
+    attr_reader name(): String
+
+    attr_reader klass(): Class
+
+    attr_reader fields(): Array[Field]
+
+    def self.new: (String name, Class klass, Array[Field] fields) -> instance
+                | (name: String, klass: Class, fields: Array[Field]) -> instance
+
+    def self.members: () -> [ :name, :klass, :fields ]
+
+    def members: () -> [ :name, :klass, :fields ]
+  end
+
+  class Union < Data
+    attr_reader types(): Array[t]
+
+    def self.new: (Array[t] types) -> instance
+                | (types: Array[t]) -> instance
+
+    def self.members: () -> [ :types ]
+
+    def members: () -> [ :types ]
+  end
+
+  class Unreadable < Data
+    attr_reader type(): String
+
+    attr_reader at(): String?
+
+    attr_reader instead(): String
+
+    def self.new: (String type, String? at, String instead) -> instance
+                | (type: String, at: String?, instead: String) -> instance
+
+    def self.members: () -> [ :type, :at, :instead ]
+
+    def members: () -> [ :type, :at, :instead ]
+  end
+end

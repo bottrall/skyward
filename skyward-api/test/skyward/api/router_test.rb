@@ -64,6 +64,10 @@ describe Skyward::API::Router do
   end
 
   describe "#match" do
+    it "matches HEAD to a GET route" do
+      assert_equal found(todos, :show, id: "42"), router([todos, "/todos"]).match("HEAD", "/todos/42")
+    end
+
     it "tries mounts in the order they're mounted" do
       other = todos_class.new
 
@@ -109,6 +113,27 @@ describe Skyward::API::Router do
 
     it "leaves a malformed escape as it is" do
       assert_equal found(todos, :show, id: "100%zz"), router([todos, "/todos"]).match("GET", "/todos/100%zz")
+    end
+  end
+
+  describe "#allowed" do
+    it "lists the methods of every route matching the path, in order, with HEAD for GET and OPTIONS" do
+      api = Class.new(Skyward::API) do
+        delete "/:id", to: :destroy
+        put "/:id", to: :replace
+        get "/new", to: :new_form
+        get "/:id", to: :show
+      end.new
+
+      assert_equal %w[GET HEAD PUT DELETE OPTIONS], router([api, "/todos"]).allowed("/todos/new")
+    end
+
+    it "lists nothing for a path no route matches" do
+      assert_empty router([todos, "/todos"]).allowed("/todos/42/undo")
+    end
+
+    it "lists HEAD only for a path with a GET route" do
+      assert_equal %w[POST OPTIONS], router([todos, "/todos"]).allowed("/todos/42/complete")
     end
   end
 end

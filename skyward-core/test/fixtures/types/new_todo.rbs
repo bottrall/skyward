@@ -1,0 +1,15 @@
+# As rbs-inline writes a Data.define.
+module ReaderFixtures
+  class NewTodo < Data
+    attr_reader title(): String
+
+    attr_reader priority(): priority
+
+    def self.new: (String title, priority priority) -> instance
+                | (title: String, priority: priority) -> instance
+
+    def self.members: () -> [ :title, :priority ]
+
+    def members: () -> [ :title, :priority ]
+  end
+end
