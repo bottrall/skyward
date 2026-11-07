@@ -23,7 +23,8 @@ module Skyward
 
     builder = API::Builder.new
     yield builder
-    app = API::App.new(API::Router.new(builder.freeze.mounts))
+    builder.freeze
+    app = API::App.new(API::Router.new(builder.mounts), API::Static.new(builder.statics))
     API::RequestId.new(app, generate: -> { SecureRandom.uuid })
   end
 end

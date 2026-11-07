@@ -6,12 +6,21 @@ class Skyward::API::Builder
     :at #: String
   )
 
+  Static = Data.define(
+    :prefix, #: String
+    :from #: String
+  )
+
   # @dynamic mounts
   attr_reader :mounts #: Array[Mount]
+
+  # @dynamic statics
+  attr_reader :statics #: Array[Static]
 
   # @rbs return: void
   def initialize
     @mounts = []
+    @statics = []
   end
 
   # @rbs api: Skyward::API
@@ -24,5 +33,15 @@ class Skyward::API::Builder
     end
 
     @mounts = [*@mounts, Mount.new(api:, at:)]
+  end
+
+  # @rbs prefix: String
+  # @rbs from: String
+  # @rbs return: void
+  def static(prefix, from:)
+    directory = File.expand_path(from)
+    raise Skyward::BootError, "static #{prefix.inspect}: no directory at #{directory}" unless File.directory?(directory)
+
+    @statics = [*@statics, Static.new(prefix:, from: directory)]
   end
 end

@@ -5,9 +5,12 @@ class Skyward::API::App
 
   @router: Skyward::API::Router
 
+  @static: Skyward::API::Static
+
   # @rbs router: Skyward::API::Router
+  # @rbs static: Skyward::API::Static
   # @rbs return: void
-  def initialize: (Skyward::API::Router router) -> void
+  def initialize: (Skyward::API::Router router, Skyward::API::Static static) -> void
 
   # @rbs env: Hash[String, untyped]
   # @rbs return: response

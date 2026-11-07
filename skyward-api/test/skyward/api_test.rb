@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "tmpdir"
 
 describe Skyward::API do
   it "loads every file under its own part of the Skyward namespace" do
@@ -38,6 +39,15 @@ describe Skyward do
       end
 
       assert_equal [200, 404], statuses
+    end
+
+    it "returns an app that serves the files the block declares" do
+      Dir.mktmpdir do |root|
+        File.write(File.join(root, "hello.txt"), "Hello")
+        app = Skyward.app { |builder| builder.static "/", from: root }
+
+        assert_equal ["Hello"], app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/hello.txt" }).last
+      end
     end
 
     it "freezes the builder once the block returns" do

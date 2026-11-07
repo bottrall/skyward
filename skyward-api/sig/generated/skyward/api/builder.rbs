@@ -14,8 +14,24 @@ class Skyward::API::Builder
     def members: () -> [ :api, :at ]
   end
 
+  class Static < Data
+    attr_reader prefix(): String
+
+    attr_reader from(): String
+
+    def self.new: (String prefix, String from) -> instance
+                | (prefix: String, from: String) -> instance
+
+    def self.members: () -> [ :prefix, :from ]
+
+    def members: () -> [ :prefix, :from ]
+  end
+
   # @dynamic mounts
   attr_reader mounts: Array[Mount]
+
+  # @dynamic statics
+  attr_reader statics: Array[Static]
 
   # @rbs return: void
   def initialize: () -> void
@@ -24,4 +40,9 @@ class Skyward::API::Builder
   # @rbs at: String
   # @rbs return: void
   def mount: (Skyward::API api, ?at: String) -> void
+
+  # @rbs prefix: String
+  # @rbs from: String
+  # @rbs return: void
+  def static: (String prefix, from: String) -> void
 end

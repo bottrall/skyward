@@ -1,0 +1,11 @@
+# Generated from lib/skyward/api/percent_encoding.rb with RBS::Inline
+
+module Skyward::API::PercentEncoding
+  ESCAPE: Regexp
+
+  # Lenient, unlike URI.decode_uri_component, because servers pass the path
+  # through undecoded and a malformed escape is the client's to send.
+  # @rbs text: String
+  # @rbs return: String
+  def decode: (String text) -> String
+end

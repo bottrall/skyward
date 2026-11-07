@@ -24,4 +24,5 @@ gems:
   - name: rbs
   - name: json
   - name: securerandom
+  - name: time
   - name: zeitwerk

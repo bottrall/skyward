@@ -14,8 +14,6 @@ class Skyward::API::Router
     :params #: Hash[Symbol, String]
   )
 
-  ESCAPE = /%\h\h/ #: Regexp
-
   # @rbs @endpoints: Array[Endpoint]
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
@@ -81,14 +79,8 @@ class Skyward::API::Router
     pairs = segments.zip(pattern)
     return unless pairs.all? { |segment, part| part.is_a?(Symbol) ? !segment.empty? : segment == part }
 
-    pairs.filter_map { |segment, part| [part, decode(segment)] if part.is_a?(Symbol) }.to_h
-  end
-
-  # Lenient, unlike URI.decode_uri_component, because servers pass the path
-  # through undecoded and a malformed escape is the client's to send.
-  # @rbs segment: String
-  # @rbs return: String
-  def decode(segment)
-    segment.b.gsub(ESCAPE) { |escape| escape.delete_prefix("%").hex.chr }.force_encoding(Encoding::UTF_8)
+    pairs.filter_map do |segment, part|
+      [part, Skyward::API::PercentEncoding.decode(segment)] if part.is_a?(Symbol)
+    end.to_h
   end
 end

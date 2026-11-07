@@ -6,11 +6,14 @@ class Skyward::API::App
   # @rbs! type response = [Integer, Hash[String, String], Array[String]]
 
   # @rbs @router: Skyward::API::Router
+  # @rbs @static: Skyward::API::Static
 
   # @rbs router: Skyward::API::Router
+  # @rbs static: Skyward::API::Static
   # @rbs return: void
-  def initialize(router)
+  def initialize(router, static)
     @router = router
+    @static = static
     freeze
   end
 
@@ -18,7 +21,9 @@ class Skyward::API::App
   # @rbs return: response
   def call(env)
     match = @router.match(env["REQUEST_METHOD"], env["PATH_INFO"])
-    match ? respond(match) : problem(404, "Not Found")
+    return respond(match) if match
+
+    @static.call(env) || problem(404, "Not Found")
   end
 
   private

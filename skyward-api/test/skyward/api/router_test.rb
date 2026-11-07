@@ -102,13 +102,5 @@ describe Skyward::API::Router do
     it "percent-decodes a path parameter, keeping %2F inside it" do
       assert_equal found(todos, :show, id: "a/b c"), router([todos, "/todos"]).match("GET", "/todos/a%2Fb%20c")
     end
-
-    it "decodes a path parameter as UTF-8" do
-      assert_equal found(todos, :show, id: "café"), router([todos, "/todos"]).match("GET", "/todos/caf%C3%A9")
-    end
-
-    it "leaves a malformed escape as it is" do
-      assert_equal found(todos, :show, id: "100%zz"), router([todos, "/todos"]).match("GET", "/todos/100%zz")
-    end
   end
 end
