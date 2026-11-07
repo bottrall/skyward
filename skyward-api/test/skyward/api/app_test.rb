@@ -89,8 +89,10 @@ describe Skyward::API::App do
       assert_equal expected, request("GET", "/todos/42")
     end
 
-    it "answers an exception from the method with a 500 problem that doesn't reveal it" do
-      assert_equal problem(500, "Internal Server Error"), request("GET", "/todos/42/fail")
+    it "leaves an exception from the method to the layers outside it" do
+      error = assert_raises(RuntimeError) { request("GET", "/todos/42/fail") }
+
+      assert_equal "todo 42 is secret", error.message
     end
 
     it "answers a request no route matches with a 404 problem" do
@@ -111,10 +113,6 @@ describe Skyward::API::App do
 
     it "answers HEAD with the GET route's status and headers and an empty body" do
       assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/todos/42")
-    end
-
-    it "answers HEAD on a GET route that raises with a 500 and an empty body" do
-      assert_equal [500, { "content-type" => "application/problem+json" }, []], request("HEAD", "/todos/42/fail")
     end
 
     it "answers HEAD on a path no route matches with a 404 and an empty body" do

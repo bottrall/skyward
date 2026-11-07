@@ -122,5 +122,77 @@ describe Skyward do
       assert_equal 404, status
       assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, headers["x-request-id"])
     end
+
+    describe "when something raises" do
+      let(:failing) do
+        Class.new(Skyward::API) do
+          get "/", to: :fail
+
+          def fail = raise("todo 42 is secret")
+        end.new
+      end
+      let(:lines) { [] }
+      let(:logger) do
+        Struct.new(:lines) do
+          def info(message) = lines << JSON.parse(message, symbolize_names: true)
+        end.new(lines)
+      end
+
+      def with_env(rack_env, app_env = nil)
+        saved = ENV.slice("RACK_ENV", "APP_ENV")
+        ENV.update("RACK_ENV" => rack_env, "APP_ENV" => app_env)
+        yield
+      ensure
+        ENV.update("RACK_ENV" => saved["RACK_ENV"], "APP_ENV" => saved["APP_ENV"])
+      end
+
+      def get_failing(on_error: nil)
+        app = Skyward.app(logger:, on_error:) do |builder|
+          yield builder if block_given?
+          builder.mount failing
+        end
+        Skyward::Test.client(app).get("/", headers: { "X-Request-Id" => "abc-123" })
+      end
+
+      it "answers a 500 with the request ID, and logs the exception before the request" do
+        response = with_env(nil) { get_failing }
+        problem = { type: "about:blank", title: "Internal Server Error", status: 500, request_id: "abc-123" }
+        logged = lines.map { |line| line.values_at(:level, :status, :request_id) }
+
+        assert_equal [problem, [["error", nil, "abc-123"], [nil, 500, "abc-123"]]], [response.json, logged]
+      end
+
+      it "reports the exception to the hook it's given" do
+        reported = []
+        on_error = ->(exception, env) { reported << [exception.message, env["skyward.request_id"]] }
+        with_env(nil) { get_failing(on_error:) }
+
+        assert_equal [["todo 42 is secret", "abc-123"]], reported
+      end
+
+      it "answers a 500 for middleware that raises" do
+        raising = Class.new do
+          def initialize(_app) = nil
+
+          def call(_env) = raise("middleware broke")
+        end
+        response = with_env(nil) { get_failing { |builder| builder.use raising } }
+        answered = [response.status, response.json[:request_id], lines.first[:message]]
+
+        assert_equal [500, "abc-123", "middleware broke"], answered
+      end
+
+      it "adds the backtrace when RACK_ENV is development" do
+        assert_kind_of Array, with_env("development") { get_failing }.json[:backtrace]
+      end
+
+      it "adds the backtrace when APP_ENV is development and RACK_ENV isn't set" do
+        assert_kind_of Array, with_env(nil, "development") { get_failing }.json[:backtrace]
+      end
+
+      it "leaves out the backtrace when RACK_ENV is anything else, whatever APP_ENV says" do
+        refute_includes with_env("production", "development") { get_failing }.json.keys, :backtrace
+      end
+    end
   end
 end
