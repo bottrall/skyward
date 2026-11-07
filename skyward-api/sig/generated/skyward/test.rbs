@@ -1,0 +1,6 @@
+# Generated from lib/skyward/test.rb with RBS::Inline
+
+module Skyward::Test
+  # @rbs (_App app) -> Client
+  def client: (_App app) -> Client
+end
