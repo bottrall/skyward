@@ -1,0 +1,117 @@
+# Generated from lib/skyward/test/client.rb with RBS::Inline
+
+class Skyward::Test::Client
+  class Response < Data
+    attr_reader status(): Integer
+
+    attr_reader headers(): Hash[String, String | Array[String]]
+
+    attr_reader body(): String
+
+    attr_reader json(): untyped
+
+    def self.new: (Integer status, Hash[String, String | Array[String]] headers, String body, untyped json) -> instance
+                | (status: Integer, headers: Hash[String, String | Array[String]], body: String, json: untyped) -> instance
+
+    def self.members: () -> [ :status, :headers, :body, :json ]
+
+    def members: () -> [ :status, :headers, :body, :json ]
+  end
+
+  JSON_TYPE: Regexp
+
+  # Rack takes these two headers without the HTTP_ prefix the others get.
+  UNPREFIXED: Array[String]
+
+  @app: Skyward::Test::_App
+
+  # @rbs (Skyward::Test::_App app) -> void
+  def initialize: (Skyward::Test::_App app) -> void
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def get: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def post: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def put: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def patch: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def delete: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def head: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def options: (String path, ?json: untyped, ?headers: Hash[String, String], ?cookies: Hash[String, String]) -> Response
+
+  private
+
+  # @rbs method: String
+  # @rbs path: String
+  # @rbs json: untyped
+  # @rbs headers: Hash[String, String]
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Response
+  def request: (String method, String path, untyped json, Hash[String, String] headers, Hash[String, String] cookies) -> Response
+
+  # @rbs body: String
+  # @rbs return: Hash[String, String]
+  def body_headers: (String body) -> Hash[String, String]
+
+  # @rbs cookies: Hash[String, String]
+  # @rbs return: Hash[String, String]
+  def cookie_header: (Hash[String, String] cookies) -> Hash[String, String]
+
+  # @rbs method: String
+  # @rbs path: String
+  # @rbs body: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Hash[String, untyped]
+  def env: (String method, String path, String body, Hash[String, String] headers) -> Hash[String, untyped]
+
+  # @rbs name: String
+  # @rbs return: String
+  def env_key: (String name) -> String
+
+  # @rbs body: untyped
+  # @rbs return: String
+  def read: (untyped body) -> String
+
+  # @rbs content_type: untyped
+  # @rbs body: String
+  # @rbs return: untyped
+  def parse: (untyped content_type, String body) -> untyped
+end

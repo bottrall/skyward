@@ -1,0 +1,3 @@
+module Skyward::API::Serve
+  extend ::Skyward::API::Serve
+end

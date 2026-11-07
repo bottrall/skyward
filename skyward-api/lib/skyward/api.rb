@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require "skyward/core"
 require "zeitwerk"
 require_relative "api/version"
@@ -18,13 +19,14 @@ end
 
 module Skyward
   # @rbs &: (API::Builder) -> void
-  # @rbs return: API::App
+  # @rbs return: API::RequestId
   def self.app(&)
     raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
 
     builder = API::Builder.new
     yield builder
     builder.freeze
-    API::App.new(API::Router.new(builder.mounts), builder.middleware)
+    app = API::App.new(API::Router.new(builder.mounts), builder.middleware)
+    API::RequestId.new(app, generate: -> { SecureRandom.uuid })
   end
 end
