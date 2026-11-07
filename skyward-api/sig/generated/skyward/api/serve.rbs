@@ -1,0 +1,17 @@
+# Generated from lib/skyward/api/serve.rb with RBS::Inline
+
+module Skyward::API::Serve
+  # @rbs directory: String
+  # @rbs env: Hash[String, String]
+  # @rbs falcon: String?
+  # @rbs kernel: singleton(Kernel)
+  # @rbs return: void
+  def run: (String directory, env: Hash[String, String], falcon: String?, kernel: singleton(Kernel)) -> void
+
+  # Under Bundler, Gem.find_files and Gem.bin_path see only the bundle's gems,
+  # so a gem installed outside the app's bundle isn't found. Checking first
+  # spares rescuing the error bin_path raises for a missing gem.
+  # @rbs name: String
+  # @rbs return: String?
+  def executable: (String name) -> String?
+end
