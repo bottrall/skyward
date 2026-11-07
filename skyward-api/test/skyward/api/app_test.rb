@@ -5,11 +5,6 @@ require "test_helper"
 describe Skyward::API::App do
   let(:todos) do
     Class.new(Skyward::API) do
-      get "/:id", to: :show
-      delete "/:id", to: :destroy
-      get "/:id/fail", to: :fail
-      post "/:id/complete", to: :complete
-
       def show(id:) = { id:, title: "Ship it" }
 
       def fail(id:) = raise("todo #{id} is secret")
@@ -17,8 +12,22 @@ describe Skyward::API::App do
   end
   let(:middleware) { [] }
   let(:app) do
-    router = Skyward::API::Router.new([Skyward::API::Builder::Mount.new(api: todos, at: "/todos")])
-    Skyward::API::App.new(router, middleware)
+    endpoints = [
+      ["GET", :id, :show],
+      ["DELETE", :id, :destroy],
+      ["GET", :id, "fail", :fail],
+      ["POST", :id, "complete", :complete]
+    ].map do |verb, *pattern, to|
+      Skyward::API::Router::Endpoint.new(
+        verb:,
+        pattern: ["", "todos", *pattern],
+        api: todos,
+        to:,
+        keywords: [],
+        returns: []
+      )
+    end
+    Skyward::API::App.new(Skyward::API::Router.new(endpoints), middleware)
   end
 
   def request(method, path)

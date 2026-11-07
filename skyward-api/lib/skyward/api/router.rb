@@ -1,11 +1,20 @@
 # frozen_string_literal: true
 
 class Skyward::API::Router
+  Keyword = Data.define(
+    :name, #: Symbol
+    :source, #: :path | :query | :body
+    :required, #: bool
+    :type #: Skyward::Types::t
+  )
+
   Endpoint = Data.define(
     :verb, #: String
     :pattern, #: Array[String | Symbol]
     :api, #: Skyward::API
-    :to #: Symbol
+    :to, #: Symbol
+    :keywords, #: Array[Keyword]
+    :returns #: Array[Skyward::Types::t]
   )
 
   Match = Data.define(
@@ -20,10 +29,10 @@ class Skyward::API::Router
 
   # @rbs @endpoints: Array[Endpoint]
 
-  # @rbs mounts: Array[Skyward::API::Builder::Mount]
+  # @rbs endpoints: Array[Endpoint]
   # @rbs return: void
-  def initialize(mounts)
-    @endpoints = mounts.flat_map { |mount| endpoints(mount) }
+  def initialize(endpoints)
+    @endpoints = endpoints
   end
 
   # @rbs verb: String
@@ -47,33 +56,6 @@ class Skyward::API::Router
   end
 
   private
-
-  # @rbs mount: Skyward::API::Builder::Mount
-  # @rbs return: Array[Endpoint]
-  def endpoints(mount)
-    mount.api.class.routes.map do |route|
-      Endpoint.new(
-        verb: route.verb.upcase.name,
-        pattern: pattern(full_path(mount.at, route.path)),
-        api: mount.api,
-        to: route.to
-      )
-    end
-  end
-
-  # @rbs prefix: String
-  # @rbs path: String
-  # @rbs return: String
-  def full_path(prefix, path)
-    parts = [prefix, path].map { |part| part.delete_prefix("/").delete_suffix("/") }
-    "/#{parts.reject(&:empty?).join("/")}"
-  end
-
-  # @rbs path: String
-  # @rbs return: Array[String | Symbol]
-  def pattern(path)
-    path.split("/", -1).map { |segment| segment.start_with?(":") ? segment.delete_prefix(":").to_sym : segment }
-  end
 
   # @rbs endpoint: Endpoint
   # @rbs verb: String

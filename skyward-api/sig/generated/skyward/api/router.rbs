@@ -1,6 +1,23 @@
 # Generated from lib/skyward/api/router.rb with RBS::Inline
 
 class Skyward::API::Router
+  class Keyword < Data
+    attr_reader name(): Symbol
+
+    attr_reader source(): :path | :query | :body
+
+    attr_reader required(): bool
+
+    attr_reader type(): Skyward::Types::t
+
+    def self.new: (Symbol name, :path | :query | :body source, bool required, Skyward::Types::t type) -> instance
+                | (name: Symbol, source: :path | :query | :body, required: bool, type: Skyward::Types::t) -> instance
+
+    def self.members: () -> [ :name, :source, :required, :type ]
+
+    def members: () -> [ :name, :source, :required, :type ]
+  end
+
   class Endpoint < Data
     attr_reader verb(): String
 
@@ -10,12 +27,16 @@ class Skyward::API::Router
 
     attr_reader to(): Symbol
 
-    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to) -> instance
-                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol) -> instance
+    attr_reader keywords(): Array[Keyword]
 
-    def self.members: () -> [ :verb, :pattern, :api, :to ]
+    attr_reader returns(): Array[Skyward::Types::t]
 
-    def members: () -> [ :verb, :pattern, :api, :to ]
+    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to, Array[Keyword] keywords, Array[Skyward::Types::t] returns) -> instance
+                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol, keywords: Array[Keyword], returns: Array[Skyward::Types::t]) -> instance
+
+    def self.members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns ]
+
+    def members: () -> [ :verb, :pattern, :api, :to, :keywords, :returns ]
   end
 
   class Match < Data
@@ -39,9 +60,9 @@ class Skyward::API::Router
 
   @endpoints: Array[Endpoint]
 
-  # @rbs mounts: Array[Skyward::API::Builder::Mount]
+  # @rbs endpoints: Array[Endpoint]
   # @rbs return: void
-  def initialize: (Array[Skyward::API::Builder::Mount] mounts) -> void
+  def initialize: (Array[Endpoint] endpoints) -> void
 
   # @rbs verb: String
   # @rbs path: String
@@ -53,19 +74,6 @@ class Skyward::API::Router
   def allowed: (String path) -> Array[String]
 
   private
-
-  # @rbs mount: Skyward::API::Builder::Mount
-  # @rbs return: Array[Endpoint]
-  def endpoints: (Skyward::API::Builder::Mount mount) -> Array[Endpoint]
-
-  # @rbs prefix: String
-  # @rbs path: String
-  # @rbs return: String
-  def full_path: (String prefix, String path) -> String
-
-  # @rbs path: String
-  # @rbs return: Array[String | Symbol]
-  def pattern: (String path) -> Array[String | Symbol]
 
   # @rbs endpoint: Endpoint
   # @rbs verb: String

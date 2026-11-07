@@ -1,16 +1,14 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../fixtures/boot/boot_fixtures"
 
 describe Skyward::Test do
   describe ".client" do
     it "drives a Skyward app" do
-      hello = Class.new(Skyward::API) do
-        get "/:name", to: :greet
-
-        def greet(name:) = { message: "Hello, #{name}" }
-      end.new
-      client = Skyward::Test.client(Skyward.app(logger: nil) { |app| app.mount hello, at: "/hello" })
+      signatures = File.expand_path("../fixtures/boot/sig", __dir__)
+      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Hello.new, at: "/hello" }
+      client = Skyward::Test.client(app)
 
       assert_equal({ message: "Hello, ruby" }, client.get("/hello/ruby").json)
     end

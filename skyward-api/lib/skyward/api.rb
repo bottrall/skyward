@@ -11,6 +11,10 @@ loader.inflector.inflect("api" => "API")
 loader.ignore("#{__dir__}/api/commands.rb")
 loader.setup
 
+# An app's signatures subclass Skyward::API, so RBS needs its declaration.
+dir = __dir__ #: String
+Skyward::Signatures.register(File.expand_path("../../sig", dir))
+
 class Skyward::API
   # @rbs! type rack_response = [Integer, Hash[String, untyped], untyped]
 
@@ -18,14 +22,16 @@ class Skyward::API
 end
 
 module Skyward
-  # @rbs (?logger: API::_Logger?) { (API::Builder) -> void } -> API::RequestId
-  def self.app(logger: API::LineLogger.new($stdout), &)
+  # @rbs (?signatures: String, ?logger: API::_Logger?) { (API::Builder) -> void } -> API::RequestId
+  def self.app(signatures: "sig", logger: API::LineLogger.new($stdout), &)
     raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
 
     builder = API::Builder.new
     yield builder
     builder.freeze
-    app = API::App.new(API::Router.new(builder.mounts), builder.middleware)
+    reader = Types::Reader.new(Signatures.load(signatures))
+    router = API::Router.new(API::Boot.endpoints(builder.mounts, reader:))
+    app = API::App.new(router, builder.middleware)
     logged =
       if logger
         API::RequestLog.new(

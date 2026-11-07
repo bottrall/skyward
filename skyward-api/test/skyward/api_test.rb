@@ -4,6 +4,7 @@ require "test_helper"
 # rack-cors expects the server to have loaded Rack already.
 require "rack"
 require "rack/cors"
+require_relative "../fixtures/boot/boot_fixtures"
 
 describe Skyward::API do
   it "loads every file under its own part of the Skyward namespace" do
@@ -20,13 +21,10 @@ end
 
 describe Skyward do
   describe ".app" do
-    let(:hello) do
-      Class.new(Skyward::API) do
-        get "/:name", to: :greet
+    fixtures = File.expand_path("../fixtures/boot", __dir__)
+    signatures = File.join(fixtures, "sig")
 
-        def greet(name:) = { message: "Hello, #{name}" }
-      end.new
-    end
+    let(:hello) { BootFixtures::Hello.new }
     let(:not_found) { { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/" } }
 
     it "requires a block" do
@@ -36,7 +34,7 @@ describe Skyward do
     end
 
     it "returns an app that serves what the block mounts" do
-      app = Skyward.app(logger: nil) { |builder| builder.mount hello, at: "/hello" }
+      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello, at: "/hello" }
       statuses = ["/hello/ruby", "/ruby"].map do |path|
         app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => path }).first
       end
@@ -46,13 +44,27 @@ describe Skyward do
 
     it "freezes the builder once the block returns" do
       kept = nil
-      Skyward.app(logger: nil) { |builder| kept = builder }
+      Skyward.app(signatures:, logger: nil) { |builder| kept = builder }
 
       assert_predicate kept, :frozen?
     end
 
+    it "reads signatures from sig/ in the current directory by default, with Skyward::API's own" do
+      app = Dir.chdir(fixtures) { Skyward.app(logger: nil) { |builder| builder.mount hello } }
+
+      assert_equal 200, app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/ruby" }).first
+    end
+
+    it "refuses to boot a route that doesn't fit its method" do
+      error = assert_raises(Skyward::BootError) do
+        Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Unsigned.new }
+      end
+
+      assert_match(%r{\ABootFixtures::Unsigned#index \(GET /\)\n}, error.message)
+    end
+
     it "runs the app inside the middleware the block uses, inside the request ID" do
-      app = Skyward.app(logger: nil) do |builder|
+      app = Skyward.app(signatures:, logger: nil) do |builder|
         builder.use Rack::Cors do
           allow do
             origins "https://example.com"
@@ -71,7 +83,7 @@ describe Skyward do
     it "logs each request to standard output by default, as a JSON line with its request ID" do
       responses = nil
       out, = capture_io do
-        app = Skyward.app { |builder| builder.mount hello, at: "/hello" }
+        app = Skyward.app(signatures:) { |builder| builder.mount hello, at: "/hello" }
         responses = ["/hello/ruby", "/ruby"].map { |path| app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => path }) }
       end
       lines = out.lines.map { |line| JSON.parse(line, symbolize_names: true) }
@@ -85,21 +97,21 @@ describe Skyward do
 
     it "logs to the logger it's given instead" do
       logger = Struct.new(:lines) { def info(message) = lines << message }.new([])
-      out, = capture_io { Skyward.app(logger:) { |builder| builder.mount hello }.call(not_found) }
+      out, = capture_io { Skyward.app(signatures:, logger:) { |builder| builder.mount hello }.call(not_found) }
 
       assert_empty out
       assert_equal([404], logger.lines.map { |line| JSON.parse(line).fetch("status") })
     end
 
     it "logs nothing given a nil logger" do
-      out, = capture_io { Skyward.app(logger: nil) { |builder| builder.mount hello }.call(not_found) }
+      out, = capture_io { Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello }.call(not_found) }
 
       assert_empty out
     end
 
     it "logs a request the middleware answers" do
       logger = Struct.new(:lines) { def info(message) = lines << message }.new([])
-      app = Skyward.app(logger:) do |builder|
+      app = Skyward.app(signatures:, logger:) do |builder|
         builder.use Rack::Cors do
           allow do
             origins "https://example.com"
@@ -116,7 +128,7 @@ describe Skyward do
     end
 
     it "answers even a 404 with a random UUID request ID" do
-      app = Skyward.app(logger: nil) { |builder| builder.mount hello, at: "/hello" }
+      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello, at: "/hello" }
       status, headers, _body = app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/ruby" })
 
       assert_equal 404, status

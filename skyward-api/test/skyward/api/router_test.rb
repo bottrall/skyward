@@ -3,137 +3,103 @@
 require "test_helper"
 
 describe Skyward::API::Router do
-  let(:todos_class) do
-    Class.new(Skyward::API) do
-      get "/", to: :index
-      get "/:id", to: :show
-      post "/:id/complete", to: :complete
-    end
-  end
-  let(:todos) { todos_class.new }
+  let(:todos) { Class.new(Skyward::API).new }
 
-  def router(*mounts)
-    Skyward::API::Router.new(mounts.map { |api, at| Skyward::API::Builder::Mount.new(api:, at:) })
+  def endpoint(verb, pattern, to, api: todos)
+    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to:, keywords: [], returns: [])
   end
 
-  def found(api, to, **params)
+  let(:router) do
+    Skyward::API::Router.new(
+      [
+        endpoint("GET", ["", "todos"], :index),
+        endpoint("GET", ["", "todos", :id], :show),
+        endpoint("POST", ["", "todos", :id, "complete"], :complete)
+      ]
+    )
+  end
+
+  def found(to, api: todos, **params)
     Skyward::API::Router::Match.new(api:, to:, params:)
   end
 
-  describe ".new" do
-    it "reads the routes of each mounted object's own class" do
-      api = Class.new(todos_class) { get "/:id/history", to: :history }.new
-
-      assert_equal found(api, :history, id: "42"), router([api, "/todos"]).match("GET", "/todos/42/history")
-    end
-
-    it "reads the routes once, when it's built" do
-      routes = router([todos, "/todos"])
-      todos_class.delete "/:id", to: :destroy
-
-      assert_nil routes.match("DELETE", "/todos/42")
-    end
-
-    it "serves one object at each prefix it's mounted at" do
-      routes = router([todos, "/todos"], [todos, "/tasks"])
-
-      assert_equal [found(todos, :index)] * 2, [routes.match("GET", "/todos"), routes.match("GET", "/tasks")]
-    end
-
-    it "joins the prefix to a route's path with one slash" do
-      assert_equal found(todos, :complete, id: "42"), router([todos, "/todos"]).match("POST", "/todos/42/complete")
-    end
-
-    it "joins the prefix to a root route without a trailing slash" do
-      assert_equal found(todos, :index), router([todos, "/todos"]).match("GET", "/todos")
-    end
-
-    it "serves a route mounted at / at its own path" do
-      assert_equal found(todos, :show, id: "42"), router([todos, "/"]).match("GET", "/42")
-    end
-
-    it "serves a root route mounted at / at /" do
-      assert_equal found(todos, :index), router([todos, "/"]).match("GET", "/")
-    end
-
-    it "drops a trailing slash from the prefix and the route's path" do
-      api = Class.new(Skyward::API) { get "/done/", to: :done }.new
-
-      assert_equal found(api, :done), router([api, "/todos/"]).match("GET", "/todos/done")
-    end
-  end
-
   describe "#match" do
+    it "matches a route by its method and path" do
+      assert_equal found(:complete, id: "42"), router.match("POST", "/todos/42/complete")
+    end
+
+    it "matches a root route" do
+      routes = Skyward::API::Router.new([endpoint("GET", ["", ""], :index)])
+
+      assert_equal found(:index), routes.match("GET", "/")
+    end
+
     it "matches HEAD to a GET route" do
-      assert_equal found(todos, :show, id: "42"), router([todos, "/todos"]).match("HEAD", "/todos/42")
+      assert_equal found(:show, id: "42"), router.match("HEAD", "/todos/42")
     end
 
-    it "tries mounts in the order they're mounted" do
-      other = todos_class.new
+    it "tries endpoints in order" do
+      other = Class.new(Skyward::API).new
+      routes = Skyward::API::Router.new(
+        [endpoint("GET", ["", :id], :show), endpoint("GET", ["", "new"], :new_form, api: other)]
+      )
 
-      assert_equal found(todos, :index), router([todos, "/todos"], [other, "/todos"]).match("GET", "/todos")
-    end
-
-    it "tries a class's routes in the order they're declared" do
-      api = Class.new(Skyward::API) do
-        get "/:id", to: :show
-        get "/new", to: :new_form
-      end.new
-
-      assert_equal found(api, :show, id: "new"), router([api, "/"]).match("GET", "/new")
+      assert_equal found(:show, id: "new"), routes.match("GET", "/new")
     end
 
     it "doesn't match another method" do
-      assert_nil router([todos, "/todos"]).match("DELETE", "/todos/42")
+      assert_nil router.match("DELETE", "/todos/42")
     end
 
     it "doesn't match a path with a trailing slash the route doesn't have" do
-      assert_nil router([todos, "/todos"]).match("GET", "/todos/")
+      assert_nil router.match("GET", "/todos/")
     end
 
     it "doesn't match a path with more segments" do
-      assert_nil router([todos, "/todos"]).match("GET", "/todos/42/complete")
+      assert_nil router.match("GET", "/todos/42/complete")
     end
 
     it "doesn't match another literal segment" do
-      assert_nil router([todos, "/todos"]).match("POST", "/todos/42/undo")
+      assert_nil router.match("POST", "/todos/42/undo")
     end
 
     it "doesn't match an empty segment to a path parameter" do
-      assert_nil router([todos, "/todos"]).match("POST", "/todos//complete")
+      assert_nil router.match("POST", "/todos//complete")
     end
 
     it "percent-decodes a path parameter, keeping %2F inside it" do
-      assert_equal found(todos, :show, id: "a/b c"), router([todos, "/todos"]).match("GET", "/todos/a%2Fb%20c")
+      assert_equal found(:show, id: "a/b c"), router.match("GET", "/todos/a%2Fb%20c")
     end
 
     it "decodes a path parameter as UTF-8" do
-      assert_equal found(todos, :show, id: "café"), router([todos, "/todos"]).match("GET", "/todos/caf%C3%A9")
+      assert_equal found(:show, id: "café"), router.match("GET", "/todos/caf%C3%A9")
     end
 
     it "leaves a malformed escape as it is" do
-      assert_equal found(todos, :show, id: "100%zz"), router([todos, "/todos"]).match("GET", "/todos/100%zz")
+      assert_equal found(:show, id: "100%zz"), router.match("GET", "/todos/100%zz")
     end
   end
 
   describe "#allowed" do
     it "lists the methods of every route matching the path, in order, with HEAD for GET and OPTIONS" do
-      api = Class.new(Skyward::API) do
-        delete "/:id", to: :destroy
-        put "/:id", to: :replace
-        get "/new", to: :new_form
-        get "/:id", to: :show
-      end.new
+      routes = Skyward::API::Router.new(
+        [
+          endpoint("DELETE", ["", "todos", :id], :destroy),
+          endpoint("PUT", ["", "todos", :id], :replace),
+          endpoint("GET", ["", "todos", "new"], :new_form),
+          endpoint("GET", ["", "todos", :id], :show)
+        ]
+      )
 
-      assert_equal %w[GET HEAD PUT DELETE OPTIONS], router([api, "/todos"]).allowed("/todos/new")
+      assert_equal %w[GET HEAD PUT DELETE OPTIONS], routes.allowed("/todos/new")
     end
 
     it "lists nothing for a path no route matches" do
-      assert_empty router([todos, "/todos"]).allowed("/todos/42/undo")
+      assert_empty router.allowed("/todos/42/undo")
     end
 
     it "lists HEAD only for a path with a GET route" do
-      assert_equal %w[POST OPTIONS], router([todos, "/todos"]).allowed("/todos/42/complete")
+      assert_equal %w[POST OPTIONS], router.allowed("/todos/42/complete")
     end
   end
 end
