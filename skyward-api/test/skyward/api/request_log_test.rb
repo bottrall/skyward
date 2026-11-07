@@ -51,6 +51,17 @@ describe Skyward::API::RequestLog do
       refute_includes lines.first, "secret"
     end
 
+    it "logs the method and path the request arrived with, even if the app rewrites them" do
+      rewrite = lambda do |env|
+        env["REQUEST_METHOD"] = "DELETE"
+        env["PATH_INFO"] = "/elsewhere"
+        [204, {}, []]
+      end
+      request(rewrite)
+
+      assert_equal({ method: "GET", path: "/todos/42" }, logged.first.slice(:method, :path))
+    end
+
     it "logs a path that isn't valid UTF-8 with the invalid bytes replaced" do
       response = [404, {}, []]
 

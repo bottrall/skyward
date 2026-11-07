@@ -23,15 +23,18 @@ class Skyward::API::RequestLog
   # @rbs return: Skyward::API::rack_response
   def call(env)
     time = @now.call.getutc.iso8601(3)
+    # Read before the app runs, because middleware can rewrite the env in place.
+    method = env["REQUEST_METHOD"]
+    # Rack's path is raw bytes from the client, and JSON.generate raises on invalid UTF-8.
+    path = String.new("#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}", encoding: Encoding::UTF_8).scrub
     started = @clock_ms.call
     response = @app.call(env)
     @logger.info(
       JSON.generate(
         {
           time:,
-          method: env["REQUEST_METHOD"],
-          # Rack's path is raw bytes from the client, and JSON.generate raises on invalid UTF-8.
-          path: String.new("#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}", encoding: Encoding::UTF_8).scrub,
+          method:,
+          path:,
           status: response.first,
           duration_ms: (@clock_ms.call - started).round(2),
           request_id: env["skyward.request_id"]
