@@ -95,7 +95,7 @@ class Skyward::API::Static
   # @rbs return: bool
   def fresh?(env, etag, modified)
     tags = env["HTTP_IF_NONE_MATCH"]
-    return tags.split(",").any? { |tag| ["*", etag].include?(tag.strip.delete_prefix("W/")) } if tags
+    return tags.b.split(",").any? { |tag| ["*", etag].include?(tag.strip.delete_prefix("W/")) } if tags
 
     since = http_date(env["HTTP_IF_MODIFIED_SINCE"])
     since ? since.to_i >= modified.to_i : false

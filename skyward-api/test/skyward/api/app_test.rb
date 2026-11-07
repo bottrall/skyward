@@ -129,12 +129,6 @@ describe Skyward::API::App do
       assert_equal ["Done"], request("GET", "/todos/7/complete").last
     end
 
-    it "answers HEAD on a static file with its status and headers and an empty body" do
-      status, headers, body = request("HEAD", "/hello.txt")
-
-      assert_equal [200, "5", []], [status, headers["content-length"], body]
-    end
-
     it "answers a path that climbs out of a static directory with a 404 problem" do
       responses = ["/../secret.txt", "/%2e%2e/secret.txt"].map { |path| request("GET", path) }
 
@@ -163,6 +157,12 @@ describe Skyward::API::App do
 
     it "answers HEAD with the GET route's status and headers and an empty body" do
       assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/todos/42")
+    end
+
+    it "answers HEAD on a static file with its status and headers and an empty body" do
+      status, headers, body = request("HEAD", "/hello.txt")
+
+      assert_equal [200, "5", []], [status, headers["content-length"], body]
     end
 
     it "answers HEAD on a path no route matches with a 404 and an empty body" do

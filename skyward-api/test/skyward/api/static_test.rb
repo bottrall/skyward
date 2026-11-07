@@ -73,6 +73,10 @@ describe Skyward::API::Static do
       assert_nil request("/assets/style.css", method: "POST")
     end
 
+    it "answers HEAD like GET, leaving the app to drop the body" do
+      assert_equal served("text/css", "body {}"), request("/assets/style.css", method: "HEAD")
+    end
+
     it "tries each static in order, and the first that has the file answers" do
       write "other/style.css", "p {}"
       server = files(["/assets", File.join(root, "other")], ["/assets", public_dir])
@@ -152,10 +156,6 @@ describe Skyward::API::Static do
       assert_equal served("application/octet-stream", "bin"), request("/assets/data.bin")
     end
 
-    it "answers HEAD like GET, leaving the app to drop the body" do
-      assert_equal served("text/css", "body {}"), request("/assets/style.css", method: "HEAD")
-    end
-
     it "matches a weak ETag in If-None-Match" do
       assert_equal 304, status("/assets/style.css", { "HTTP_IF_NONE_MATCH" => "W/#{etag}" })
     end
@@ -166,6 +166,12 @@ describe Skyward::API::Static do
 
     it "matches * in If-None-Match" do
       assert_equal 304, status("/assets/style.css", { "HTTP_IF_NONE_MATCH" => "*" })
+    end
+
+    it "matches If-None-Match by its bytes, whatever its encoding" do
+      tags = "\xFF, #{etag}".force_encoding(Encoding::UTF_8)
+
+      assert_equal 304, status("/assets/style.css", { "HTTP_IF_NONE_MATCH" => tags })
     end
 
     it "serves the file when If-None-Match has only other ETags" do
