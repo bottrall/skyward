@@ -14,8 +14,28 @@ class Skyward::API::Builder
     def members: () -> [ :api, :at ]
   end
 
+  class Use < Data
+    attr_reader middleware(): Skyward::API::_Middleware
+
+    attr_reader args(): Array[untyped]
+
+    attr_reader kwargs(): Hash[Symbol, untyped]
+
+    attr_reader block(): (^(?) -> untyped)?
+
+    def self.new: (Skyward::API::_Middleware middleware, Array[untyped] args, Hash[Symbol, untyped] kwargs, (^(?) -> untyped)? block) -> instance
+                | (middleware: Skyward::API::_Middleware, args: Array[untyped], kwargs: Hash[Symbol, untyped], block: (^(?) -> untyped)?) -> instance
+
+    def self.members: () -> [ :middleware, :args, :kwargs, :block ]
+
+    def members: () -> [ :middleware, :args, :kwargs, :block ]
+  end
+
   # @dynamic mounts
   attr_reader mounts: Array[Mount]
+
+  # @dynamic middleware
+  attr_reader middleware: Array[Use]
 
   # @rbs return: void
   def initialize: () -> void
@@ -24,4 +44,7 @@ class Skyward::API::Builder
   # @rbs at: String
   # @rbs return: void
   def mount: (Skyward::API api, ?at: String) -> void
+
+  # @rbs (Skyward::API::_Middleware middleware, *untyped args, **untyped kwargs) ?{ (?) -> untyped } -> void
+  def use: (Skyward::API::_Middleware middleware, *untyped args, **untyped kwargs) ?{ (?) -> untyped } -> void
 end

@@ -1,0 +1,9 @@
+class Skyward::API
+  interface _RackApp
+    def call: (Hash[String, untyped] env) -> rack_response
+  end
+
+  interface _Middleware
+    def new: (_RackApp app, *untyped, **untyped) ?{ (?) -> untyped } -> _RackApp
+  end
+end

@@ -11,6 +11,8 @@ loader.ignore("#{__dir__}/api/commands.rb")
 loader.setup
 
 class Skyward::API
+  # @rbs! type rack_response = [Integer, Hash[String, untyped], untyped]
+
   extend Declarations
 end
 
@@ -22,6 +24,7 @@ module Skyward
 
     builder = API::Builder.new
     yield builder
-    API::App.new(API::Router.new(builder.freeze.mounts))
+    builder.freeze
+    API::App.new(API::Router.new(builder.mounts), builder.middleware)
   end
 end

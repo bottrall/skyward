@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
+# rack-cors expects the server to have loaded Rack already.
+require "rack"
+require "rack/cors"
 
 describe Skyward::API do
   it "loads every file under its own part of the Skyward namespace" do
@@ -38,6 +41,27 @@ describe Skyward do
       end
 
       assert_equal [200, 404], statuses
+    end
+
+    it "runs the app inside the middleware the block uses" do
+      app = Skyward.app do |builder|
+        builder.use Rack::Cors do
+          allow do
+            origins "https://example.com"
+            resource "*", methods: %i[get]
+          end
+        end
+        builder.mount hello, at: "/hello"
+      end
+      preflight = {
+        "REQUEST_METHOD" => "OPTIONS",
+        "PATH_INFO" => "/hello/ruby",
+        "HTTP_ORIGIN" => "https://example.com",
+        "HTTP_ACCESS_CONTROL_REQUEST_METHOD" => "GET"
+      }
+      status, headers, = app.call(preflight)
+
+      assert_equal [200, "https://example.com"], [status, headers["access-control-allow-origin"]]
     end
 
     it "freezes the builder once the block returns" do

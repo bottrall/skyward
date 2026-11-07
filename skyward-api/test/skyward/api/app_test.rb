@@ -13,8 +13,10 @@ describe Skyward::API::App do
       def fail(id:) = raise("todo #{id} is secret")
     end.new
   end
+  let(:middleware) { [] }
   let(:app) do
-    Skyward::API::App.new(Skyward::API::Router.new([Skyward::API::Builder::Mount.new(api: todos, at: "/todos")]))
+    router = Skyward::API::Router.new([Skyward::API::Builder::Mount.new(api: todos, at: "/todos")])
+    Skyward::API::App.new(router, middleware)
   end
 
   def request(method, path)
@@ -31,6 +33,54 @@ describe Skyward::API::App do
   end
 
   describe "#call" do
+    describe "with middleware" do
+      def use(middleware, *args, **kwargs, &block)
+        Skyward::API::Builder::Use.new(middleware:, args:, kwargs:, block:)
+      end
+
+      describe "that passes the request on" do
+        let(:trail) { [] }
+        let(:middleware) do
+          tracer = Class.new do
+            def initialize(app, name, trail:)
+              @app = app
+              @name = name
+              @trail = trail
+            end
+
+            def call(env)
+              @trail << "#{@name} in"
+              @app.call(env).tap { @trail << "#{@name} out" }
+            end
+          end
+          [use(tracer, "first", trail:), use(tracer, "second", trail:)]
+        end
+
+        it "runs it around the routes, the first outermost" do
+          status = request("GET", "/todos/42").first
+
+          assert_equal [200, ["first in", "second in", "second out", "first out"]], [status, trail]
+        end
+      end
+
+      describe "that answers itself" do
+        let(:middleware) do
+          echo = Class.new do
+            def initialize(_app, *args, **kwargs)
+              @answer = [200, {}, [args, kwargs, yield]]
+            end
+
+            def call(_env) = @answer
+          end
+          [use(echo, "/assets", max_age: 60) { :configured }]
+        end
+
+        it "gives it the arguments and block it was used with" do
+          assert_equal [200, {}, [["/assets"], { max_age: 60 }, :configured]], request("GET", "/todos/42")
+        end
+      end
+    end
+
     it "calls the matched method with the path parameters and answers with its return value as JSON" do
       expected = [200, { "content-type" => "application/json" }, ['{"id":"42","title":"Ship it"}']]
 

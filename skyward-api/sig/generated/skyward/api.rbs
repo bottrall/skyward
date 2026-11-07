@@ -1,6 +1,8 @@
 # Generated from lib/skyward/api.rb with RBS::Inline
 
 class Skyward::API
+  type rack_response = [ Integer, Hash[String, untyped], untyped ]
+
   extend Declarations
 end
 

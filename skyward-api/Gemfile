@@ -10,3 +10,6 @@ gem "skyward-core", path: "../skyward-core"
 
 gem "minitest", "~> 6.0"
 gem "rake", "~> 13.4"
+
+# Test-only, to show CORS working through use.
+gem "rack-cors", "~> 3.0"

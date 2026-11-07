@@ -382,9 +382,20 @@ run App
 ```
 
 - `mount` attaches an API object at a prefix.
-- `use` is ordinary Rack middleware.
+- `use` is ordinary Rack middleware, and takes the same arguments as `Rack::Builder#use`. It wraps the whole app, in declaration order: the first `use` is outermost, wherever it sits among the other calls.
 - `static` serves files from a directory.
 - `Skyward.app` returns a frozen Rack app. Nothing about it changes after boot.
+
+Skyward API doesn't build CORS, compression or sessions, because Rack already has them. CORS, for example, is [rack-cors](https://github.com/cyu/rack-cors) through `use`, which answers a preflight `OPTIONS` before it reaches your routes:
+
+```ruby
+app.use Rack::Cors do
+  allow do
+    origins "https://todos.example"
+    resource "*", headers: :any, methods: %i[get post delete]
+  end
+end
+```
 
 ---
 
@@ -562,3 +573,4 @@ This README is the spec. Skyward 0.1 is a skeleton: the gem installs and loads, 
 
 - **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. The checks at boot are still to come.
 - **Building an app.** `Skyward.app` yields a builder and returns a frozen Rack app, and the builder is frozen once the block returns. `mount` attaches an API object at a prefix (`at:`, `/` by default), and raises `Skyward::BootError` given anything but a `Skyward::API` instance. One object can be mounted at several prefixes. A request matches a route when its method and whole path match, trailing slash included, with each path parameter matching one non-empty segment, percent-decoded. Routes are tried in mount order, then declaration order. The method is called with its path parameters as `String` keywords, and its return value is answered as JSON with status 200. A request no route matches gets a 404 problem+json, and an exception from the method a 500 that doesn't reveal it. Other inputs, types, the response helpers, and `Skyward.app`'s other options are still to come.
+- **Middleware.** `use` adds Rack middleware, with the same arguments as `Rack::Builder#use`, so CORS comes from rack-cors. Middleware wraps the routes in declaration order, the first `use` outermost, wherever it sits relative to `mount`. The stack is built once, at boot, and the app stays frozen, though the middleware objects themselves aren't frozen. Skyward's own request IDs, logs and error handling, which will sit outside it, are still to come.

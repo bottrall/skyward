@@ -43,4 +43,27 @@ describe Skyward::API::Builder do
       assert_raises(FrozenError) { builder.mount todos }
     end
   end
+
+  describe "#use" do
+    let(:middleware) { Class.new }
+
+    def use(middleware, args, kwargs, block)
+      Skyward::API::Builder::Use.new(middleware:, args:, kwargs:, block:)
+    end
+
+    it "keeps each middleware with its arguments and block, in order" do
+      block = proc { :configured }
+      builder.use middleware, "/assets", max_age: 60, &block
+      builder.use middleware
+      expected = [use(middleware, ["/assets"], { max_age: 60 }, block), use(middleware, [], {}, nil)]
+
+      assert_equal expected, builder.middleware
+    end
+
+    it "raises a FrozenError once the builder is frozen" do
+      builder.freeze
+
+      assert_raises(FrozenError) { builder.use middleware }
+    end
+  end
 end
