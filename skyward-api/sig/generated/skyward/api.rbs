@@ -6,6 +6,6 @@ end
 
 module Skyward
   # @rbs &: (API::Builder) -> void
-  # @rbs return: API::App
-  def self.app: () { (API::Builder) -> void } -> API::App
+  # @rbs return: API::RequestId
+  def self.app: () { (API::Builder) -> void } -> API::RequestId
 end

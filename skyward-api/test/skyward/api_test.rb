@@ -46,5 +46,13 @@ describe Skyward do
 
       assert_predicate kept, :frozen?
     end
+
+    it "answers even a 404 with a random UUID request ID" do
+      app = Skyward.app { |builder| builder.mount hello, at: "/hello" }
+      status, headers, _body = app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/ruby" })
+
+      assert_equal 404, status
+      assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, headers["x-request-id"])
+    end
   end
 end
