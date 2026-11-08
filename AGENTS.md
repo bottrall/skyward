@@ -29,7 +29,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 - Annotate every method with rbs-inline doc style: one `# @rbs name: Type` per parameter plus `# @rbs return: Type`, never the one-line `#:` method form. A generic method, or a parameter typed with an interface whose name starts with `_`, takes the whole-method `# @rbs [T] (T value) -> Array[T]` form, which the per-parameter tags can't express.
 - Constants, `Data.define` members and `attr_reader`s take a trailing `#: Type` on the same line. An `attr_reader` also needs a `# @dynamic name` line directly above it, or Steep reports `MethodDefinitionMissing`.
 - Declare instance variables with `# @rbs @name: Type` at the top of the class, not with a private reader.
-- `sig/manual/` holds hand-written signatures: interfaces, the `module X; extend ::X; end` re-declaration every `extend self` module needs (rbs-inline drops `extend self`), and the methods a gem's RBS collection entry leaves out, under `sig/manual/<gem>/`. Declare an interface only when two or more different objects satisfy it; a test fake is not a second implementer.
+- `sig/manual/` holds hand-written signatures: interfaces, and the `module X; extend ::X; end` re-declaration every `extend self` module needs (rbs-inline drops `extend self`). Declare an interface only when two or more different objects satisfy it; a test fake is not a second implementer.
 
 ## Testing
 
