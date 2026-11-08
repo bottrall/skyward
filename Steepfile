@@ -28,3 +28,18 @@ GEMS.each do |name, gem|
     configure_code_diagnostics(D::Ruby.all_error)
   end
 end
+
+target :todos do
+  unreferenced!
+
+  signature "examples/todos/sig"
+
+  check "examples/todos/*.rb"
+
+  # api's signatures belong to the api target, which no other target sees, so
+  # the example loads them as the skyward-api gem's library instead.
+  library "skyward-api"
+  collection_config "rbs_collection.yaml"
+
+  configure_code_diagnostics(D::Ruby.all_error)
+end

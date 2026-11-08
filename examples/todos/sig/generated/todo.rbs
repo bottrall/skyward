@@ -1,0 +1,20 @@
+# Generated from todo.rb with RBS::Inline
+
+class Todo < Data
+  attr_reader id(): Integer
+
+  attr_reader title(): String
+
+  attr_reader priority(): :low | :normal | :high
+
+  attr_reader due_on(): Date?
+
+  attr_reader done(): bool
+
+  def self.new: (Integer id, String title, :low | :normal | :high priority, Date? due_on, bool done) -> instance
+              | (id: Integer, title: String, priority: :low | :normal | :high, due_on: Date?, done: bool) -> instance
+
+  def self.members: () -> [ :id, :title, :priority, :due_on, :done ]
+
+  def members: () -> [ :id, :title, :priority, :due_on, :done ]
+end

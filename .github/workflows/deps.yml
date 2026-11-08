@@ -19,9 +19,10 @@ jobs:
     uses: bottrall/deps/.github/workflows/fix.yml@main
     secrets: inherit
     with:
-      # The shared defaults, widened to every gem's lockfile and signatures.
+      # The shared defaults, widened to every gem's and example's lockfile and
+      # signatures.
       safe-paths: |
-        ^([a-z-]+/)?Gemfile\.lock$
+        ^(examples/)?([a-z-]+/)?Gemfile\.lock$
         ^rbs_collection\.lock\.yaml$
-        ^([a-z-]+/)?sig/
+        ^(examples/)?([a-z-]+/)?sig/
         ^\.rubocop(_todo)?\.yml$

@@ -45,7 +45,7 @@ jobs:
           ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
       - uses: ruby/setup-ruby@v1
       - run: |
-          for dir in . skyward-core skyward-api skyward-orm skyward; do
+          for dir in . skyward-core skyward-api skyward-orm skyward examples/todos; do
             (cd "$dir" && bundle lock)
           done
       - run: |

@@ -12,6 +12,12 @@ require_relative "tooling/lib/release"
 # published in.
 GEMS = %w[skyward-core skyward-api skyward-orm skyward].freeze
 
+# Apps built on the gems. Each has its own bundle and signatures, like a gem,
+# but is never packaged or released.
+EXAMPLES = %w[examples/todos].freeze
+
+BUNDLES = [*GEMS, *EXAMPLES].freeze
+
 PKG = "pkg"
 
 # Rake::TestTask reads TEST as a single glob, so bin/test's comma-separated
@@ -27,30 +33,32 @@ def requested_in(dir)
                  .map { |path| path.delete_prefix(prefix) }
 end
 
-def ruby_sources(gem) = Dir.glob("lib/**/*.rb", base: gem)
+# A gem's Ruby is under lib/; an example's sits beside its app.rb, where the API README puts an app's.
+def ruby_sources(dir) = Dir.glob(%w[lib/**/*.rb *.rb], base: dir)
 
-def write_signatures(gem, output)
-  sources = ruby_sources(gem)
+def write_signatures(dir, output)
+  sources = ruby_sources(dir)
   # Starting empty drops a deleted file's signatures.
-  FileUtils.rm_rf(File.expand_path(output, gem))
-  FileUtils.mkdir_p(File.expand_path(output, gem))
+  FileUtils.rm_rf(File.expand_path(output, dir))
+  FileUtils.mkdir_p(File.expand_path(output, dir))
   return if sources.empty?
 
-  sh "rbs-inline", "--opt-out", "--output=#{output}", *sources, chdir: gem, verbose: false
+  sh "rbs-inline", "--opt-out", "--output=#{output}", *sources, chdir: dir, verbose: false
 end
 
 # Each gem's tests run in that gem's own bundle, which holds only the gem and
 # the Skyward gems it depends on, so a test that reaches for another fails.
-gem_test_tasks = GEMS.filter_map do |gem|
-  files = requested_in(gem)
+# Each example's run in its own bundle the same way.
+bundle_test_tasks = BUNDLES.filter_map do |dir|
+  files = requested_in(dir)
   next if files == []
 
-  desc "Run #{gem}'s tests in its own bundle"
-  task "test:#{gem}" do
+  desc "Run #{dir}'s tests in its own bundle"
+  task "test:#{dir}" do
     env = { "TEST" => files&.join(",") }.compact
-    Bundler.with_unbundled_env { sh env, "bundle", "exec", "rake", "test", chdir: gem }
+    Bundler.with_unbundled_env { sh env, "bundle", "exec", "rake", "test", chdir: dir }
   end
-  "test:#{gem}"
+  "test:#{dir}"
 end
 
 tooling_tests = requested_in("tooling") || Dir.glob("test/**/*_test.rb", base: "tooling")
@@ -62,8 +70,8 @@ unless tooling_tests.empty?
   end
 end
 
-desc "Run every gem's tests, each in its own bundle, and the tooling's"
-task test: [*gem_test_tasks, *("test:tooling" unless tooling_tests.empty?)]
+desc "Run every gem's and example's tests, each in its own bundle, and the tooling's"
+task test: [*bundle_test_tasks, *("test:tooling" unless tooling_tests.empty?)]
 
 RuboCop::RakeTask.new do |t|
   # RuboCop also applies AllCops/Exclude from every .rubocop.yml above the
@@ -92,19 +100,19 @@ namespace :rbs do
     sh "rbs collection install"
   end
 
-  desc "Generate RBS signatures from inline annotations in every gem"
+  desc "Generate RBS signatures from inline annotations in every gem and example"
   task :generate do
-    GEMS.each { |gem| write_signatures(gem, "sig/generated") }
+    BUNDLES.each { |dir| write_signatures(dir, "sig/generated") }
   end
 
-  desc "Fail if any gem's rbs-inline output is out of date with its Ruby"
+  desc "Fail if any gem's or example's rbs-inline output is out of date with its Ruby"
   task :check do
-    GEMS.each do |gem|
+    BUNDLES.each do |source|
       Dir.mktmpdir("rbs-check") do |dir|
-        write_signatures(gem, dir)
-        FileUtils.mkdir_p("#{gem}/sig/generated")
-        sh "diff -ruN #{gem}/sig/generated #{dir}" do |ok, _|
-          abort "#{gem}/sig/generated is out of date; run bin/rbs and commit the result" unless ok
+        write_signatures(source, dir)
+        FileUtils.mkdir_p("#{source}/sig/generated")
+        sh "diff -ruN #{source}/sig/generated #{dir}" do |ok, _|
+          abort "#{source}/sig/generated is out of date; run bin/rbs and commit the result" unless ok
         end
       end
     end
@@ -164,9 +172,9 @@ namespace :package do
   end
 end
 
-desc "Update every lockfile (the dev bundle's and each gem's) after a version change"
+desc "Update every lockfile (the dev bundle's, each gem's and each example's) after a version change"
 task :lock do
-  Bundler.with_unbundled_env { [".", *GEMS].each { |dir| sh "bundle", "lock", chdir: dir } }
+  Bundler.with_unbundled_env { [".", *BUNDLES].each { |dir| sh "bundle", "lock", chdir: dir } }
 end
 
 namespace :release do
