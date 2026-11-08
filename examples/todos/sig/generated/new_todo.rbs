@@ -1,0 +1,16 @@
+# Generated from new_todo.rb with RBS::Inline
+
+class NewTodo < Data
+  attr_reader title(): String
+
+  attr_reader priority(): :low | :normal | :high
+
+  attr_reader due_on(): Date?
+
+  def self.new: (String title, :low | :normal | :high priority, Date? due_on) -> instance
+              | (title: String, priority: :low | :normal | :high, due_on: Date?) -> instance
+
+  def self.members: () -> [ :title, :priority, :due_on ]
+
+  def members: () -> [ :title, :priority, :due_on ]
+end

@@ -42,12 +42,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gem: [skyward-core, skyward-api, skyward-orm, skyward]
+        gem: [skyward-core, skyward-api, skyward-orm, skyward, examples/todos]
         # Every Ruby that isn't end-of-life.
         ruby: ["3.3", "3.4", "4.0", head]
 
     # Each gem's tests run in its own bundle, which holds only the gem and the
-    # Skyward gems it depends on.
+    # Skyward gems it depends on, and so does each example's.
     defaults:
       run:
         working-directory: ${{ matrix.gem }}

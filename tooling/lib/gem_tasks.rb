@@ -2,7 +2,7 @@
 
 require "rake/testtask"
 
-# Loaded by each gem's Rakefile, which runs in that gem's own bundle.
+# Loaded by each gem's and example's Rakefile, which runs in its own bundle.
 # Rake::TestTask reads TEST as a single glob, so the comma-separated list the
 # root Rakefile passes is taken out of ENV and split here.
 requested = ENV.delete("TEST")&.split(",")

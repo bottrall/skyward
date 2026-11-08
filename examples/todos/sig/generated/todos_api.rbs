@@ -1,0 +1,32 @@
+# Generated from todos_api.rb with RBS::Inline
+
+use Skyward::*
+
+class TodosAPI < Skyward::API
+  @todos: TodoStore
+
+  # @rbs todos: TodoStore
+  # @rbs return: void
+  def initialize: (todos: TodoStore) -> void
+
+  # @rbs done: bool?
+  # @rbs limit: Integer
+  # @rbs return: Array[Todo]
+  def index: (?done: bool?, ?limit: Integer) -> Array[Todo]
+
+  # @rbs id: Integer
+  # @rbs return: Todo | NotFound
+  def show: (id: Integer) -> (Todo | NotFound)
+
+  # @rbs body: NewTodo
+  # @rbs return: Created[Todo]
+  def create: (body: NewTodo) -> Created[Todo]
+
+  # @rbs id: Integer
+  # @rbs return: Todo | NotFound
+  def complete: (id: Integer) -> (Todo | NotFound)
+
+  # @rbs id: Integer
+  # @rbs return: NoContent | NotFound
+  def destroy: (id: Integer) -> (NoContent | NotFound)
+end

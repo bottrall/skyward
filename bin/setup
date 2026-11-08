@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Installs the dev bundle and each gem's own bundle, then delegates to rake,
-# which isn't available until then.
+# Installs the dev bundle and each gem's and example's own bundle, then
+# delegates to rake, which isn't available until then.
 set -e
 bundle install "$@"
-for gem in skyward-core skyward-api skyward-orm skyward; do
+for gem in skyward-core skyward-api skyward-orm skyward examples/todos; do
   (cd "$gem" && bundle install "$@")
 done
 exec bundle exec rake rbs:collection_install

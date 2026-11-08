@@ -1,10 +1,12 @@
 /.bundle/
 /*/.bundle/
+/examples/*/.bundle/
 /coverage/
 /pkg/
 /tmp/
 /vendor/
 /*/vendor/
+/examples/*/vendor/
 /*/*.gem
 /.gem_rbs_collection/
 /.claude/worktrees/

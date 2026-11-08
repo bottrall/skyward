@@ -1,0 +1,6 @@
+# Generated from health_api.rb with RBS::Inline
+
+class HealthAPI < Skyward::API
+  # @rbs return: { status: "ok" }
+  def show: () -> { status: "ok" }
+end

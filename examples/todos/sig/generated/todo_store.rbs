@@ -1,0 +1,35 @@
+# Generated from todo_store.rb with RBS::Inline
+
+class TodoStore
+  @lock: Thread::Mutex
+
+  @todos: Hash[Integer, Todo]
+
+  @last_id: Integer
+
+  # @rbs return: void
+  def initialize: () -> void
+
+  # @rbs done: bool?
+  # @rbs limit: Integer
+  # @rbs return: Array[Todo]
+  def list: (done: bool?, limit: Integer) -> Array[Todo]
+
+  # @rbs id: Integer
+  # @rbs return: Todo?
+  def find: (Integer id) -> Todo?
+
+  # @rbs title: String
+  # @rbs priority: :low | :normal | :high
+  # @rbs due_on: Date?
+  # @rbs return: Todo
+  def create: (title: String, priority: :low | :normal | :high, due_on: Date?) -> Todo
+
+  # @rbs id: Integer
+  # @rbs return: Todo?
+  def complete: (Integer id) -> Todo?
+
+  # @rbs id: Integer
+  # @rbs return: Todo?
+  def delete: (Integer id) -> Todo?
+end

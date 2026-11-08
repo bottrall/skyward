@@ -22,6 +22,7 @@ AllCops:
     - "tmp/**/*"
     - "vendor/**/*"
     - "*/vendor/**/*"
+    - "examples/*/vendor/**/*"
     # The README's opening example, copied as it's written so a test can run it.
     - "skyward-api/test/fixtures/hello/config.ru"
 
@@ -60,6 +61,7 @@ Local/NoInheritance:
     - Skyward::Record
   Include:
     - "*/lib/**/*.rb"
+    - "examples/*/*.rb"
     - "**/test/**/*.rb"
 
 Local/NoMocking:
@@ -79,6 +81,7 @@ Local/TypedConstantAlias:
   Enabled: true
   Include:
     - "*/lib/**/*.rb"
+    - "examples/*/*.rb"
 
 Style/ClassAndModuleChildren:
   EnforcedStyle: compact

@@ -10,17 +10,17 @@ You need the Ruby in `.ruby-version` for development. Skyward itself supports ev
 bin/setup
 ```
 
-That installs the dev bundle, each gem's own bundle, and the gem signatures Steep uses.
+That installs the dev bundle, each gem's and example's own bundle, and the gem signatures Steep uses.
 
 ## Day to day
 
 | Script         | Does                                                                      |
 | -------------- | ------------------------------------------------------------------------- |
-| `bin/test`     | runs every gem's tests, each in its own bundle; pass files to run only those |
+| `bin/test`     | runs every gem's and example's tests, each in its own bundle; pass files to run only those |
 | `bin/lint`     | runs RuboCop; `bin/lint -a` autocorrects                                  |
-| `bin/rbs`      | regenerates each gem's `sig/generated` from its inline annotations       |
+| `bin/rbs`      | regenerates each gem's and example's `sig/generated` from its inline annotations       |
 | `bin/rbs-watch` | regenerates them on every change                                          |
-| `bin/typecheck` | checks the signatures are current, then runs Steep on every gem          |
+| `bin/typecheck` | checks the signatures are current, then runs Steep on every gem and example        |
 | `bin/ci`       | everything CI runs, including building and installing the gems           |
 
 Run `bin/ci` before you push.
