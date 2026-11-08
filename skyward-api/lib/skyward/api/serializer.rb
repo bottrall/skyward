@@ -68,7 +68,7 @@ class Skyward::API::Serializer
   # @rbs writer: Skyward::API::Writers::Writer
   # @rbs return: Skyward::API::Writers::Writer
   def ok(writer)
-    writer.with(write: ->(value, at) { json(writer.write.call(value, at)) { |body| [200, JSON_TYPE.dup, body] } })
+    writer.with(write: ->(value, at) { json(writer.write.call(value, at), 200, JSON_TYPE.dup) })
   end
 
   # @rbs writer: Skyward::API::Writers::Writer
@@ -78,7 +78,7 @@ class Skyward::API::Serializer
       "Skyward::Created[#{writer.name}]",
       ->(given) { given.is_a?(Skyward::Created) },
       lambda do |given, at|
-        json(writer.write.call(given.value, "#{at}.value")) { |body| [201, { **JSON_TYPE, **given.headers }, body] }
+        json(writer.write.call(given.value, "#{at}.value"), 201, { **JSON_TYPE, **given.headers })
       end
     )
   end
@@ -103,10 +103,11 @@ class Skyward::API::Serializer
   end
 
   # @rbs written: untyped
-  # @rbs &: (Array[String]) -> Skyward::API::App::response
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
   # @rbs return: untyped
-  def json(written)
-    written.is_a?(Skyward::API::Writers::Misfit) ? written : yield([JSON.generate(written)])
+  def json(written, status, headers)
+    written.is_a?(Skyward::API::Writers::Misfit) ? written : [status, headers, [JSON.generate(written)]]
   end
 
   # @rbs misfit: Skyward::API::Writers::Misfit

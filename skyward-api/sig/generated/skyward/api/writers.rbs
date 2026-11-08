@@ -39,14 +39,6 @@ module Skyward::API::Writers
   # @rbs return: Writer
   def union: (Array[Writer] members) -> Writer
 
-  # The first member's misfit stands when none writes the value, so the error names the closest member.
-  # @rbs fitting: Array[Writer]
-  # @rbs value: untyped
-  # @rbs at: String
-  # @rbs failed: Misfit?
-  # @rbs return: untyped
-  def first_written: (Array[Writer] fitting, untyped value, String at, ?Misfit? failed) -> untyped
-
   # @rbs name: String
   # @rbs fits: ^(untyped) -> bool
   # @rbs write: ^(untyped, String) -> untyped
@@ -54,6 +46,13 @@ module Skyward::API::Writers
   def checked: (String name, ^(untyped) -> bool fits, ^(untyped, String) -> untyped write) -> Writer
 
   private
+
+  # @rbs fitting: Array[Writer]
+  # @rbs value: untyped
+  # @rbs at: String
+  # @rbs failed: Misfit?
+  # @rbs return: untyped
+  def first_written: (Array[Writer] fitting, untyped value, String at, ?Misfit? failed) -> untyped
 
   # @rbs name: Skyward::Types::scalar
   # @rbs return: Writer
@@ -79,7 +78,6 @@ module Skyward::API::Writers
   # @rbs return: Writer
   def record: (Array[Skyward::Types::Field] fields) -> Writer
 
-  # Only declared keys are read, so the rest of the Hash is never written.
   # @rbs field: Skyward::Types::Field
   # @rbs writer: Writer
   # @rbs hash: Hash[untyped, untyped]

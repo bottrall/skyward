@@ -65,9 +65,10 @@ class Skyward::API::Serializer
   def problem_response: (Problem problem, untyped given) -> Skyward::API::App::response
 
   # @rbs written: untyped
-  # @rbs &: (Array[String]) -> Skyward::API::App::response
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
   # @rbs return: untyped
-  def json: (untyped written) { (Array[String]) -> Skyward::API::App::response } -> untyped
+  def json: (untyped written, Integer status, Hash[String, String] headers) -> untyped
 
   # @rbs misfit: Skyward::API::Writers::Misfit
   # @rbs return: String

@@ -233,7 +233,7 @@ module BootFixtures
 
     def create(body:) = created(Todo.new(id: 1, **body), headers: { "location" => "/1" })
 
-    def destroy(id:) = no_content(headers: { "x-deleted" => id })
+    def destroy(id:) = conflict("Todo #{id} is in use")
   end
 
   CreatedHash = Class.new(Skyward::API) do
