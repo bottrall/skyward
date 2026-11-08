@@ -134,6 +134,12 @@ module BootFixtures
     def show(id:) = Todo.new(id: 1, title: id)
   end
 
+  NullableUntypedKeyword = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(limit: nil) = Todo.new(id: 1, title: limit.to_s)
+  end
+
   NestedUntyped = Class.new(Skyward::API) do
     get "/", to: :index
 

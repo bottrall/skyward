@@ -79,6 +79,10 @@ module BootFixtures
     def show: (id: untyped) -> Todo
   end
 
+  class NullableUntypedKeyword < Skyward::API
+    def index: (?limit: untyped?) -> Todo
+  end
+
   class NestedUntyped < Skyward::API
     def index: (?tags: Array[untyped]) -> Array[untyped]
   end

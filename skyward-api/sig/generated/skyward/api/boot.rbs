@@ -156,8 +156,8 @@ module Skyward::API::Boot
   # @rbs return: String?
   def untyped: (Skyward::API::Router::Endpoint endpoint, Skyward::Types::Reader reader) -> String?
 
-  # Only a keyword's whole type or a member of the return type counts, so
-  # strict: true lets through untyped inside a type, as in Array[untyped].
+  # Only a keyword's whole type, nullable or not, or a member of the return type
+  # counts, so strict: true lets through untyped inside a type, as in Array[untyped].
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs return: String?
   def untyped_parts: (Skyward::API::Router::Endpoint endpoint) -> String?

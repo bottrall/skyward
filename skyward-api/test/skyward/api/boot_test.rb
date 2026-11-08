@@ -139,6 +139,21 @@ describe Skyward::API::Boot do
         assert_match(/has no public method `index`/, refusal([BootFixtures::Protected.new, "/"]))
       end
 
+      it "refuses a method that takes a positional argument" do
+        assert_equal "BootFixtures::Positional#show (GET /:id)\n  " \
+                     "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
+                     "Take each input as a keyword, such as `id:`.",
+                     refusal([BootFixtures::Positional.new, "/"])
+      end
+
+      it "refuses a method that takes **rest" do
+        assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::KeywordRest.new, "/"]))
+      end
+
+      it "refuses a method with no signature that takes a positional argument" do
+        assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::UnsignedPositional.new, "/"]))
+      end
+
       it "takes a class with no signature as untyped, with the method's own keywords" do
         greet = endpoint(boot([BootFixtures::Unsigned.new, "/"]), :greet)
         expected = [
@@ -154,21 +169,6 @@ describe Skyward::API::Boot do
         index = endpoint(boot([BootFixtures::UnsignedMethod.new, "/"]), :index)
 
         assert_equal [[], [untyped]], [index.keywords, index.returns]
-      end
-
-      it "refuses a method that takes a positional argument" do
-        assert_equal "BootFixtures::Positional#show (GET /:id)\n  " \
-                     "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
-                     "Take each input as a keyword, such as `id:`.",
-                     refusal([BootFixtures::Positional.new, "/"])
-      end
-
-      it "refuses a method that takes **rest" do
-        assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::KeywordRest.new, "/"]))
-      end
-
-      it "refuses a method with no signature that takes a positional argument" do
-        assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::UnsignedPositional.new, "/"]))
       end
     end
 
@@ -441,6 +441,10 @@ describe Skyward::API::Boot do
           /leaves `id:` untyped, but strict: true refuses an untyped endpoint\. Give it a type\.\z/,
           refusal([BootFixtures::UntypedKeyword.new, "/"], strict: true)
         )
+      end
+
+      it "names a keyword typed untyped?" do
+        assert_match(/leaves `limit:` untyped/, refusal([BootFixtures::NullableUntypedKeyword.new, "/"], strict: true))
       end
 
       it "boots untyped inside a type, as in Array[untyped]" do

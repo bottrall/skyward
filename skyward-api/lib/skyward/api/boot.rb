@@ -120,7 +120,8 @@ module Skyward::API::Boot
     method_type = method_type(api.class, route.to, reader)
     return method_type if method_type.is_a?(String)
 
-    signed = signed(api.class.instance_method(route.to).parameters, method_type&.type)
+    function = method_type&.type
+    signed = signed(api.class.instance_method(route.to).parameters, function)
     return signed if signed.is_a?(String)
 
     unnamed = pattern.grep(Symbol).find { |name| signed.none? { |keyword, _, _| keyword == name } }
@@ -135,7 +136,7 @@ module Skyward::API::Boot
 
     keywords = read.grep(Skyward::API::Router::Keyword) #: Array[Skyward::API::Router::Keyword]
 
-    returns = returns(method_type ? method_type.type.return_type : ANY, reader)
+    returns = returns(function&.return_type || ANY, reader)
     return returns if returns.is_a?(String)
 
     inputs = Skyward::API::Inputs.new(keywords, max_body_size:)
@@ -386,13 +387,16 @@ module Skyward::API::Boot
     "#{endpoint.label}\n  #{problem}" if problem
   end
 
-  # Only a keyword's whole type or a member of the return type counts, so
-  # strict: true lets through untyped inside a type, as in Array[untyped].
+  # Only a keyword's whole type, nullable or not, or a member of the return type
+  # counts, so strict: true lets through untyped inside a type, as in Array[untyped].
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs return: String?
   def untyped_parts(endpoint)
     any = Skyward::API::Serializer::UNTYPED
-    keywords = endpoint.keywords.filter_map { |keyword| "`#{keyword.name}:`" if keyword.type == any }
+    keywords = endpoint.keywords.filter_map do |keyword|
+      type = keyword.type
+      "`#{keyword.name}:`" if (type.is_a?(Skyward::Types::Nullable) ? type.type : type) == any
+    end
     parts = endpoint.returns.include?(any) ? [*keywords, "the return type"] : keywords
     return if parts.empty?
 
