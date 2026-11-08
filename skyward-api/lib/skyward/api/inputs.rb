@@ -50,10 +50,11 @@ class Skyward::API::Inputs
     provided = request ? provide(@providers, request, none) : none
     return provided if provided.is_a?(Array)
 
+    given = @request ? { **provided, request: } : provided
     body = body(env) if @body
     case body
     when Symbol then body
-    else arguments(params, query(env["QUERY_STRING"].to_s), body, (request if @request), provided)
+    else arguments(params, query(env["QUERY_STRING"].to_s), body, given)
     end
   end
 
@@ -78,12 +79,10 @@ class Skyward::API::Inputs
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
-  # @rbs request: Skyward::Request?
-  # @rbs provided: Hash[Symbol, untyped]
+  # @rbs given: Hash[Symbol, untyped]
   # @rbs return: Skyward::API::Coercer::result
-  def arguments(params, query, body, request, provided)
+  def arguments(params, query, body, given)
     coerced = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
-    given = request ? { **provided, request: } : provided
     results = [*coerced, *given.map { |name, value| [name, Skyward::API::Coercer::Ok.new(value:)] }]
     combined = Skyward::API::Coercer.combine(results.to_h)
     case combined

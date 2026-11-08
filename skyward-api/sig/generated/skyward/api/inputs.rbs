@@ -44,10 +44,9 @@ class Skyward::API::Inputs
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
-  # @rbs request: Skyward::Request?
-  # @rbs provided: Hash[Symbol, untyped]
+  # @rbs given: Hash[Symbol, untyped]
   # @rbs return: Skyward::API::Coercer::result
-  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body, Skyward::Request? request, Hash[Symbol, untyped] provided) -> Skyward::API::Coercer::result
+  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body, Hash[Symbol, untyped] given) -> Skyward::API::Coercer::result
 
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs coercer: Skyward::API::Coercer::t

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedProvider and the classes refused
-# before their signature is read: Unrouted, Private and Protected. Each class
-# that fails to boot has one problem.
+# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedProvider, ModuleProvider, ClassProvider and the
+# classes refused before their signature is read: Unrouted, Private and Protected. Each class that fails to boot
+# has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
@@ -337,6 +337,16 @@ module BootFixtures
 
   UnsignedProvider = Class.new do
     def call(_request) = "anyone"
+  end
+
+  ModuleProvider = Module.new do
+    extend self
+
+    def call(_request) = "anyone"
+  end
+
+  ClassProvider = Class.new do
+    def self.call(_request) = "anyone"
   end
 
   Authenticated = Class.new(Skyward::API) do

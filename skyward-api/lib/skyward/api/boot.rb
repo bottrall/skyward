@@ -15,12 +15,12 @@ module Skyward::API::Boot
 
   REQUEST_TYPE = Skyward::Types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: []) #: Skyward::Types::Named
 
-  # @rbs mounts: Array[Skyward::API::Builder::Mount]
-  # @rbs providers: Hash[Symbol, Skyward::API::_Provider & Object]
-  # @rbs reader: Skyward::Types::Reader
-  # @rbs max_body_size: Integer
-  # @rbs return: Array[Skyward::API::Router::Endpoint]
+  # @rbs (Array[Skyward::API::Builder::Mount] mounts, providers: Hash[Symbol, Skyward::API::_Provider & Object],
+  #       reader: Skyward::Types::Reader, max_body_size: Integer) -> Array[Skyward::API::Router::Endpoint]
   def endpoints(mounts, providers:, reader:, max_body_size:)
+    refused = providers.filter_map { |name, callable| single_object(name, callable) }.first
+    raise Skyward::BootError, refused if refused
+
     provided = providers.to_h { |name, callable| [name, provider(name, callable, reader)] }
     none = [] #: Array[Skyward::API::Router::Endpoint]
     mounts.reduce(none) do |built, mount|
@@ -32,13 +32,24 @@ module Skyward::API::Boot
 
   private
 
-  # @rbs name: Symbol
-  # @rbs callable: Skyward::API::_Provider & Object
-  # @rbs reader: Skyward::Types::Reader
-  # @rbs return: Skyward::API::Router::Provider
+  # @rbs (Skyward::API::_Provider & Object callable) -> Method
+  def call_method(callable) = callable.is_a?(Method) ? callable : callable.method(:call)
+
+  # The reader finds a signature only for an instance method of a class.
+  # @rbs (Symbol name, Skyward::API::_Provider & Object callable) -> String?
+  def single_object(name, callable)
+    method = call_method(callable)
+    return unless method.receiver.is_a?(Module) || method.owner.singleton_class?
+
+    "The :#{name} provider's `#{method.name}` is defined on a single object, such as a module or a class, " \
+      "and Skyward API can't read the signature of those. Provide an instance of a class."
+  end
+
+  # @rbs (Symbol name, Skyward::API::_Provider & Object callable, Skyward::Types::Reader reader) ->
+  #       Skyward::API::Router::Provider
   def provider(name, callable, reader)
     label = "The :#{name} provider"
-    returned = signature(callable, reader)&.type&.return_type
+    returned = signature(call_method(callable), reader)&.type&.return_type
     if returned.nil? || returned.is_a?(RBS::Types::Bases::Any)
       serializer = Skyward::API::Serializer.new([Skyward::API::Serializer::UNTYPED], label:)
       return Skyward::API::Router::Provider.new(name:, callable:, value: nil, responses: [], serializer:)
@@ -51,14 +62,13 @@ module Skyward::API::Boot
     Skyward::API::Router::Provider.new(name:, callable:, value:, responses:, serializer:)
   end
 
-  # A Method is signed by the module that defines it, under its own name.
-  # @rbs callable: Skyward::API::_Provider & Object
+  # A method is signed by the module that defines it, which isn't always its receiver's class.
+  # @rbs method: Method
   # @rbs reader: Skyward::Types::Reader
   # @rbs return: RBS::MethodType?
-  def signature(callable, reader)
-    owner, name = callable.is_a?(Method) ? [callable.owner, callable.name] : [callable.class, :call]
-    type_name = reader.type_name(owner)
-    reader.method_type(type_name, name) if type_name
+  def signature(method, reader)
+    type_name = reader.type_name(method.owner)
+    reader.method_type(type_name, method.name) if type_name
   end
 
   # @rbs mount: Skyward::API::Builder::Mount

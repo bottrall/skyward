@@ -65,9 +65,7 @@ class Skyward::API::Builder
     @statics = [*@statics, Static.new(prefix:, from: directory)]
   end
 
-  # @rbs name: Symbol
-  # @rbs provider: Skyward::API::_Provider & Object
-  # @rbs return: void
+  # @rbs (Symbol name, Skyward::API::_Provider & Object provider) -> void
   def provide(name, provider)
     if %i[body request].include?(name)
       raise Skyward::BootError,

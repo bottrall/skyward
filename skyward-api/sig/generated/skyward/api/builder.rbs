@@ -72,8 +72,6 @@ class Skyward::API::Builder
   # @rbs return: void
   def static: (String prefix, from: String) -> void
 
-  # @rbs name: Symbol
-  # @rbs provider: Skyward::API::_Provider & Object
-  # @rbs return: void
+  # @rbs (Symbol name, Skyward::API::_Provider & Object provider) -> void
   def provide: (Symbol name, Skyward::API::_Provider & Object provider) -> void
 end
