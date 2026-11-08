@@ -130,6 +130,24 @@ describe Skyward::API::OpenAPI do
         end
       end
 
+      it "refuses a route at /docs, where the API reference is served" do
+        assert_equal "OpenAPIFixtures::Todos#docs (GET /docs)\n  " \
+                     "With docs: true, /docs serves the API reference. " \
+                     "Change the route's path, or leave out docs:.",
+                     refusal(endpoint(:docs, path: ["", "docs"]))
+      end
+
+      it "refuses a static file at /docs" do
+        Dir.mktmpdir do |root|
+          File.write(File.join(root, "docs"), "<h1>Docs</h1>")
+          static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: root)])
+
+          assert_equal "static serves #{root}/docs at /docs, where docs: true serves the API reference. " \
+                       "Move the file, or leave out docs:.",
+                       refusal(endpoint(:index), static:)
+        end
+      end
+
       it "refuses two operations with the same ID" do
         assert_equal "OpenAPIFixtures::Todos#index (GET /todos/done)\n  " \
                      "Its OpenAPI operation ID, OpenAPIFixtures.Todos_index, is OpenAPIFixtures::Todos#index " \
@@ -259,6 +277,13 @@ describe Skyward::API::OpenAPI do
         written = parameters(keyword(:id, :path, integer), keyword(:done, :query, types::Nullable.new(type: string)))
 
         assert_equal [false, { "type" => "string" }], written.last.values_at("required", "schema")
+      end
+
+      it "writes an untyped path or query keyword as a string, which is all either carries" do
+        untyped = types::Scalar.new(name: :untyped)
+        written = parameters(keyword(:id, :path, untyped), keyword(:shout, :query, types::Nullable.new(type: untyped)))
+
+        assert_equal([{ "type" => "string" }] * 2, written.map { |parameter| parameter["schema"] })
       end
 
       it "leaves out request:, which is no part of the HTTP contract" do
@@ -462,6 +487,11 @@ describe Skyward::API::OpenAPI do
         assert_equal %w[OpenAPIFixtures.Draft OpenAPIFixtures.List OpenAPIFixtures.Todo Problem], written.keys
       end
 
+      it "has a class used only as a hash's value" do
+        assert_equal %w[OpenAPIFixtures.Todo Problem],
+                     components(endpoint(:index, returns: [types::HashOf.new(type: todo)])).keys
+      end
+
       it "requires a nullable field of a class used only in responses" do
         assert_equal %w[title note],
                      components(endpoint(:index, returns: [draft])).dig("OpenAPIFixtures.Draft", "required")
@@ -519,6 +549,16 @@ describe Skyward::API::OpenAPI do
         )
       end
 
+      it "maps a Hash to an object whose additionalProperties are its values" do
+        written = [types::ArrayOf.new(type: todo), types::Scalar.new(name: :untyped)].map do |type|
+          returned(types::HashOf.new(type:))
+        end
+
+        assert_equal [{ "type" => "object", "additionalProperties" => { "type" => "array", "items" => todo_ref } },
+                      { "type" => "object", "additionalProperties" => {} }],
+                     written
+      end
+
       it "maps a record to an inline object, requiring the keys it requires" do
         record = types::Record.new(fields: [field.call(:id, integer), field.call(:note, string, false)])
 
@@ -562,7 +602,7 @@ describe Skyward::API::OpenAPI do
         endpoint(
           :index,
           keywords: [keyword(:tags, :query, types::ArrayOf.new(type: string), required: false)],
-          returns: [types::ArrayOf.new(type: todo), record],
+          returns: [types::ArrayOf.new(type: todo), record, types::HashOf.new(type: types::Nullable.new(type: todo))],
           summary: "List todos."
         ),
         endpoint(

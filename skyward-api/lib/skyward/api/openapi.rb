@@ -17,6 +17,11 @@ module Skyward::API::OpenAPI
 
   PATH = "/openapi.json" #: String
 
+  SERVED = {
+    PATH => "the OpenAPI document",
+    Skyward::API::Docs::PATH => "the API reference"
+  }.freeze #: Hash[String, String]
+
   # OpenAPI's pattern for the name of a component.
   NAME = /\A[A-Za-z0-9._-]+\z/ #: Regexp
 
@@ -123,7 +128,7 @@ module Skyward::API::OpenAPI
   # @rbs return: Array[Skyward::Types::Named]
   def named(type)
     case type
-    when Skyward::Types::Nullable, Skyward::Types::ArrayOf then named(type.type)
+    when Skyward::Types::Nullable, Skyward::Types::ArrayOf, Skyward::Types::HashOf then named(type.type)
     when Skyward::Types::Record then type.fields.flat_map { |field| named(field.type) }
     when Skyward::Types::Named then [type, *type.fields.flat_map { |field| named(field.type) }]
     when Skyward::Types::Union then type.types.flat_map { |member| named(member) }
@@ -135,16 +140,24 @@ module Skyward::API::OpenAPI
   # @rbs static: Skyward::API::Static
   # @rbs return: String?
   def served(endpoints, static)
-    routed = endpoints.find { |endpoint| path(endpoint.pattern) == PATH }
+    SERVED.lazy.filter_map { |at, serves| taken(at, serves, endpoints, static) }.first
+  end
+
+  # @rbs at: String
+  # @rbs serves: String
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs return: String?
+  def taken(at, serves, endpoints, static)
+    routed = endpoints.find { |endpoint| path(endpoint.pattern) == at }
     if routed
-      return "#{routed.label}\n  With docs: true, #{PATH} serves the OpenAPI document. " \
-             "Change the route's path, or leave out docs:."
+      return "#{routed.label}\n  With docs: true, #{at} serves #{serves}. Change the route's path, or leave out docs:."
     end
 
-    file = static.file(PATH)
+    file = static.file(at)
     return unless file
 
-    "static serves #{file} at #{PATH}, where docs: true serves the OpenAPI document. Move the file, or leave out docs:."
+    "static serves #{file} at #{at}, where docs: true serves #{serves}. Move the file, or leave out docs:."
   end
 
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
@@ -216,17 +229,19 @@ module Skyward::API::OpenAPI
     }.compact
   end
 
-  # A path or query value can't be null, so its schema leaves null out.
+  # A path or query value can't be null, so its schema leaves null out, and it's
+  # always a String, so an untyped one is a string.
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def parameter(keyword, names)
     type = keyword.type
+    carried = type.is_a?(Skyward::Types::Nullable) ? type.type : type
     {
       name: keyword.name,
       in: keyword.source,
       required: keyword.source == :path || required?(keyword.required, type, :request),
-      schema: schema(type.is_a?(Skyward::Types::Nullable) ? type.type : type, :request, names)
+      schema: carried == Skyward::API::Serializer::UNTYPED ? SCALARS.fetch(:string) : schema(carried, :request, names)
     }
   end
 
@@ -314,6 +329,7 @@ module Skyward::API::OpenAPI
     when Skyward::Types::Enum then { type: "string", enum: type.symbols.map(&:name) }
     when Skyward::Types::Nullable then nullable(schema(type.type, form, names))
     when Skyward::Types::ArrayOf then { type: "array", items: schema(type.type, form, names) }
+    when Skyward::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
     when Skyward::Types::Record then object(type.fields, form, names)
     when Skyward::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
     else { oneOf: type.types.map { |member| schema(member, form, names) } }

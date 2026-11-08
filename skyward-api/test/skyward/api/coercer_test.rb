@@ -181,13 +181,23 @@ describe Skyward::API::Coercer do
     end
 
     describe "untyped" do
-      it "takes anything as it is" do
-        assert_equal ok({ "title" => 1 }), coerce(types::Scalar.new(name: :untyped), { "title" => 1 })
+      untyped = types::Scalar.new(name: :untyped)
+
+      it "takes the last value of a query key given more than once" do
+        assert_equal ok("b"), coerce(untyped, %w[a b], strings: true)
       end
 
-      it "refuses a query key given more than once" do
-        assert_equal mismatch('expected untyped, got ["a","b"]'),
-                     coerce(types::Scalar.new(name: :untyped), %w[a b], strings: true)
+      it "takes a path or query String as it is" do
+        assert_equal ok("42"), coerce(untyped, "42", strings: true)
+      end
+
+      it "takes a body with symbol keys at every level" do
+        assert_equal ok({ todo: { tags: [{ name: "low" }] }, done: true }),
+                     coerce(untyped, { "todo" => { "tags" => [{ "name" => "low" }] }, "done" => true })
+      end
+
+      it "takes any other body value as it is" do
+        assert_equal ok(42), coerce(untyped, 42)
       end
     end
 
@@ -284,6 +294,52 @@ describe Skyward::API::Coercer do
         coerce(todos, [*Array.new(max, 1), { "title" => "late" }])
 
         assert_empty built
+      end
+    end
+
+    describe "a Hash" do
+      let(:todo_class) { Data.define(:title) }
+      let(:lists) do
+        title = [types::Field.new(name: :title, type: string, required: true)]
+        todo = types::Named.new(name: "Todo", klass: todo_class, fields: title)
+        types::HashOf.new(type: types::ArrayOf.new(type: todo))
+      end
+
+      it "coerces each value, keeping its String key" do
+        expected = ok({ "home" => [todo_class.new(title: "Ship it")], "work" => [] })
+
+        assert_equal expected, coerce(lists, { "home" => [{ "title" => "Ship it", "x" => 1 }], "work" => [] })
+      end
+
+      it "accepts an empty object" do
+        assert_equal ok({}), coerce(lists, {})
+      end
+
+      it "refuses anything but an object" do
+        assert_equal mismatch("expected Hash[String, Array[Todo]], got []"), coerce(lists, [])
+      end
+
+      it "reports every value that doesn't fit, at its key, quoted as JSON" do
+        expected = invalid(
+          ['body["home"][0].title', "expected String, got 1"],
+          ['body["a.b[0]\\""]', "expected Array[Todo], got null"]
+        )
+
+        assert_equal expected, coerce(lists, { "home" => [{ "title" => 1 }], "work" => [], 'a.b[0]"' => nil })
+      end
+
+      it "cuts a key longer than MAX_SHOWN characters, ending with …" do
+        shown = Skyward::API::Coercer::MAX_SHOWN
+        expected = invalid(["body[\"#{"k" * (shown - 1)}…\"]", "expected Array[Todo], got null"])
+
+        assert_equal expected, coerce(lists, { "k" * (shown + 1) => nil })
+      end
+
+      it "reports no more than MAX_ERRORS values" do
+        max = Skyward::API::Coercer::MAX_ERRORS
+        scores = types::HashOf.new(type: integer)
+
+        assert_equal max, coerce(scores, Array.new(max + 1) { |index| [index.to_s, nil] }.to_h).errors.size
       end
     end
 
@@ -496,14 +552,14 @@ describe Skyward::API::Coercer do
         assert_equal mismatch("expected Array[Date | Time], got 1"), coerce(dates, 1)
       end
 
-      it "write a type of MAX_EXPECTED characters in full" do
-        long = "a" * (Skyward::API::Coercer::MAX_EXPECTED - 2)
+      it "write a type of MAX_SHOWN characters in full" do
+        long = "a" * (Skyward::API::Coercer::MAX_SHOWN - 2)
 
         assert_equal mismatch("expected \"#{long}\", got 1"), coerce(types::Literal.new(value: long), 1)
       end
 
-      it "cut a longer type to MAX_EXPECTED characters, ending with …" do
-        long = "a" * (Skyward::API::Coercer::MAX_EXPECTED - 1)
+      it "cut a longer type to MAX_SHOWN characters, ending with …" do
+        long = "a" * (Skyward::API::Coercer::MAX_SHOWN - 1)
 
         assert_equal mismatch("expected \"#{long.chop}…, got 1"), coerce(types::Literal.new(value: long), 1)
       end

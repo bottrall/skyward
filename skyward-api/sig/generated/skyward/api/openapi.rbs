@@ -22,6 +22,8 @@ module Skyward::API::OpenAPI
 
   PATH: String
 
+  SERVED: Hash[String, String]
+
   # OpenAPI's pattern for the name of a component.
   NAME: Regexp
 
@@ -81,6 +83,13 @@ module Skyward::API::OpenAPI
   # @rbs return: String?
   def served: (Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
 
+  # @rbs at: String
+  # @rbs serves: String
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs return: String?
+  def taken: (String at, String serves, Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
+
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs return: String?
   def operation_ids: (Array[Skyward::API::Router::Endpoint] endpoints) -> String?
@@ -102,7 +111,8 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def operation: (Skyward::API::Router::Endpoint endpoint, Hash[Class, String] names) -> schema
 
-  # A path or query value can't be null, so its schema leaves null out.
+  # A path or query value can't be null, so its schema leaves null out, and it's
+  # always a String, so an untyped one is a string.
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema

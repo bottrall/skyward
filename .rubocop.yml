@@ -22,6 +22,8 @@ AllCops:
     - "tmp/**/*"
     - "vendor/**/*"
     - "*/vendor/**/*"
+    # The README's opening example, copied as it's written so a test can run it.
+    - "skyward-api/test/fixtures/hello/config.ru"
 
 Layout/FirstMethodArgumentLineBreak:
   Enabled: true

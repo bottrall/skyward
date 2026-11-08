@@ -1,0 +1,17 @@
+# Generated from lib/skyward/api/docs.rb with RBS::Inline
+
+module Skyward::API::Docs
+  PATH: String
+
+  HTML_TYPE: String
+
+  SCALAR_URL: String
+
+  # Recompute from the file whenever SCALAR_URL's version changes.
+  SCALAR_INTEGRITY: String
+
+  # @rbs title: String
+  # @rbs scalar_url: String
+  # @rbs return: String
+  def page: (title: String, scalar_url: String) -> String
+end

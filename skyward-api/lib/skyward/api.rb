@@ -25,16 +25,18 @@ end
 module Skyward
   # @rbs! type rack = [Integer, Hash[String, String], untyped]
 
-  # @rbs (?signatures: String, ?docs: bool, ?title: String, ?version: String, ?description: String?,
-  #   ?schema_names: Hash[Class, String], ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer)
-  #   { (API::Builder) -> void } -> API::RequestId
+  # @rbs (?signatures: String, ?strict: bool, ?docs: bool, ?title: String, ?version: String, ?description: String?,
+  #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
+  #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
   def self.app(
     signatures: "sig",
+    strict: false,
     docs: false,
     title: "API",
     version: "0.1.0",
     description: nil,
     schema_names: {},
+    scalar_url: API::Docs::SCALAR_URL,
     logger: API::LineLogger.new($stdout),
     on_error: nil,
     max_body_size: 1_048_576,
@@ -46,11 +48,21 @@ module Skyward
     yield builder
     builder.freeze
     reader = Types::Reader.new(Signatures.load(signatures))
-    endpoints = API::Boot.endpoints(builder.mounts, providers: builder.providers, reader:, max_body_size:)
+    endpoints = API::Boot.endpoints(builder.mounts, providers: builder.providers, reader:, max_body_size:, strict:)
     static = API::Static.new(builder.statics)
-    openapi = (API::OpenAPI.json(endpoints, static:, title:, version:, description:, schema_names:) if docs)
+    documents =
+      if docs
+        openapi = API::OpenAPI.json(endpoints, static:, title:, version:, description:, schema_names:)
+        page = API::Docs.page(title:, scalar_url:)
+        {
+          API::OpenAPI::PATH => API::App::Document.new(type: API::OpenAPI::JSON_TYPE, body: openapi),
+          API::Docs::PATH => API::App::Document.new(type: API::Docs::HTML_TYPE, body: page)
+        }
+      else
+        {} #: Hash[String, API::App::Document]
+      end
     app = API::Rescue.new(
-      API::App.new(API::Router.new(endpoints), static, builder.middleware, openapi),
+      API::App.new(API::Router.new(endpoints), static, builder.middleware, documents),
       logger:,
       on_error:,
       development: ENV.fetch("RACK_ENV") { ENV.fetch("APP_ENV", nil) } == "development"

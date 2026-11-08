@@ -70,6 +70,23 @@ module BootFixtures
   class UnsignedMethod < Skyward::API
   end
 
+  # What rbs-inline writes for a method with no annotations.
+  class Inlined < Skyward::API
+    def greet: (name: untyped, ?shout: untyped, ?request: untyped) -> untyped
+  end
+
+  class UntypedKeyword < Skyward::API
+    def show: (id: untyped) -> Todo
+  end
+
+  class NullableUntypedKeyword < Skyward::API
+    def index: (?limit: untyped?) -> Todo
+  end
+
+  class NestedUntyped < Skyward::API
+    def index: (?tags: Array[untyped]) -> Array[untyped]
+  end
+
   class Positional < Skyward::API
     def show: (Integer id) -> Todo
   end
@@ -114,8 +131,16 @@ module BootFixtures
     def show: (todo: Todo) -> Todo
   end
 
+  class HashPath < Skyward::API
+    def show: (scores: Hash[String, Integer]) -> Array[Todo]
+  end
+
   class RecordQuery < Skyward::API
     def index: (filter: { done: bool }) -> Array[Todo]
+  end
+
+  class HashQuery < Skyward::API
+    def index: (?scores: Hash[String, Integer]?) -> Array[Todo]
   end
 
   class NullableClassQuery < Skyward::API
@@ -214,5 +239,9 @@ module BootFixtures
 
   class ProvidedPath < Skyward::API
     def show: (current_user: String) -> Todo
+  end
+
+  class UntypedProvided < Skyward::API
+    def index: (current_user: untyped, visitor: untyped?) -> Array[Todo]
   end
 end

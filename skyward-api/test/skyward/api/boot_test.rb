@@ -9,6 +9,7 @@ describe Skyward::API::Boot do
   reader = Skyward::Types::Reader.new(Skyward::Signatures.load(File.expand_path("../../fixtures/boot/sig", __dir__)))
 
   integer = types::Scalar.new(name: :integer)
+  untyped = types::Scalar.new(name: :untyped)
   todo = types::Named.new(
     name: "BootFixtures::Todo",
     klass: BootFixtures::Todo,
@@ -18,17 +19,18 @@ describe Skyward::API::Boot do
     ]
   )
 
-  define_method(:boot) do |*mounts, providers: {}|
+  define_method(:boot) do |*mounts, providers: {}, strict: false|
     Skyward::API::Boot.endpoints(
       mounts.map { |api, at| Skyward::API::Builder::Mount.new(api:, at:) },
       providers:,
       reader:,
-      max_body_size: 10
+      max_body_size: 10,
+      strict:
     )
   end
 
-  define_method(:refusal) do |*mounts, providers: {}|
-    assert_raises(Skyward::BootError) { boot(*mounts, providers:) }.message
+  define_method(:refusal) do |*mounts, providers: {}, strict: false|
+    assert_raises(Skyward::BootError) { boot(*mounts, providers:, strict:) }.message
   end
 
   def keyword(name, source, required, type)
@@ -217,18 +219,6 @@ describe Skyward::API::Boot do
         assert_match(/has no public method `index`/, refusal([BootFixtures::Protected.new, "/"]))
       end
 
-      it "refuses a class with no signature" do
-        assert_equal "BootFixtures::Unsigned#index (GET /)\n  " \
-                     "BootFixtures::Unsigned#index has no RBS signature. Run rbs-inline, or check `signatures:`.",
-                     refusal([BootFixtures::Unsigned.new, "/"])
-      end
-
-      it "refuses a method with no signature" do
-        assert_equal "BootFixtures::UnsignedMethod#index (GET /)\n  " \
-                     "BootFixtures::UnsignedMethod#index has no RBS signature. Run rbs-inline, or check `signatures:`.",
-                     refusal([BootFixtures::UnsignedMethod.new, "/"])
-      end
-
       it "refuses a method that takes a positional argument" do
         assert_equal "BootFixtures::Positional#show (GET /:id)\n  " \
                      "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
@@ -238,6 +228,27 @@ describe Skyward::API::Boot do
 
       it "refuses a method that takes **rest" do
         assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::KeywordRest.new, "/"]))
+      end
+
+      it "refuses a method with no signature that takes a positional argument" do
+        assert_match(/takes positional arguments or \*\*rest/, refusal([BootFixtures::UnsignedPositional.new, "/"]))
+      end
+
+      it "takes a class with no signature as untyped, with the method's own keywords" do
+        greet = endpoint(boot([BootFixtures::Unsigned.new, "/"]), :greet)
+        expected = [
+          [keyword(:name, :path, true, untyped), keyword(:shout, :query, false, untyped),
+           keyword(:request, :request, false, Skyward::API::Boot::REQUEST_TYPE)],
+          [untyped]
+        ]
+
+        assert_equal expected, [greet.keywords, greet.returns]
+      end
+
+      it "takes a method with no signature as untyped" do
+        index = endpoint(boot([BootFixtures::UnsignedMethod.new, "/"]), :index)
+
+        assert_equal [[], [untyped]], [index.keywords, index.returns]
       end
     end
 
@@ -292,6 +303,22 @@ describe Skyward::API::Boot do
         providers = me.providers.map { |provider| [provider.name, provider.callable] }
 
         assert_equal [[], [[:current_user, current_user]]], [me.keywords, providers]
+      end
+
+      it "takes any provider's value for an untyped endpoint's keyword, with its responses, never the query string" do
+        index = endpoint(boot([BootFixtures::UnsignedProvided.new, "/"], providers: { current_user: }), :index)
+
+        providers = index.providers.map { |provider| [provider.name, provider.responses] }
+
+        assert_equal [[keyword(:limit, :query, false, untyped)], [[:current_user, [response(Skyward::Unauthorized)]]]],
+                     [index.keywords, providers]
+      end
+
+      it "takes any provider's value for a keyword its signature types untyped, nullable or not" do
+        providers = { current_user:, visitor: BootFixtures::Visitor.new }
+        index = endpoint(boot([BootFixtures::UntypedProvided.new, "/"], providers:), :index)
+
+        assert_equal %i[current_user visitor], index.providers.map(&:name)
       end
 
       it "compares a nullable union with its provider's value in any order" do
@@ -354,6 +381,11 @@ describe Skyward::API::Boot do
                        endpoint(requesting, :show).keywords.last
         end
 
+        it "takes request: typed untyped, as rbs-inline writes it, as the request" do
+          assert_equal keyword(:request, :request, false, Skyward::API::Boot::REQUEST_TYPE),
+                       endpoint(boot([BootFixtures::Inlined.new, "/"]), :greet).keywords.last
+        end
+
         it "refuses request: typed as anything but Skyward::Request" do
           assert_equal "BootFixtures::MistypedRequest#index (GET /)\n  " \
                        "`request:` is always the Skyward::Request, but its signature types it as String. " \
@@ -381,7 +413,7 @@ describe Skyward::API::Boot do
       it "names the class and reader where an unreadable type was found" do
         assert_equal "BootFixtures::HashBody#create (POST /)\n  " \
                      "The type of `body:` can't be read: Skyward API doesn't read Hash[Symbol, untyped], " \
-                     "at BootFixtures::Holder#tags. Use a record, or a class with public typed attr_readers instead.",
+                     "at BootFixtures::Holder#tags. Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::HashBody.new, "/"])
       end
 
@@ -390,6 +422,13 @@ describe Skyward::API::Boot do
                      "`ids:` comes from the path, which can't carry an array. " \
                      "Give it a type such as String, Integer or an enum.",
                      refusal([BootFixtures::ArrayPath.new, "/"])
+      end
+
+      it "refuses a hash in the path" do
+        assert_match(
+          /`scores:` comes from the path, which can't carry a hash\./,
+          refusal([BootFixtures::HashPath.new, "/"])
+        )
       end
 
       it "refuses a class in the path" do
@@ -404,6 +443,13 @@ describe Skyward::API::Boot do
                      "`filter:` comes from the query string, which can't carry a record. " \
                      "Give it a type such as String, Integer or an array of them, or take it in `body:`.",
                      refusal([BootFixtures::RecordQuery.new, "/"])
+      end
+
+      it "refuses a nullable hash in the query string" do
+        assert_match(
+          /`scores:` comes from the query string, which can't carry a hash\./,
+          refusal([BootFixtures::HashQuery.new, "/"])
+        )
       end
 
       it "refuses a nullable class in the query string" do
@@ -444,7 +490,7 @@ describe Skyward::API::Boot do
       it "refuses a return type that can't be read" do
         assert_equal "BootFixtures::HashReturn#index (GET /)\n  " \
                      "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use a record, or a class with public typed attr_readers instead.",
+                     "Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::HashReturn.new, "/"])
       end
 
@@ -511,7 +557,7 @@ describe Skyward::API::Boot do
       it "refuses a Created whose value's type can't be read" do
         assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
                      "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use a record, or a class with public typed attr_readers instead.",
+                     "Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::CreatedHash.new, "/"])
       end
     end
@@ -521,6 +567,61 @@ describe Skyward::API::Boot do
 
       assert_equal "BootFixtures::Todos#show (GET /:id) returned nil, which isn't BootFixtures::Todo | :gone",
                    error.message
+    end
+
+    describe "strict:" do
+      it "boots endpoints whose keywords and return type are typed" do
+        assert_equal 5, boot([todos, "/todos"], strict: true).size
+      end
+
+      it "refuses every endpoint with no signature, each with its label" do
+        message = refusal(
+          [todos, "/todos"], [BootFixtures::Unsigned.new, "/"], [BootFixtures::UnsignedMethod.new, "/"], strict: true
+        )
+
+        assert_equal "BootFixtures::Unsigned#greet (GET /:name)\n  " \
+                     "It has no RBS signature, but strict: true refuses an untyped endpoint. " \
+                     "Annotate it and run rbs-inline, or check `signatures:`.\n" \
+                     "BootFixtures::UnsignedMethod#index (GET /)\n  " \
+                     "It has no RBS signature, but strict: true refuses an untyped endpoint. " \
+                     "Annotate it and run rbs-inline, or check `signatures:`.",
+                     message
+      end
+
+      it "names each keyword and return type a signature leaves untyped, but not request:" do
+        assert_equal "BootFixtures::Inlined#greet (GET /:name)\n  " \
+                     "Its signature leaves `name:`, `shout:` and the return type untyped, " \
+                     "but strict: true refuses an untyped endpoint. Give each a type.",
+                     refusal([BootFixtures::Inlined.new, "/"], strict: true)
+      end
+
+      it "names a single untyped keyword" do
+        assert_match(
+          /leaves `id:` untyped, but strict: true refuses an untyped endpoint\. Give it a type\.\z/,
+          refusal([BootFixtures::UntypedKeyword.new, "/"], strict: true)
+        )
+      end
+
+      it "names a keyword typed untyped?" do
+        assert_match(/leaves `limit:` untyped/, refusal([BootFixtures::NullableUntypedKeyword.new, "/"], strict: true))
+      end
+
+      it "names each provided keyword a signature leaves untyped, nullable or not" do
+        providers = { current_user:, visitor: BootFixtures::Visitor.new }
+
+        assert_equal "BootFixtures::UntypedProvided#index (GET /)\n  " \
+                     "Its signature leaves `current_user:` and `visitor:` untyped, " \
+                     "but strict: true refuses an untyped endpoint. Give each a type.",
+                     refusal([BootFixtures::UntypedProvided.new, "/"], providers:, strict: true)
+      end
+
+      it "boots an endpoint whose provider has no signature" do
+        assert_equal 2, boot([authenticated, "/"], providers: { current_user:, tenant: }, strict: true).size
+      end
+
+      it "boots untyped inside a type, as in Array[untyped]" do
+        assert_equal 1, boot([BootFixtures::NestedUntyped.new, "/"], strict: true).size
+      end
     end
   end
 end

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 # Time#iso8601 is core only from Ruby 3.4.
 require "time"
 
@@ -27,6 +28,7 @@ module Skyward::API::Writers
     when Skyward::Types::Enum then enum(type.symbols)
     when Skyward::Types::Nullable then nullable(type.type)
     when Skyward::Types::ArrayOf then array(writer(type.type))
+    when Skyward::Types::HashOf then hash_of(writer(type.type))
     when Skyward::Types::Record then record(type.fields)
     when Skyward::Types::Named then named(type)
     when Skyward::Types::Union then union(type.types.map { |member| writer(member) })
@@ -121,6 +123,18 @@ module Skyward::API::Writers
       "Array[#{item.name}]",
       ->(value) { value.is_a?(Array) },
       ->(value, at) { items(value.each_with_index.map { |entry, index| item.write.call(entry, "#{at}[#{index}]") }) }
+    )
+  end
+
+  # @rbs value: Writer
+  # @rbs return: Writer
+  def hash_of(value)
+    checked(
+      "Hash[String, #{value.name}]",
+      ->(given) { given.is_a?(Hash) && given.each_key.all? { |key| key.is_a?(String) || key.is_a?(Symbol) } },
+      lambda do |given, at|
+        object(given.map { |key, entry| [key.to_s, value.write.call(entry, "#{at}[#{JSON.generate(key.to_s)}]")] })
+      end
     )
   end
 

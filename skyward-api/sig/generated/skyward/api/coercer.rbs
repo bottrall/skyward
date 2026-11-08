@@ -48,9 +48,10 @@ module Skyward::API::Coercer
   # produce a large response.
   MAX_ERRORS: Integer
 
-  # A message's expected type is cut to this many characters, so a large written
-  # type can't make a 422 many times larger than the body that caused it.
-  MAX_EXPECTED: Integer
+  # A message's expected type and a hash's key in a path are cut to this many
+  # characters, so a large written type or key can't make a 422 many times
+  # larger than the body that caused it.
+  MAX_SHOWN: Integer
 
   # Stands for every problem a union's member finds, since the union reports
   # none of them.
@@ -115,6 +116,16 @@ module Skyward::API::Coercer
   # @rbs return: ^(untyped) -> Ok?
   def parser: (Skyward::Types::scalar name, bool strings) -> ^(untyped) -> Ok?
 
+  # A query key given more than once arrives as an Array of its values, of
+  # which untyped takes the last, as Rack's params do.
+  # @rbs raw: String | Array[String]
+  # @rbs return: String?
+  def last: (String | Array[String] raw) -> String?
+
+  # @rbs raw: untyped
+  # @rbs return: untyped
+  def symbolized: (untyped raw) -> untyped
+
   # @rbs raw: untyped
   # @rbs strings: bool
   # @rbs return: Ok?
@@ -160,13 +171,24 @@ module Skyward::API::Coercer
   # @rbs return: coercer
   def array: (coercer item, bool strings, Integer limit, String? expected) -> coercer
 
+  # @rbs value: coercer
+  # @rbs limit: Integer
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def hash_of: (coercer value, Integer limit, String? expected) -> coercer
+
   # @rbs values: Array[untyped]
   # @rbs item: coercer
-  # @rbs at: String
   # @rbs limit: Integer
   # @rbs seen: seen
+  # @rbs &: (Integer) -> String
   # @rbs return: Array[result]
-  def items: (Array[untyped] values, coercer item, String at, Integer limit, seen seen) -> Array[result]
+  def items: (Array[untyped] values, coercer item, Integer limit, seen seen) { (Integer) -> String } -> Array[result]
+
+  # @rbs results: Array[result]
+  # @rbs &: (Array[untyped]) -> untyped
+  # @rbs return: result
+  def collected: (Array[result] results) { (Array[untyped]) -> untyped } -> result
 
   # @rbs fields: Array[[Skyward::Types::Field, coercer]]
   # @rbs limit: Integer
@@ -188,6 +210,10 @@ module Skyward::API::Coercer
   # @rbs type: Skyward::Types::t
   # @rbs return: String
   def expectation: (Skyward::Types::t type) -> String
+
+  # @rbs text: String
+  # @rbs return: String
+  def cut: (String text) -> String
 
   # @rbs expected: String?
   # @rbs raw: untyped

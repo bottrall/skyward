@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedProvider, ModuleProvider, ClassProvider and the
-# classes refused before their signature is read: Unrouted, Private and Protected. Each class that fails to boot
-# has one problem.
+# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedPositional, UnsignedProvider, ModuleProvider,
+# ClassProvider, UnsignedProvided and the classes refused before their signature is read: Unrouted, Private and
+# Protected. Each class that fails to boot has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
@@ -105,15 +105,45 @@ module BootFixtures
   end
 
   Unsigned = Class.new(Skyward::API) do
-    get "/", to: :index
+    get "/:name", to: :greet
 
-    def index = []
+    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
   end
 
   UnsignedMethod = Class.new(Skyward::API) do
     get "/", to: :index
 
     def index = []
+  end
+
+  UnsignedPositional = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(id) = { id: }
+  end
+
+  Inlined = Class.new(Skyward::API) do
+    get "/:name", to: :greet
+
+    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
+  end
+
+  UntypedKeyword = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(id:) = Todo.new(id: 1, title: id)
+  end
+
+  NullableUntypedKeyword = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(limit: nil) = Todo.new(id: 1, title: limit.to_s)
+  end
+
+  NestedUntyped = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(tags: []) = tags
   end
 
   Positional = Class.new(Skyward::API) do
@@ -182,10 +212,22 @@ module BootFixtures
     def show(todo:) = { todo: }
   end
 
+  HashPath = Class.new(Skyward::API) do
+    get "/:scores", to: :show
+
+    def show(scores:) = { scores: }
+  end
+
   RecordQuery = Class.new(Skyward::API) do
     get "/", to: :index
 
     def index(filter:) = { filter: }
+  end
+
+  HashQuery = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(scores: nil) = { scores: }
   end
 
   NullableClassQuery = Class.new(Skyward::API) do
@@ -380,5 +422,17 @@ module BootFixtures
     get "/:current_user", to: :show
 
     def show(current_user:) = Todo.new(id: 1, title: current_user)
+  end
+
+  UnsignedProvided = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(current_user:, limit: 50) = [Todo.new(id: limit, title: current_user.name)]
+  end
+
+  UntypedProvided = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(current_user:, visitor:) = [Todo.new(id: current_user.id, title: visitor.to_s)]
   end
 end
