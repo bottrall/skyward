@@ -1,0 +1,13 @@
+# Skyward
+
+> Official repository and documentation for Skyward.
+
+## Getting Started & Resources
+
+- [GitHub Repository](https://github.com/bottrall/skyward): Source code, issue tracker, and releases.
+- [Documentation & Usage](https://github.com/bottrall/skyward#readme): Installation and getting-started instructions.
+
+## AI Agent Discovery
+
+- Follows the standard /llms.txt specification for AI coding assistants and RAG crawlers.
+- Validated via [AccessGuard AI-Readiness Suite](https://ronanchnlps-bit.github.io/).
