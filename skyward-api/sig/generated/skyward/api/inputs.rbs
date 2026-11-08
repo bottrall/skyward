@@ -17,26 +17,37 @@ class Skyward::API::Inputs
 
   @body: bool
 
+  @providers: Array[Skyward::API::Router::Provider]
+
   @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
 
   # @rbs keywords: Array[Skyward::API::Router::Keyword]
+  # @rbs providers: Array[Skyward::API::Router::Provider]
   # @rbs max_body_size: Integer
   # @rbs return: void
-  def initialize: (Array[Skyward::API::Router::Keyword] keywords, max_body_size: Integer) -> void
+  def initialize: (Array[Skyward::API::Router::Keyword] keywords, providers: Array[Skyward::API::Router::Provider], max_body_size: Integer) -> void
 
+  # Providers run first, so a caller they turn away learns nothing from the inputs' problems.
   # @rbs env: Hash[String, untyped]
   # @rbs params: Hash[Symbol, String]
-  # @rbs return: Skyward::API::Coercer::result | refusal
-  def call: (Hash[String, untyped] env, Hash[Symbol, String] params) -> (Skyward::API::Coercer::result | refusal)
+  # @rbs return: Skyward::API::Coercer::result | refusal | Skyward::rack
+  def call: (Hash[String, untyped] env, Hash[Symbol, String] params) -> (Skyward::API::Coercer::result | refusal | Skyward::rack)
 
   private
+
+  # @rbs providers: Array[Skyward::API::Router::Provider]
+  # @rbs request: Skyward::Request
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: Hash[Symbol, untyped] | Skyward::rack
+  def provide: (Array[Skyward::API::Router::Provider] providers, Skyward::Request request, Hash[Symbol, untyped] values) -> (Hash[Symbol, untyped] | Skyward::rack)
 
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
   # @rbs request: Skyward::Request?
+  # @rbs provided: Hash[Symbol, untyped]
   # @rbs return: Skyward::API::Coercer::result
-  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body, Skyward::Request? request) -> Skyward::API::Coercer::result
+  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body, Skyward::Request? request, Hash[Symbol, untyped] provided) -> Skyward::API::Coercer::result
 
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs coercer: Skyward::API::Coercer::t

@@ -16,33 +16,65 @@ module Skyward::API::Boot
   REQUEST_TYPE = Skyward::Types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: []) #: Skyward::Types::Named
 
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
+  # @rbs providers: Hash[Symbol, Skyward::API::_Provider & Object]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Array[Skyward::API::Router::Endpoint]
-  def endpoints(mounts, reader:, max_body_size:)
+  def endpoints(mounts, providers:, reader:, max_body_size:)
+    provided = providers.to_h { |name, callable| [name, provider(name, callable, reader)] }
     none = [] #: Array[Skyward::API::Router::Endpoint]
     mounts.reduce(none) do |built, mount|
       mount.api.class.routes.reduce(built) do |so_far, route|
-        [*so_far, boot(mount, route, so_far, reader, max_body_size)]
+        [*so_far, boot(mount, route, so_far, provided, reader, max_body_size)]
       end
     end
   end
 
   private
 
+  # @rbs name: Symbol
+  # @rbs callable: Skyward::API::_Provider & Object
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: Skyward::API::Router::Provider
+  def provider(name, callable, reader)
+    label = "The :#{name} provider"
+    returned = signature(callable, reader)&.type&.return_type
+    if returned.nil? || returned.is_a?(RBS::Types::Bases::Any)
+      serializer = Skyward::API::Serializer.new([Skyward::API::Serializer::UNTYPED], label:)
+      return Skyward::API::Router::Provider.new(name:, callable:, value: nil, responses: [], serializer:)
+    end
+
+    parts = parts(returned)
+    responses = parts.filter_map { |part| response_value(part) }
+    value = parts.reject { |part| response_value(part) }
+    serializer = Skyward::API::Serializer.new(responses, label:)
+    Skyward::API::Router::Provider.new(name:, callable:, value:, responses:, serializer:)
+  end
+
+  # A Method is signed by the module that defines it, under its own name.
+  # @rbs callable: Skyward::API::_Provider & Object
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: RBS::MethodType?
+  def signature(callable, reader)
+    owner, name = callable.is_a?(Method) ? [callable.owner, callable.name] : [callable.class, :call]
+    type_name = reader.type_name(owner)
+    reader.method_type(type_name, name) if type_name
+  end
+
   # @rbs mount: Skyward::API::Builder::Mount
   # @rbs route: Skyward::API::Route
   # @rbs built: Array[Skyward::API::Router::Endpoint]
+  # @rbs providers: Hash[Symbol, Skyward::API::Router::Provider]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Router::Endpoint
-  def boot(mount, route, built, reader, max_body_size)
+  def boot(mount, route, built, providers, reader, max_body_size)
     path = full_path(mount.at, route.path)
     verb = route.verb.upcase.name
     pattern = pattern(path)
     label = "#{mount.api.class}##{route.to} (#{verb} #{path})"
     result = summary(route) || shadowing(verb, pattern, built) ||
-             endpoint(mount.api, route, verb, pattern, label, reader, max_body_size)
+             endpoint(mount.api, route, verb, pattern, label, providers, reader, max_body_size)
     case result
     when String then raise Skyward::BootError, "#{label}\n  #{result}"
     else result
@@ -102,10 +134,11 @@ module Skyward::API::Boot
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
   # @rbs label: String
+  # @rbs providers: Hash[Symbol, Skyward::API::Router::Provider]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Router::Endpoint | String
-  def endpoint(api, route, verb, pattern, label, reader, max_body_size)
+  def endpoint(api, route, verb, pattern, label, providers, reader, max_body_size)
     method_type = method_type(api.class, route.to, reader)
     return method_type if method_type.is_a?(String)
 
@@ -118,16 +151,23 @@ module Skyward::API::Boot
              "Add `#{unnamed}:` to the method, or rename the path parameter."
     end
 
-    read = signed.map { |name, required, type| keyword(name, required, type, pattern, reader) }
+    both = pattern.grep(Symbol).find { |name| providers.key?(name) }
+    if both
+      return "The route has a path parameter :#{both}, but :#{both} is provided too, so `#{both}:` can't be both. " \
+             "Rename the path parameter, or provide another name."
+    end
+
+    read = signed.map { |name, required, type| keyword(name, required, type, pattern, providers, reader) }
     problem = read.find { |keyword| keyword.is_a?(String) }
     return problem if problem.is_a?(String)
 
     keywords = read.grep(Skyward::API::Router::Keyword) #: Array[Skyward::API::Router::Keyword]
+    provided = read.grep(Skyward::API::Router::Provider) #: Array[Skyward::API::Router::Provider]
 
     returns = returns(method_type.type.return_type, reader)
     return returns if returns.is_a?(String)
 
-    inputs = Skyward::API::Inputs.new(keywords, max_body_size:)
+    inputs = Skyward::API::Inputs.new(keywords, providers: provided, max_body_size:)
     serializer = Skyward::API::Serializer.new(returns, label:)
     Skyward::API::Router::Endpoint.new(
       verb:,
@@ -138,6 +178,7 @@ module Skyward::API::Boot
       summary: route.summary,
       description: route.description,
       keywords:,
+      providers: provided,
       returns:,
       inputs:,
       serializer:
@@ -214,11 +255,15 @@ module Skyward::API::Boot
   # @rbs required: bool
   # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
+  # @rbs providers: Hash[Symbol, Skyward::API::Router::Provider]
   # @rbs reader: Skyward::Types::Reader
-  # @rbs return: Skyward::API::Router::Keyword | String
-  def keyword(name, required, type, pattern, reader)
+  # @rbs return: Skyward::API::Router::Keyword | Skyward::API::Router::Provider | String
+  def keyword(name, required, type, pattern, providers, reader)
     source = source(name, pattern)
     return request(required, type) if source == :request
+
+    provider = providers[name]
+    return provided(name, type, provider) if provider
 
     read = reader.read(type)
     case read
@@ -249,6 +294,26 @@ module Skyward::API::Boot
 
     Skyward::API::Router::Keyword.new(name: :request, source: :request, required:, type: REQUEST_TYPE)
   end
+
+  # A provided keyword's type is the provider's to give, so it's compared, never read.
+  # @rbs name: Symbol
+  # @rbs type: RBS::Types::t
+  # @rbs provider: Skyward::API::Router::Provider
+  # @rbs return: Skyward::API::Router::Provider | String
+  def provided(name, type, provider)
+    value = provider.value
+    return provider if value.nil? || same?(parts(type), value)
+
+    returned = value.empty? ? "only responses" : "#{written(value.join(" | "))}, besides any responses"
+    "`#{name}:` is typed as #{written(type.to_s)}, but the :#{name} provider returns #{returned}. " \
+      "Give them the same type."
+  end
+
+  # A union means the same in any order.
+  # @rbs types: Array[RBS::Types::t]
+  # @rbs others: Array[RBS::Types::t]
+  # @rbs return: bool
+  def same?(types, others) = (types - others).empty? && (others - types).empty?
 
   # @rbs name: Symbol
   # @rbs source: :path | :query | :body | :request
@@ -318,12 +383,17 @@ module Skyward::API::Boot
   #   | Skyward::Types::Unreadable | nil
   def response(type, reader)
     return Skyward::API::Router::Rack.new if RACK.include?(type)
+    return created(type, reader) if type.is_a?(RBS::Types::ClassInstance) && type.name.to_s == "::Skyward::Created"
+
+    response_value(type)
+  end
+
+  # @rbs type: RBS::Types::t
+  # @rbs return: Skyward::API::Router::Response?
+  def response_value(type)
     return unless type.is_a?(RBS::Types::ClassInstance)
 
-    name = type.name.to_s
-    return created(type, reader) if name == "::Skyward::Created"
-
-    klass = Skyward::API::Serializer::RESPONSES.find { |response| name == "::#{response.name}" }
+    klass = Skyward::API::Serializer::RESPONSES.find { |response| type.name.to_s == "::#{response.name}" }
     Skyward::API::Router::Response.new(klass:) if klass
   end
 

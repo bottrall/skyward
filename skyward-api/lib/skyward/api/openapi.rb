@@ -246,7 +246,7 @@ module Skyward::API::OpenAPI
   # @rbs return: Hash[String, schema]
   def responses(endpoint, body, names)
     answers = [
-      *endpoint.returns.map { |member| answer(member, names) },
+      *[*endpoint.returns, *endpoint.providers.flat_map(&:responses)].map { |member| answer(member, names) },
       *([INVALID] unless described(endpoint).empty?),
       *(REFUSED if body)
     ] #: Array[Answer]

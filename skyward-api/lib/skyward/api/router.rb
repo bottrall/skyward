@@ -21,6 +21,15 @@ class Skyward::API::Router
 
   Rack = Data.define
 
+  # A provider without a signature has no value to check, so its value is nil.
+  Provider = Data.define(
+    :name, #: Symbol
+    :callable, #: Skyward::API::_Provider
+    :value, #: Array[RBS::Types::t]?
+    :responses, #: Array[Response]
+    :serializer #: Skyward::API::Serializer
+  )
+
   Endpoint = Data.define(
     :verb, #: String
     :pattern, #: Array[String | Symbol]
@@ -30,6 +39,7 @@ class Skyward::API::Router
     :summary, #: String?
     :description, #: String?
     :keywords, #: Array[Keyword]
+    :providers, #: Array[Provider]
     :returns, #: Array[returned]
     :inputs, #: Skyward::API::Inputs
     :serializer #: Skyward::API::Serializer

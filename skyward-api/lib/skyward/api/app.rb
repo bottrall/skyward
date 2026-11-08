@@ -74,6 +74,7 @@ class Skyward::API::App
     when Skyward::API::Coercer::Ok then match.serializer.call(match.api.public_send(match.to, **inputs.value))
     when Skyward::API::Coercer::Invalid then problem(422, "Unprocessable Content", errors: inputs.errors.map(&:to_h))
     when :content_too_large then problem(413, INPUT_TITLES.fetch(413))
+    when Array then inputs
     else problem(415, INPUT_TITLES.fetch(415))
     end
   end

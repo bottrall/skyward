@@ -111,4 +111,40 @@ describe Skyward::API::Builder do
       assert_raises(FrozenError) { builder.static "/", from: root }
     end
   end
+
+  describe "#provide" do
+    let(:current_user) { ->(_request) { :ada } }
+    let(:tenant) { ->(_request) { "acme" } }
+
+    it "keeps each provider by its name" do
+      builder.provide :current_user, current_user
+      builder.provide :tenant, tenant
+
+      assert_equal({ current_user:, tenant: }, builder.providers)
+    end
+
+    it "raises a BootError for body and request, which Skyward API fills itself" do
+      messages = %i[body request].map do |name|
+        assert_raises(Skyward::BootError) { builder.provide name, current_user }.message
+      end
+      expected = %i[body request].map do |name|
+        "provide :#{name}: Skyward API fills `#{name}:` itself, so it can't be provided. Provide another name."
+      end
+
+      assert_equal expected, messages
+    end
+
+    it "raises a BootError for a name that's already provided" do
+      builder.provide :current_user, current_user
+      error = assert_raises(Skyward::BootError) { builder.provide :current_user, tenant }
+
+      assert_equal "provide :current_user: it's already provided. Provide each name once.", error.message
+    end
+
+    it "raises a FrozenError once the builder is frozen" do
+      builder.freeze
+
+      assert_raises(FrozenError) { builder.provide :current_user, current_user }
+    end
+  end
 end

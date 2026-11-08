@@ -4,7 +4,7 @@ require "test_helper"
 
 describe Skyward::API::Router do
   let(:todos) { Class.new(Skyward::API).new }
-  let(:inputs) { Skyward::API::Inputs.new([], max_body_size: 10) }
+  let(:inputs) { Skyward::API::Inputs.new([], providers: [], max_body_size: 10) }
   let(:serializer) { Skyward::API::Serializer.new([], label: "Todos") }
 
   def endpoint(verb, pattern, to, api: todos)
@@ -17,6 +17,7 @@ describe Skyward::API::Router do
       summary: nil,
       description: nil,
       keywords: [],
+      providers: [],
       returns: [],
       inputs:,
       serializer:

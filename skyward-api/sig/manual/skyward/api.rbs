@@ -11,6 +11,10 @@ class Skyward::API
     def info: (String message) -> void
   end
 
+  interface _Provider
+    def call: (Skyward::Request request) -> untyped
+  end
+
   interface _OnError
     def call: (StandardError exception, Hash[String, untyped] env) -> void
   end

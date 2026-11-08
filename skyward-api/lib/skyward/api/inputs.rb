@@ -19,46 +19,72 @@ class Skyward::API::Inputs
   ) #: Skyward::API::Coercer::Invalid
 
   # @rbs @keywords: Array[[Skyward::API::Router::Keyword, Skyward::API::Coercer::t]]
+  # @rbs @providers: Array[Skyward::API::Router::Provider]
   # @rbs @body: bool
   # @rbs @request: bool
   # @rbs @max_body_size: Integer
 
   # @rbs keywords: Array[Skyward::API::Router::Keyword]
+  # @rbs providers: Array[Skyward::API::Router::Provider]
   # @rbs max_body_size: Integer
   # @rbs return: void
-  def initialize(keywords, max_body_size:)
+  def initialize(keywords, providers:, max_body_size:)
     requested, coerced = keywords.partition { |keyword| keyword.source == :request }
     @keywords = coerced.map do |keyword|
       [keyword, Skyward::API::Coercer.compile(keyword.type, strings: keyword.source != :body)]
     end
+    @providers = providers
     @body = coerced.any? { |keyword| keyword.source == :body }
     @request = requested.any?
     @max_body_size = max_body_size
     freeze
   end
 
+  # Providers run first, so a caller they turn away learns nothing from the inputs' problems.
   # @rbs env: Hash[String, untyped]
   # @rbs params: Hash[Symbol, String]
-  # @rbs return: Skyward::API::Coercer::result | refusal
+  # @rbs return: Skyward::API::Coercer::result | refusal | Skyward::rack
   def call(env, params)
+    request = Skyward::Request.new(env) if @request || @providers.any?
+    none = {} #: Hash[Symbol, untyped]
+    provided = request ? provide(@providers, request, none) : none
+    return provided if provided.is_a?(Array)
+
     body = body(env) if @body
-    request = Skyward::Request.new(env) if @request
     case body
     when Symbol then body
-    else arguments(params, query(env["QUERY_STRING"].to_s), body, request)
+    else arguments(params, query(env["QUERY_STRING"].to_s), body, (request if @request), provided)
     end
   end
 
   private
 
+  # @rbs providers: Array[Skyward::API::Router::Provider]
+  # @rbs request: Skyward::Request
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: Hash[Symbol, untyped] | Skyward::rack
+  def provide(providers, request, values)
+    provider, *rest = providers
+    return values unless provider
+
+    value = provider.callable.call(request)
+    if Skyward::API::Serializer::RESPONSES.any? { |klass| value.is_a?(klass) }
+      provider.serializer.call(value)
+    else
+      provide(rest, request, { **values, provider.name => value })
+    end
+  end
+
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
   # @rbs request: Skyward::Request?
+  # @rbs provided: Hash[Symbol, untyped]
   # @rbs return: Skyward::API::Coercer::result
-  def arguments(params, query, body, request)
+  def arguments(params, query, body, request, provided)
     coerced = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
-    results = request ? [*coerced, [:request, Skyward::API::Coercer::Ok.new(value: request)]] : coerced
+    given = request ? { **provided, request: } : provided
+    results = [*coerced, *given.map { |name, value| [name, Skyward::API::Coercer::Ok.new(value:)] }]
     combined = Skyward::API::Coercer.combine(results.to_h)
     case combined
     # A malformed query string is every query keyword's error, but one problem,

@@ -53,6 +53,9 @@ class Skyward::API::Builder
   # @dynamic statics
   attr_reader statics: Array[Static]
 
+  # @dynamic providers
+  attr_reader providers: Hash[Symbol, Skyward::API::_Provider & Object]
+
   # @rbs return: void
   def initialize: () -> void
 
@@ -68,4 +71,9 @@ class Skyward::API::Builder
   # @rbs from: String
   # @rbs return: void
   def static: (String prefix, from: String) -> void
+
+  # @rbs name: Symbol
+  # @rbs provider: Skyward::API::_Provider & Object
+  # @rbs return: void
+  def provide: (Symbol name, Skyward::API::_Provider & Object provider) -> void
 end

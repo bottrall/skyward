@@ -178,4 +178,41 @@ module BootFixtures
   class CreatedBare < Skyward::API
     def create: () -> Skyward::Created
   end
+
+  class CurrentUser
+    def call: (Skyward::Request request) -> (User | Skyward::Unauthorized)
+  end
+
+  class Sessions
+    def user_for: (Skyward::Request request) -> (User | Skyward::Unauthorized)
+  end
+
+  class Visitor
+    def call: (Skyward::Request request) -> (User | Todo | Skyward::Unauthorized)?
+  end
+
+  class Guard
+    def call: (Skyward::Request request) -> Skyward::Forbidden
+  end
+
+  class Authenticated < Skyward::API
+    def me: (current_user: User) -> User
+    def index: (tenant: String, current_user: User, ?limit: Integer) -> Array[Todo]
+  end
+
+  class Visiting < Skyward::API
+    def index: (visitor: (Todo | User)?) -> Array[Todo | User]
+  end
+
+  class MistypedUser < Skyward::API
+    def index: (current_user: Todo) -> Array[Todo]
+  end
+
+  class Guarded < Skyward::API
+    def index: (admin: User) -> Array[User]
+  end
+
+  class ProvidedPath < Skyward::API
+    def show: (current_user: String) -> Todo
+  end
 end

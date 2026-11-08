@@ -55,6 +55,7 @@ describe Skyward::API::OpenAPI do
     path: ["", "todos"],
     api: OpenAPIFixtures::Todos.new,
     keywords: [],
+    providers: [],
     returns: [],
     summary: nil,
     description: nil
@@ -69,8 +70,9 @@ describe Skyward::API::OpenAPI do
       summary:,
       description:,
       keywords:,
+      providers:,
       returns:,
-      inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10),
+      inputs: Skyward::API::Inputs.new(keywords, providers:, max_body_size: 10),
       serializer: Skyward::API::Serializer.new(returns, label: "")
     )
   end
@@ -288,6 +290,23 @@ describe Skyward::API::OpenAPI do
 
     describe "responses" do
       def content(type, schema) = { type => { "schema" => schema } }
+
+      it "adds each provider's responses to the endpoint's, sharing a response where they share a status" do
+        provider = lambda do |name, *klasses|
+          responses = klasses.map { |klass| Skyward::API::Router::Response.new(klass:) }
+          serializer = Skyward::API::Serializer.new(responses, label: "")
+          Skyward::API::Router::Provider.new(name:, callable: ->(_request) {}, value: nil, responses:, serializer:)
+        end
+        providers = [
+          provider.call(:current_user, Skyward::Unauthorized),
+          provider.call(:admin, Skyward::Unauthorized, Skyward::Forbidden)
+        ]
+        not_found = Skyward::API::Router::Response.new(klass: Skyward::NotFound)
+        written = responses(endpoint(:index, providers:, returns: [todo, not_found]))
+
+        assert_equal [%w[200 401 403 404], content("application/problem+json", problem_ref)],
+                     [written.keys, written.dig("401", "content")]
+      end
 
       it "adds a 422 to an endpoint with inputs, sharing the Problem schema with a returned 422" do
         unprocessable = Skyward::API::Router::Response.new(klass: Skyward::Unprocessable)

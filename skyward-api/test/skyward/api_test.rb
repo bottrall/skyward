@@ -161,6 +161,43 @@ describe Skyward do
       end
     end
 
+    describe "providers" do
+      def client(**options)
+        app = Skyward.app(signatures:, logger: nil, **options) do |builder|
+          builder.provide :current_user, BootFixtures::CurrentUser.new
+          builder.provide :tenant, ->(request) { request.headers["x-tenant"] }
+          builder.mount BootFixtures::Authenticated.new
+        end
+        Skyward::Test.client(app)
+      end
+
+      it "answers an endpoint behind an authentication provider with its 401, without running it" do
+        response = client.get("/me")
+
+        assert_equal [401, "Sign in first"], [response.status, response.json[:detail]]
+      end
+
+      it "gives the endpoint each provider's value for the request" do
+        headers = { "Authorization" => "Bearer ada", "X-Tenant" => "acme" }
+
+        assert_equal [{ id: 7, title: "acme Ada" }], client.get("/todos?limit=7", headers:).json
+      end
+
+      it "answers 401 rather than 422 when the query doesn't fit as well" do
+        assert_equal 401, client.get("/todos?limit=x").status
+      end
+
+      it "documents a typed provider's 401 on each endpoint asking for it, and no provided name as a parameter" do
+        paths = JSON.parse(client(docs: true).get("/openapi.json").body)["paths"]
+        me = paths.dig("/me", "get")
+        index = paths.dig("/todos", "get")
+
+        assert_equal [%w[200 401], nil, %w[200 401 422], ["limit"]],
+                     [me["responses"].keys, me["parameters"], index["responses"].keys,
+                      index["parameters"].map { |parameter| parameter["name"] }]
+      end
+    end
+
     describe "answering by the return type" do
       let(:client) do
         Skyward::Test.client(
@@ -333,6 +370,17 @@ describe Skyward do
         answered = [response.status, response.json[:request_id], lines.first[:message]]
 
         assert_equal [500, "abc-123", "middleware broke"], answered
+      end
+
+      it "answers a 500 for a provider that raises" do
+        app = Skyward.app(signatures:, logger:) do |builder|
+          builder.provide :current_user, ->(_request) { raise "sessions are down" }
+          builder.mount BootFixtures::Authenticated.new
+        end
+        response = with_env(nil) { Skyward::Test.client(app).get("/me", headers: { "X-Request-Id" => "abc-123" }) }
+        answered = [response.status, response.json[:request_id], lines.first[:message]]
+
+        assert_equal [500, "abc-123", "sessions are down"], answered
       end
 
       it "adds the backtrace when RACK_ENV is development" do

@@ -27,11 +27,15 @@ class Skyward::API::Builder
   # @dynamic statics
   attr_reader :statics #: Array[Static]
 
+  # @dynamic providers
+  attr_reader :providers #: Hash[Symbol, Skyward::API::_Provider & Object]
+
   # @rbs return: void
   def initialize
     @mounts = []
     @middleware = []
     @statics = []
+    @providers = {}
   end
 
   # @rbs api: Skyward::API
@@ -59,5 +63,21 @@ class Skyward::API::Builder
     raise Skyward::BootError, "static #{prefix.inspect}: no directory at #{directory}" unless File.directory?(directory)
 
     @statics = [*@statics, Static.new(prefix:, from: directory)]
+  end
+
+  # @rbs name: Symbol
+  # @rbs provider: Skyward::API::_Provider & Object
+  # @rbs return: void
+  def provide(name, provider)
+    if %i[body request].include?(name)
+      raise Skyward::BootError,
+            "provide #{name.inspect}: Skyward API fills `#{name}:` itself, so it can't be provided. " \
+            "Provide another name."
+    end
+    if @providers.key?(name)
+      raise Skyward::BootError, "provide #{name.inspect}: it's already provided. Provide each name once."
+    end
+
+    @providers = { **@providers, name => provider }
   end
 end
