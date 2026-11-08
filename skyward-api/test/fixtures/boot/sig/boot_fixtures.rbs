@@ -175,51 +175,51 @@ module BootFixtures
   end
 
   class Responding < Skyward::API
-    def show: (id: Integer) -> (Todo | Skyward::NotFound)
+    def show: (id: Integer) -> (Todo | Skyward::Responses::NotFound)
     def user: (id: Integer) -> User
     def misfit: (id: Integer) -> Todo
-    def create: (body: { title: String }) -> Skyward::Created[Todo]
-    def destroy: (id: Integer) -> (Skyward::NoContent | Skyward::Conflict | Skyward::Unprocessable)?
+    def create: (body: { title: String }) -> Skyward::Responses::Created[Todo]
+    def destroy: (id: Integer) -> (Skyward::Responses::NoContent | Skyward::Responses::Conflict | Skyward::Responses::Unprocessable)?
   end
 
   class Racking < Skyward::API
     def stream: () -> Skyward::rack
     def letters: () -> Array[String]
     def written: () -> [Integer, Hash[String, String], untyped]
-    def download: (id: Integer) -> (Todo | Skyward::NotFound | Skyward::rack)
+    def download: (id: Integer) -> (Todo | Skyward::Responses::NotFound | Skyward::rack)
   end
 
   class Documented < Skyward::API
     def index: (?done: bool?, ?tags: Array[String], ?since: Time?) -> Array[{ id: Integer, title: String, ?note: String? }]
-    def show: (id: Integer) -> (Todo | Skyward::NotFound)
-    def create: (body: Draft) -> (Skyward::Created[Draft] | Skyward::Unprocessable)
-    def destroy: (id: Integer) -> (Skyward::NoContent | Skyward::NotFound)
-    def moved: (id: Integer) -> Skyward::Redirect
-    def export: (id: Integer) -> (Skyward::rack | Skyward::NotFound)
+    def show: (id: Integer) -> (Todo | Skyward::Responses::NotFound)
+    def create: (body: Draft) -> (Skyward::Responses::Created[Draft] | Skyward::Responses::Unprocessable)
+    def destroy: (id: Integer) -> (Skyward::Responses::NoContent | Skyward::Responses::NotFound)
+    def moved: (id: Integer) -> Skyward::Responses::Redirect
+    def export: (id: Integer) -> (Skyward::rack | Skyward::Responses::NotFound)
   end
 
   class CreatedHash < Skyward::API
-    def create: () -> Skyward::Created[Hash[Symbol, untyped]]
+    def create: () -> Skyward::Responses::Created[Hash[Symbol, untyped]]
   end
 
   class CreatedBare < Skyward::API
-    def create: () -> Skyward::Created
+    def create: () -> Skyward::Responses::Created
   end
 
   class CurrentUser
-    def call: (Skyward::Request request) -> (User | Skyward::Unauthorized)
+    def call: (Skyward::Request request) -> (User | Skyward::Responses::Unauthorized)
   end
 
   class Sessions
-    def user_for: (Skyward::Request request) -> (User | Skyward::Unauthorized)
+    def user_for: (Skyward::Request request) -> (User | Skyward::Responses::Unauthorized)
   end
 
   class Visitor
-    def call: (Skyward::Request request) -> (User | Todo | Skyward::Unauthorized)?
+    def call: (Skyward::Request request) -> (User | Todo | Skyward::Responses::Unauthorized)?
   end
 
   class Guard
-    def call: (Skyward::Request request) -> Skyward::Forbidden
+    def call: (Skyward::Request request) -> Skyward::Responses::Forbidden
   end
 
   class Authenticated < Skyward::API

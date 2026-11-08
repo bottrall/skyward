@@ -1,0 +1,4 @@
+# Generated from lib/skyward/api/middleware.rb with RBS::Inline
+
+module Skyward::API::Middleware
+end

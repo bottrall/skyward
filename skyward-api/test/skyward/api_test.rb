@@ -17,7 +17,7 @@ describe Skyward::API do
   end
 
   it "gives every API class the route declarations" do
-    assert_kind_of Skyward::API::Declarations, Skyward::API
+    assert_kind_of Skyward::API::Endpoints::Declarations, Skyward::API
   end
 end
 
@@ -114,7 +114,7 @@ describe Skyward do
       end
 
       it "leaves strict: as it is when it's anything else" do
-        with_strict("true") { assert_kind_of Skyward::API::Application, boot_unsigned }
+        with_strict("true") { assert_kind_of Skyward::API::Assembly::Application, boot_unsigned }
       end
     end
 
@@ -158,7 +158,7 @@ describe Skyward do
 
       it "serves an API reference at /docs with docs: true, loading Scalar from jsDelivr by default" do
         response = client(docs: true, title: "Todos").get("/docs")
-        page = Skyward::API::Docs.page(title: "Todos", scalar_url: Skyward::API::Docs::SCALAR_URL)
+        page = Skyward::API::OpenAPI::Docs.page(title: "Todos", scalar_url: Skyward::API::OpenAPI::Docs::SCALAR_URL)
 
         assert_equal [200, "text/html; charset=utf-8", page],
                      [response.status, response.headers["content-type"], response.body]
@@ -479,8 +479,9 @@ describe Skyward do
               Skyward.forbidden("Not yours")]
 
       assert_equal(
-        [[Skyward::BadRequest, "Bad", headers, true], [Skyward::Unauthorized, "Sign in first", {}, true],
-         [Skyward::Forbidden, "Not yours", {}, true]],
+        [[Skyward::Responses::BadRequest, "Bad", headers, true],
+         [Skyward::Responses::Unauthorized, "Sign in first", {}, true],
+         [Skyward::Responses::Forbidden, "Not yours", {}, true]],
         made.map { |value| fields(value, :detail, :headers) }
       )
     end
@@ -506,7 +507,8 @@ describe Skyward do
         made = [Skyward.redirect("/todos"), Skyward.redirect("/todos/1", status: 308, headers:)]
 
         assert_equal(
-          [[Skyward::Redirect, "/todos", 303, {}, true], [Skyward::Redirect, "/todos/1", 308, headers, true]],
+          [[Skyward::Responses::Redirect, "/todos", 303, {}, true],
+           [Skyward::Responses::Redirect, "/todos/1", 308, headers, true]],
           made.map { |value| fields(value, :to, :status, :headers) }
         )
       end

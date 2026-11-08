@@ -1,5 +1,3 @@
-use Skyward::*
-
 class Todo
   attr_reader id: Integer
   attr_reader title: String
@@ -24,11 +22,11 @@ class TodosAPI < Skyward::API
 
   def index: (?done: bool?, ?limit: Integer) -> Array[Todo]
 
-  def show: (id: Integer) -> (Todo | NotFound)
+  def show: (id: Integer) -> (Todo | Skyward::Responses::NotFound)
 
-  def create: (body: NewTodo) -> Created[Todo]
+  def create: (body: NewTodo) -> Skyward::Responses::Created[Todo]
 
-  def complete: (id: Integer) -> (Todo | NotFound)
+  def complete: (id: Integer) -> (Todo | Skyward::Responses::NotFound)
 
-  def destroy: (id: Integer) -> (NoContent | NotFound)
+  def destroy: (id: Integer) -> (Skyward::Responses::NoContent | Skyward::Responses::NotFound)
 end

@@ -12,8 +12,31 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 
 ## Code layout
 
-- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first. A `Data.define` constant also nests inside its compact-style owner (`class Skyward::API; Route = Data.define(...)`), because rbs-inline only types one assigned to a bare constant name.
+- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Routing::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first. A `Data.define` constant also nests inside its compact-style owner (`module Skyward::API::Endpoints; Route = Data.define(...)`), because rbs-inline only types one assigned to a bare constant name.
 - Tests are Minitest spec style (`describe`/`it`) and mirror the code they test. Each gem's tests run in that gem's own bundle (its `Gemfile`), so they can't load a gem it doesn't depend on.
+
+## Where a module goes
+
+- **Public names.** A constant the gem's README tells apps to write is public. It lives directly under `Skyward` (`Skyward::Request`), or in a public namespace there when it belongs to a family (`Skyward::Responses::NotFound`). Docs and examples write public names in full, never shortened with `@rbs use`.
+- **Gem roots.** Each gem's root constant (`Skyward::API`; core's is `Skyward`), its `VERSION`, its `commands.rb` and an error its README names (`Skyward::BootError`, `Skyward::API::ReturnTypeError`) stay at the gem's root.
+- **Groups.** Everything else lives in one of its gem's groups, in the table below. A new module goes in the first group whose description fits it. A shared helper that no description fits goes in the first group, in table order, that uses it. When neither places it, add a group and its row in the same PR.
+- **Helpers nest.** A module that only one other module uses nests under it (`Skyward::Signatures::Loader`, `Skyward::API::CLI::Serve::Reloader`), unless that user is a gem root: what only `Skyward.app` uses goes in a group.
+- **Group names.** Never a top-level constant of Ruby, its default gems or Rack (`JSON`, `Rack`), a name the README tells apps to define (`App`), or a Skyward public name (`Request`). These are the names an app is likeliest to write inside an API class, where a group's name shadows the app's own constant, because an API class subclasses `Skyward::API`.
+- A group whose root file isn't already a module or class gets a file that only declares it (`lib/skyward/api/cli.rb`), so rbs-inline types it.
+
+| Gem | Group | Holds |
+| --- | --- | --- |
+| core | `Skyward::Commands` | the `skyward` executable's registry and dispatch |
+| core | `Skyward::Signatures` | finding and loading RBS files |
+| core | `Skyward::Types` | turning RBS types into values |
+| api | `Skyward::API::Endpoints` | what an API class declares and returns: route declarations and response helpers |
+| api | `Skyward::API::Routing` | matching a request to an endpoint |
+| api | `Skyward::API::Inputs` | reading and coercing an endpoint's keywords |
+| api | `Skyward::API::Serializer` | writing a returned value as the response |
+| api | `Skyward::API::OpenAPI` | the OpenAPI document and the API reference page |
+| api | `Skyward::API::Middleware` | the Rack middleware `Skyward.app` wraps every app in, and the logger they write to |
+| api | `Skyward::API::Assembly` | the parts `Skyward.app` builds the Rack app from, and the app it returns |
+| api | `Skyward::API::CLI` | what the `skyward` commands run; `commands.rb` only registers them |
 
 ## Ruby
 

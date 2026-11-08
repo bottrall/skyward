@@ -55,91 +55,91 @@ module Skyward::API::OpenAPI
   DESCRIPTIONS: Hash[String, String]
 
   # Takes the document unbuilt, so a route or static file at /openapi.json or /docs is refused first.
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs document: ^() -> schema
   # @rbs return: String
-  def json: (Array[Skyward::API::Router::Endpoint] endpoints, static: Skyward::API::Static, document: ^() -> schema) -> String
+  def json: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, static: Skyward::API::Assembly::Static, document: ^() -> schema) -> String
 
   # Only serving the documents needs /openapi.json and /docs free, so this doesn't check them.
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs title: String
   # @rbs version: String
   # @rbs description: String?
   # @rbs schema_names: Hash[Class, String]
   # @rbs return: schema
-  def document: (Array[Skyward::API::Router::Endpoint] endpoints, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> schema
+  def document: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> schema
 
   private
 
   # The request: keyword is Skyward's, not part of the HTTP contract.
-  # @rbs endpoint: Skyward::API::Router::Endpoint
-  # @rbs return: Array[Skyward::API::Router::Keyword]
-  def described: (Skyward::API::Router::Endpoint endpoint) -> Array[Skyward::API::Router::Keyword]
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
+  # @rbs return: Array[Skyward::API::Routing::Router::Keyword]
+  def described: (Skyward::API::Routing::Router::Endpoint endpoint) -> Array[Skyward::API::Routing::Router::Keyword]
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: Array[Skyward::Types::t]
-  def types: (Skyward::API::Router::Endpoint endpoint) -> Array[Skyward::Types::t]
+  def types: (Skyward::API::Routing::Router::Endpoint endpoint) -> Array[Skyward::Types::t]
 
   # @rbs type: Skyward::Types::t
   # @rbs return: Array[Skyward::Types::Named]
   def named: (Skyward::Types::t type) -> Array[Skyward::Types::Named]
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs return: String?
-  def served: (Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
+  def served: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Skyward::API::Assembly::Static static) -> String?
 
   # @rbs at: String
   # @rbs serves: String
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs return: String?
-  def taken: (String at, String serves, Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
+  def taken: (String at, String serves, Array[Skyward::API::Routing::Router::Endpoint] endpoints, Skyward::API::Assembly::Static static) -> String?
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs return: String?
-  def operation_ids: (Array[Skyward::API::Router::Endpoint] endpoints) -> String?
+  def operation_ids: (Array[Skyward::API::Routing::Router::Endpoint] endpoints) -> String?
 
   # @rbs types: Array[Skyward::Types::Named]
   # @rbs schema_names: Hash[Class, String]
   # @rbs return: Hash[Class, String] | String
   def names: (Array[Skyward::Types::Named] types, Hash[Class, String] schema_names) -> (Hash[Class, String] | String)
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs types: Array[Skyward::Types::Named]
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def assembled: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
+  def assembled: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def operation: (Skyward::API::Router::Endpoint endpoint, Hash[Class, String] names) -> schema
+  def operation: (Skyward::API::Routing::Router::Endpoint endpoint, Hash[Class, String] names) -> schema
 
   # A path or query value can't be null, so its schema leaves null out, and it's
   # always a String, so an untyped one is a string.
-  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs keyword: Skyward::API::Routing::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def parameter: (Skyward::API::Router::Keyword keyword, Hash[Class, String] names) -> schema
+  def parameter: (Skyward::API::Routing::Router::Keyword keyword, Hash[Class, String] names) -> schema
 
-  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs keyword: Skyward::API::Routing::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def request_body: (Skyward::API::Router::Keyword keyword, Hash[Class, String] names) -> schema
+  def request_body: (Skyward::API::Routing::Router::Keyword keyword, Hash[Class, String] names) -> schema
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
-  # @rbs body: Skyward::API::Router::Keyword?
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
+  # @rbs body: Skyward::API::Routing::Router::Keyword?
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
-  def responses: (Skyward::API::Router::Endpoint endpoint, Skyward::API::Router::Keyword? body, Hash[Class, String] names) -> Hash[String, schema]
+  def responses: (Skyward::API::Routing::Router::Endpoint endpoint, Skyward::API::Routing::Router::Keyword? body, Hash[Class, String] names) -> Hash[String, schema]
 
-  # @rbs member: Skyward::API::Router::returned
+  # @rbs member: Skyward::API::Routing::Router::returned
   # @rbs names: Hash[Class, String]
   # @rbs return: Answer
-  def answer: (Skyward::API::Router::returned member, Hash[Class, String] names) -> Answer
+  def answer: (Skyward::API::Routing::Router::returned member, Hash[Class, String] names) -> Answer
 
   # @rbs klass: Class
   # @rbs return: Answer
@@ -151,11 +151,11 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def response: (String status, Array[Answer] answers) -> schema
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs types: Array[Skyward::Types::Named]
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
-  def components: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Class, String] names) -> Hash[String, schema]
+  def components: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Class, String] names) -> Hash[String, schema]
 
   # @rbs type: Skyward::Types::t
   # @rbs form: form
@@ -184,13 +184,13 @@ module Skyward::API::OpenAPI
   # @rbs return: String
   def path: (Array[String | Symbol] pattern) -> String
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String
-  def tag: (Skyward::API::Router::Endpoint endpoint) -> String
+  def tag: (Skyward::API::Routing::Router::Endpoint endpoint) -> String
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String
-  def operation_id: (Skyward::API::Router::Endpoint endpoint) -> String
+  def operation_id: (Skyward::API::Routing::Router::Endpoint endpoint) -> String
 
   # @rbs name: String
   # @rbs return: String

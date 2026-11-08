@@ -11,28 +11,28 @@ class Skyward::API::Serializer
   )
 
   PROBLEMS = {
-    Skyward::BadRequest => Problem.new(status: 400, title: "Bad Request"),
-    Skyward::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
-    Skyward::Forbidden => Problem.new(status: 403, title: "Forbidden"),
-    Skyward::NotFound => Problem.new(status: 404, title: "Not Found"),
-    Skyward::Conflict => Problem.new(status: 409, title: "Conflict"),
-    Skyward::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
+    Skyward::Responses::BadRequest => Problem.new(status: 400, title: "Bad Request"),
+    Skyward::Responses::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
+    Skyward::Responses::Forbidden => Problem.new(status: 403, title: "Forbidden"),
+    Skyward::Responses::NotFound => Problem.new(status: 404, title: "Not Found"),
+    Skyward::Responses::Conflict => Problem.new(status: 409, title: "Conflict"),
+    Skyward::Responses::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
   }.freeze #: Hash[Class, Problem]
 
-  # Every response value but Skyward::Created, which carries a type of its own.
-  RESPONSES = [Skyward::NoContent, *PROBLEMS.keys, Skyward::Redirect].freeze #: Array[Class]
+  # Every response value but Skyward::Responses::Created, which carries a type of its own.
+  RESPONSES = [Skyward::Responses::NoContent, *PROBLEMS.keys, Skyward::Responses::Redirect].freeze #: Array[Class]
 
   UNTYPED = Skyward::Types::Scalar.new(name: :untyped) #: Skyward::Types::Scalar
 
   # @rbs @label: String
-  # @rbs @writer: Skyward::API::Writers::Writer
+  # @rbs @writer: Writers::Writer
 
-  # @rbs returns: Array[Skyward::API::Router::returned]
+  # @rbs returns: Array[Skyward::API::Routing::Router::returned]
   # @rbs label: String
   # @rbs return: void
   def initialize(returns, label:)
     @label = label
-    @writer = Skyward::API::Writers.union(returns.map { |member| compile(member) })
+    @writer = Writers.union(returns.map { |member| compile(member) })
     freeze
   end
 
@@ -42,45 +42,45 @@ class Skyward::API::Serializer
   def call(value)
     response = @writer.write.call(value, "")
     case response
-    when Skyward::API::Writers::Misfit then raise Skyward::API::ReturnTypeError, message(response)
+    when Writers::Misfit then raise Skyward::API::ReturnTypeError, message(response)
     else response
     end
   end
 
   private
 
-  # @rbs member: Skyward::API::Router::returned
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs member: Skyward::API::Routing::Router::returned
+  # @rbs return: Writers::Writer
   def compile(member)
     case member
-    when Skyward::API::Router::Created then created(Skyward::API::Writers.writer(member.type))
-    when Skyward::API::Router::Response then response(member.klass)
-    when Skyward::API::Router::Rack then rack
+    when Skyward::API::Routing::Router::Created then created(Writers.writer(member.type))
+    when Skyward::API::Routing::Router::Response then response(member.klass)
+    when Skyward::API::Routing::Router::Rack then rack
     when UNTYPED then untyped
-    else ok(Skyward::API::Writers.writer(member))
+    else ok(Writers.writer(member))
     end
   end
 
   # Untyped code can return any response value.
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
   def untyped
-    writer = Skyward::API::Writers.writer(UNTYPED)
+    writer = Writers.writer(UNTYPED)
     responses = [created(writer), *RESPONSES.map { |klass| response(klass) }, ok(writer)]
-    Skyward::API::Writers.union(responses).with(name: "untyped")
+    Writers.union(responses).with(name: "untyped")
   end
 
-  # @rbs writer: Skyward::API::Writers::Writer
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs writer: Writers::Writer
+  # @rbs return: Writers::Writer
   def ok(writer)
     writer.with(write: ->(value, at) { json(writer.write.call(value, at), 200, JSON_TYPE.dup) })
   end
 
-  # @rbs writer: Skyward::API::Writers::Writer
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs writer: Writers::Writer
+  # @rbs return: Writers::Writer
   def created(writer)
-    Skyward::API::Writers.checked(
-      "Skyward::Created[#{writer.name}]",
-      ->(given) { given.is_a?(Skyward::Created) },
+    Writers.checked(
+      "Skyward::Responses::Created[#{writer.name}]",
+      ->(given) { given.is_a?(Skyward::Responses::Created) },
       lambda do |given, at|
         json(writer.write.call(given.value, "#{at}.value"), 201, { **JSON_TYPE, **given.headers })
       end
@@ -88,20 +88,20 @@ class Skyward::API::Serializer
   end
 
   # @rbs klass: Class
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
   def response(klass)
     problem = PROBLEMS.fetch(klass, nil)
     answer =
       if problem then ->(given, _) { problem_response(problem, given) }
-      elsif klass == Skyward::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
+      elsif klass == Skyward::Responses::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
       else ->(given, _) { [204, given.headers.dup, []] }
-      end #: ^(untyped, String) -> Skyward::API::App::response
-    Skyward::API::Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
+      end #: ^(untyped, String) -> Skyward::API::Assembly::Dispatcher::response
+    Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
   end
 
-  # @rbs return: Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
   def rack
-    Skyward::API::Writers.checked(
+    Writers.checked(
       "Skyward::rack",
       ->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) },
       ->(given, _) { given }
@@ -110,7 +110,7 @@ class Skyward::API::Serializer
 
   # @rbs problem: Problem
   # @rbs given: untyped
-  # @rbs return: Skyward::API::App::response
+  # @rbs return: Skyward::API::Assembly::Dispatcher::response
   def problem_response(problem, given)
     body = { type: "about:blank", title: problem.title, status: problem.status, detail: given.detail }.compact
     [problem.status, { "content-type" => "application/problem+json", **given.headers }, [JSON.generate(body)]]
@@ -121,10 +121,10 @@ class Skyward::API::Serializer
   # @rbs headers: Hash[String, String]
   # @rbs return: untyped
   def json(written, status, headers)
-    written.is_a?(Skyward::API::Writers::Misfit) ? written : [status, headers, [JSON.generate(written)]]
+    written.is_a?(Writers::Misfit) ? written : [status, headers, [JSON.generate(written)]]
   end
 
-  # @rbs misfit: Skyward::API::Writers::Misfit
+  # @rbs misfit: Writers::Misfit
   # @rbs return: String
   def message(misfit)
     return "#{@label} returned #{misfit.got}, which isn't #{misfit.expected}" if misfit.at.empty?

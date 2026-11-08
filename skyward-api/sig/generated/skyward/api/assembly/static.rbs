@@ -1,0 +1,47 @@
+# Generated from lib/skyward/api/assembly/static.rb with RBS::Inline
+
+class Skyward::API::Assembly::Static
+  TYPES: Hash[String, String]
+
+  @statics: Array[Skyward::API::Assembly::Builder::Static]
+
+  # @rbs statics: Array[Skyward::API::Assembly::Builder::Static]
+  # @rbs return: void
+  def initialize: (Array[Skyward::API::Assembly::Builder::Static] statics) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::Assembly::Dispatcher::response?
+  def call: (Hash[String, untyped] env) -> Skyward::API::Assembly::Dispatcher::response?
+
+  # @rbs path: String
+  # @rbs return: String?
+  def file: (String path) -> String?
+
+  private
+
+  # @rbs static: Skyward::API::Assembly::Builder::Static
+  # @rbs path: String
+  # @rbs return: String?
+  def find: (Skyward::API::Assembly::Builder::Static static, String path) -> String?
+
+  # @rbs file: String
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::Assembly::Dispatcher::response
+  def serve: (String file, Hash[String, untyped] env) -> Skyward::API::Assembly::Dispatcher::response
+
+  # @rbs stat: File::Stat
+  # @rbs return: String
+  def etag: (File::Stat stat) -> String
+
+  # If-Modified-Since only counts without If-None-Match (RFC 9110, 13.2.2),
+  # and to the second, the precision of last-modified.
+  # @rbs env: Hash[String, untyped]
+  # @rbs etag: String
+  # @rbs modified: Time
+  # @rbs return: bool
+  def fresh?: (Hash[String, untyped] env, String etag, Time modified) -> bool
+
+  # @rbs value: String?
+  # @rbs return: Time?
+  def http_date: (String? value) -> Time?
+end

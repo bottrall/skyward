@@ -38,7 +38,7 @@ describe TodosAPI do
     end
 
     it "answers 404 for a todo that doesn't exist" do
-      assert_instance_of Skyward::NotFound, api.show(id: 1)
+      assert_instance_of Skyward::Responses::NotFound, api.show(id: 1)
     end
   end
 
@@ -59,17 +59,17 @@ describe TodosAPI do
     end
 
     it "answers 404 for a todo that doesn't exist" do
-      assert_instance_of Skyward::NotFound, api.complete(id: 1)
+      assert_instance_of Skyward::Responses::NotFound, api.complete(id: 1)
     end
   end
 
   describe "#destroy" do
     it "answers 204 once the todo is deleted" do
-      assert_instance_of Skyward::NoContent, api.destroy(id: create.id)
+      assert_instance_of Skyward::Responses::NoContent, api.destroy(id: create.id)
     end
 
     it "answers 404 for a todo that doesn't exist" do
-      assert_instance_of Skyward::NotFound, api.destroy(id: 1)
+      assert_instance_of Skyward::Responses::NotFound, api.destroy(id: 1)
     end
   end
 end

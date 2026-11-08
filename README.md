@@ -6,13 +6,11 @@
 Typed Ruby web apps, in four gems. An endpoint is a method, a row is a value, and RBS signatures are the contract between them, your type checker and your API's consumers.
 
 ```ruby
-# @rbs use Skyward::*
-
 class TodosAPI < Skyward::API
   get "/todos/:id", to: :show
 
   # @rbs id: Integer
-  # @rbs return: Todo | NotFound
+  # @rbs return: Todo | Skyward::Responses::NotFound
   def show(id:)
     Todo.find_by(id:) || not_found
   end

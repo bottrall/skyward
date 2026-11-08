@@ -1,0 +1,158 @@
+# Generated from lib/skyward/api/routing/router.rb with RBS::Inline
+
+class Skyward::API::Routing::Router
+  type returned = Skyward::Types::t | Created | Response | Rack
+
+  class Keyword < Data
+    attr_reader name(): Symbol
+
+    attr_reader source(): :path | :query | :body | :request
+
+    attr_reader required(): bool
+
+    attr_reader type(): Skyward::Types::t
+
+    def self.new: (Symbol name, :path | :query | :body | :request source, bool required, Skyward::Types::t type) -> instance
+                | (name: Symbol, source: :path | :query | :body | :request, required: bool, type: Skyward::Types::t) -> instance
+
+    def self.members: () -> [ :name, :source, :required, :type ]
+
+    def members: () -> [ :name, :source, :required, :type ]
+  end
+
+  # Skyward::Responses::Created[T], which the reader can't read, so its value's type is read on its own.
+  class Created < Data
+    attr_reader type(): Skyward::Types::t
+
+    def self.new: (Skyward::Types::t type) -> instance
+                | (type: Skyward::Types::t) -> instance
+
+    def self.members: () -> [ :type ]
+
+    def members: () -> [ :type ]
+  end
+
+  class Response < Data
+    attr_reader klass(): Class
+
+    def self.new: (Class klass) -> instance
+                | (klass: Class) -> instance
+
+    def self.members: () -> [ :klass ]
+
+    def members: () -> [ :klass ]
+  end
+
+  class Rack < Data
+    def self.new: () -> instance
+                | () -> instance
+
+    def self.members: () -> [ ]
+
+    def members: () -> [ ]
+  end
+
+  # A provider without a signature has no value to check, so its value is nil.
+  class Provider < Data
+    attr_reader name(): Symbol
+
+    attr_reader callable(): Skyward::API::_Provider
+
+    attr_reader value(): Array[RBS::Types::t]?
+
+    attr_reader responses(): Array[Response]
+
+    attr_reader serializer(): Skyward::API::Serializer
+
+    def self.new: (Symbol name, Skyward::API::_Provider callable, Array[RBS::Types::t]? value, Array[Response] responses, Skyward::API::Serializer serializer) -> instance
+                | (name: Symbol, callable: Skyward::API::_Provider, value: Array[RBS::Types::t]?, responses: Array[Response], serializer: Skyward::API::Serializer) -> instance
+
+    def self.members: () -> [ :name, :callable, :value, :responses, :serializer ]
+
+    def members: () -> [ :name, :callable, :value, :responses, :serializer ]
+  end
+
+  class Endpoint < Data
+    attr_reader verb(): String
+
+    attr_reader pattern(): Array[String | Symbol]
+
+    attr_reader api(): Skyward::API
+
+    attr_reader to(): Symbol
+
+    attr_reader label(): String
+
+    attr_reader summary(): String?
+
+    attr_reader description(): String?
+
+    attr_reader keywords(): Array[Keyword]
+
+    attr_reader providers(): Array[Provider]
+
+    attr_reader returns(): Array[returned]
+
+    attr_reader signature(): String
+
+    attr_reader inputs(): Skyward::API::Inputs
+
+    attr_reader serializer(): Skyward::API::Serializer
+
+    def self.new: (String verb, Array[String | Symbol] pattern, Skyward::API api, Symbol to, String label, String? summary, String? description, Array[Keyword] keywords, Array[Provider] providers, Array[returned] returns, String signature, Skyward::API::Inputs inputs, Skyward::API::Serializer serializer) -> instance
+                | (verb: String, pattern: Array[String | Symbol], api: Skyward::API, to: Symbol, label: String, summary: String?, description: String?, keywords: Array[Keyword], providers: Array[Provider], returns: Array[returned], signature: String, inputs: Skyward::API::Inputs, serializer: Skyward::API::Serializer) -> instance
+
+    def self.members: () -> [ :verb, :pattern, :api, :to, :label, :summary, :description, :keywords, :providers, :returns, :signature, :inputs, :serializer ]
+
+    def members: () -> [ :verb, :pattern, :api, :to, :label, :summary, :description, :keywords, :providers, :returns, :signature, :inputs, :serializer ]
+  end
+
+  class Match < Data
+    attr_reader api(): Skyward::API
+
+    attr_reader to(): Symbol
+
+    attr_reader inputs(): Skyward::API::Inputs
+
+    attr_reader params(): Hash[Symbol, String]
+
+    attr_reader serializer(): Skyward::API::Serializer
+
+    def self.new: (Skyward::API api, Symbol to, Skyward::API::Inputs inputs, Hash[Symbol, String] params, Skyward::API::Serializer serializer) -> instance
+                | (api: Skyward::API, to: Symbol, inputs: Skyward::API::Inputs, params: Hash[Symbol, String], serializer: Skyward::API::Serializer) -> instance
+
+    def self.members: () -> [ :api, :to, :inputs, :params, :serializer ]
+
+    def members: () -> [ :api, :to, :inputs, :params, :serializer ]
+  end
+
+  METHODS: Array[String]
+
+  @endpoints: Array[Endpoint]
+
+  # @rbs endpoints: Array[Endpoint]
+  # @rbs return: void
+  def initialize: (Array[Endpoint] endpoints) -> void
+
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: Match?
+  def match: (String verb, String path) -> Match?
+
+  # @rbs path: String
+  # @rbs return: Array[String]
+  def allowed: (String path) -> Array[String]
+
+  private
+
+  # @rbs endpoint: Endpoint
+  # @rbs verb: String
+  # @rbs segments: Array[String]
+  # @rbs return: Match?
+  def match_endpoint: (Endpoint endpoint, String verb, Array[String] segments) -> Match?
+
+  # @rbs pattern: Array[String | Symbol]
+  # @rbs segments: Array[String]
+  # @rbs return: Hash[Symbol, String]?
+  def params_for: (Array[String | Symbol] pattern, Array[String] segments) -> Hash[Symbol, String]?
+end

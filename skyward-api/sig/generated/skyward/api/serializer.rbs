@@ -18,19 +18,19 @@ class Skyward::API::Serializer
 
   PROBLEMS: Hash[Class, Problem]
 
-  # Every response value but Skyward::Created, which carries a type of its own.
+  # Every response value but Skyward::Responses::Created, which carries a type of its own.
   RESPONSES: Array[Class]
 
   UNTYPED: Skyward::Types::Scalar
 
-  @writer: Skyward::API::Writers::Writer
+  @writer: Writers::Writer
 
   @label: String
 
-  # @rbs returns: Array[Skyward::API::Router::returned]
+  # @rbs returns: Array[Skyward::API::Routing::Router::returned]
   # @rbs label: String
   # @rbs return: void
-  def initialize: (Array[Skyward::API::Router::returned] returns, label: String) -> void
+  def initialize: (Array[Skyward::API::Routing::Router::returned] returns, label: String) -> void
 
   # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
   # @rbs value: untyped
@@ -39,33 +39,33 @@ class Skyward::API::Serializer
 
   private
 
-  # @rbs member: Skyward::API::Router::returned
-  # @rbs return: Skyward::API::Writers::Writer
-  def compile: (Skyward::API::Router::returned member) -> Skyward::API::Writers::Writer
+  # @rbs member: Skyward::API::Routing::Router::returned
+  # @rbs return: Writers::Writer
+  def compile: (Skyward::API::Routing::Router::returned member) -> Writers::Writer
 
   # Untyped code can return any response value.
-  # @rbs return: Skyward::API::Writers::Writer
-  def untyped: () -> Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
+  def untyped: () -> Writers::Writer
 
-  # @rbs writer: Skyward::API::Writers::Writer
-  # @rbs return: Skyward::API::Writers::Writer
-  def ok: (Skyward::API::Writers::Writer writer) -> Skyward::API::Writers::Writer
+  # @rbs writer: Writers::Writer
+  # @rbs return: Writers::Writer
+  def ok: (Writers::Writer writer) -> Writers::Writer
 
-  # @rbs writer: Skyward::API::Writers::Writer
-  # @rbs return: Skyward::API::Writers::Writer
-  def created: (Skyward::API::Writers::Writer writer) -> Skyward::API::Writers::Writer
+  # @rbs writer: Writers::Writer
+  # @rbs return: Writers::Writer
+  def created: (Writers::Writer writer) -> Writers::Writer
 
   # @rbs klass: Class
-  # @rbs return: Skyward::API::Writers::Writer
-  def response: (Class klass) -> Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
+  def response: (Class klass) -> Writers::Writer
 
-  # @rbs return: Skyward::API::Writers::Writer
-  def rack: () -> Skyward::API::Writers::Writer
+  # @rbs return: Writers::Writer
+  def rack: () -> Writers::Writer
 
   # @rbs problem: Problem
   # @rbs given: untyped
-  # @rbs return: Skyward::API::App::response
-  def problem_response: (Problem problem, untyped given) -> Skyward::API::App::response
+  # @rbs return: Skyward::API::Assembly::Dispatcher::response
+  def problem_response: (Problem problem, untyped given) -> Skyward::API::Assembly::Dispatcher::response
 
   # @rbs written: untyped
   # @rbs status: Integer
@@ -73,7 +73,7 @@ class Skyward::API::Serializer
   # @rbs return: untyped
   def json: (untyped written, Integer status, Hash[String, String] headers) -> untyped
 
-  # @rbs misfit: Skyward::API::Writers::Misfit
+  # @rbs misfit: Writers::Misfit
   # @rbs return: String
-  def message: (Skyward::API::Writers::Misfit misfit) -> String
+  def message: (Writers::Misfit misfit) -> String
 end

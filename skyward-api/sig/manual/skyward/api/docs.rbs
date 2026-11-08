@@ -1,3 +1,0 @@
-module Skyward::API::Docs
-  extend ::Skyward::API::Docs
-end

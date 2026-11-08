@@ -90,7 +90,7 @@ class Skyward::Request
     # UTF-8, and a client can send one.
     pairs = header.to_s.b.split(/; */).reject(&:empty?).map do |cookie|
       name, value = cookie.split("=", 2)
-      [String.new(name.to_s, encoding: Encoding::UTF_8), Skyward::API::PercentEncoding.decode(value.to_s)]
+      [String.new(name.to_s, encoding: Encoding::UTF_8), Skyward::API::Routing::PercentEncoding.decode(value.to_s)]
     end
     # The first of two cookies with one name wins, as in Rack.
     pairs.uniq(&:first).to_h.freeze
