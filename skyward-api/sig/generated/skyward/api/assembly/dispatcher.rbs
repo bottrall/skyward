@@ -1,0 +1,84 @@
+# Generated from lib/skyward/api/assembly/dispatcher.rb with RBS::Inline
+
+class Skyward::API::Assembly::Dispatcher
+  type response = [ Integer, Hash[String, String], Array[String] ]
+
+  INPUT_TITLES: Hash[Integer, String]
+
+  class Document < Data
+    attr_reader type(): String
+
+    attr_reader body(): String
+
+    def self.new: (String type, String body) -> instance
+                | (type: String, body: String) -> instance
+
+    def self.members: () -> [ :type, :body ]
+
+    def members: () -> [ :type, :body ]
+  end
+
+  @documents: Hash[String, Document]
+
+  @stack: Skyward::API::_RackApp
+
+  @static: Skyward::API::Assembly::Static
+
+  @router: Skyward::API::Routing::Router
+
+  # @rbs router: Skyward::API::Routing::Router
+  # @rbs static: Skyward::API::Assembly::Static
+  # @rbs middleware: Array[Skyward::API::Assembly::Builder::Use]
+  # @rbs documents: Hash[String, Document]
+  # @rbs return: void
+  def initialize: (Skyward::API::Routing::Router router, Skyward::API::Assembly::Static static, Array[Skyward::API::Assembly::Builder::Use] middleware, Hash[String, Document] documents) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+
+  private
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack
+  def route: (Hash[String, untyped] env) -> Skyward::API::rack
+
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: response?
+  def served: (String verb, String path) -> response?
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: Skyward::API::rack
+  def routed: (Hash[String, untyped] env, String verb, String path) -> Skyward::API::rack
+
+  # @rbs match: Skyward::API::Routing::Router::Match
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack
+  def respond: (Skyward::API::Routing::Router::Match match, Hash[String, untyped] env) -> Skyward::API::rack
+
+  # A server closes the body it sends, so one that's never sent is closed here.
+  # @rbs body: untyped
+  # @rbs return: Array[String]
+  def dropped: (untyped body) -> Array[String]
+
+  # @rbs verb: String
+  # @rbs allowed: Array[String]
+  # @rbs return: response
+  def unmatched: (String verb, Array[String] allowed) -> response
+
+  # @rbs status: Integer
+  # @rbs title: String
+  # @rbs headers: Hash[String, String]
+  # @rbs **members: untyped
+  # @rbs return: response
+  def problem: (Integer status, String title, ?Hash[String, String] headers, **untyped members) -> response
+
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
+  # @rbs value: untyped
+  # @rbs return: response
+  def json: (Integer status, Hash[String, String] headers, untyped value) -> response
+end

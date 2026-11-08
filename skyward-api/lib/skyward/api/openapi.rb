@@ -19,7 +19,7 @@ module Skyward::API::OpenAPI
 
   SERVED = {
     PATH => "the OpenAPI document",
-    Skyward::API::Docs::PATH => "the API reference"
+    Docs::PATH => "the API reference"
   }.freeze #: Hash[String, String]
 
   # OpenAPI's pattern for the name of a component.
@@ -37,7 +37,7 @@ module Skyward::API::OpenAPI
     date: { type: "string", format: "date" },
     time: { type: "string", format: "date-time" },
     untyped: {} #: schema
-  }.freeze #: Hash[Skyward::Types::scalar, schema]
+  }.freeze #: Hash[Skyward::Core::Types::scalar, schema]
 
   NULL = { type: "null" }.freeze #: schema
 
@@ -84,24 +84,24 @@ module Skyward::API::OpenAPI
     "204" => "No Content",
     "3XX" => "Redirect",
     **Skyward::API::Serializer::PROBLEMS.values.to_h { |problem| [problem.status.to_s, problem.title] },
-    **Skyward::API::App::INPUT_TITLES.transform_keys(&:to_s),
+    **Skyward::API::Assembly::Dispatcher::INPUT_TITLES.transform_keys(&:to_s),
     "default" => "A Rack response, whose status and content are known only when it's sent"
   }.freeze #: Hash[String, String]
 
   # Takes the document unbuilt, so a route or static file at /openapi.json or /docs is refused first.
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs document: ^() -> schema
   # @rbs return: String
   def json(endpoints, static:, document:)
     served = served(endpoints, static)
-    raise Skyward::BootError, served if served
+    raise Skyward::Core::BootError, served if served
 
     JSON.generate(document.call)
   end
 
   # Only serving the documents needs /openapi.json and /docs free, so this doesn't check them.
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs title: String
   # @rbs version: String
   # @rbs description: String?
@@ -111,7 +111,7 @@ module Skyward::API::OpenAPI
     types = endpoints.flat_map { |endpoint| types(endpoint).flat_map { |type| named(type) } }.uniq
     names = operation_ids(endpoints) || names(types, schema_names)
     case names
-    when String then raise Skyward::BootError, names
+    when String then raise Skyward::Core::BootError, names
     else assembled(endpoints, types, { title:, version:, description: }.compact, names)
     end
   end
@@ -119,37 +119,38 @@ module Skyward::API::OpenAPI
   private
 
   # The request: keyword is Skyward's, not part of the HTTP contract.
-  # @rbs endpoint: Skyward::API::Router::Endpoint
-  # @rbs return: Array[Skyward::API::Router::Keyword]
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
+  # @rbs return: Array[Skyward::API::Routing::Router::Keyword]
   def described(endpoint) = endpoint.keywords.reject { |keyword| keyword.source == :request }
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
-  # @rbs return: Array[Skyward::Types::t]
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
+  # @rbs return: Array[Skyward::Core::Types::t]
   def types(endpoint)
     returned = endpoint.returns.filter_map do |member|
       case member
-      when Skyward::API::Router::Created then member.type
-      when Skyward::API::Router::Response, Skyward::API::Router::Rack then nil
+      when Skyward::API::Routing::Router::Created then member.type
+      when Skyward::API::Routing::Router::Response, Skyward::API::Routing::Router::Rack then nil
       else member
       end
     end
     [*described(endpoint).map(&:type), *returned]
   end
 
-  # @rbs type: Skyward::Types::t
-  # @rbs return: Array[Skyward::Types::Named]
+  # @rbs type: Skyward::Core::Types::t
+  # @rbs return: Array[Skyward::Core::Types::Named]
   def named(type)
     case type
-    when Skyward::Types::Nullable, Skyward::Types::ArrayOf, Skyward::Types::HashOf then named(type.type)
-    when Skyward::Types::Record then type.fields.flat_map { |field| named(field.type) }
-    when Skyward::Types::Named then [type, *type.fields.flat_map { |field| named(field.type) }]
-    when Skyward::Types::Union then type.types.flat_map { |member| named(member) }
+    when Skyward::Core::Types::Nullable, Skyward::Core::Types::ArrayOf, Skyward::Core::Types::HashOf
+      named(type.type)
+    when Skyward::Core::Types::Record then type.fields.flat_map { |field| named(field.type) }
+    when Skyward::Core::Types::Named then [type, *type.fields.flat_map { |field| named(field.type) }]
+    when Skyward::Core::Types::Union then type.types.flat_map { |member| named(member) }
     else []
     end
   end
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs return: String?
   def served(endpoints, static)
     SERVED.lazy.filter_map { |at, serves| taken(at, serves, endpoints, static) }.first
@@ -157,8 +158,8 @@ module Skyward::API::OpenAPI
 
   # @rbs at: String
   # @rbs serves: String
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs static: Skyward::API::Static
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs static: Skyward::API::Assembly::Static
   # @rbs return: String?
   def taken(at, serves, endpoints, static)
     routed = endpoints.find { |endpoint| path(endpoint.pattern) == at }
@@ -172,7 +173,7 @@ module Skyward::API::OpenAPI
     "static serves #{file} at #{at}, where docs: true serves #{serves}. Move the file, or leave out docs:."
   end
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs return: String?
   def operation_ids(endpoints)
     id, same = endpoints.group_by { |endpoint| operation_id(endpoint) }.find { |_, shared| shared.size > 1 }
@@ -184,7 +185,7 @@ module Skyward::API::OpenAPI
       "but each operation needs its own. With docs: true, route each method once, and mount each class once."
   end
 
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs schema_names: Hash[Class, String]
   # @rbs return: Hash[Class, String] | String
   def names(types, schema_names)
@@ -204,8 +205,8 @@ module Skyward::API::OpenAPI
       "Name one of them with Skyward.app(schema_names:)."
   end
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
@@ -223,7 +224,7 @@ module Skyward::API::OpenAPI
     }
   end
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def operation(endpoint, names)
@@ -243,12 +244,12 @@ module Skyward::API::OpenAPI
 
   # A path or query value can't be null, so its schema leaves null out, and it's
   # always a String, so an untyped one is a string.
-  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs keyword: Skyward::API::Routing::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def parameter(keyword, names)
     type = keyword.type
-    carried = type.is_a?(Skyward::Types::Nullable) ? type.type : type
+    carried = type.is_a?(Skyward::Core::Types::Nullable) ? type.type : type
     {
       name: keyword.name,
       in: keyword.source,
@@ -257,7 +258,7 @@ module Skyward::API::OpenAPI
     }
   end
 
-  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs keyword: Skyward::API::Routing::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def request_body(keyword, names)
@@ -267,8 +268,8 @@ module Skyward::API::OpenAPI
     }
   end
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
-  # @rbs body: Skyward::API::Router::Keyword?
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
+  # @rbs body: Skyward::API::Routing::Router::Keyword?
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
   def responses(endpoint, body, names)
@@ -280,15 +281,15 @@ module Skyward::API::OpenAPI
     answers.group_by(&:status).sort_by(&:first).to_h { |status, same| [status, response(status, same)] }
   end
 
-  # @rbs member: Skyward::API::Router::returned
+  # @rbs member: Skyward::API::Routing::Router::returned
   # @rbs names: Hash[Class, String]
   # @rbs return: Answer
   def answer(member, names)
     case member
-    when Skyward::API::Router::Created
+    when Skyward::API::Routing::Router::Created
       Answer.new(status: "201", media_type: JSON_TYPE, schema: schema(member.type, :response, names))
-    when Skyward::API::Router::Response then response_value(member.klass)
-    when Skyward::API::Router::Rack then RACK
+    when Skyward::API::Routing::Router::Response then response_value(member.klass)
+    when Skyward::API::Routing::Router::Rack then RACK
     else Answer.new(status: "200", media_type: JSON_TYPE, schema: schema(member, :response, names))
     end
   end
@@ -298,7 +299,7 @@ module Skyward::API::OpenAPI
   def response_value(klass)
     problem = Skyward::API::Serializer::PROBLEMS.fetch(klass, nil)
     if problem then Answer.new(status: problem.status.to_s, media_type: PROBLEM_TYPE, schema: PROBLEM)
-    elsif klass == Skyward::Redirect then REDIRECT
+    elsif klass == Skyward::API::Responses::Redirect then REDIRECT
     else NO_CONTENT
     end
   end
@@ -319,8 +320,8 @@ module Skyward::API::OpenAPI
     end
   end
 
-  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
   def components(endpoints, types, names)
@@ -330,20 +331,20 @@ module Skyward::API::OpenAPI
     end.merge("Problem" => PROBLEM_SCHEMA).sort_by(&:first).to_h
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs form: form
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def schema(type, form, names)
     case type
-    when Skyward::Types::Scalar then SCALARS.fetch(type.name)
-    when Skyward::Types::Literal then type.value.nil? ? NULL : { const: type.value }
-    when Skyward::Types::Enum then { type: "string", enum: type.symbols.map(&:name) }
-    when Skyward::Types::Nullable then nullable(schema(type.type, form, names))
-    when Skyward::Types::ArrayOf then { type: "array", items: schema(type.type, form, names) }
-    when Skyward::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
-    when Skyward::Types::Record then object(type.fields, form, names)
-    when Skyward::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
+    when Skyward::Core::Types::Scalar then SCALARS.fetch(type.name)
+    when Skyward::Core::Types::Literal then type.value.nil? ? NULL : { const: type.value }
+    when Skyward::Core::Types::Enum then { type: "string", enum: type.symbols.map(&:name) }
+    when Skyward::Core::Types::Nullable then nullable(schema(type.type, form, names))
+    when Skyward::Core::Types::ArrayOf then { type: "array", items: schema(type.type, form, names) }
+    when Skyward::Core::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
+    when Skyward::Core::Types::Record then object(type.fields, form, names)
+    when Skyward::Core::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
     else { oneOf: type.types.map { |member| schema(member, form, names) } }
     end
   end
@@ -355,7 +356,7 @@ module Skyward::API::OpenAPI
     type.is_a?(String) && !schema.key?(:enum) ? schema.merge(type: [type, "null"]) : { anyOf: [schema, NULL] }
   end
 
-  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs fields: Array[Skyward::Core::Types::Field]
   # @rbs form: form
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
@@ -369,20 +370,20 @@ module Skyward::API::OpenAPI
 
   # A request may leave out a nullable value, which arrives as nil, but a response always writes it.
   # @rbs required: bool
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs form: form
   # @rbs return: bool
-  def required?(required, type, form) = required && (form == :response || !type.is_a?(Skyward::Types::Nullable))
+  def required?(required, type, form) = required && (form == :response || !type.is_a?(Skyward::Core::Types::Nullable))
 
   # @rbs pattern: Array[String | Symbol]
   # @rbs return: String
   def path(pattern) = pattern.map { |part| part.is_a?(Symbol) ? "{#{part}}" : part }.join("/")
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String
   def tag(endpoint) = dotted(endpoint.api.class.name)
 
-  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String
   def operation_id(endpoint) = "#{tag(endpoint)}_#{endpoint.to}"
 

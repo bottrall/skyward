@@ -1,3 +1,0 @@
-module Skyward::API::Boot
-  extend ::Skyward::API::Boot
-end

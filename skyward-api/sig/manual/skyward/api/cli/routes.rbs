@@ -1,0 +1,3 @@
+module Skyward::API::CLI::Routes
+  extend ::Skyward::API::CLI::Routes
+end

@@ -1,0 +1,76 @@
+# Generated from lib/skyward/api/cli/check.rb with RBS::Inline
+
+module Skyward::API::CLI::Check
+  type capture = ^(Hash[String, String] env, Array[String] command, String chdir) -> [ String, bool ]
+
+  class Outcome < Data
+    attr_reader passed(): bool
+
+    attr_reader detail(): String
+
+    def self.new: (bool passed, String detail) -> instance
+                | (passed: bool, detail: String) -> instance
+
+    def self.members: () -> [ :passed, :detail ]
+
+    def members: () -> [ :passed, :detail ]
+  end
+
+  PASSED: Outcome
+
+  GENERATED: String
+
+  STEEPFILE: String
+
+  # None holds the app's contract: its tests, its installed gems and scratch.
+  UNCHECKED: Array[String]
+
+  # The strict boot's own Ruby runs it, so the forced strict mode, the app's
+  # side effects and an exit or crash stay out of skyward check. The require
+  # lives here because a `-r` on the command line runs before RUBYOPT's
+  # `-rbundler/setup` on newer Rubies, before the bundle's gems are loadable.
+  BOOT: String
+
+  INSTALL_RBS_INLINE: String
+
+  INSTALL_STEEP: String
+
+  # @rbs (String directory, out: _Writer, capture: capture, rbs_inline: String?, steep: String?) -> Integer
+  def run: (String directory, out: _Writer, capture: capture, rbs_inline: String?, steep: String?) -> Integer
+
+  # @rbs directory: String
+  # @rbs capture: capture
+  # @rbs rbs_inline: String?
+  # @rbs return: Outcome
+  def signatures: (String directory, capture: capture, rbs_inline: String?) -> Outcome
+
+  # @rbs directory: String
+  # @rbs capture: capture
+  # @rbs return: Outcome
+  def strict_boot: (String directory, capture: capture) -> Outcome
+
+  # @rbs directory: String
+  # @rbs capture: capture
+  # @rbs steep: String?
+  # @rbs return: Outcome
+  def type_check: (String directory, capture: capture, steep: String?) -> Outcome
+
+  private
+
+  # @rbs detail: String
+  # @rbs return: Outcome
+  def failed: (String detail) -> Outcome
+
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def sources: (String directory) -> Array[String]
+
+  # @rbs directory: String
+  # @rbs return: Hash[String, String]
+  def rbs_files: (String directory) -> Hash[String, String]
+
+  # @rbs current: Hash[String, String]
+  # @rbs expected: Hash[String, String]
+  # @rbs return: Array[String]
+  def differences: (Hash[String, String] current, Hash[String, String] expected) -> Array[String]
+end

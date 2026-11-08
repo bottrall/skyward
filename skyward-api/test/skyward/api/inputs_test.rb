@@ -4,14 +4,14 @@ require "stringio"
 require "test_helper"
 
 describe Skyward::API::Inputs do
-  types = Skyward::Types
+  types = Skyward::Core::Types
 
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
   title = types::Record.new(fields: [types::Field.new(name: :title, type: string, required: true)])
 
   def keyword(name, source, type, required: true)
-    Skyward::API::Router::Keyword.new(name:, source:, required:, type:)
+    Skyward::API::Routing::Router::Keyword.new(name:, source:, required:, type:)
   end
 
   def inputs(*keywords, providers: []) = Skyward::API::Inputs.new(keywords, providers:, max_body_size: 16)
@@ -25,11 +25,11 @@ describe Skyward::API::Inputs do
     }.compact
   end
 
-  def ok(value) = Skyward::API::Coercer::Ok.new(value:)
+  def ok(value) = Skyward::API::Inputs::Coercer::Ok.new(value:)
 
   def invalid(*errors)
-    Skyward::API::Coercer::Invalid.new(
-      errors: errors.map { |at, message| Skyward::API::Coercer::Error.new(at:, message:) }
+    Skyward::API::Inputs::Coercer::Invalid.new(
+      errors: errors.map { |at, message| Skyward::API::Inputs::Coercer::Error.new(at:, message:) }
     )
   end
 
@@ -169,13 +169,13 @@ describe Skyward::API::Inputs do
     end
 
     describe "request:" do
-      let(:request_type) { Skyward::API::Boot::REQUEST_TYPE }
+      let(:request_type) { Skyward::API::Assembly::Boot::REQUEST_TYPE }
 
       it "is the request, built from the env and never from the query string" do
         request = env(query: "request=x").merge("skyward.request_id" => "abc-123")
         passed = inputs(keyword(:request, :request, request_type)).call(request, {}).value.fetch(:request)
 
-        assert_equal [Skyward::Request, request], [passed.class, passed.env]
+        assert_equal [Skyward::API::Request, request], [passed.class, passed.env]
       end
 
       it "is passed even when it has a default" do
@@ -192,9 +192,9 @@ describe Skyward::API::Inputs do
       let(:unauthorized) { provider(:current_user, ->(_request) { Skyward.unauthorized("Sign in first") }) }
 
       def provider(name, callable)
-        responses = [Skyward::API::Router::Response.new(klass: Skyward::Unauthorized)]
+        responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unauthorized)]
         serializer = Skyward::API::Serializer.new(responses, label: "The :#{name} provider")
-        Skyward::API::Router::Provider.new(name:, callable:, value: nil, responses:, serializer:)
+        Skyward::API::Routing::Router::Provider.new(name:, callable:, value: nil, responses:, serializer:)
       end
 
       def traced(name)
@@ -238,7 +238,7 @@ describe Skyward::API::Inputs do
 
       it "gets the same request as request:" do
         current_user = provider(:current_user, ->(request) { request })
-        request_type = Skyward::API::Boot::REQUEST_TYPE
+        request_type = Skyward::API::Assembly::Boot::REQUEST_TYPE
         passed = inputs(keyword(:request, :request, request_type), providers: [current_user]).call(requested, {}).value
 
         assert_same passed.fetch(:request), passed.fetch(:current_user)
@@ -268,7 +268,7 @@ describe Skyward::API::Inputs do
     end
 
     it "lists no more than MAX_ERRORS problems across keywords" do
-      max = Skyward::API::Coercer::MAX_ERRORS
+      max = Skyward::API::Inputs::Coercer::MAX_ERRORS
       integers = types::ArrayOf.new(type: integer)
       all = inputs(keyword(:a, :query, integers), keyword(:b, :query, integers))
       query = [*Array.new(max, "a=x"), *Array.new(max, "b=x")].join("&")

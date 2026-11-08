@@ -1,3 +1,0 @@
-module Skyward::Commands
-  extend ::Skyward::Commands
-end

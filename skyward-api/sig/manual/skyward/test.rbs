@@ -1,3 +1,0 @@
-module Skyward::Test
-  extend ::Skyward::Test
-end

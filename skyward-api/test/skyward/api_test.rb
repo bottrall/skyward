@@ -17,7 +17,7 @@ describe Skyward::API do
   end
 
   it "gives every API class the route declarations" do
-    assert_kind_of Skyward::API::Declarations, Skyward::API
+    assert_kind_of Skyward::API::Endpoints::Declarations, Skyward::API
   end
 end
 
@@ -76,14 +76,14 @@ describe Skyward do
       response = nil
       capture_io do
         app = Dir.chdir(File.expand_path("../fixtures/hello", __dir__)) { Rack::Builder.parse_file("config.ru") }
-        response = Skyward::Test.client(app).get("/hello/ruby?shout=true")
+        response = Skyward::API::Test.client(app).get("/hello/ruby?shout=true")
       end
 
       assert_equal '{"message":"HELLO, RUBY"}', response.body
     end
 
     it "refuses to boot a route that doesn't fit its method" do
-      error = assert_raises(Skyward::BootError) do
+      error = assert_raises(Skyward::Core::BootError) do
         Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Positional.new }
       end
 
@@ -91,7 +91,7 @@ describe Skyward do
     end
 
     it "refuses to boot an untyped endpoint with strict: true" do
-      error = assert_raises(Skyward::BootError) do
+      error = assert_raises(Skyward::Core::BootError) do
         Skyward.app(signatures:, logger: nil, strict: true) { |builder| builder.mount BootFixtures::Unsigned.new }
       end
 
@@ -110,11 +110,11 @@ describe Skyward do
       def boot_unsigned = Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Unsigned.new }
 
       it "turns strict mode on when it's 1, whatever strict: says" do
-        with_strict("1") { assert_raises(Skyward::BootError) { boot_unsigned } }
+        with_strict("1") { assert_raises(Skyward::Core::BootError) { boot_unsigned } }
       end
 
       it "leaves strict: as it is when it's anything else" do
-        with_strict("true") { assert_kind_of Skyward::API::Application, boot_unsigned }
+        with_strict("true") { assert_kind_of Skyward::API::Assembly::Application, boot_unsigned }
       end
     end
 
@@ -124,7 +124,7 @@ describe Skyward do
           builder.mount BootFixtures::Documented.new, at: "/todos"
           builder.mount hello, at: "/hello"
         end
-        Skyward::Test.client(app)
+        Skyward::API::Test.client(app)
       end
 
       it "serves no OpenAPI document or API reference by default" do
@@ -158,7 +158,7 @@ describe Skyward do
 
       it "serves an API reference at /docs with docs: true, loading Scalar from jsDelivr by default" do
         response = client(docs: true, title: "Todos").get("/docs")
-        page = Skyward::API::Docs.page(title: "Todos", scalar_url: Skyward::API::Docs::SCALAR_URL)
+        page = Skyward::API::OpenAPI::Docs.page(title: "Todos", scalar_url: Skyward::API::OpenAPI::Docs::SCALAR_URL)
 
         assert_equal [200, "text/html; charset=utf-8", page],
                      [response.status, response.headers["content-type"], response.body]
@@ -169,7 +169,7 @@ describe Skyward do
       end
 
       it "refuses to boot an app whose document has a problem" do
-        error = assert_raises(Skyward::BootError) do
+        error = assert_raises(Skyward::Core::BootError) do
           Skyward.app(signatures:, logger: nil, docs: true) do |builder|
             builder.mount hello, at: "/hello"
             builder.mount hello, at: "/hi"
@@ -192,14 +192,14 @@ describe Skyward do
           builder.mount hello, at: "/hi"
         end
 
-        assert_raises(Skyward::BootError) { app.openapi }
+        assert_raises(Skyward::Core::BootError) { app.openapi }
       end
     end
 
     describe "inputs" do
       def client(**options)
         app = Skyward.app(signatures:, logger: nil, **options) { |builder| builder.mount BootFixtures::Todos.new }
-        Skyward::Test.client(app)
+        Skyward::API::Test.client(app)
       end
 
       let(:overhead) { '{"title":""}'.bytesize }
@@ -219,7 +219,7 @@ describe Skyward do
 
     describe "request:" do
       let(:client) do
-        Skyward::Test.client(
+        Skyward::API::Test.client(
           Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Requesting.new }
         )
       end
@@ -240,7 +240,7 @@ describe Skyward do
           builder.provide :tenant, ->(request) { request.headers["x-tenant"] }
           builder.mount BootFixtures::Authenticated.new
         end
-        Skyward::Test.client(app)
+        Skyward::API::Test.client(app)
       end
 
       it "answers an endpoint behind an authentication provider with its 401, without running it" do
@@ -272,7 +272,7 @@ describe Skyward do
 
     describe "answering by the return type" do
       let(:client) do
-        Skyward::Test.client(
+        Skyward::API::Test.client(
           Skyward.app(signatures:, logger: nil) do |builder|
             builder.mount BootFixtures::Responding.new
           end
@@ -297,7 +297,7 @@ describe Skyward do
 
       describe "with a Rack triple" do
         let(:client) do
-          Skyward::Test.client(
+          Skyward::API::Test.client(
             Skyward.app(signatures:, logger: nil) do |builder|
               builder.mount BootFixtures::Racking.new
             end
@@ -330,7 +330,7 @@ describe Skyward do
         builder.mount hello, at: "/hello"
       end
       headers = { "Origin" => "https://example.com", "Access-Control-Request-Method" => "GET" }
-      response = Skyward::Test.client(app).options("/hello/ruby", headers:)
+      response = Skyward::API::Test.client(app).options("/hello/ruby", headers:)
 
       assert_equal [200, "https://example.com"], [response.status, response.headers["access-control-allow-origin"]]
       assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, response.headers["x-request-id"])
@@ -377,7 +377,7 @@ describe Skyward do
         builder.mount hello, at: "/hello"
       end
       headers = { "Origin" => "https://example.com", "Access-Control-Request-Method" => "GET" }
-      Skyward::Test.client(app).options("/hello/ruby", headers:)
+      Skyward::API::Test.client(app).options("/hello/ruby", headers:)
       line = JSON.parse(logger.lines.first, symbolize_names: true)
 
       assert_equal({ method: "OPTIONS", path: "/hello/ruby", status: 200 }, line.slice(:method, :path, :status))
@@ -413,7 +413,7 @@ describe Skyward do
           yield builder if block_given?
           builder.mount failing
         end
-        Skyward::Test.client(app).get("/", headers: { "X-Request-Id" => "abc-123" })
+        Skyward::API::Test.client(app).get("/", headers: { "X-Request-Id" => "abc-123" })
       end
 
       it "answers a 500 with the request ID, and logs the exception before the request" do
@@ -449,7 +449,7 @@ describe Skyward do
           builder.provide :current_user, ->(_request) { raise "sessions are down" }
           builder.mount BootFixtures::Authenticated.new
         end
-        response = with_env(nil) { Skyward::Test.client(app).get("/me", headers: { "X-Request-Id" => "abc-123" }) }
+        response = with_env(nil) { Skyward::API::Test.client(app).get("/me", headers: { "X-Request-Id" => "abc-123" }) }
         answered = [response.status, response.json[:request_id], lines.first[:message]]
 
         assert_equal [500, "abc-123", "sessions are down"], answered
@@ -479,8 +479,9 @@ describe Skyward do
               Skyward.forbidden("Not yours")]
 
       assert_equal(
-        [[Skyward::BadRequest, "Bad", headers, true], [Skyward::Unauthorized, "Sign in first", {}, true],
-         [Skyward::Forbidden, "Not yours", {}, true]],
+        [[Skyward::API::Responses::BadRequest, "Bad", headers, true],
+         [Skyward::API::Responses::Unauthorized, "Sign in first", {}, true],
+         [Skyward::API::Responses::Forbidden, "Not yours", {}, true]],
         made.map { |value| fields(value, :detail, :headers) }
       )
     end
@@ -506,7 +507,8 @@ describe Skyward do
         made = [Skyward.redirect("/todos"), Skyward.redirect("/todos/1", status: 308, headers:)]
 
         assert_equal(
-          [[Skyward::Redirect, "/todos", 303, {}, true], [Skyward::Redirect, "/todos/1", 308, headers, true]],
+          [[Skyward::API::Responses::Redirect, "/todos", 303, {}, true],
+           [Skyward::API::Responses::Redirect, "/todos/1", 308, headers, true]],
           made.map { |value| fields(value, :to, :status, :headers) }
         )
       end

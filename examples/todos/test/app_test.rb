@@ -5,7 +5,7 @@ require "test_helper"
 # Every test shares App, and so its todos, so each one checks only the todos
 # it creates.
 describe "App" do
-  let(:client) { Skyward::Test.client(App) }
+  let(:client) { Skyward::API::Test.client(App) }
 
   def create(title = "Ship it", priority: "normal", due_on: nil)
     client.post("/todos", json: { title:, priority:, due_on: })

@@ -1,0 +1,3 @@
+module Skyward::API::Serializer::Writers
+  extend ::Skyward::API::Serializer::Writers
+end

@@ -1,3 +1,0 @@
-module Skyward::API::Writers
-  extend ::Skyward::API::Writers
-end

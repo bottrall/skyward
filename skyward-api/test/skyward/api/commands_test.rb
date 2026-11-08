@@ -71,7 +71,7 @@ describe "skyward/api/commands.rb" do
 
     it "fails without a backtrace in a directory with no app.rb" do
       Dir.mktmpdir do |directory|
-        message = Skyward::API::AppFile.load(File.realpath(directory))
+        message = Skyward::API::CLI::AppFile.load(File.realpath(directory))
 
         assert_equal ["#{message}\n", 1], skyward("routes", chdir: directory)
       end

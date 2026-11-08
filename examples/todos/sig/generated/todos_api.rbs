@@ -1,6 +1,6 @@
 # Generated from todos_api.rb with RBS::Inline
 
-use Skyward::*
+use Skyward::API::*
 
 class TodosAPI < Skyward::API
   @todos: TodoStore
@@ -15,18 +15,18 @@ class TodosAPI < Skyward::API
   def index: (?done: bool?, ?limit: Integer) -> Array[Todo]
 
   # @rbs id: Integer
-  # @rbs return: Todo | NotFound
-  def show: (id: Integer) -> (Todo | NotFound)
+  # @rbs return: Todo | Responses::NotFound
+  def show: (id: Integer) -> (Todo | Responses::NotFound)
 
   # @rbs body: NewTodo
-  # @rbs return: Created[Todo]
-  def create: (body: NewTodo) -> Created[Todo]
+  # @rbs return: Responses::Created[Todo]
+  def create: (body: NewTodo) -> Responses::Created[Todo]
 
   # @rbs id: Integer
-  # @rbs return: Todo | NotFound
-  def complete: (id: Integer) -> (Todo | NotFound)
+  # @rbs return: Todo | Responses::NotFound
+  def complete: (id: Integer) -> (Todo | Responses::NotFound)
 
   # @rbs id: Integer
-  # @rbs return: NoContent | NotFound
-  def destroy: (id: Integer) -> (NoContent | NotFound)
+  # @rbs return: Responses::NoContent | Responses::NotFound
+  def destroy: (id: Integer) -> (Responses::NoContent | Responses::NotFound)
 end

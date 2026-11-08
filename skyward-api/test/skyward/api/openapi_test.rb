@@ -24,7 +24,7 @@ module OpenAPIFixtures
 end
 
 describe Skyward::API::OpenAPI do
-  types = Skyward::Types
+  types = Skyward::Core::Types
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
   field = ->(name, type, required = true) { types::Field.new(name:, type:, required:) }
@@ -43,11 +43,13 @@ describe Skyward::API::OpenAPI do
     klass: OpenAPIFixtures::List,
     fields: [field.call(:todos, types::ArrayOf.new(type: draft))]
   )
-  request = types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: [])
+  request = types::Named.new(name: "Skyward::API::Request", klass: Skyward::API::Request, fields: [])
   todo_ref = { "$ref" => "#/components/schemas/OpenAPIFixtures.Todo" }
   problem_ref = { "$ref" => "#/components/schemas/Problem" }
 
-  def keyword(name, source, type, required: true) = Skyward::API::Router::Keyword.new(name:, source:, required:, type:)
+  def keyword(name, source, type, required: true)
+    Skyward::API::Routing::Router::Keyword.new(name:, source:, required:, type:)
+  end
 
   def endpoint(
     to,
@@ -61,7 +63,7 @@ describe Skyward::API::OpenAPI do
     description: nil
   )
     written = path.map { |part| part.is_a?(Symbol) ? ":#{part}" : part }.join("/")
-    Skyward::API::Router::Endpoint.new(
+    Skyward::API::Routing::Router::Endpoint.new(
       verb:,
       pattern: path,
       api:,
@@ -80,7 +82,7 @@ describe Skyward::API::OpenAPI do
 
   def json(
     *endpoints,
-    static: Skyward::API::Static.new([]),
+    static: Skyward::API::Assembly::Static.new([]),
     title: "API",
     version: "0.1.0",
     description: nil,
@@ -95,7 +97,7 @@ describe Skyward::API::OpenAPI do
 
   def document(*, **) = JSON.parse(json(*, **))
 
-  def refusal(*, **) = assert_raises(Skyward::BootError) { json(*, **) }.message
+  def refusal(*, **) = assert_raises(Skyward::Core::BootError) { json(*, **) }.message
 
   def operation(*endpoints, path: "/todos", verb: "get", **) = document(*endpoints, **).dig("paths", path, verb)
 
@@ -134,7 +136,9 @@ describe Skyward::API::OpenAPI do
       it "refuses a static file at /openapi.json" do
         Dir.mktmpdir do |root|
           File.write(File.join(root, "openapi.json"), "{}")
-          static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: root)])
+          static = Skyward::API::Assembly::Static.new(
+            [Skyward::API::Assembly::Builder::Static.new(prefix: "/", from: root)]
+          )
 
           assert_equal "static serves #{root}/openapi.json at /openapi.json, where docs: true serves the OpenAPI " \
                        "document. Move the file, or leave out docs:.",
@@ -152,7 +156,9 @@ describe Skyward::API::OpenAPI do
       it "refuses a static file at /docs" do
         Dir.mktmpdir do |root|
           File.write(File.join(root, "docs"), "<h1>Docs</h1>")
-          static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: root)])
+          static = Skyward::API::Assembly::Static.new(
+            [Skyward::API::Assembly::Builder::Static.new(prefix: "/", from: root)]
+          )
 
           assert_equal "static serves #{root}/docs at /docs, where docs: true serves the API reference. " \
                        "Move the file, or leave out docs:.",
@@ -330,15 +336,21 @@ describe Skyward::API::OpenAPI do
 
       it "adds each provider's responses to the endpoint's, sharing a response where they share a status" do
         provider = lambda do |name, *klasses|
-          responses = klasses.map { |klass| Skyward::API::Router::Response.new(klass:) }
+          responses = klasses.map { |klass| Skyward::API::Routing::Router::Response.new(klass:) }
           serializer = Skyward::API::Serializer.new(responses, label: "")
-          Skyward::API::Router::Provider.new(name:, callable: ->(_request) {}, value: nil, responses:, serializer:)
+          Skyward::API::Routing::Router::Provider.new(
+            name:,
+            callable: ->(_request) {},
+            value: nil,
+            responses:,
+            serializer:
+          )
         end
         providers = [
-          provider.call(:current_user, Skyward::Unauthorized),
-          provider.call(:admin, Skyward::Unauthorized, Skyward::Forbidden)
+          provider.call(:current_user, Skyward::API::Responses::Unauthorized),
+          provider.call(:admin, Skyward::API::Responses::Unauthorized, Skyward::API::Responses::Forbidden)
         ]
-        not_found = Skyward::API::Router::Response.new(klass: Skyward::NotFound)
+        not_found = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound)
         written = responses(endpoint(:index, providers:, returns: [todo, not_found]))
 
         assert_equal [%w[200 401 403 404], content("application/problem+json", problem_ref)],
@@ -346,7 +358,7 @@ describe Skyward::API::OpenAPI do
       end
 
       it "adds a 422 to an endpoint with inputs, sharing the Problem schema with a returned 422" do
-        unprocessable = Skyward::API::Router::Response.new(klass: Skyward::Unprocessable)
+        unprocessable = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unprocessable)
         written = responses(endpoint(:index, keywords: [keyword(:limit, :query, integer)], returns: [unprocessable]))
 
         assert_equal(
@@ -378,11 +390,11 @@ describe Skyward::API::OpenAPI do
 
       it "orders the responses by status" do
         returns = [
-          Skyward::API::Router::Rack.new,
-          Skyward::API::Router::Response.new(klass: Skyward::NotFound),
-          Skyward::API::Router::Response.new(klass: Skyward::Redirect),
-          Skyward::API::Router::Response.new(klass: Skyward::NoContent),
-          Skyward::API::Router::Created.new(type: todo),
+          Skyward::API::Routing::Router::Rack.new,
+          Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound),
+          Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Redirect),
+          Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NoContent),
+          Skyward::API::Routing::Router::Created.new(type: todo),
           todo
         ]
 
@@ -390,7 +402,7 @@ describe Skyward::API::OpenAPI do
       end
 
       it "answers Created[T] with a 201 JSON response of T" do
-        created = Skyward::API::Router::Created.new(type: todo)
+        created = Skyward::API::Routing::Router::Created.new(type: todo)
 
         assert_equal(
           { "201" => { "description" => "Created", "content" => content("application/json", todo_ref) } },
@@ -399,7 +411,7 @@ describe Skyward::API::OpenAPI do
       end
 
       it "answers a problem with its status and the Problem schema as problem+json" do
-        not_found = Skyward::API::Router::Response.new(klass: Skyward::NotFound)
+        not_found = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound)
 
         assert_equal(
           { "404" => { "description" => "Not Found", "content" => content("application/problem+json", problem_ref) } },
@@ -408,7 +420,7 @@ describe Skyward::API::OpenAPI do
       end
 
       it "answers Redirect with any 3XX status and a location header" do
-        redirect = Skyward::API::Router::Response.new(klass: Skyward::Redirect)
+        redirect = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Redirect)
         location = { "location" => { "schema" => { "type" => "string" } } }
 
         assert_equal(
@@ -418,7 +430,7 @@ describe Skyward::API::OpenAPI do
       end
 
       it "answers NoContent with a 204 and no content" do
-        no_content = Skyward::API::Router::Response.new(klass: Skyward::NoContent)
+        no_content = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NoContent)
 
         assert_equal({ "204" => { "description" => "No Content" } }, responses(endpoint(:index, returns: [no_content])))
       end
@@ -428,7 +440,7 @@ describe Skyward::API::OpenAPI do
 
         assert_equal(
           { "default" => { "description" => description } },
-          responses(endpoint(:index, returns: [Skyward::API::Router::Rack.new]))
+          responses(endpoint(:index, returns: [Skyward::API::Routing::Router::Rack.new]))
         )
       end
 
@@ -450,7 +462,7 @@ describe Skyward::API::OpenAPI do
     end
 
     describe "components" do
-      it "has no component for Skyward::Request, which request: takes" do
+      it "has no component for Skyward::API::Request, which request: takes" do
         written = components(endpoint(:index, keywords: [keyword(:request, :request, request)]))
 
         assert_equal ["Problem"], written.keys
@@ -494,7 +506,8 @@ describe Skyward::API::OpenAPI do
       it "has each class reached through arrays, records, unions, nullables and other classes, by name" do
         record = types::Record.new(fields: [field.call(:list, types::Nullable.new(type: list))])
         returned = types::Union.new(types: [types::ArrayOf.new(type: record), integer])
-        written = components(endpoint(:index, returns: [returned, Skyward::API::Router::Created.new(type: todo)]))
+        created = Skyward::API::Routing::Router::Created.new(type: todo)
+        written = components(endpoint(:index, returns: [returned, created]))
 
         assert_equal %w[OpenAPIFixtures.Draft OpenAPIFixtures.List OpenAPIFixtures.Todo Problem], written.keys
       end
@@ -621,16 +634,16 @@ describe Skyward::API::OpenAPI do
           :create,
           verb: "POST",
           keywords: [keyword(:body, :body, list)],
-          returns: [Skyward::API::Router::Created.new(type: draft),
-                    Skyward::API::Router::Response.new(klass: Skyward::Conflict)]
+          returns: [Skyward::API::Routing::Router::Created.new(type: draft),
+                    Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Conflict)]
         ),
         endpoint(
           :show,
           path: ["", "todos", :id],
           keywords: [keyword(:id, :path, integer)],
           returns: [types::Union.new(types: [todo, types::Enum.new(symbols: %i[gone])]),
-                    Skyward::API::Router::Response.new(klass: Skyward::Redirect),
-                    Skyward::API::Router::Rack.new]
+                    Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Redirect),
+                    Skyward::API::Routing::Router::Rack.new]
         )
       ]
       errors = JSONSchemer.openapi(document(*endpoints, description: "Todos.")).validate.map { |error| error["error"] }
@@ -653,7 +666,7 @@ describe Skyward::API::OpenAPI do
     end
 
     it "refuses a document it can't build, such as one with two operations of one ID" do
-      error = assert_raises(Skyward::BootError) do
+      error = assert_raises(Skyward::Core::BootError) do
         built(endpoint(:index), endpoint(:index, path: ["", "todos", "done"]))
       end
 

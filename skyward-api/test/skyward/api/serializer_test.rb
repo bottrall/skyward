@@ -3,13 +3,14 @@
 require "test_helper"
 
 describe Skyward::API::Serializer do
-  types = Skyward::Types
-  router = Skyward::API::Router
+  types = Skyward::Core::Types
+  router = Skyward::API::Routing::Router
+  responses = Skyward::API::Responses
   untyped = types::Scalar.new(name: :untyped)
   todo = types::Record.new(
     fields: [types::Field.new(name: :title, type: types::Scalar.new(name: :string), required: true)]
   )
-  not_found = router::Response.new(klass: Skyward::NotFound)
+  not_found = router::Response.new(klass: responses::NotFound)
 
   json = { "content-type" => "application/json" }
   problem_json = { "content-type" => "application/problem+json" }
@@ -26,7 +27,9 @@ describe Skyward::API::Serializer do
 
   describe "#call" do
     describe "a Created" do
-      let(:created) { Skyward::Created.new(value: { title: "Ship it", secret: "x" }, headers: { "location" => "/todos/1" }) }
+      let(:created) do
+        responses::Created.new(value: { title: "Ship it", secret: "x" }, headers: { "location" => "/todos/1" })
+      end
 
       it "answers with a 201, its headers, and its value as its type writes it" do
         expected = [201, { **json, "location" => "/todos/1" }, ['{"title":"Ship it"}']]
@@ -35,15 +38,15 @@ describe Skyward::API::Serializer do
       end
 
       it "raises naming where its value doesn't fit" do
-        message = failure([router::Created.new(type: todo)], Skyward::Created.new(value: { title: nil }, headers: {}))
+        message = failure([router::Created.new(type: todo)], responses::Created.new(value: { title: nil }, headers: {}))
 
         assert_equal "TodosAPI#show (GET /todos/:id) returned nil at value.title, which isn't String, " \
-                     "in its return type Skyward::Created[{ title: String }]",
+                     "in its return type Skyward::API::Responses::Created[{ title: String }]",
                      message
       end
 
       it "writes a value with a later Created whose value's type fits it" do
-        value = Skyward::Created.new(value: ["a"], headers: {})
+        value = responses::Created.new(value: ["a"], headers: {})
         returns = [router::Created.new(type: types::ArrayOf.new(type: types::Scalar.new(name: :integer))),
                    router::Created.new(type: types::ArrayOf.new(type: types::Scalar.new(name: :string)))]
 
@@ -53,14 +56,15 @@ describe Skyward::API::Serializer do
 
     it "answers a NoContent with a 204, a copy of its headers, and no body" do
       headers = { "x-done" => "yes" }.freeze
-      status, answered, body = serializer(router::Response.new(klass: Skyward::NoContent)).call(Skyward::NoContent.new(headers:))
+      no_content = router::Response.new(klass: responses::NoContent)
+      status, answered, body = serializer(no_content).call(responses::NoContent.new(headers:))
 
       assert_equal [204, headers, [], false], [status, answered, body, answered.frozen?]
     end
 
     describe "a problem" do
       it "answers with its status, problem+json and its headers, and a body with its detail" do
-        value = Skyward::NotFound.new(detail: "Todo 42 does not exist", headers: { "x-hint" => "search" })
+        value = responses::NotFound.new(detail: "Todo 42 does not exist", headers: { "x-hint" => "search" })
         body = '{"type":"about:blank","title":"Not Found","status":404,"detail":"Todo 42 does not exist"}'
 
         assert_equal [404, { **problem_json, "x-hint" => "search" }, [body]], serializer(not_found).call(value)
@@ -69,28 +73,29 @@ describe Skyward::API::Serializer do
       it "leaves detail out when it isn't given" do
         body = '{"type":"about:blank","title":"Not Found","status":404}'
 
-        assert_equal [body], serializer(not_found).call(Skyward::NotFound.new(detail: nil, headers: {})).last
+        assert_equal [body], serializer(not_found).call(responses::NotFound.new(detail: nil, headers: {})).last
       end
 
       it "answers each other problem with its own status and title" do
-        classes = [Skyward::BadRequest, Skyward::Unauthorized, Skyward::Forbidden, Skyward::Conflict, Skyward::Unprocessable]
-        responses = classes.map do |klass|
+        classes = [responses::BadRequest, responses::Unauthorized, responses::Forbidden,
+                   responses::Conflict, responses::Unprocessable]
+        answers = classes.map do |klass|
           serializer(router::Response.new(klass:)).call(klass.new(detail: "Taken", headers: {}))
         end
 
         assert_equal(
           [[400, "Bad Request"], [401, "Unauthorized"], [403, "Forbidden"], [409, "Conflict"],
            [422, "Unprocessable Content"]],
-          responses.map { |status, _, body| [status, JSON.parse(body.first).fetch("title")] }
+          answers.map { |status, _, body| [status, JSON.parse(body.first).fetch("title")] }
         )
       end
     end
 
     it "answers a Redirect with its status, a location header and its headers, and no body" do
-      value = Skyward::Redirect.new(to: "/todos/1", status: 307, headers: { "x-moved" => "yes" })
+      value = responses::Redirect.new(to: "/todos/1", status: 307, headers: { "x-moved" => "yes" })
 
       assert_equal [307, { "location" => "/todos/1", "x-moved" => "yes" }, []],
-                   serializer(router::Response.new(klass: Skyward::Redirect)).call(value)
+                   serializer(router::Response.new(klass: responses::Redirect)).call(value)
     end
 
     describe "a Rack triple" do
@@ -106,7 +111,7 @@ describe Skyward::API::Serializer do
       it "raises for anything but an Array of an Integer, a Hash and a body" do
         messages = [{ status: 200 }, [200, {}], [:ok, {}, []], [200, [], []]].map { |value| failure([rack], value) }
         expected = %w[Hash Array Array Array].map do |got|
-          "TodosAPI#show (GET /todos/:id) returned #{got}, which isn't Skyward::rack"
+          "TodosAPI#show (GET /todos/:id) returned #{got}, which isn't Skyward::API::rack"
         end
 
         assert_equal expected, messages
@@ -126,22 +131,22 @@ describe Skyward::API::Serializer do
     describe "an untyped return" do
       it "answers each response value as itself" do
         statuses = [
-          Skyward::Created.new(value: {}, headers: {}),
-          Skyward::NoContent.new(headers: {}),
-          Skyward::BadRequest.new(detail: "Bad", headers: {}),
-          Skyward::Unauthorized.new(detail: "Sign in first", headers: {}),
-          Skyward::Forbidden.new(detail: "Not yours", headers: {}),
-          Skyward::NotFound.new(detail: nil, headers: {}),
-          Skyward::Conflict.new(detail: "Taken", headers: {}),
-          Skyward::Unprocessable.new(detail: "Bad", headers: {}),
-          Skyward::Redirect.new(to: "/", status: 302, headers: {})
+          responses::Created.new(value: {}, headers: {}),
+          responses::NoContent.new(headers: {}),
+          responses::BadRequest.new(detail: "Bad", headers: {}),
+          responses::Unauthorized.new(detail: "Sign in first", headers: {}),
+          responses::Forbidden.new(detail: "Not yours", headers: {}),
+          responses::NotFound.new(detail: nil, headers: {}),
+          responses::Conflict.new(detail: "Taken", headers: {}),
+          responses::Unprocessable.new(detail: "Bad", headers: {}),
+          responses::Redirect.new(to: "/", status: 302, headers: {})
         ].map { |value| serializer(untyped).call(value).first }
 
         assert_equal [201, 204, 400, 401, 403, 404, 409, 422, 302], statuses
       end
 
       it "answers a Created's value as untyped" do
-        created = Skyward::Created.new(value: { tags: [:low] }, headers: {})
+        created = responses::Created.new(value: { tags: [:low] }, headers: {})
 
         assert_equal [201, json, ['{"tags":["low"]}']], serializer(untyped).call(created)
       end
@@ -169,19 +174,20 @@ describe Skyward::API::Serializer do
         router::Created.new(type: todo),
         not_found,
         todo
-      ).call(Skyward::NotFound.new(detail: nil, headers: {}))
+      ).call(responses::NotFound.new(detail: nil, headers: {}))
 
       assert_equal 404, response.first
     end
 
     it "raises for a value no member fits, naming the endpoint, the return type and the value's class" do
-      assert_equal "TodosAPI#show (GET /todos/:id) returned Skyward::Conflict, which isn't { title: String } | Skyward::NotFound",
-                   failure([todo, not_found], Skyward::Conflict.new(detail: "Taken", headers: {}))
+      assert_equal "TodosAPI#show (GET /todos/:id) returned Skyward::API::Responses::Conflict, " \
+                   "which isn't { title: String } | Skyward::API::Responses::NotFound",
+                   failure([todo, not_found], responses::Conflict.new(detail: "Taken", headers: {}))
     end
 
     it "raises for a field that doesn't fit, naming where it is" do
       assert_equal "TodosAPI#show (GET /todos/:id) returned 42 at title, which isn't String, " \
-                   "in its return type { title: String } | Skyward::NotFound",
+                   "in its return type { title: String } | Skyward::API::Responses::NotFound",
                    failure([todo, not_found], { title: 42 })
     end
   end
