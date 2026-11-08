@@ -19,12 +19,16 @@ describe Skyward::API::Assembly::Dispatcher do
   let(:documents) { {} }
   let(:providers) { [] }
   let(:returns) do
-    id = Skyward::Types::Field.new(name: :id, type: Skyward::Types::Scalar.new(name: :string), required: true)
-    [Skyward::Types::Record.new(fields: [id])]
+    id = Skyward::Core::Types::Field.new(
+      name: :id,
+      type: Skyward::Core::Types::Scalar.new(name: :string),
+      required: true
+    )
+    [Skyward::Core::Types::Record.new(fields: [id])]
   end
   let(:dispatcher) do
     serializer = Skyward::API::Serializer.new(returns, label: "Todos#show")
-    string = Skyward::Types::Scalar.new(name: :string)
+    string = Skyward::Core::Types::Scalar.new(name: :string)
     id = Skyward::API::Routing::Router::Keyword.new(name: :id, source: :path, required: true, type: string)
     body = Skyward::API::Routing::Router::Keyword.new(name: :body, source: :body, required: true, type: string)
     endpoints = [
@@ -197,7 +201,7 @@ describe Skyward::API::Assembly::Dispatcher do
 
     describe "when a provider answers" do
       let(:providers) do
-        responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::Responses::Unauthorized)]
+        responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unauthorized)]
         serializer = Skyward::API::Serializer.new(responses, label: "The :current_user provider")
         callable = ->(_request) { Skyward.unauthorized("Sign in first") }
         [Skyward::API::Routing::Router::Provider.new(

@@ -13,7 +13,7 @@ Skyward ORM is half of Skyward. The other half is [Skyward API](../skyward-api/R
 # rbs_inline: enabled
 require "skyward/orm"
 
-class Todo < Skyward::Record
+class Todo < Skyward::ORM::Record
   table :todos
   default done: false
 
@@ -77,12 +77,12 @@ Skyward ORM supports every Ruby that isn't end-of-life (3.3 and later, as of Nov
 
 ## Tables
 
-A table is a plain Ruby class that subclasses `Skyward::Record`. Each `attr_reader` is a column, and its `#:` comment is the column's type. In an app organised by domain, name it after what it is: `Todos::Record`, `Lists::Record`.
+A table is a plain Ruby class that subclasses `Skyward::ORM::Record`. Each `attr_reader` is a column, and its `#:` comment is the column's type. In an app organised by domain, name it after what it is: `Todos::Record`, `Lists::Record`.
 
 ```ruby
 # rbs_inline: enabled
 
-class Todo < Skyward::Record
+class Todo < Skyward::ORM::Record
   table :todos
   references :list_id, List, on_delete: :cascade
   default priority: :normal, done: false, created_at: Skyward.sql("now()")
@@ -186,7 +186,7 @@ Like ActiveRecord, Skyward ORM keeps the connection for you, so `Todo.where(...)
 When you connect, Skyward ORM compares every loaded table class with the live schema and refuses to start if they disagree:
 
 ```
-Skyward::SchemaMismatch: Todo doesn't match the todos table
+Skyward::ORM::SchemaMismatch: Todo doesn't match the todos table
 
   notes     todos has no column notes.
             Run `skyward migrate`, or `skyward migration` if you haven't generated one.
@@ -234,12 +234,14 @@ Order and paging: `order(:title)`, `order(created_at: :desc)`, `limit(20)` and `
 Skyward ORM has no scope DSL, because Ruby already has methods, and the class is the table:
 
 ```ruby
+# @rbs use Skyward::ORM::*
+
 class Todo
-  # @rbs return: Skyward::Query[Todo]
+  # @rbs return: Query[Todo]
   def self.open = where(done: false).order(created_at: :desc)
 
   # @rbs today: Date
-  # @rbs return: Skyward::Query[Todo]
+  # @rbs return: Query[Todo]
   def self.overdue(today: Date.today) = open.where(due_on: ...today)
 end
 
@@ -247,6 +249,8 @@ Todo.overdue.to_a
 Todo.open.where(list_id: 3)                # start from a scope, then narrow it
 Todo.where(list_id: 3).merge(Todo.open)    # or combine two queries with merge
 ```
+
+A file that names Skyward ORM's types in its signatures starts with `# @rbs use Skyward::ORM::*`, so they can write `Query[Todo]` for `Skyward::ORM::Query[Todo]`.
 
 ### Seeing the SQL
 
@@ -338,7 +342,7 @@ Columns with a default (`id`, `done`, `created_at`) and nullable ones (`due_on`)
 
 ### When the database says no
 
-A duplicate email or a missing parent row isn't exceptional. It's an outcome your code should handle. So the plain write methods return either the rows or a `Skyward::Violation`:
+A duplicate email or a missing parent row isn't exceptional. It's an outcome your code should handle. So the plain write methods return either the rows or a `Skyward::ORM::Violation`:
 
 ```ruby
 result = User.insert(email:)
@@ -350,9 +354,9 @@ end
 
 Steep 2.1 can't type-check `case`/`in`, so typed code matches on the class with `case`/`when`, and on the violation's `kind`.
 
-`Skyward::Violation` has `kind` (`:unique`, `:foreign_key`, `:not_null` or `:check`), `constraint`, `columns` and the database's `message`.
+`Skyward::ORM::Violation` has `kind` (`:unique`, `:foreign_key`, `:not_null` or `:check`), `constraint`, `columns` and the database's `message`.
 
-When a violation would mean a bug, use the bang version. It returns the rows or raises `Skyward::ViolationError`, the way `save` and `save!` work in ActiveRecord:
+When a violation would mean a bug, use the bang version. It returns the rows or raises `Skyward::ORM::ViolationError`, the way `save` and `save!` work in ActiveRecord:
 
 ```ruby
 Todo.insert!(title: "Buy milk", list_id: 1) # => Todo
@@ -369,7 +373,7 @@ Skyward.transaction do
 end
 ```
 
-Every query inside the block runs in the transaction, and the block's value is returned. Skyward ORM rolls back if the block raises, **or if it returns a `Skyward::Violation`**, so the non-bang methods compose:
+Every query inside the block runs in the transaction, and the block's value is returned. Skyward ORM rolls back if the block raises, **or if it returns a `Skyward::ORM::Violation`**, so the non-bang methods compose:
 
 ```ruby
 result = Skyward.transaction do
@@ -391,11 +395,11 @@ Skyward ORM reads the same RBS as Steep, whether it's written inline or in `sig/
 
 | When                          | What's checked                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **As you type (Steep)**       | The row type of every query. `Todo.where(...)` is a `Skyward::Query[Todo]`, `.to_a` is an `Array[Todo]`, `.into(TodoTitle)` is a `Query[TodoTitle]`, and `insert` returns `Todo \| Skyward::Violation`. No annotations are needed. |
+| **As you type (Steep)**       | The row type of every query. `Todo.where(...)` is a `Skyward::ORM::Query[Todo]`, `.to_a` is an `Array[Todo]`, `.into(TodoTitle)` is a `Query[TodoTitle]`, and `insert` returns `Todo \| Skyward::ORM::Violation`. No annotations are needed. |
 | **When you generate a migration** | Column types, nullability and enum values all come from your types.                                                                                                                                              |
 | **At connect**                | Every table class against the live schema, which catches migrations you haven't run.                                                                                                                                 |
 | **When a query is built**     | Column names exist, and values match their column's type. `where(dnoe: false)` and `where(done: "yes")` both raise immediately, so your first test run catches them.                                                 |
-| **In the database**           | Constraints, which come back as `Skyward::Violation` values.                                                                                                                                                          |
+| **In the database**           | Constraints, which come back as `Skyward::ORM::Violation` values.                                                                                                                                                          |
 
 Types are what Skyward ORM generates migrations from. Leave them off and queries still work, rows still come back as instances of your class, holding whatever values the driver returns, and you write the SQL for those columns yourself.
 
@@ -431,7 +435,7 @@ Skyward.migrate("db/migrate") # runs any migration the test database hasn't had
 
 ```ruby
 describe Todo do
-  include Skyward::Transactional # each test runs in a transaction that's rolled back afterwards
+  include Skyward::ORM::Transactional # each test runs in a transaction that's rolled back afterwards
 
   let(:list) { List.insert!(name: "Home") }
 
@@ -462,7 +466,7 @@ Rows are values, so assertions compare them directly with `==`.
 
 ## CLI
 
-Skyward ORM and Skyward API share one `skyward` command. Each adds its own commands to it. The executable comes with Skyward Core, which every Skyward gem depends on. The ORM's commands live in `lib/skyward/orm/commands.rb`, which registers each with `Skyward::Commands.register`.
+Skyward ORM and Skyward API share one `skyward` command. Each adds its own commands to it. The executable comes with Skyward Core, which every Skyward gem depends on. The ORM's commands live in `lib/skyward/orm/commands.rb`, which registers each with `Skyward::Core::CLI.register`.
 
 | Command                               | Does                                                                          |
 | ------------------------------------- | ----------------------------------------------------------------------------- |

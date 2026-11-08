@@ -11,8 +11,8 @@ describe Skyward::Core do
   end
 
   it "registers its own signatures" do
-    builder = Skyward::Signatures.load(File.expand_path("missing", __dir__))
+    builder = Skyward::Core::Signatures.load(File.expand_path("missing", __dir__))
 
-    assert builder.env.class_decl?(RBS::TypeName.parse("::Skyward::BootError"))
+    assert builder.env.class_decl?(RBS::TypeName.parse("::Skyward::Core::BootError"))
   end
 end

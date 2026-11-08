@@ -41,9 +41,9 @@ class Skyward::API::Inputs
   # Providers run first, so a caller they turn away learns nothing from the inputs' problems.
   # @rbs env: Hash[String, untyped]
   # @rbs params: Hash[Symbol, String]
-  # @rbs return: Coercer::result | refusal | Skyward::rack
+  # @rbs return: Coercer::result | refusal | Skyward::API::rack
   def call(env, params)
-    request = Skyward::Request.new(env) if @request || @providers.any?
+    request = Skyward::API::Request.new(env) if @request || @providers.any?
     none = {} #: Hash[Symbol, untyped]
     provided = request ? provide(@providers, request, none) : none
     return provided if provided.is_a?(Array)
@@ -59,9 +59,9 @@ class Skyward::API::Inputs
   private
 
   # @rbs providers: Array[Skyward::API::Routing::Router::Provider]
-  # @rbs request: Skyward::Request
+  # @rbs request: Skyward::API::Request
   # @rbs values: Hash[Symbol, untyped]
-  # @rbs return: Hash[Symbol, untyped] | Skyward::rack
+  # @rbs return: Hash[Symbol, untyped] | Skyward::API::rack
   def provide(providers, request, values)
     provider, *rest = providers
     return values unless provider

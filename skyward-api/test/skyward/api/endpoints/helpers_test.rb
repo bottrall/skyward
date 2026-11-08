@@ -15,12 +15,12 @@ describe Skyward::API::Endpoints::Helpers do
   end
 
   it "#created wraps a value in a frozen Created" do
-    assert_equal [Skyward::Responses::Created, :todo, headers, true],
+    assert_equal [Skyward::API::Responses::Created, :todo, headers, true],
                  fields(api.send(:created, :todo, headers:), :value, :headers)
   end
 
   it "#no_content makes a frozen NoContent" do
-    assert_equal [Skyward::Responses::NoContent, {}, true], fields(api.send(:no_content), :headers)
+    assert_equal [Skyward::API::Responses::NoContent, {}, true], fields(api.send(:no_content), :headers)
   end
 
   it "#bad_request, #unauthorized and #forbidden make a frozen problem" do
@@ -28,9 +28,9 @@ describe Skyward::API::Endpoints::Helpers do
             api.send(:forbidden, "No")]
 
     assert_equal(
-      [[Skyward::Responses::BadRequest, "Bad", headers, true],
-       [Skyward::Responses::Unauthorized, "Sign in first", {}, true],
-       [Skyward::Responses::Forbidden, "No", {}, true]],
+      [[Skyward::API::Responses::BadRequest, "Bad", headers, true],
+       [Skyward::API::Responses::Unauthorized, "Sign in first", {}, true],
+       [Skyward::API::Responses::Forbidden, "No", {}, true]],
       made.map { |value| fields(value, :detail, :headers) }
     )
   end
@@ -39,19 +39,19 @@ describe Skyward::API::Endpoints::Helpers do
     found = [api.send(:not_found), api.send(:not_found, "Todo 42 does not exist", headers:)]
 
     assert_equal(
-      [[Skyward::Responses::NotFound, nil, {}, true],
-       [Skyward::Responses::NotFound, "Todo 42 does not exist", headers, true]],
+      [[Skyward::API::Responses::NotFound, nil, {}, true],
+       [Skyward::API::Responses::NotFound, "Todo 42 does not exist", headers, true]],
       found.map { |value| fields(value, :detail, :headers) }
     )
   end
 
   it "#conflict makes a frozen Conflict" do
-    assert_equal [Skyward::Responses::Conflict, "Taken", headers, true],
+    assert_equal [Skyward::API::Responses::Conflict, "Taken", headers, true],
                  fields(api.send(:conflict, "Taken", headers:), :detail, :headers)
   end
 
   it "#unprocessable makes a frozen Unprocessable" do
-    assert_equal [Skyward::Responses::Unprocessable, "Bad", {}, true],
+    assert_equal [Skyward::API::Responses::Unprocessable, "Bad", {}, true],
                  fields(api.send(:unprocessable, "Bad"), :detail, :headers)
   end
 
@@ -59,8 +59,8 @@ describe Skyward::API::Endpoints::Helpers do
     made = [api.send(:redirect, "/todos"), api.send(:redirect, "/todos/1", status: 301, headers:)]
 
     assert_equal(
-      [[Skyward::Responses::Redirect, "/todos", 303, {}, true],
-       [Skyward::Responses::Redirect, "/todos/1", 301, headers, true]],
+      [[Skyward::API::Responses::Redirect, "/todos", 303, {}, true],
+       [Skyward::API::Responses::Redirect, "/todos/1", 301, headers, true]],
       made.map { |value| fields(value, :to, :status, :headers) }
     )
   end

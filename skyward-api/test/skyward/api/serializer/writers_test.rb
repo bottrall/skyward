@@ -3,7 +3,7 @@
 require "test_helper"
 
 describe Skyward::API::Serializer::Writers do
-  types = Skyward::Types
+  types = Skyward::Core::Types
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
   untyped = types::Scalar.new(name: :untyped)
@@ -23,7 +23,7 @@ describe Skyward::API::Serializer::Writers do
 
   def misfit(at, expected, got) = Skyward::API::Serializer::Writers::Misfit.new(at:, expected:, got:)
 
-  def field(name, type, required: true) = Skyward::Types::Field.new(name:, type:, required:)
+  def field(name, type, required: true) = Skyward::Core::Types::Field.new(name:, type:, required:)
 
   describe ".writer" do
     describe "a scalar" do

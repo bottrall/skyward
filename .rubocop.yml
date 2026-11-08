@@ -58,7 +58,7 @@ Local/NoInheritance:
   Enabled: true
   AllowedParents:
     - Skyward::API
-    - Skyward::Record
+    - Skyward::ORM::Record
   Include:
     - "*/lib/**/*.rb"
     - "examples/*/*.rb"

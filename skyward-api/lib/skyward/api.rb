@@ -13,18 +13,17 @@ loader.setup
 
 # An app's signatures subclass Skyward::API, so RBS needs its declaration.
 dir = __dir__ #: String
-Skyward::Signatures.register(File.expand_path("../../sig", dir))
+Skyward::Core::Signatures.register(File.expand_path("../../sig", dir))
 
 class Skyward::API
   # @rbs! type rack_response = [Integer, Hash[String, untyped], untyped]
+  # @rbs! type rack = [Integer, Hash[String, String], untyped]
 
   extend Endpoints::Declarations
   include Endpoints::Helpers
 end
 
 module Skyward
-  # @rbs! type rack = [Integer, Hash[String, String], untyped]
-
   # @rbs (?signatures: String, ?strict: bool, ?docs: bool, ?title: String, ?version: String, ?description: String?,
   #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
   #   ?max_body_size: Integer) { (API::Assembly::Builder) -> void } -> API::Assembly::Application
@@ -47,7 +46,7 @@ module Skyward
     builder = API::Assembly::Builder.new
     yield builder
     builder.freeze
-    reader = Types::Reader.new(Signatures.load(signatures))
+    reader = Core::Types::Reader.new(Core::Signatures.load(signatures))
     endpoints = API::Assembly::Boot.endpoints(
       builder.mounts,
       providers: builder.providers,
@@ -61,12 +60,10 @@ module Skyward
       if docs
         json = API::OpenAPI.json(endpoints, static:, document: openapi)
         page = API::OpenAPI::Docs.page(title:, scalar_url:)
+        document = API::Assembly::Dispatcher::Document
         {
-          API::OpenAPI::PATH => API::Assembly::Dispatcher::Document.new(type: API::OpenAPI::JSON_TYPE, body: json),
-          API::OpenAPI::Docs::PATH => API::Assembly::Dispatcher::Document.new(
-            type: API::OpenAPI::Docs::HTML_TYPE,
-            body: page
-          )
+          API::OpenAPI::PATH => document.new(type: API::OpenAPI::JSON_TYPE, body: json),
+          API::OpenAPI::Docs::PATH => document.new(type: API::OpenAPI::Docs::HTML_TYPE, body: page)
         }
       else
         {} #: Hash[String, API::Assembly::Dispatcher::Document]
@@ -98,32 +95,32 @@ module Skyward
   # These response helpers are public here, for code outside an API class, such as a provider.
   # @rbs detail: String
   # @rbs headers: Hash[String, String]
-  # @rbs return: Responses::BadRequest
-  def self.bad_request(detail, headers: {}) = Responses::BadRequest.new(detail:, headers:)
+  # @rbs return: API::Responses::BadRequest
+  def self.bad_request(detail, headers: {}) = API::Responses::BadRequest.new(detail:, headers:)
 
   # @rbs detail: String
   # @rbs headers: Hash[String, String]
-  # @rbs return: Responses::Unauthorized
-  def self.unauthorized(detail, headers: {}) = Responses::Unauthorized.new(detail:, headers:)
+  # @rbs return: API::Responses::Unauthorized
+  def self.unauthorized(detail, headers: {}) = API::Responses::Unauthorized.new(detail:, headers:)
 
   # @rbs detail: String
   # @rbs headers: Hash[String, String]
-  # @rbs return: Responses::Forbidden
-  def self.forbidden(detail, headers: {}) = Responses::Forbidden.new(detail:, headers:)
+  # @rbs return: API::Responses::Forbidden
+  def self.forbidden(detail, headers: {}) = API::Responses::Forbidden.new(detail:, headers:)
 
   # @rbs to: String
   # @rbs status: Integer
   # @rbs headers: Hash[String, String]
-  # @rbs return: Responses::Redirect
+  # @rbs return: API::Responses::Redirect
   def self.redirect(to, status: 303, headers: {})
-    unless Responses::Redirect::STATUSES.include?(status)
-      raise ArgumentError,
-            "A redirect's status must be one of #{Responses::Redirect::STATUSES.join(", ")}, not #{status}"
+    statuses = API::Responses::Redirect::STATUSES
+    unless statuses.include?(status)
+      raise ArgumentError, "A redirect's status must be one of #{statuses.join(", ")}, not #{status}"
     end
 
     # A line break in the location would let it smuggle in headers of its own.
     raise ArgumentError, "A redirect's location can't contain a line break: #{to.inspect}" if to.match?(/[\r\n]/)
 
-    Responses::Redirect.new(to:, status:, headers:)
+    API::Responses::Redirect.new(to:, status:, headers:)
   end
 end

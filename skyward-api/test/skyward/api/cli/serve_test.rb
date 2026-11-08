@@ -348,7 +348,7 @@ describe Skyward::API::CLI::Serve do
     def refusal
       yield
       nil
-    rescue Skyward::BootError => e
+    rescue Skyward::Core::BootError => e
       e.message
     end
 

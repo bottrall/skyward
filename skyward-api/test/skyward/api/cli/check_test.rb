@@ -143,11 +143,11 @@ describe Skyward::API::CLI::Check do
 
     it "passes or fails as the boot does, with its output" do
       app do |directory|
-        booted = [["warning: something\n", true], ["Skyward::BootError: Hello#greet\n", false]].map do |answer|
+        booted = [["warning: something\n", true], ["Skyward::Core::BootError: Hello#greet\n", false]].map do |answer|
           strict_boot(directory, answer)
         end
 
-        assert_equal [outcome(true, "warning: something\n"), outcome(false, "Skyward::BootError: Hello#greet\n")],
+        assert_equal [outcome(true, "warning: something\n"), outcome(false, "Skyward::Core::BootError: Hello#greet\n")],
                      booted
       end
     end

@@ -68,21 +68,21 @@ module Skyward::API::Inputs::Coercer
   # The fraction is cut to nanoseconds, which bounds what converting it costs.
   TIME: Regexp
 
-  NAMES: Hash[Skyward::Types::scalar, String]
+  NAMES: Hash[Skyward::Core::Types::scalar, String]
 
-  FORMATS: Hash[Skyward::Types::scalar, String]
+  FORMATS: Hash[Skyward::Core::Types::scalar, String]
 
   # Path and query values are Strings, so with strings: true a coercer parses them.
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
   # @rbs return: t
-  def compile: (Skyward::Types::t type, strings: bool) -> t
+  def compile: (Skyward::Core::Types::t type, strings: bool) -> t
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs required: bool
   # @rbs at: String
   # @rbs return: result?
-  def absent: (Skyward::Types::t type, bool required, String at) -> result?
+  def absent: (Skyward::Core::Types::t type, bool required, String at) -> result?
 
   # @rbs results: Hash[Symbol, result]
   # @rbs return: result
@@ -92,29 +92,29 @@ module Skyward::API::Inputs::Coercer
 
   # A union reports its own mismatch, so with member: true a coercer stops at
   # its first problem and never writes a message.
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
   # @rbs member: bool
-  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
+  # @rbs unions: Hash[[Skyward::Core::Types::Union, bool], coercer]
   # @rbs return: coercer
-  def build: (Skyward::Types::t type, bool strings, bool member, Hash[[ Skyward::Types::Union, bool ], coercer] unions) -> coercer
+  def build: (Skyward::Core::Types::t type, bool strings, bool member, Hash[[ Skyward::Core::Types::Union, bool ], coercer] unions) -> coercer
 
-  # @rbs type: Skyward::Types::Record | Skyward::Types::Named
+  # @rbs type: Skyward::Core::Types::Record | Skyward::Core::Types::Named
   # @rbs strings: bool
   # @rbs member: bool
-  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
-  # @rbs return: Array[[Skyward::Types::Field, coercer]]
-  def fields: (Skyward::Types::Record | Skyward::Types::Named type, bool strings, bool member, Hash[[ Skyward::Types::Union, bool ], coercer] unions) -> Array[[ Skyward::Types::Field, coercer ]]
+  # @rbs unions: Hash[[Skyward::Core::Types::Union, bool], coercer]
+  # @rbs return: Array[[Skyward::Core::Types::Field, coercer]]
+  def fields: (Skyward::Core::Types::Record | Skyward::Core::Types::Named type, bool strings, bool member, Hash[[ Skyward::Core::Types::Union, bool ], coercer] unions) -> Array[[ Skyward::Core::Types::Field, coercer ]]
 
   # @rbs parse: ^(untyped) -> Ok?
   # @rbs expected: String?
   # @rbs return: coercer
   def scalar: (^(untyped) -> Ok? parse, String? expected) -> coercer
 
-  # @rbs name: Skyward::Types::scalar
+  # @rbs name: Skyward::Core::Types::scalar
   # @rbs strings: bool
   # @rbs return: ^(untyped) -> Ok?
-  def parser: (Skyward::Types::scalar name, bool strings) -> ^(untyped) -> Ok?
+  def parser: (Skyward::Core::Types::scalar name, bool strings) -> ^(untyped) -> Ok?
 
   # A query key given more than once arrives as an Array of its values, of
   # which untyped takes the last, as Rack's params do.
@@ -149,11 +149,11 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: Ok?
   def time: (untyped raw) -> Ok?
 
-  # @rbs value: Skyward::Types::literal
+  # @rbs value: Skyward::Core::Types::literal
   # @rbs strings: bool
   # @rbs expected: String?
   # @rbs return: coercer
-  def literal: (Skyward::Types::literal value, bool strings, String? expected) -> coercer
+  def literal: (Skyward::Core::Types::literal value, bool strings, String? expected) -> coercer
 
   # @rbs symbols: Array[Symbol]
   # @rbs expected: String?
@@ -190,12 +190,12 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: result
   def collected: (Array[result] results) { (Array[untyped]) -> untyped } -> result
 
-  # @rbs fields: Array[[Skyward::Types::Field, coercer]]
+  # @rbs fields: Array[[Skyward::Core::Types::Field, coercer]]
   # @rbs limit: Integer
   # @rbs expected: String?
   # @rbs &: (Hash[Symbol, untyped]) -> untyped
   # @rbs return: coercer
-  def object: (Array[[ Skyward::Types::Field, coercer ]] fields, Integer limit, String? expected) { (Hash[Symbol, untyped]) -> untyped } -> coercer
+  def object: (Array[[ Skyward::Core::Types::Field, coercer ]] fields, Integer limit, String? expected) { (Hash[Symbol, untyped]) -> untyped } -> coercer
 
   # @rbs coercers: Array[coercer]
   # @rbs member: bool
@@ -207,9 +207,9 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: Array[Error]
   def errors: (Array[result] results) -> Array[Error]
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
-  def expectation: (Skyward::Types::t type) -> String
+  def expectation: (Skyward::Core::Types::t type) -> String
 
   # @rbs text: String
   # @rbs return: String
@@ -221,11 +221,11 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: Invalid
   def mismatch: (String? expected, untyped raw, String at) -> Invalid
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
-  def written: (Skyward::Types::t type) -> String
+  def written: (Skyward::Core::Types::t type) -> String
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
-  def nullable_written: (Skyward::Types::t type) -> String
+  def nullable_written: (Skyward::Core::Types::t type) -> String
 end

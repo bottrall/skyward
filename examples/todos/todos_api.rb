@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# @rbs use Skyward::API::*
+
 require_relative "new_todo"
 require_relative "todo"
 
@@ -32,25 +34,25 @@ class TodosAPI < Skyward::API
   end
 
   # @rbs id: Integer
-  # @rbs return: Todo | Skyward::Responses::NotFound
+  # @rbs return: Todo | Responses::NotFound
   def show(id:)
     @todos.find(id) || not_found
   end
 
   # @rbs body: NewTodo
-  # @rbs return: Skyward::Responses::Created[Todo]
+  # @rbs return: Responses::Created[Todo]
   def create(body:)
     created @todos.create(title: body.title, priority: body.priority, due_on: body.due_on)
   end
 
   # @rbs id: Integer
-  # @rbs return: Todo | Skyward::Responses::NotFound
+  # @rbs return: Todo | Responses::NotFound
   def complete(id:)
     @todos.complete(id) || not_found
   end
 
   # @rbs id: Integer
-  # @rbs return: Skyward::Responses::NoContent | Skyward::Responses::NotFound
+  # @rbs return: Responses::NoContent | Responses::NotFound
   def destroy(id:)
     @todos.delete(id) ? no_content : not_found
   end

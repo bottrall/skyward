@@ -1,7 +1,7 @@
 # Generated from lib/skyward/api/routing/router.rb with RBS::Inline
 
 class Skyward::API::Routing::Router
-  type returned = Skyward::Types::t | Created | Response | Rack
+  type returned = Skyward::Core::Types::t | Created | Response | Rack
 
   class Keyword < Data
     attr_reader name(): Symbol
@@ -10,22 +10,22 @@ class Skyward::API::Routing::Router
 
     attr_reader required(): bool
 
-    attr_reader type(): Skyward::Types::t
+    attr_reader type(): Skyward::Core::Types::t
 
-    def self.new: (Symbol name, :path | :query | :body | :request source, bool required, Skyward::Types::t type) -> instance
-                | (name: Symbol, source: :path | :query | :body | :request, required: bool, type: Skyward::Types::t) -> instance
+    def self.new: (Symbol name, :path | :query | :body | :request source, bool required, Skyward::Core::Types::t type) -> instance
+                | (name: Symbol, source: :path | :query | :body | :request, required: bool, type: Skyward::Core::Types::t) -> instance
 
     def self.members: () -> [ :name, :source, :required, :type ]
 
     def members: () -> [ :name, :source, :required, :type ]
   end
 
-  # Skyward::Responses::Created[T], which the reader can't read, so its value's type is read on its own.
+  # Skyward::API::Responses::Created[T], which the reader can't read, so its value's type is read on its own.
   class Created < Data
-    attr_reader type(): Skyward::Types::t
+    attr_reader type(): Skyward::Core::Types::t
 
-    def self.new: (Skyward::Types::t type) -> instance
-                | (type: Skyward::Types::t) -> instance
+    def self.new: (Skyward::Core::Types::t type) -> instance
+                | (type: Skyward::Core::Types::t) -> instance
 
     def self.members: () -> [ :type ]
 

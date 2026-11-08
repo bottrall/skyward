@@ -40,8 +40,8 @@ class Skyward::API::Assembly::Dispatcher
   private
 
   # @rbs env: Hash[String, untyped]
-  # @rbs return: Skyward::rack
-  def route: (Hash[String, untyped] env) -> Skyward::rack
+  # @rbs return: Skyward::API::rack
+  def route: (Hash[String, untyped] env) -> Skyward::API::rack
 
   # @rbs verb: String
   # @rbs path: String
@@ -51,13 +51,13 @@ class Skyward::API::Assembly::Dispatcher
   # @rbs env: Hash[String, untyped]
   # @rbs verb: String
   # @rbs path: String
-  # @rbs return: Skyward::rack
-  def routed: (Hash[String, untyped] env, String verb, String path) -> Skyward::rack
+  # @rbs return: Skyward::API::rack
+  def routed: (Hash[String, untyped] env, String verb, String path) -> Skyward::API::rack
 
   # @rbs match: Skyward::API::Routing::Router::Match
   # @rbs env: Hash[String, untyped]
-  # @rbs return: Skyward::rack
-  def respond: (Skyward::API::Routing::Router::Match match, Hash[String, untyped] env) -> Skyward::rack
+  # @rbs return: Skyward::API::rack
+  def respond: (Skyward::API::Routing::Router::Match match, Hash[String, untyped] env) -> Skyward::API::rack
 
   # A server closes the body it sends, so one that's never sent is closed here.
   # @rbs body: untyped

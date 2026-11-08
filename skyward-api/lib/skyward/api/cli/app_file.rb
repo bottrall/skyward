@@ -17,7 +17,7 @@ module Skyward::API::CLI::AppFile
     end
   # Booting the app raises it, and so can what's made from the app, such as
   # an OpenAPI document with two operations of one ID.
-  rescue Skyward::BootError => e
+  rescue Skyward::Core::BootError => e
     kernel.abort(e.message)
   end
 

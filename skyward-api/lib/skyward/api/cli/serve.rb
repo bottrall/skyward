@@ -85,7 +85,7 @@ module Skyward::API::CLI::Serve
     # be enabled after setup, so the loader's classes could never be reloaded.
     stuck = app_loaders.find { |loader| !loader.reloading_enabled? }
     if stuck
-      raise Skyward::BootError,
+      raise Skyward::Core::BootError,
             "skyward serve can't reload the Zeitwerk loader for #{stuck.dirs.join(", ")}. Call " \
             "`loader.enable_reloading` before `loader.setup` in development, then restart skyward serve."
     end

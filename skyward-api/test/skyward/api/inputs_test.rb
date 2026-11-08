@@ -4,7 +4,7 @@ require "stringio"
 require "test_helper"
 
 describe Skyward::API::Inputs do
-  types = Skyward::Types
+  types = Skyward::Core::Types
 
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
@@ -175,7 +175,7 @@ describe Skyward::API::Inputs do
         request = env(query: "request=x").merge("skyward.request_id" => "abc-123")
         passed = inputs(keyword(:request, :request, request_type)).call(request, {}).value.fetch(:request)
 
-        assert_equal [Skyward::Request, request], [passed.class, passed.env]
+        assert_equal [Skyward::API::Request, request], [passed.class, passed.env]
       end
 
       it "is passed even when it has a default" do
@@ -192,7 +192,7 @@ describe Skyward::API::Inputs do
       let(:unauthorized) { provider(:current_user, ->(_request) { Skyward.unauthorized("Sign in first") }) }
 
       def provider(name, callable)
-        responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::Responses::Unauthorized)]
+        responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unauthorized)]
         serializer = Skyward::API::Serializer.new(responses, label: "The :#{name} provider")
         Skyward::API::Routing::Router::Provider.new(name:, callable:, value: nil, responses:, serializer:)
       end

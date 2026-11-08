@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
 class Skyward::API::Routing::Router
-  # @rbs! type returned = Skyward::Types::t | Created | Response | Rack
+  # @rbs! type returned = Skyward::Core::Types::t | Created | Response | Rack
 
   Keyword = Data.define(
     :name, #: Symbol
     :source, #: :path | :query | :body | :request
     :required, #: bool
-    :type #: Skyward::Types::t
+    :type #: Skyward::Core::Types::t
   )
 
-  # Skyward::Responses::Created[T], which the reader can't read, so its value's type is read on its own.
+  # Skyward::API::Responses::Created[T], which the reader can't read, so its value's type is read on its own.
   Created = Data.define(
-    :type #: Skyward::Types::t
+    :type #: Skyward::Core::Types::t
   )
 
   Response = Data.define(

@@ -1,3 +1,0 @@
-module Skyward::Signatures
-  extend ::Skyward::Signatures
-end

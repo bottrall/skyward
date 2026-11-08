@@ -11,18 +11,22 @@ class Skyward::API::Serializer
   )
 
   PROBLEMS = {
-    Skyward::Responses::BadRequest => Problem.new(status: 400, title: "Bad Request"),
-    Skyward::Responses::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
-    Skyward::Responses::Forbidden => Problem.new(status: 403, title: "Forbidden"),
-    Skyward::Responses::NotFound => Problem.new(status: 404, title: "Not Found"),
-    Skyward::Responses::Conflict => Problem.new(status: 409, title: "Conflict"),
-    Skyward::Responses::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
+    Skyward::API::Responses::BadRequest => Problem.new(status: 400, title: "Bad Request"),
+    Skyward::API::Responses::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
+    Skyward::API::Responses::Forbidden => Problem.new(status: 403, title: "Forbidden"),
+    Skyward::API::Responses::NotFound => Problem.new(status: 404, title: "Not Found"),
+    Skyward::API::Responses::Conflict => Problem.new(status: 409, title: "Conflict"),
+    Skyward::API::Responses::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
   }.freeze #: Hash[Class, Problem]
 
-  # Every response value but Skyward::Responses::Created, which carries a type of its own.
-  RESPONSES = [Skyward::Responses::NoContent, *PROBLEMS.keys, Skyward::Responses::Redirect].freeze #: Array[Class]
+  # Every response value but Skyward::API::Responses::Created, which carries a type of its own.
+  RESPONSES = [
+    Skyward::API::Responses::NoContent,
+    *PROBLEMS.keys,
+    Skyward::API::Responses::Redirect
+  ].freeze #: Array[Class]
 
-  UNTYPED = Skyward::Types::Scalar.new(name: :untyped) #: Skyward::Types::Scalar
+  UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
   # @rbs @label: String
   # @rbs @writer: Writers::Writer
@@ -38,7 +42,7 @@ class Skyward::API::Serializer
 
   # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
   # @rbs value: untyped
-  # @rbs return: Skyward::rack
+  # @rbs return: Skyward::API::rack
   def call(value)
     response = @writer.write.call(value, "")
     case response
@@ -79,8 +83,8 @@ class Skyward::API::Serializer
   # @rbs return: Writers::Writer
   def created(writer)
     Writers.checked(
-      "Skyward::Responses::Created[#{writer.name}]",
-      ->(given) { given.is_a?(Skyward::Responses::Created) },
+      "Skyward::API::Responses::Created[#{writer.name}]",
+      ->(given) { given.is_a?(Skyward::API::Responses::Created) },
       lambda do |given, at|
         json(writer.write.call(given.value, "#{at}.value"), 201, { **JSON_TYPE, **given.headers })
       end
@@ -93,7 +97,7 @@ class Skyward::API::Serializer
     problem = PROBLEMS.fetch(klass, nil)
     answer =
       if problem then ->(given, _) { problem_response(problem, given) }
-      elsif klass == Skyward::Responses::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
+      elsif klass == Skyward::API::Responses::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
       else ->(given, _) { [204, given.headers.dup, []] }
       end #: ^(untyped, String) -> Skyward::API::Assembly::Dispatcher::response
     Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
@@ -102,7 +106,7 @@ class Skyward::API::Serializer
   # @rbs return: Writers::Writer
   def rack
     Writers.checked(
-      "Skyward::rack",
+      "Skyward::API::rack",
       ->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) },
       ->(given, _) { given }
     )

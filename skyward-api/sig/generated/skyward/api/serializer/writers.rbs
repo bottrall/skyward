@@ -31,9 +31,9 @@ module Skyward::API::Serializer::Writers
     def members: () -> [ :at, :expected, :got ]
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: Writer
-  def writer: (Skyward::Types::t type) -> Writer
+  def writer: (Skyward::Core::Types::t type) -> Writer
 
   # @rbs members: Array[Writer]
   # @rbs return: Writer
@@ -54,21 +54,21 @@ module Skyward::API::Serializer::Writers
   # @rbs return: untyped
   def first_written: (Array[Writer] fitting, untyped value, String at, ?Misfit? failed) -> untyped
 
-  # @rbs name: Skyward::Types::scalar
+  # @rbs name: Skyward::Core::Types::scalar
   # @rbs return: Writer
-  def scalar: (Skyward::Types::scalar name) -> Writer
+  def scalar: (Skyward::Core::Types::scalar name) -> Writer
 
-  # @rbs value: Skyward::Types::literal
+  # @rbs value: Skyward::Core::Types::literal
   # @rbs return: Writer
-  def literal: (Skyward::Types::literal value) -> Writer
+  def literal: (Skyward::Core::Types::literal value) -> Writer
 
   # @rbs symbols: Array[Symbol]
   # @rbs return: Writer
   def enum: (Array[Symbol] symbols) -> Writer
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: Writer
-  def nullable: (Skyward::Types::t type) -> Writer
+  def nullable: (Skyward::Core::Types::t type) -> Writer
 
   # @rbs item: Writer
   # @rbs return: Writer
@@ -78,21 +78,21 @@ module Skyward::API::Serializer::Writers
   # @rbs return: Writer
   def hash_of: (Writer value) -> Writer
 
-  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs fields: Array[Skyward::Core::Types::Field]
   # @rbs return: Writer
-  def record: (Array[Skyward::Types::Field] fields) -> Writer
+  def record: (Array[Skyward::Core::Types::Field] fields) -> Writer
 
-  # @rbs field: Skyward::Types::Field
+  # @rbs field: Skyward::Core::Types::Field
   # @rbs writer: Writer
   # @rbs hash: Hash[untyped, untyped]
   # @rbs at: String
   # @rbs return: [Symbol, untyped]?
-  def entry: (Skyward::Types::Field field, Writer writer, Hash[untyped, untyped] hash, String at) -> [ Symbol, untyped ]?
+  def entry: (Skyward::Core::Types::Field field, Writer writer, Hash[untyped, untyped] hash, String at) -> [ Symbol, untyped ]?
 
   # Only declared readers are called, never to_h, so nothing else the object holds is written.
-  # @rbs type: Skyward::Types::Named
+  # @rbs type: Skyward::Core::Types::Named
   # @rbs return: Writer
-  def named: (Skyward::Types::Named type) -> Writer
+  def named: (Skyward::Core::Types::Named type) -> Writer
 
   # strftime rather than iso8601, which writes a DateTime with its time.
   # @rbs value: Date

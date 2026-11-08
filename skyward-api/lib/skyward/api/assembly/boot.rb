@@ -7,25 +7,29 @@ module Skyward::API::Assembly::Boot
 
   KEYWORD = %i[keyreq key].freeze #: Array[Symbol]
 
-  RACK = ["::Skyward::rack", "[::Integer, ::Hash[::String, ::String], untyped]"].map do |type|
+  RACK = ["::Skyward::API::rack", "[::Integer, ::Hash[::String, ::String], untyped]"].map do |type|
     RBS::Parser.parse_type(type)
   end.freeze #: Array[RBS::Types::t?]
 
-  REQUEST = RBS::Parser.parse_type("::Skyward::Request") #: RBS::Types::t?
+  REQUEST = RBS::Parser.parse_type("::Skyward::API::Request") #: RBS::Types::t?
 
-  REQUEST_TYPE = Skyward::Types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: []) #: Skyward::Types::Named
+  REQUEST_TYPE = Skyward::Core::Types::Named.new(
+    name: "Skyward::API::Request",
+    klass: Skyward::API::Request,
+    fields: []
+  ) #: Skyward::Core::Types::Named
 
   # A method with no signature is read as if each keyword and the return were
   # untyped, which is what rbs-inline writes for a method with no annotations.
   ANY = RBS::Types::Bases::Any.new(location: nil) #: RBS::Types::Bases::Any
 
   # @rbs (Array[Skyward::API::Assembly::Builder::Mount] mounts,
-  #       providers: Hash[Symbol, Skyward::API::_Provider & Object], reader: Skyward::Types::Reader,
+  #       providers: Hash[Symbol, Skyward::API::_Provider & Object], reader: Skyward::Core::Types::Reader,
   #       max_body_size: Integer, strict: bool) ->
   #       Array[Skyward::API::Routing::Router::Endpoint]
   def endpoints(mounts, providers:, reader:, max_body_size:, strict:)
     single = providers.filter_map { |name, callable| single_object(name, callable) }.first
-    raise Skyward::BootError, single if single
+    raise Skyward::Core::BootError, single if single
 
     provided = providers.to_h { |name, callable| [name, provider(name, callable, reader)] }
     none = [] #: Array[Skyward::API::Routing::Router::Endpoint]
@@ -37,7 +41,7 @@ module Skyward::API::Assembly::Boot
     return built unless strict
 
     refused = built.filter_map { |endpoint| untyped(endpoint, reader) }
-    raise Skyward::BootError, refused.join("\n") unless refused.empty?
+    raise Skyward::Core::BootError, refused.join("\n") unless refused.empty?
 
     built
   end
@@ -57,7 +61,7 @@ module Skyward::API::Assembly::Boot
       "and Skyward API can't read the signature of those. Provide an instance of a class."
   end
 
-  # @rbs (Symbol name, Skyward::API::_Provider & Object callable, Skyward::Types::Reader reader) ->
+  # @rbs (Symbol name, Skyward::API::_Provider & Object callable, Skyward::Core::Types::Reader reader) ->
   #       Skyward::API::Routing::Router::Provider
   def provider(name, callable, reader)
     label = "The :#{name} provider"
@@ -80,7 +84,7 @@ module Skyward::API::Assembly::Boot
   # @rbs route: Skyward::API::Endpoints::Route
   # @rbs built: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Routing::Router::Endpoint
   def boot(mount, route, built, providers, reader, max_body_size)
@@ -91,7 +95,7 @@ module Skyward::API::Assembly::Boot
     result = summary(route) || shadowing(verb, pattern, built) ||
              endpoint(mount.api, route, verb, pattern, label, providers, reader, max_body_size)
     case result
-    when String then raise Skyward::BootError, "#{label}\n  #{result}"
+    when String then raise Skyward::Core::BootError, "#{label}\n  #{result}"
     else result
     end
   end
@@ -150,7 +154,7 @@ module Skyward::API::Assembly::Boot
   # @rbs pattern: Array[String | Symbol]
   # @rbs label: String
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Routing::Router::Endpoint | String
   def endpoint(api, route, verb, pattern, label, providers, reader, max_body_size)
@@ -202,13 +206,13 @@ module Skyward::API::Assembly::Boot
     )
   # The reader raises for a type it can't read at all, such as one that refers
   # to itself, and that's this route's problem too.
-  rescue Skyward::BootError => e
+  rescue Skyward::Core::BootError => e
     e.message
   end
 
   # @rbs klass: Class
   # @rbs to: Symbol
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: RBS::MethodType | String | nil
   def method_type(klass, to, reader)
     unless klass.public_method_defined?(to)
@@ -220,7 +224,7 @@ module Skyward::API::Assembly::Boot
 
   # @rbs owner: Module
   # @rbs name: Symbol
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: RBS::MethodType?
   def signature(owner, name, reader)
     type_name = reader.type_name(owner)
@@ -298,7 +302,7 @@ module Skyward::API::Assembly::Boot
   # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | String
   def keyword(name, required, type, pattern, providers, reader)
     source = source(name, pattern)
@@ -309,7 +313,7 @@ module Skyward::API::Assembly::Boot
 
     read = reader.read(type)
     case read
-    when Skyward::Types::Unreadable then unreadable("The type of `#{name}:`", read)
+    when Skyward::Core::Types::Unreadable then unreadable("The type of `#{name}:`", read)
     else
       carried(name, source, read) || Skyward::API::Routing::Router::Keyword.new(name:, source:, required:, type: read)
     end
@@ -331,8 +335,8 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Skyward::API::Routing::Router::Keyword | String
   def request(required, type)
     unless [REQUEST, ANY].include?(type)
-      return "`request:` is always the Skyward::Request, but its signature types it as #{written(type.to_s)}. " \
-             "Type it as Skyward::Request, or rename the keyword."
+      return "`request:` is always the Skyward::API::Request, but its signature types it as #{written(type.to_s)}. " \
+             "Type it as Skyward::API::Request, or rename the keyword."
     end
 
     Skyward::API::Routing::Router::Keyword.new(name: :request, source: :request, required:, type: REQUEST_TYPE)
@@ -365,7 +369,7 @@ module Skyward::API::Assembly::Boot
 
   # @rbs name: Symbol
   # @rbs source: :path | :query | :body | :request
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String?
   def carried(name, source, type)
     case source
@@ -384,35 +388,35 @@ module Skyward::API::Assembly::Boot
     end
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs within: :path | :query | :array
   # @rbs return: String?
   def uncarried(type, within)
     case type
-    when Skyward::Types::Record then "a record"
-    when Skyward::Types::HashOf then "a hash"
-    when Skyward::Types::Named then "#{type.name}, a class"
-    when Skyward::Types::ArrayOf
+    when Skyward::Core::Types::Record then "a record"
+    when Skyward::Core::Types::HashOf then "a hash"
+    when Skyward::Core::Types::Named then "#{type.name}, a class"
+    when Skyward::Core::Types::ArrayOf
       case within
       when :path then "an array"
       when :query then uncarried(type.type, :array)
       else "an array of arrays"
       end
-    when Skyward::Types::Nullable then uncarried(type.type, within)
-    when Skyward::Types::Union then type.types.lazy.filter_map { |member| uncarried(member, within) }.first
+    when Skyward::Core::Types::Nullable then uncarried(type.type, within)
+    when Skyward::Core::Types::Union then type.types.lazy.filter_map { |member| uncarried(member, within) }.first
     end
   end
 
   # Response values are found in the signature, because the reader can't read them.
   # @rbs type: RBS::Types::t
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: Array[Skyward::API::Routing::Router::returned] | String
   def returns(type, reader)
     read = parts(type).map { |part| response(part, reader) || reader.read(part) }
-    unreadable = read.find { |member| member.is_a?(Skyward::Types::Unreadable) }
-    return unreadable("The return type", unreadable) if unreadable.is_a?(Skyward::Types::Unreadable)
+    unreadable = read.find { |member| member.is_a?(Skyward::Core::Types::Unreadable) }
+    return unreadable("The return type", unreadable) if unreadable.is_a?(Skyward::Core::Types::Unreadable)
 
-    readable = read.grep_v(Skyward::Types::Unreadable) #: Array[Skyward::API::Routing::Router::returned]
+    readable = read.grep_v(Skyward::Core::Types::Unreadable) #: Array[Skyward::API::Routing::Router::returned]
     readable.flat_map { |member| members(member) }.uniq
   end
 
@@ -427,12 +431,12 @@ module Skyward::API::Assembly::Boot
   end
 
   # @rbs type: RBS::Types::t
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: Skyward::API::Routing::Router::Created | Skyward::API::Routing::Router::Response | Skyward::API::Routing::Router::Rack
-  #   | Skyward::Types::Unreadable | nil
+  #   | Skyward::Core::Types::Unreadable | nil
   def response(type, reader)
     return Skyward::API::Routing::Router::Rack.new if RACK.include?(type)
-    if type.is_a?(RBS::Types::ClassInstance) && type.name.to_s == "::Skyward::Responses::Created"
+    if type.is_a?(RBS::Types::ClassInstance) && type.name.to_s == "::Skyward::API::Responses::Created"
       return created(type, reader)
     end
 
@@ -449,16 +453,16 @@ module Skyward::API::Assembly::Boot
   end
 
   # @rbs type: RBS::Types::ClassInstance
-  # @rbs reader: Skyward::Types::Reader
-  # @rbs return: Skyward::API::Routing::Router::Created | Skyward::Types::Unreadable
+  # @rbs reader: Skyward::Core::Types::Reader
+  # @rbs return: Skyward::API::Routing::Router::Created | Skyward::Core::Types::Unreadable
   def created(type, reader)
     unless type.args.size == 1
-      return Skyward::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Skyward::Responses::Created[T]")
+      return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Skyward::API::Responses::Created[T]")
     end
 
     read = reader.read(type.args.fetch(0))
     case read
-    when Skyward::Types::Unreadable then read
+    when Skyward::Core::Types::Unreadable then read
     else Skyward::API::Routing::Router::Created.new(type: read)
     end
   end
@@ -467,14 +471,14 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Array[Skyward::API::Routing::Router::returned]
   def members(type)
     case type
-    when Skyward::Types::Union then type.types
-    when Skyward::Types::Nullable then [*members(type.type), Skyward::Types::Reader::NIL_LITERAL]
+    when Skyward::Core::Types::Union then type.types
+    when Skyward::Core::Types::Nullable then [*members(type.type), Skyward::Core::Types::Reader::NIL_LITERAL]
     else [type]
     end
   end
 
   # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
-  # @rbs reader: Skyward::Types::Reader
+  # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: String?
   def untyped(endpoint, reader)
     method_type = signature(endpoint.api.class, endpoint.to, reader)
@@ -498,7 +502,7 @@ module Skyward::API::Assembly::Boot
     any = Skyward::API::Serializer::UNTYPED
     keywords = endpoint.keywords.filter_map do |keyword|
       type = keyword.type
-      "`#{keyword.name}:`" if (type.is_a?(Skyward::Types::Nullable) ? type.type : type) == any
+      "`#{keyword.name}:`" if (type.is_a?(Skyward::Core::Types::Nullable) ? type.type : type) == any
     end
     # A provided keyword's type is never read, so it's found in the signature.
     params = function.required_keywords.merge(function.optional_keywords)
@@ -516,7 +520,7 @@ module Skyward::API::Assembly::Boot
   end
 
   # @rbs subject: String
-  # @rbs type: Skyward::Types::Unreadable
+  # @rbs type: Skyward::Core::Types::Unreadable
   # @rbs return: String
   def unreadable(subject, type)
     "#{subject} can't be read: Skyward API doesn't read #{type.type}#{", at #{type.at}" if type.at}. " \

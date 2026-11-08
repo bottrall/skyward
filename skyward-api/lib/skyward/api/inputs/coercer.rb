@@ -61,12 +61,12 @@ module Skyward::API::Inputs::Coercer
     date: "Date",
     time: "Time",
     untyped: "untyped"
-  }.freeze #: Hash[Skyward::Types::scalar, String]
+  }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
-  FORMATS = { date: "Date (YYYY-MM-DD)", time: "Time (ISO 8601)" }.freeze #: Hash[Skyward::Types::scalar, String]
+  FORMATS = { date: "Date (YYYY-MM-DD)", time: "Time (ISO 8601)" }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
   # Path and query values are Strings, so with strings: true a coercer parses them.
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
   # @rbs return: t
   def compile(type, strings:)
@@ -74,13 +74,13 @@ module Skyward::API::Inputs::Coercer
     ->(raw, at) { coercer.call(raw, at, {}) }
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs required: bool
   # @rbs at: String
   # @rbs return: result?
   def absent(type, required, at)
     return unless required
-    return Ok.new(value: nil) if type.is_a?(Skyward::Types::Nullable)
+    return Ok.new(value: nil) if type.is_a?(Skyward::Core::Types::Nullable)
 
     Invalid.new(errors: [Error.new(at:, message: "is required")])
   end
@@ -99,23 +99,23 @@ module Skyward::API::Inputs::Coercer
 
   # A union reports its own mismatch, so with member: true a coercer stops at
   # its first problem and never writes a message.
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
   # @rbs member: bool
-  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
+  # @rbs unions: Hash[[Skyward::Core::Types::Union, bool], coercer]
   # @rbs return: coercer
   def build(type, strings, member, unions)
     expected = expectation(type) unless member
     limit = member ? 1 : MAX_ERRORS
     case type
-    when Skyward::Types::Scalar then scalar(parser(type.name, strings), expected)
-    when Skyward::Types::Literal then literal(type.value, strings, expected)
-    when Skyward::Types::Enum then enum(type.symbols, expected)
-    when Skyward::Types::Nullable then nullable(build(type.type, strings, member, unions))
-    when Skyward::Types::ArrayOf then array(build(type.type, strings, member, unions), strings, limit, expected)
-    when Skyward::Types::HashOf then hash_of(build(type.type, strings, member, unions), limit, expected)
-    when Skyward::Types::Record then object(fields(type, strings, member, unions), limit, expected, &:itself)
-    when Skyward::Types::Named
+    when Skyward::Core::Types::Scalar then scalar(parser(type.name, strings), expected)
+    when Skyward::Core::Types::Literal then literal(type.value, strings, expected)
+    when Skyward::Core::Types::Enum then enum(type.symbols, expected)
+    when Skyward::Core::Types::Nullable then nullable(build(type.type, strings, member, unions))
+    when Skyward::Core::Types::ArrayOf then array(build(type.type, strings, member, unions), strings, limit, expected)
+    when Skyward::Core::Types::HashOf then hash_of(build(type.type, strings, member, unions), limit, expected)
+    when Skyward::Core::Types::Record then object(fields(type, strings, member, unions), limit, expected, &:itself)
+    when Skyward::Core::Types::Named
       klass = type.klass
       object(fields(type, strings, member, unions), limit, expected) { |values| klass.new(**values) }
     # Equal unions share one coercer, which is what lets one remember its results.
@@ -123,11 +123,11 @@ module Skyward::API::Inputs::Coercer
     end
   end
 
-  # @rbs type: Skyward::Types::Record | Skyward::Types::Named
+  # @rbs type: Skyward::Core::Types::Record | Skyward::Core::Types::Named
   # @rbs strings: bool
   # @rbs member: bool
-  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
-  # @rbs return: Array[[Skyward::Types::Field, coercer]]
+  # @rbs unions: Hash[[Skyward::Core::Types::Union, bool], coercer]
+  # @rbs return: Array[[Skyward::Core::Types::Field, coercer]]
   def fields(type, strings, member, unions)
     type.fields.map { |field| [field, build(field.type, strings, member, unions)] }
   end
@@ -137,7 +137,7 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: coercer
   def scalar(parse, expected) = ->(raw, at, _seen) { parse.call(raw) || mismatch(expected, raw, at) }
 
-  # @rbs name: Skyward::Types::scalar
+  # @rbs name: Skyward::Core::Types::scalar
   # @rbs strings: bool
   # @rbs return: ^(untyped) -> Ok?
   def parser(name, strings)
@@ -224,7 +224,7 @@ module Skyward::API::Inputs::Coercer
     Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, seconds, zone))
   end
 
-  # @rbs value: Skyward::Types::literal
+  # @rbs value: Skyward::Core::Types::literal
   # @rbs strings: bool
   # @rbs expected: String?
   # @rbs return: coercer
@@ -235,7 +235,7 @@ module Skyward::API::Inputs::Coercer
       when String then :string
       when nil then :untyped
       else :bool
-      end #: Skyward::Types::scalar
+      end #: Skyward::Core::Types::scalar
     parse = parser(name, strings)
     lambda do |raw, at, _seen|
       parsed = parse.call(raw)
@@ -324,7 +324,7 @@ module Skyward::API::Inputs::Coercer
     Ok.new(value: yield(ok.map(&:value)))
   end
 
-  # @rbs fields: Array[[Skyward::Types::Field, coercer]]
+  # @rbs fields: Array[[Skyward::Core::Types::Field, coercer]]
   # @rbs limit: Integer
   # @rbs expected: String?
   # @rbs &: (Hash[Symbol, untyped]) -> untyped
@@ -374,10 +374,10 @@ module Skyward::API::Inputs::Coercer
   # @rbs return: Array[Error]
   def errors(results) = results.flat_map { |result| result.is_a?(Invalid) ? result.errors : [] }
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
   def expectation(type)
-    cut(type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type))
+    cut(type.is_a?(Skyward::Core::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type))
   end
 
   # @rbs text: String
@@ -397,28 +397,29 @@ module Skyward::API::Inputs::Coercer
     Invalid.new(errors: [Error.new(at:, message: "expected #{expected}, got #{got}")])
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
   def written(type)
     case type
-    when Skyward::Types::Scalar then NAMES.fetch(type.name)
-    when Skyward::Types::Literal then type.value.inspect
-    when Skyward::Types::Enum then type.symbols.map(&:inspect).join(" | ")
-    when Skyward::Types::Nullable then nullable_written(type.type)
-    when Skyward::Types::ArrayOf then "Array[#{written(type.type)}]"
-    when Skyward::Types::HashOf then "Hash[String, #{written(type.type)}]"
-    when Skyward::Types::Record
+    when Skyward::Core::Types::Scalar then NAMES.fetch(type.name)
+    when Skyward::Core::Types::Literal then type.value.inspect
+    when Skyward::Core::Types::Enum then type.symbols.map(&:inspect).join(" | ")
+    when Skyward::Core::Types::Nullable then nullable_written(type.type)
+    when Skyward::Core::Types::ArrayOf then "Array[#{written(type.type)}]"
+    when Skyward::Core::Types::HashOf then "Hash[String, #{written(type.type)}]"
+    when Skyward::Core::Types::Record
       fields = type.fields.map { |field| "#{"?" unless field.required}#{field.name}: #{written(field.type)}" }
       "{ #{fields.join(", ")} }"
-    when Skyward::Types::Named then type.name
+    when Skyward::Core::Types::Named then type.name
     else type.types.map { |member| written(member) }.join(" | ")
     end
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: String
   def nullable_written(type)
-    plural = type.is_a?(Skyward::Types::Union) || (type.is_a?(Skyward::Types::Enum) && type.symbols.size > 1)
+    plural = type.is_a?(Skyward::Core::Types::Union) ||
+             (type.is_a?(Skyward::Core::Types::Enum) && type.symbols.size > 1)
     plural ? "(#{written(type)})?" : "#{written(type)}?"
   end
 end

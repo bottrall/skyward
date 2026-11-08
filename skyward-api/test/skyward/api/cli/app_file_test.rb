@@ -61,7 +61,7 @@ describe Skyward::API::CLI::AppFile do
 
     it "fails with only the message of a boot error from what it makes of the app" do
       directory do |path|
-        run_in(path) { raise Skyward::BootError, "Two operations share an ID." }
+        run_in(path) { raise Skyward::Core::BootError, "Two operations share an ID." }
 
         assert_equal ["Two operations share an ID.", ""], [kernel.aborted, out.string]
       end

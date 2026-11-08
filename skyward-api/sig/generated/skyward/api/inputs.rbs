@@ -30,16 +30,16 @@ class Skyward::API::Inputs
   # Providers run first, so a caller they turn away learns nothing from the inputs' problems.
   # @rbs env: Hash[String, untyped]
   # @rbs params: Hash[Symbol, String]
-  # @rbs return: Coercer::result | refusal | Skyward::rack
-  def call: (Hash[String, untyped] env, Hash[Symbol, String] params) -> (Coercer::result | refusal | Skyward::rack)
+  # @rbs return: Coercer::result | refusal | Skyward::API::rack
+  def call: (Hash[String, untyped] env, Hash[Symbol, String] params) -> (Coercer::result | refusal | Skyward::API::rack)
 
   private
 
   # @rbs providers: Array[Skyward::API::Routing::Router::Provider]
-  # @rbs request: Skyward::Request
+  # @rbs request: Skyward::API::Request
   # @rbs values: Hash[Symbol, untyped]
-  # @rbs return: Hash[Symbol, untyped] | Skyward::rack
-  def provide: (Array[Skyward::API::Routing::Router::Provider] providers, Skyward::Request request, Hash[Symbol, untyped] values) -> (Hash[Symbol, untyped] | Skyward::rack)
+  # @rbs return: Hash[Symbol, untyped] | Skyward::API::rack
+  def provide: (Array[Skyward::API::Routing::Router::Provider] providers, Skyward::API::Request request, Hash[Symbol, untyped] values) -> (Hash[Symbol, untyped] | Skyward::API::rack)
 
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Coercer::Invalid

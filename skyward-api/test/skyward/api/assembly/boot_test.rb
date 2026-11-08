@@ -5,8 +5,8 @@ require "test_helper"
 require_relative "../../../fixtures/boot/boot_fixtures"
 
 describe Skyward::API::Assembly::Boot do
-  types = Skyward::Types
-  reader = Skyward::Types::Reader.new(Skyward::Signatures.load(File.expand_path("../../../fixtures/boot/sig", __dir__)))
+  types = Skyward::Core::Types
+  reader = types::Reader.new(Skyward::Core::Signatures.load(File.expand_path("../../../fixtures/boot/sig", __dir__)))
 
   integer = types::Scalar.new(name: :integer)
   untyped = types::Scalar.new(name: :untyped)
@@ -30,7 +30,7 @@ describe Skyward::API::Assembly::Boot do
   end
 
   define_method(:refusal) do |*mounts, providers: {}, strict: false|
-    assert_raises(Skyward::BootError) { boot(*mounts, providers:, strict:) }.message
+    assert_raises(Skyward::Core::BootError) { boot(*mounts, providers:, strict:) }.message
   end
 
   def keyword(name, source, required, type)
@@ -118,7 +118,7 @@ describe Skyward::API::Assembly::Boot do
 
     describe "providers" do
       it "refuses a provider that's a module" do
-        error = assert_raises(Skyward::BootError) do
+        error = assert_raises(Skyward::Core::BootError) do
           provided(authenticated, :me, current_user: BootFixtures::ModuleProvider)
         end
 
@@ -128,7 +128,7 @@ describe Skyward::API::Assembly::Boot do
       end
 
       it "refuses a provider that's a class with a class-level call" do
-        error = assert_raises(Skyward::BootError) do
+        error = assert_raises(Skyward::Core::BootError) do
           provided(authenticated, :me, current_user: BootFixtures::ClassProvider)
         end
 
@@ -158,7 +158,7 @@ describe Skyward::API::Assembly::Boot do
       it "reads a provider's response values, and the rest of its return type as its value" do
         provider = provided(authenticated, :me, current_user:).first
 
-        assert_equal [[response(Skyward::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
+        assert_equal [[response(Skyward::API::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
                      [provider.responses, provider.value]
       end
 
@@ -166,21 +166,21 @@ describe Skyward::API::Assembly::Boot do
         serializer = provided(authenticated, :me, current_user:).first.serializer
         error = assert_raises(Skyward::API::ReturnTypeError) { serializer.call(Skyward.forbidden("Admins only")) }
 
-        assert_equal "The :current_user provider returned Skyward::Responses::Forbidden, which isn't Skyward::Responses::Unauthorized",
+        assert_equal "The :current_user provider returned Skyward::API::Responses::Forbidden, which isn't Skyward::API::Responses::Unauthorized",
                      error.message
       end
 
       it "reads the signature of a call inherited from a parent class" do
         provider = provided(authenticated, :me, current_user: Class.new(BootFixtures::CurrentUser).new).first
 
-        assert_equal [[response(Skyward::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
+        assert_equal [[response(Skyward::API::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
                      [provider.responses, provider.value]
       end
 
       it "reads a Method's signature from the module that defines it, under its own name" do
         provider = provided(authenticated, :me, current_user: BootFixtures::Sessions.new.method(:user_for)).first
 
-        assert_equal [[response(Skyward::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
+        assert_equal [[response(Skyward::API::Responses::Unauthorized)], [rbs("::BootFixtures::User")]],
                      [provider.responses, provider.value]
       end
     end
@@ -329,7 +329,7 @@ describe Skyward::API::Assembly::Boot do
 
         providers = index.providers.map { |provider| [provider.name, provider.responses] }
 
-        assert_equal [[keyword(:limit, :query, false, untyped)], [[:current_user, [response(Skyward::Responses::Unauthorized)]]]],
+        assert_equal [[keyword(:limit, :query, false, untyped)], [[:current_user, [response(Skyward::API::Responses::Unauthorized)]]]],
                      [index.keywords, providers]
       end
 
@@ -343,7 +343,7 @@ describe Skyward::API::Assembly::Boot do
       it "compares a nullable union with its provider's value in any order" do
         provider = provided(BootFixtures::Visiting.new, :index, visitor: BootFixtures::Visitor.new).first
 
-        assert_equal [response(Skyward::Responses::Unauthorized)], provider.responses
+        assert_equal [response(Skyward::API::Responses::Unauthorized)], provider.responses
       end
 
       it "refuses a keyword typed other than its provider's value" do
@@ -405,10 +405,10 @@ describe Skyward::API::Assembly::Boot do
                        endpoint(boot([BootFixtures::Inlined.new, "/"]), :greet).keywords.last
         end
 
-        it "refuses request: typed as anything but Skyward::Request" do
+        it "refuses request: typed as anything but Skyward::API::Request" do
           assert_equal "BootFixtures::MistypedRequest#index (GET /)\n  " \
-                       "`request:` is always the Skyward::Request, but its signature types it as String. " \
-                       "Type it as Skyward::Request, or rename the keyword.",
+                       "`request:` is always the Skyward::API::Request, but its signature types it as String. " \
+                       "Type it as Skyward::API::Request, or rename the keyword.",
                        refusal([BootFixtures::MistypedRequest.new, "/"])
         end
       end
@@ -535,9 +535,9 @@ describe Skyward::API::Assembly::Boot do
 
       it "records each response value of a nullable union, nil among them" do
         expected = [
-          response(Skyward::Responses::NoContent),
-          response(Skyward::Responses::Conflict),
-          response(Skyward::Responses::Unprocessable),
+          response(Skyward::API::Responses::NoContent),
+          response(Skyward::API::Responses::Conflict),
+          response(Skyward::API::Responses::Unprocessable),
           types::Literal.new(value: nil)
         ]
 
@@ -547,19 +547,19 @@ describe Skyward::API::Assembly::Boot do
       describe "a Rack triple" do
         let(:racking) { boot([BootFixtures::Racking.new, "/"]) }
 
-        it "records Skyward::rack as a Rack triple, among the other members" do
-          expected = [todo, response(Skyward::Responses::NotFound), Skyward::API::Routing::Router::Rack.new]
+        it "records Skyward::API::rack as a Rack triple, among the other members" do
+          expected = [todo, response(Skyward::API::Responses::NotFound), Skyward::API::Routing::Router::Rack.new]
 
           assert_equal expected, endpoint(racking, :download).returns
         end
 
-        it "records the tuple Skyward::rack names as a Rack triple" do
+        it "records the tuple Skyward::API::rack names as a Rack triple" do
           assert_equal [Skyward::API::Routing::Router::Rack.new], endpoint(racking, :written).returns
         end
       end
 
       it "records a response value as its class" do
-        assert_equal [todo, response(Skyward::Responses::NotFound)], endpoint(responding, :show).returns
+        assert_equal [todo, response(Skyward::API::Responses::NotFound)], endpoint(responding, :show).returns
       end
 
       it "records Created[T] with the type of its value" do
@@ -569,8 +569,8 @@ describe Skyward::API::Assembly::Boot do
 
       it "refuses a Created without the type of its value" do
         assert_equal "BootFixtures::CreatedBare#create (POST /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read Skyward::Responses::Created. " \
-                     "Use Skyward::Responses::Created[T] instead.",
+                     "The return type can't be read: Skyward API doesn't read Skyward::API::Responses::Created. " \
+                     "Use Skyward::API::Responses::Created[T] instead.",
                      refusal([BootFixtures::CreatedBare.new, "/"])
       end
 

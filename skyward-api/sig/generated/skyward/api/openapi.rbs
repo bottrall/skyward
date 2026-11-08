@@ -31,7 +31,7 @@ module Skyward::API::OpenAPI
 
   PROBLEM_TYPE: String
 
-  SCALARS: Hash[Skyward::Types::scalar, schema]
+  SCALARS: Hash[Skyward::Core::Types::scalar, schema]
 
   NULL: schema
 
@@ -78,12 +78,12 @@ module Skyward::API::OpenAPI
   def described: (Skyward::API::Routing::Router::Endpoint endpoint) -> Array[Skyward::API::Routing::Router::Keyword]
 
   # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
-  # @rbs return: Array[Skyward::Types::t]
-  def types: (Skyward::API::Routing::Router::Endpoint endpoint) -> Array[Skyward::Types::t]
+  # @rbs return: Array[Skyward::Core::Types::t]
+  def types: (Skyward::API::Routing::Router::Endpoint endpoint) -> Array[Skyward::Core::Types::t]
 
-  # @rbs type: Skyward::Types::t
-  # @rbs return: Array[Skyward::Types::Named]
-  def named: (Skyward::Types::t type) -> Array[Skyward::Types::Named]
+  # @rbs type: Skyward::Core::Types::t
+  # @rbs return: Array[Skyward::Core::Types::Named]
+  def named: (Skyward::Core::Types::t type) -> Array[Skyward::Core::Types::Named]
 
   # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
   # @rbs static: Skyward::API::Assembly::Static
@@ -101,17 +101,17 @@ module Skyward::API::OpenAPI
   # @rbs return: String?
   def operation_ids: (Array[Skyward::API::Routing::Router::Endpoint] endpoints) -> String?
 
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs schema_names: Hash[Class, String]
   # @rbs return: Hash[Class, String] | String
-  def names: (Array[Skyward::Types::Named] types, Hash[Class, String] schema_names) -> (Hash[Class, String] | String)
+  def names: (Array[Skyward::Core::Types::Named] types, Hash[Class, String] schema_names) -> (Hash[Class, String] | String)
 
   # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def assembled: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
+  def assembled: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Core::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
 
   # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs names: Hash[Class, String]
@@ -152,33 +152,33 @@ module Skyward::API::OpenAPI
   def response: (String status, Array[Answer] answers) -> schema
 
   # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
-  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs types: Array[Skyward::Core::Types::Named]
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
-  def components: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Class, String] names) -> Hash[String, schema]
+  def components: (Array[Skyward::API::Routing::Router::Endpoint] endpoints, Array[Skyward::Core::Types::Named] types, Hash[Class, String] names) -> Hash[String, schema]
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs form: form
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def schema: (Skyward::Types::t type, form form, Hash[Class, String] names) -> schema
+  def schema: (Skyward::Core::Types::t type, form form, Hash[Class, String] names) -> schema
 
   # @rbs schema: schema
   # @rbs return: schema
   def nullable: (schema schema) -> schema
 
-  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs fields: Array[Skyward::Core::Types::Field]
   # @rbs form: form
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def object: (Array[Skyward::Types::Field] fields, form form, Hash[Class, String] names) -> schema
+  def object: (Array[Skyward::Core::Types::Field] fields, form form, Hash[Class, String] names) -> schema
 
   # A request may leave out a nullable value, which arrives as nil, but a response always writes it.
   # @rbs required: bool
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs form: form
   # @rbs return: bool
-  def required?: (bool required, Skyward::Types::t type, form form) -> bool
+  def required?: (bool required, Skyward::Core::Types::t type, form form) -> bool
 
   # @rbs pattern: Array[String | Symbol]
   # @rbs return: String

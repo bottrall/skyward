@@ -14,7 +14,7 @@ describe Skyward::API::Assembly::Builder do
   describe "#mount" do
     it "raises a BootError for anything but an API object" do
       api_class = Class.new(Skyward::API)
-      error = assert_raises(Skyward::BootError) { builder.mount api_class }
+      error = assert_raises(Skyward::Core::BootError) { builder.mount api_class }
 
       assert_equal "mount takes a Skyward::API instance, got #{api_class.inspect}", error.message
     end
@@ -93,7 +93,7 @@ describe Skyward::API::Assembly::Builder do
 
     it "raises a BootError when the directory doesn't exist" do
       missing = File.join(root, "missing")
-      error = assert_raises(Skyward::BootError) { builder.static "/", from: missing }
+      error = assert_raises(Skyward::Core::BootError) { builder.static "/", from: missing }
 
       assert_equal %(static "/": no directory at #{missing}), error.message
     end
@@ -118,7 +118,7 @@ describe Skyward::API::Assembly::Builder do
 
     it "raises a BootError for body and request, which Skyward API fills itself" do
       messages = %i[body request].map do |name|
-        assert_raises(Skyward::BootError) { builder.provide name, current_user }.message
+        assert_raises(Skyward::Core::BootError) { builder.provide name, current_user }.message
       end
       expected = %i[body request].map do |name|
         "provide :#{name}: Skyward API fills `#{name}:` itself, so it can't be provided. Provide another name."
@@ -129,7 +129,7 @@ describe Skyward::API::Assembly::Builder do
 
     it "raises a BootError for a name that's already provided" do
       builder.provide :current_user, current_user
-      error = assert_raises(Skyward::BootError) { builder.provide :current_user, tenant }
+      error = assert_raises(Skyward::Core::BootError) { builder.provide :current_user, tenant }
 
       assert_equal "provide :current_user: it's already provided. Provide each name once.", error.message
     end

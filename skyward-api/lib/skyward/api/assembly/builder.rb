@@ -44,7 +44,7 @@ class Skyward::API::Assembly::Builder
   def mount(api, at: "/")
     # Steep proves a typed caller passes an API, but an untyped one can pass anything.
     unless api.is_a?(Skyward::API) # steep:ignore UnreachableBranch
-      raise Skyward::BootError, "mount takes a Skyward::API instance, got #{api.inspect}"
+      raise Skyward::Core::BootError, "mount takes a Skyward::API instance, got #{api.inspect}"
     end
 
     @mounts = [*@mounts, Mount.new(api:, at:)]
@@ -60,7 +60,9 @@ class Skyward::API::Assembly::Builder
   # @rbs return: void
   def static(prefix, from:)
     directory = File.expand_path(from)
-    raise Skyward::BootError, "static #{prefix.inspect}: no directory at #{directory}" unless File.directory?(directory)
+    unless File.directory?(directory)
+      raise Skyward::Core::BootError, "static #{prefix.inspect}: no directory at #{directory}"
+    end
 
     @statics = [*@statics, Static.new(prefix:, from: directory)]
   end
@@ -68,12 +70,12 @@ class Skyward::API::Assembly::Builder
   # @rbs (Symbol name, Skyward::API::_Provider & Object provider) -> void
   def provide(name, provider)
     if %i[body request].include?(name)
-      raise Skyward::BootError,
+      raise Skyward::Core::BootError,
             "provide #{name.inspect}: Skyward API fills `#{name}:` itself, so it can't be provided. " \
             "Provide another name."
     end
     if @providers.key?(name)
-      raise Skyward::BootError, "provide #{name.inspect}: it's already provided. Provide each name once."
+      raise Skyward::Core::BootError, "provide #{name.inspect}: it's already provided. Provide each name once."
     end
 
     @providers = { **@providers, name => provider }

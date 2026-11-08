@@ -42,7 +42,7 @@ class Skyward::API::Assembly::Dispatcher
   private
 
   # @rbs env: Hash[String, untyped]
-  # @rbs return: Skyward::rack
+  # @rbs return: Skyward::API::rack
   def route(env)
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
@@ -64,7 +64,7 @@ class Skyward::API::Assembly::Dispatcher
   # @rbs env: Hash[String, untyped]
   # @rbs verb: String
   # @rbs path: String
-  # @rbs return: Skyward::rack
+  # @rbs return: Skyward::API::rack
   def routed(env, verb, path)
     match = @router.match(verb, path)
     match ? respond(match, env) : @static.call(env) || unmatched(verb, @router.allowed(path))
@@ -72,7 +72,7 @@ class Skyward::API::Assembly::Dispatcher
 
   # @rbs match: Skyward::API::Routing::Router::Match
   # @rbs env: Hash[String, untyped]
-  # @rbs return: Skyward::rack
+  # @rbs return: Skyward::API::rack
   def respond(match, env)
     inputs = match.inputs.call(env, match.params)
     case inputs

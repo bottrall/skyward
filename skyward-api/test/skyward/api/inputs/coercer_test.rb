@@ -3,7 +3,7 @@
 require "test_helper"
 
 describe Skyward::API::Inputs::Coercer do
-  types = Skyward::Types
+  types = Skyward::Core::Types
 
   integer = types::Scalar.new(name: :integer)
   float = types::Scalar.new(name: :float)

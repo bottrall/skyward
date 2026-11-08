@@ -12,7 +12,7 @@ class Skyward::API
   end
 
   interface _Provider
-    def call: (Skyward::Request request) -> untyped
+    def call: (Skyward::API::Request request) -> untyped
   end
 
   interface _OnError

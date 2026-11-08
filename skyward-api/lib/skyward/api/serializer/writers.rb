@@ -19,19 +19,19 @@ module Skyward::API::Serializer::Writers
     :got #: String
   )
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: Writer
   def writer(type)
     case type
-    when Skyward::Types::Scalar then scalar(type.name)
-    when Skyward::Types::Literal then literal(type.value)
-    when Skyward::Types::Enum then enum(type.symbols)
-    when Skyward::Types::Nullable then nullable(type.type)
-    when Skyward::Types::ArrayOf then array(writer(type.type))
-    when Skyward::Types::HashOf then hash_of(writer(type.type))
-    when Skyward::Types::Record then record(type.fields)
-    when Skyward::Types::Named then named(type)
-    when Skyward::Types::Union then union(type.types.map { |member| writer(member) })
+    when Skyward::Core::Types::Scalar then scalar(type.name)
+    when Skyward::Core::Types::Literal then literal(type.value)
+    when Skyward::Core::Types::Enum then enum(type.symbols)
+    when Skyward::Core::Types::Nullable then nullable(type.type)
+    when Skyward::Core::Types::ArrayOf then array(writer(type.type))
+    when Skyward::Core::Types::HashOf then hash_of(writer(type.type))
+    when Skyward::Core::Types::Record then record(type.fields)
+    when Skyward::Core::Types::Named then named(type)
+    when Skyward::Core::Types::Union then union(type.types.map { |member| writer(member) })
     end
   end
 
@@ -78,7 +78,7 @@ module Skyward::API::Serializer::Writers
     written.is_a?(Misfit) ? first_written(rest, value, at, failed || written) : written
   end
 
-  # @rbs name: Skyward::Types::scalar
+  # @rbs name: Skyward::Core::Types::scalar
   # @rbs return: Writer
   def scalar(name)
     case name
@@ -92,7 +92,7 @@ module Skyward::API::Serializer::Writers
     end
   end
 
-  # @rbs value: Skyward::Types::literal
+  # @rbs value: Skyward::Core::Types::literal
   # @rbs return: Writer
   def literal(value)
     checked(value.inspect, ->(given) { value.eql?(given) }, ->(given, _) { given })
@@ -104,11 +104,12 @@ module Skyward::API::Serializer::Writers
     checked(symbols.map(&:inspect).join(" | "), ->(value) { symbols.include?(value) }, ->(value, _) { value.name })
   end
 
-  # @rbs type: Skyward::Types::t
+  # @rbs type: Skyward::Core::Types::t
   # @rbs return: Writer
   def nullable(type)
     inner = writer(type)
-    grouped = type.is_a?(Skyward::Types::Union) || (type.is_a?(Skyward::Types::Enum) && type.symbols.size > 1)
+    grouped = type.is_a?(Skyward::Core::Types::Union) ||
+              (type.is_a?(Skyward::Core::Types::Enum) && type.symbols.size > 1)
     Writer.new(
       name: grouped ? "(#{inner.name})?" : "#{inner.name}?",
       fits: ->(value) { value.nil? || inner.fits.call(value) },
@@ -138,10 +139,10 @@ module Skyward::API::Serializer::Writers
     )
   end
 
-  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs fields: Array[Skyward::Core::Types::Field]
   # @rbs return: Writer
   def record(fields)
-    writers = fields.map { |field| [field, writer(field.type)] } #: Array[[Skyward::Types::Field, Writer]]
+    writers = fields.map { |field| [field, writer(field.type)] } #: Array[[Skyward::Core::Types::Field, Writer]]
     declared = writers.map { |field, writer| "#{"?" unless field.required}#{field.name}: #{writer.name}" }
     checked(
       "{ #{declared.join(", ")} }",
@@ -150,7 +151,7 @@ module Skyward::API::Serializer::Writers
     )
   end
 
-  # @rbs field: Skyward::Types::Field
+  # @rbs field: Skyward::Core::Types::Field
   # @rbs writer: Writer
   # @rbs hash: Hash[untyped, untyped]
   # @rbs at: String
@@ -163,7 +164,7 @@ module Skyward::API::Serializer::Writers
   end
 
   # Only declared readers are called, never to_h, so nothing else the object holds is written.
-  # @rbs type: Skyward::Types::Named
+  # @rbs type: Skyward::Core::Types::Named
   # @rbs return: Writer
   def named(type)
     klass = type.klass
