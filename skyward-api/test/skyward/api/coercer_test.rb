@@ -25,6 +25,12 @@ describe Skyward::API::Coercer do
 
   def mismatch(message) = invalid(["body", message])
 
+  def cpu_seconds
+    start = Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID)
+    yield
+    Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID) - start
+  end
+
   describe ".compile" do
     describe "Integer" do
       it "accepts an Integer" do
@@ -404,6 +410,78 @@ describe Skyward::API::Coercer do
         coerce(types::Union.new(types: [note, string]), { "todo" => { "title" => "late" } })
 
         assert_empty built
+      end
+
+      it "reports the same value at each place no member fits it" do
+        expected = invalid(
+          ["body[0]", "expected Integer | String, got true"],
+          ["body[1]", "expected Integer | String, got true"]
+        )
+
+        assert_equal expected, coerce(types::ArrayOf.new(type: union), [true, true])
+      end
+
+      it "coerces a value once for members that hold equal unions" do
+        built = []
+        counted = Data.define(:title) do
+          define_method(:initialize) do |title:|
+            built << title
+            super(title:)
+          end
+        end
+        title = [types::Field.new(name: :title, type: string, required: true)]
+        members = %i[due page].map do |name|
+          todo = types::Union.new(types: [types::Named.new(name: "Todo", klass: counted, fields: title), string])
+          types::Record.new(
+            fields: [
+              types::Field.new(name: :todo, type: todo, required: true),
+              types::Field.new(name:, type: integer, required: true)
+            ]
+          )
+        end
+        result = coerce(types::Union.new(types: members), { "todo" => { "title" => "Ship it" }, "page" => 2 })
+
+        assert_equal [["Ship it"], "Ship it", 2], [built, result.value.fetch(:todo).title, result.value.fetch(:page)]
+      end
+
+      it "costs no more for an Array of a union the deeper it nests" do
+        nested = 99.times.reduce(integer) do |inner, _|
+          types::Union.new(types: [types::ArrayOf.new(type: inner), string])
+        end
+        coercer = Skyward::API::Coercer.compile(types::ArrayOf.new(type: nested), strings: false)
+        body = 99.times.reduce(Array.new(100_000, "x")) { |inner, _| [inner] }
+
+        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.05
+      end
+
+      it "costs no more for overlapping records the deeper they nest" do
+        names = %i[b c]
+        nested = 15.times.reduce(integer) do |inner, _|
+          records = names.map do |name|
+            types::Record.new(
+              fields: [
+                types::Field.new(name: :a, type: inner, required: true),
+                types::Field.new(name:, type: integer, required: true)
+              ]
+            )
+          end
+          types::Union.new(types: records)
+        end
+        coercer = Skyward::API::Coercer.compile(nested, strings: false)
+        body = 15.times.reduce("x") { |inner, _| { "a" => inner } }
+
+        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.1
+      end
+
+      it "costs no more for overlapping Arrays the deeper they nest" do
+        nested = 15.times.reduce(integer) do |inner, _|
+          either = types::Union.new(types: [inner, string])
+          types::Union.new(types: [types::ArrayOf.new(type: inner), types::ArrayOf.new(type: either)])
+        end
+        coercer = Skyward::API::Coercer.compile(nested, strings: false)
+        body = 15.times.reduce(1.5) { |inner, _| [inner] }
+
+        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.1
       end
     end
 

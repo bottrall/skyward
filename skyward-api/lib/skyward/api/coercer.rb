@@ -9,6 +9,8 @@ module Skyward::API::Coercer
   # @rbs!
   #   type result = Ok | Invalid
   #   type t = ^(untyped raw, String at) -> result
+  #   type seen = Hash[[Integer, Integer], result]
+  #   type coercer = ^(untyped raw, String at, seen seen) -> result
 
   Error = Data.define(
     :at, #: String
@@ -30,6 +32,10 @@ module Skyward::API::Coercer
   # A message's expected type is cut to this many characters, so a large written
   # type can't make a 422 many times larger than the body that caused it.
   MAX_EXPECTED = 200 #: Integer
+
+  # Stands for every problem a union's member finds, since the union reports
+  # none of them.
+  MISFIT = Invalid.new(errors: [Error.new(at: "", message: "doesn't fit")]) #: Invalid
 
   # INTEGER, DATE and TIME match a String's bytes, because a path parameter
   # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
@@ -61,22 +67,10 @@ module Skyward::API::Coercer
   # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Types::t
   # @rbs strings: bool
-  # @rbs limit: Integer
   # @rbs return: t
-  def compile(type, strings:, limit: MAX_ERRORS)
-    case type
-    when Skyward::Types::Scalar then scalar(type, parser(type.name, strings))
-    when Skyward::Types::Literal then literal(type, strings)
-    when Skyward::Types::Enum then enum(type)
-    when Skyward::Types::Nullable then nullable(compile(type.type, strings:, limit:))
-    when Skyward::Types::ArrayOf then array(type, compile(type.type, strings:, limit:), strings, limit)
-    when Skyward::Types::Record then object(type, strings, limit, &:itself)
-    when Skyward::Types::Named
-      klass = type.klass
-      object(type, strings, limit) { |fields| klass.new(**fields) }
-    # A union reports its own mismatch, so a member only needs to know whether it fits.
-    else union(type, type.types.map { |member| compile(member, strings:, limit: 1) })
-    end
+  def compile(type, strings:)
+    coercer = build(type, strings, false, {})
+    ->(raw, at) { coercer.call(raw, at, {}) }
   end
 
   # @rbs type: Skyward::Types::t
@@ -102,13 +96,44 @@ module Skyward::API::Coercer
 
   private
 
+  # A union reports its own mismatch, so with member: true a coercer stops at
+  # its first problem and never writes a message.
   # @rbs type: Skyward::Types::t
-  # @rbs parse: ^(untyped) -> Ok?
-  # @rbs return: t
-  def scalar(type, parse)
-    expected = expectation(type)
-    ->(raw, at) { parse.call(raw) || mismatch(expected, raw, at) }
+  # @rbs strings: bool
+  # @rbs member: bool
+  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
+  # @rbs return: coercer
+  def build(type, strings, member, unions)
+    expected = expectation(type) unless member
+    limit = member ? 1 : MAX_ERRORS
+    case type
+    when Skyward::Types::Scalar then scalar(parser(type.name, strings), expected)
+    when Skyward::Types::Literal then literal(type.value, strings, expected)
+    when Skyward::Types::Enum then enum(type.symbols, expected)
+    when Skyward::Types::Nullable then nullable(build(type.type, strings, member, unions))
+    when Skyward::Types::ArrayOf then array(build(type.type, strings, member, unions), strings, limit, expected)
+    when Skyward::Types::Record then object(fields(type, strings, member, unions), limit, expected, &:itself)
+    when Skyward::Types::Named
+      klass = type.klass
+      object(fields(type, strings, member, unions), limit, expected) { |values| klass.new(**values) }
+    # Equal unions share one coercer, which is what lets one remember its results.
+    else unions[[type, member]] ||= union(type.types.map { |one| build(one, strings, true, unions) }, member, expected)
+    end
   end
+
+  # @rbs type: Skyward::Types::Record | Skyward::Types::Named
+  # @rbs strings: bool
+  # @rbs member: bool
+  # @rbs unions: Hash[[Skyward::Types::Union, bool], coercer]
+  # @rbs return: Array[[Skyward::Types::Field, coercer]]
+  def fields(type, strings, member, unions)
+    type.fields.map { |field| [field, build(field.type, strings, member, unions)] }
+  end
+
+  # @rbs parse: ^(untyped) -> Ok?
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def scalar(parse, expected) = ->(raw, at, _seen) { parse.call(raw) || mismatch(expected, raw, at) }
 
   # @rbs name: Skyward::Types::scalar
   # @rbs strings: bool
@@ -181,11 +206,11 @@ module Skyward::API::Coercer
     Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, seconds, zone))
   end
 
-  # @rbs type: Skyward::Types::Literal
+  # @rbs value: Skyward::Types::literal
   # @rbs strings: bool
-  # @rbs return: t
-  def literal(type, strings)
-    value = type.value
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def literal(value, strings, expected)
     name =
       case value
       when Integer then :integer
@@ -194,36 +219,34 @@ module Skyward::API::Coercer
       else :bool
       end #: Skyward::Types::scalar
     parse = parser(name, strings)
-    expected = expectation(type)
-    lambda do |raw, at|
+    lambda do |raw, at, _seen|
       parsed = parse.call(raw)
       parsed && parsed.value == value ? parsed : mismatch(expected, raw, at)
     end
   end
 
-  # @rbs type: Skyward::Types::Enum
-  # @rbs return: t
-  def enum(type)
-    symbols = type.symbols.to_h { |symbol| [symbol.name, symbol] }
-    expected = expectation(type)
-    lambda do |raw, at|
-      symbol = symbols.fetch(raw, nil)
+  # @rbs symbols: Array[Symbol]
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def enum(symbols, expected)
+    by_name = symbols.to_h { |symbol| [symbol.name, symbol] }
+    lambda do |raw, at, _seen|
+      symbol = by_name.fetch(raw, nil)
       symbol ? Ok.new(value: symbol) : mismatch(expected, raw, at)
     end
   end
 
-  # @rbs coercer: t
-  # @rbs return: t
-  def nullable(coercer) = ->(raw, at) { raw.nil? ? Ok.new(value: nil) : coercer.call(raw, at) }
+  # @rbs coercer: coercer
+  # @rbs return: coercer
+  def nullable(coercer) = ->(raw, at, seen) { raw.nil? ? Ok.new(value: nil) : coercer.call(raw, at, seen) }
 
-  # @rbs type: Skyward::Types::ArrayOf
-  # @rbs item: t
+  # @rbs item: coercer
   # @rbs strings: bool
   # @rbs limit: Integer
-  # @rbs return: t
-  def array(type, item, strings, limit)
-    expected = expectation(type)
-    lambda do |raw, at|
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def array(item, strings, limit, expected)
+    lambda do |raw, at, seen|
       values =
         case raw
         when Array then raw
@@ -232,7 +255,7 @@ module Skyward::API::Coercer
         end
       next mismatch(expected, raw, at) unless values
 
-      results = items(values, item, at, limit)
+      results = items(values, item, at, limit, seen)
       errors = errors(results)
       next Invalid.new(errors:) unless errors.empty?
 
@@ -242,34 +265,31 @@ module Skyward::API::Coercer
   end
 
   # @rbs values: Array[untyped]
-  # @rbs item: t
+  # @rbs item: coercer
   # @rbs at: String
   # @rbs limit: Integer
+  # @rbs seen: seen
   # @rbs return: Array[result]
-  def items(values, item, at, limit)
+  def items(values, item, at, limit, seen)
     none = [[], 0] #: [Array[result], Integer]
     coerced = values.each_with_index.reduce(none) do |state, (value, index)|
       done, count = state
       break state if count >= limit
 
-      result = item.call(value, "#{at}[#{index}]")
+      result = item.call(value, "#{at}[#{index}]", seen)
       # Appended in place: copying the array for each item would be quadratic.
       [done << result, count + errors([result]).size]
     end
     coerced.first
   end
 
-  # @rbs type: Skyward::Types::Record | Skyward::Types::Named
-  # @rbs strings: bool
+  # @rbs fields: Array[[Skyward::Types::Field, coercer]]
   # @rbs limit: Integer
+  # @rbs expected: String?
   # @rbs &: (Hash[Symbol, untyped]) -> untyped
-  # @rbs return: t
-  def object(type, strings, limit, &)
-    fields = type.fields.map do |field|
-      [field, compile(field.type, strings:, limit:)]
-    end #: Array[[Skyward::Types::Field, t]]
-    expected = expectation(type)
-    lambda do |raw, at|
+  # @rbs return: coercer
+  def object(fields, limit, expected, &)
+    lambda do |raw, at, seen|
       next mismatch(expected, raw, at) unless raw.is_a?(Hash)
 
       none = [[], 0] #: [Array[[Symbol, result]], Integer]
@@ -279,7 +299,8 @@ module Skyward::API::Coercer
 
         name = field.name.to_s
         found = "#{at}.#{name}"
-        result = raw.key?(name) ? coercer.call(raw.fetch(name), found) : absent(field.type, field.required, found)
+        result =
+          raw.key?(name) ? coercer.call(raw.fetch(name), found, seen) : absent(field.type, field.required, found)
         case result
         when Ok then [done << [field.name, result], count]
         when Invalid then [done << [field.name, result], count + result.errors.size]
@@ -291,15 +312,21 @@ module Skyward::API::Coercer
     end
   end
 
-  # @rbs type: Skyward::Types::Union
-  # @rbs coercers: Array[t]
-  # @rbs return: t
-  def union(type, coercers)
-    expected = expectation(type)
-    lambda do |raw, at|
-      coercers.lazy.map { |coercer| coercer.call(raw, at) }.find { |result| result.is_a?(Ok) } ||
+  # @rbs coercers: Array[coercer]
+  # @rbs member: bool
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def union(coercers, member, expected)
+    fit = lambda do |raw, at, seen|
+      coercers.lazy.map { |coercer| coercer.call(raw, at, seen) }.find { |result| result.is_a?(Ok) } ||
         mismatch(expected, raw, at)
     end
+    return fit unless member
+
+    # Overlapping members, such as two records with the same field, each coerce
+    # the same value as the same nested union, which costs 2^depth unless the
+    # first result is kept. A member's result doesn't depend on where it is.
+    ->(raw, at, seen) { seen[[fit.__id__, raw.__id__]] ||= fit.call(raw, at, seen) }
   end
 
   # @rbs results: Array[result]
@@ -313,11 +340,13 @@ module Skyward::API::Coercer
     text.length > MAX_EXPECTED ? "#{text[0, MAX_EXPECTED - 1]}…" : text
   end
 
-  # @rbs expected: String
+  # @rbs expected: String?
   # @rbs raw: untyped
   # @rbs at: String
   # @rbs return: Invalid
   def mismatch(expected, raw, at)
+    return MISFIT unless expected
+
     # A path parameter can be any bytes, and a body any number, nested as deep
     # as JSON.parse allows, all of which JSON.generate refuses by default.
     got = JSON.generate(raw.is_a?(String) ? raw.scrub : raw, allow_nan: true, max_nesting: false)
