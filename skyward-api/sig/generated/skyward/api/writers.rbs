@@ -74,6 +74,10 @@ module Skyward::API::Writers
   # @rbs return: Writer
   def array: (Writer item) -> Writer
 
+  # @rbs value: Writer
+  # @rbs return: Writer
+  def hash_of: (Writer value) -> Writer
+
   # @rbs fields: Array[Skyward::Types::Field]
   # @rbs return: Writer
   def record: (Array[Skyward::Types::Field] fields) -> Writer

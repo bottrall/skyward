@@ -124,8 +124,21 @@ class Skyward::Types::Reader
       all_readable(type.args.map { |arg| read_within(arg, path) }) do |items|
         Skyward::Types::ArrayOf.new(type: items.fetch(0))
       end
+    elsif name == "::Hash" then hash_of(type, path)
     else named(type, path)
     end
+  end
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
+  def hash_of(type, path)
+    key, *values = type.args.map { |arg| read_within(arg, path) }
+    unless key == Skyward::Types::Scalar.new(name: :string) && values.size == 1
+      return unreadable(type, "Hash[String, T] (only String keys are supported)")
+    end
+
+    all_readable(values) { |read| Skyward::Types::HashOf.new(type: read.fetch(0)) }
   end
 
   # @rbs type: RBS::Types::ClassInstance

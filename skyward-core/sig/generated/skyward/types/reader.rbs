@@ -61,6 +61,11 @@ class Skyward::Types::Reader
   # @rbs type: RBS::Types::ClassInstance
   # @rbs path: Array[String]
   # @rbs return: Skyward::Types::result
+  def hash_of: (RBS::Types::ClassInstance type, Array[String] path) -> Skyward::Types::result
+
+  # @rbs type: RBS::Types::ClassInstance
+  # @rbs path: Array[String]
+  # @rbs return: Skyward::Types::result
   def named: (RBS::Types::ClassInstance type, Array[String] path) -> Skyward::Types::result
 
   # @rbs type_name: RBS::TypeName

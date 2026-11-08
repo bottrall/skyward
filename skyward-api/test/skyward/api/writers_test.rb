@@ -167,6 +167,27 @@ describe Skyward::API::Writers do
       end
     end
 
+    describe "a Hash" do
+      let(:lists) { types::HashOf.new(type: types::ArrayOf.new(type: named_user)) }
+
+      it "writes each value as its type, with String or Symbol keys as strings" do
+        written = write(lists, { "admins" => [user.new(1, "Ada", "x")], guests: [] })
+
+        assert_equal({ "admins" => [{ id: 1 }], "guests" => [] }, written)
+      end
+
+      it "answers a value that doesn't fit with a misfit at its key, quoted as JSON" do
+        assert_equal misfit('["a.b"][0].id', "Integer", "String"),
+                     write(lists, { "a.b" => [user.new("1", "Ada", "x")] })
+      end
+
+      it "fits only a Hash whose keys are Strings or Symbols, and is named Hash[String, T]" do
+        fits = [{}, { "a" => [], b: [] }, { 1 => [] }, []].map { |value| writer(lists).fits.call(value) }
+
+        assert_equal [[true, true, false, false], "Hash[String, Array[User]]"], [fits, writer(lists).name]
+      end
+    end
+
     describe "a record" do
       let(:record) { types::Record.new(fields: [field(:id, integer), field(:note, string, required: false)]) }
 
