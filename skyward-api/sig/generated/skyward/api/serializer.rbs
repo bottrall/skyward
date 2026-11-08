@@ -34,8 +34,8 @@ class Skyward::API::Serializer
 
   # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
   # @rbs value: untyped
-  # @rbs return: Skyward::API::App::response
-  def call: (untyped value) -> Skyward::API::App::response
+  # @rbs return: Skyward::rack
+  def call: (untyped value) -> Skyward::rack
 
   private
 
@@ -58,6 +58,9 @@ class Skyward::API::Serializer
   # @rbs klass: Class
   # @rbs return: Skyward::API::Writers::Writer
   def response: (Class klass) -> Skyward::API::Writers::Writer
+
+  # @rbs return: Skyward::API::Writers::Writer
+  def rack: () -> Skyward::API::Writers::Writer
 
   # @rbs problem: Problem
   # @rbs given: untyped

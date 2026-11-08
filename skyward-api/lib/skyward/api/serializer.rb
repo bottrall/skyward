@@ -11,13 +11,16 @@ class Skyward::API::Serializer
   )
 
   PROBLEMS = {
+    Skyward::BadRequest => Problem.new(status: 400, title: "Bad Request"),
+    Skyward::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
+    Skyward::Forbidden => Problem.new(status: 403, title: "Forbidden"),
     Skyward::NotFound => Problem.new(status: 404, title: "Not Found"),
     Skyward::Conflict => Problem.new(status: 409, title: "Conflict"),
     Skyward::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
   }.freeze #: Hash[Class, Problem]
 
   # Every response value but Skyward::Created, which carries a type of its own.
-  RESPONSES = [Skyward::NoContent, *PROBLEMS.keys].freeze #: Array[Class]
+  RESPONSES = [Skyward::NoContent, *PROBLEMS.keys, Skyward::Redirect].freeze #: Array[Class]
 
   UNTYPED = Skyward::Types::Scalar.new(name: :untyped) #: Skyward::Types::Scalar
 
@@ -35,7 +38,7 @@ class Skyward::API::Serializer
 
   # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
   # @rbs value: untyped
-  # @rbs return: Skyward::API::App::response
+  # @rbs return: Skyward::rack
   def call(value)
     response = @writer.write.call(value, "")
     case response
@@ -52,6 +55,7 @@ class Skyward::API::Serializer
     case member
     when Skyward::API::Router::Created then created(Skyward::API::Writers.writer(member.type))
     when Skyward::API::Router::Response then response(member.klass)
+    when Skyward::API::Router::Rack then rack
     when UNTYPED then untyped
     else ok(Skyward::API::Writers.writer(member))
     end
@@ -89,9 +93,19 @@ class Skyward::API::Serializer
     problem = PROBLEMS.fetch(klass, nil)
     answer =
       if problem then ->(given, _) { problem_response(problem, given) }
+      elsif klass == Skyward::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
       else ->(given, _) { [204, given.headers.dup, []] }
       end #: ^(untyped, String) -> Skyward::API::App::response
     Skyward::API::Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
+  end
+
+  # @rbs return: Skyward::API::Writers::Writer
+  def rack
+    Skyward::API::Writers.checked(
+      "Skyward::rack",
+      ->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) },
+      ->(given, _) { given }
+    )
   end
 
   # @rbs problem: Problem

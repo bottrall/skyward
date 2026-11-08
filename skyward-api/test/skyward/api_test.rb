@@ -118,6 +118,29 @@ describe Skyward do
 
         assert_equal [500, false], [response.status, response.body.include?("Ada")]
       end
+
+      describe "with a Rack triple" do
+        let(:client) do
+          Skyward::Test.client(
+            Skyward.app(signatures:, logger: nil) do |builder|
+              builder.mount BootFixtures::Racking.new
+            end
+          )
+        end
+
+        it "streams the body it's given, with its status, its headers and the request ID" do
+          response = client.get("/stream", headers: { "X-Request-Id" => "abc-123" })
+          headers = { "content-type" => "text/plain", "x-request-id" => "abc-123" }
+
+          assert_equal [200, headers, "first\nsecond\n"], [response.status, response.headers, response.body]
+        end
+
+        it "answers an Array of three items as JSON when the return type is an Array" do
+          response = client.get("/letters")
+
+          assert_equal ["application/json", %w[a b c]], [response.headers["content-type"], response.json]
+        end
+      end
     end
 
     it "runs the app inside the middleware the block uses, inside the request ID" do
@@ -255,6 +278,50 @@ describe Skyward do
 
       it "leaves out the backtrace when RACK_ENV is anything else, whatever APP_ENV says" do
         refute_includes with_env("production", "development") { get_failing }.json.keys, :backtrace
+      end
+    end
+  end
+
+  describe "the response helpers" do
+    let(:headers) { { "www-authenticate" => "Bearer" } }
+
+    def fields(value, *names) = [value.class, *names.map { |name| value.public_send(name) }, value.frozen?]
+
+    it ".bad_request, .unauthorized and .forbidden make a frozen problem with its detail and headers" do
+      made = [Skyward.bad_request("Bad", headers:), Skyward.unauthorized("Sign in first"),
+              Skyward.forbidden("Not yours")]
+
+      assert_equal(
+        [[Skyward::BadRequest, "Bad", headers, true], [Skyward::Unauthorized, "Sign in first", {}, true],
+         [Skyward::Forbidden, "Not yours", {}, true]],
+        made.map { |value| fields(value, :detail, :headers) }
+      )
+    end
+
+    describe ".redirect" do
+      it "raises for a status that isn't a redirect's" do
+        error = assert_raises(ArgumentError) { Skyward.redirect("/todos", status: 200) }
+
+        assert_equal "A redirect's status must be one of 301, 302, 303, 307, 308, not 200", error.message
+      end
+
+      it "raises for a location with a carriage return or a line feed" do
+        messages = ["/\rx", "/\nx"].map { |to| assert_raises(ArgumentError) { Skyward.redirect(to) }.message }
+
+        assert_equal(
+          ["A redirect's location can't contain a line break: \"/\\rx\"",
+           "A redirect's location can't contain a line break: \"/\\nx\""],
+          messages
+        )
+      end
+
+      it "makes a frozen Redirect, with a 303 unless it's given a status" do
+        made = [Skyward.redirect("/todos"), Skyward.redirect("/todos/1", status: 308, headers:)]
+
+        assert_equal(
+          [[Skyward::Redirect, "/todos", 303, {}, true], [Skyward::Redirect, "/todos/1", 308, headers, true]],
+          made.map { |value| fields(value, :to, :status, :headers) }
+        )
       end
     end
   end

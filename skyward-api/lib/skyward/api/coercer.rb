@@ -255,7 +255,9 @@ module Skyward::API::Coercer
   # @rbs &: (Hash[Symbol, untyped]) -> untyped
   # @rbs return: t
   def object(type, strings, limit, &)
-    fields = type.fields.map { |field| [field, compile(field.type, strings:, limit:)] } #: Array[[Skyward::Types::Field, t]]
+    fields = type.fields.map do |field|
+      [field, compile(field.type, strings:, limit:)]
+    end #: Array[[Skyward::Types::Field, t]]
     lambda do |raw, at|
       next mismatch(type, raw, at) unless raw.is_a?(Hash)
 
