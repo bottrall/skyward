@@ -27,7 +27,7 @@ module Skyward
 
   # @rbs (?signatures: String, ?strict: bool, ?docs: bool, ?title: String, ?version: String, ?description: String?,
   #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
-  #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
+  #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::Application
   def self.app(
     signatures: "sig",
     strict: false,
@@ -50,12 +50,13 @@ module Skyward
     reader = Types::Reader.new(Signatures.load(signatures))
     endpoints = API::Boot.endpoints(builder.mounts, providers: builder.providers, reader:, max_body_size:, strict:)
     static = API::Static.new(builder.statics)
+    openapi = -> { API::OpenAPI.document(endpoints, title:, version:, description:, schema_names:) }
     documents =
       if docs
-        openapi = API::OpenAPI.json(endpoints, static:, title:, version:, description:, schema_names:)
+        json = API::OpenAPI.json(endpoints, static:, document: openapi)
         page = API::Docs.page(title:, scalar_url:)
         {
-          API::OpenAPI::PATH => API::App::Document.new(type: API::OpenAPI::JSON_TYPE, body: openapi),
+          API::OpenAPI::PATH => API::App::Document.new(type: API::OpenAPI::JSON_TYPE, body: json),
           API::Docs::PATH => API::App::Document.new(type: API::Docs::HTML_TYPE, body: page)
         }
       else
@@ -78,7 +79,7 @@ module Skyward
       else
         app
       end
-    API::RequestId.new(logged, generate: -> { SecureRandom.uuid })
+    API::Application.new(API::RequestId.new(logged, generate: -> { SecureRandom.uuid }), endpoints:, openapi:)
   end
 
   # These response helpers are public here, for code outside an API class, such as a provider.

@@ -54,14 +54,21 @@ module Skyward::API::OpenAPI
 
   DESCRIPTIONS: Hash[String, String]
 
+  # Takes the document unbuilt, so a route or static file at /openapi.json or /docs is refused first.
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs static: Skyward::API::Static
+  # @rbs document: ^() -> schema
+  # @rbs return: String
+  def json: (Array[Skyward::API::Router::Endpoint] endpoints, static: Skyward::API::Static, document: ^() -> schema) -> String
+
+  # Only serving the documents needs /openapi.json and /docs free, so this doesn't check them.
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs title: String
   # @rbs version: String
   # @rbs description: String?
   # @rbs schema_names: Hash[Class, String]
-  # @rbs return: String
-  def json: (Array[Skyward::API::Router::Endpoint] endpoints, static: Skyward::API::Static, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> String
+  # @rbs return: schema
+  def document: (Array[Skyward::API::Router::Endpoint] endpoints, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> schema
 
   private
 
@@ -104,7 +111,7 @@ module Skyward::API::OpenAPI
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def document: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
+  def assembled: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
 
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs names: Hash[Class, String]

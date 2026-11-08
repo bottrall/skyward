@@ -1,0 +1,3 @@
+module Skyward::API::AppFile
+  extend ::Skyward::API::AppFile
+end

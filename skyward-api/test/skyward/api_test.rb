@@ -53,6 +53,12 @@ describe Skyward do
       end
     end
 
+    it "returns an app that keeps the endpoints it booted" do
+      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello, at: "/hello" }
+
+      assert_equal([["GET", :greet]], app.endpoints.map { |endpoint| [endpoint.verb, endpoint.to] })
+    end
+
     it "freezes the builder once the block returns" do
       kept = nil
       Skyward.app(signatures:, logger: nil) { |builder| kept = builder }
@@ -151,6 +157,22 @@ describe Skyward do
         end
 
         assert_match(/Its OpenAPI operation ID, BootFixtures\.Hello_greet, is/, error.message)
+      end
+
+      it "builds the document when asked, without docs: true, from the same options" do
+        app = Skyward.app(signatures:, logger: nil, title: "Todos") { |builder| builder.mount hello, at: "/hello" }
+
+        assert_equal [{ title: "Todos", version: "0.1.0" }, ["/hello/{name}"]],
+                     [app.openapi[:info], app.openapi[:paths].keys]
+      end
+
+      it "boots without docs: true an app whose document has a problem, refusing only when it's asked for" do
+        app = Skyward.app(signatures:, logger: nil) do |builder|
+          builder.mount hello, at: "/hello"
+          builder.mount hello, at: "/hi"
+        end
+
+        assert_raises(Skyward::BootError) { app.openapi }
       end
     end
 

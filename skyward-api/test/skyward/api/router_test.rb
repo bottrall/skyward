@@ -19,6 +19,7 @@ describe Skyward::API::Router do
       keywords: [],
       providers: [],
       returns: [],
+      signature: "() -> untyped",
       inputs:,
       serializer:
     )

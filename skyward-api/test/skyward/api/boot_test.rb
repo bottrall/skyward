@@ -77,6 +77,25 @@ describe Skyward::API::Boot do
                    [show.label, show.summary, show.description]
     end
 
+    it "keeps the method's signature as its signature file writes it" do
+      assert_equal "(?done: bool?, ?tags: Array[:low | :high]) -> Array[Todo]",
+                   endpoint(boot([todos, "/todos"]), :index).signature
+    end
+
+    it "keeps a signature wrapped over several lines as it's wrapped" do
+      assert_equal "(id: Integer)\n               -> (Todo | :gone)?",
+                   endpoint(boot([todos, "/todos"]), :destroy, "DELETE").signature
+    end
+
+    it "writes an untyped endpoint's signature as rbs-inline would, with each keyword and the return untyped" do
+      assert_equal "(name: untyped, ?shout: untyped, ?request: untyped) -> untyped",
+                   endpoint(boot([BootFixtures::Unsigned.new, "/"]), :greet).signature
+    end
+
+    it "writes an untyped endpoint with no keywords as taking none" do
+      assert_equal "() -> untyped", endpoint(boot([BootFixtures::UnsignedMethod.new, "/"]), :index).signature
+    end
+
     it "joins the prefix to a route's path with one slash, as a pattern of segments and parameters" do
       assert_equal ["", "todos", :id], endpoint(boot([todos, "/todos"]), :show).pattern
     end

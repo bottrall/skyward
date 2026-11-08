@@ -45,6 +45,7 @@ describe Skyward::API::App do
         keywords:,
         providers: [],
         returns:,
+        signature: "(id: String) -> { id: String }",
         inputs: Skyward::API::Inputs.new(keywords, providers:, max_body_size: 10),
         serializer:
       )

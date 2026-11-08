@@ -88,19 +88,31 @@ module Skyward::API::OpenAPI
     "default" => "A Rack response, whose status and content are known only when it's sent"
   }.freeze #: Hash[String, String]
 
+  # Takes the document unbuilt, so a route or static file at /openapi.json or /docs is refused first.
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs static: Skyward::API::Static
+  # @rbs document: ^() -> schema
+  # @rbs return: String
+  def json(endpoints, static:, document:)
+    served = served(endpoints, static)
+    raise Skyward::BootError, served if served
+
+    JSON.generate(document.call)
+  end
+
+  # Only serving the documents needs /openapi.json and /docs free, so this doesn't check them.
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs title: String
   # @rbs version: String
   # @rbs description: String?
   # @rbs schema_names: Hash[Class, String]
-  # @rbs return: String
-  def json(endpoints, static:, title:, version:, description:, schema_names:)
+  # @rbs return: schema
+  def document(endpoints, title:, version:, description:, schema_names:)
     types = endpoints.flat_map { |endpoint| types(endpoint).flat_map { |type| named(type) } }.uniq
-    names = served(endpoints, static) || operation_ids(endpoints) || names(types, schema_names)
+    names = operation_ids(endpoints) || names(types, schema_names)
     case names
     when String then raise Skyward::BootError, names
-    else JSON.generate(document(endpoints, types, { title:, version:, description: }.compact, names))
+    else assembled(endpoints, types, { title:, version:, description: }.compact, names)
     end
   end
 
@@ -197,7 +209,7 @@ module Skyward::API::OpenAPI
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def document(endpoints, types, info, names)
+  def assembled(endpoints, types, info, names)
     {
       openapi: "3.1.0",
       info:,
