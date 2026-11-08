@@ -11,7 +11,7 @@ module Skyward::API::Docs
 
   SCALAR_URL = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.1/dist/browser/standalone.js" #: String
 
-  # The SHA-384 of SCALAR_URL's file, so the browser won't run a copy the CDN has changed.
+  # Recompute from the file whenever SCALAR_URL's version changes.
   SCALAR_INTEGRITY = "sha384-G+2Q2i9l3PPfmYkk0b4BAIUrs7xb/DNaTL1wCYYab4c9dIKlCyiqzC0Qx3eq9Wf6" #: String
 
   # @rbs title: String

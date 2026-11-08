@@ -7,7 +7,7 @@ module Skyward::API::Docs
 
   SCALAR_URL: String
 
-  # The SHA-384 of SCALAR_URL's file, so the browser won't run a copy the CDN has changed.
+  # Recompute from the file whenever SCALAR_URL's version changes.
   SCALAR_INTEGRITY: String
 
   # @rbs title: String
