@@ -22,11 +22,27 @@ gems:
   # Ignoring the Skyward gems also drops their dependencies and the standard
   # libraries they require, so name those here.
   - name: rbs
-  - name: cgi-escape
-  - name: date
-  - name: json
-  - name: securerandom
-  - name: time
-  - name: tmpdir
-  - name: uri
   - name: zeitwerk
+  # Without a stdlib source, rbs looks each of these up in Gemfile.lock and
+  # warns when it's absent, as a default gem nothing depends on is.
+  - name: cgi-escape
+    source:
+      type: stdlib
+  - name: date
+    source:
+      type: stdlib
+  - name: json
+    source:
+      type: stdlib
+  - name: securerandom
+    source:
+      type: stdlib
+  - name: time
+    source:
+      type: stdlib
+  - name: tmpdir
+    source:
+      type: stdlib
+  - name: uri
+    source:
+      type: stdlib
