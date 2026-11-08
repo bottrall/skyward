@@ -1,0 +1,3 @@
+module Skyward::API::Executable
+  extend ::Skyward::API::Executable
+end

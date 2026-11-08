@@ -48,7 +48,13 @@ module Skyward
     yield builder
     builder.freeze
     reader = Types::Reader.new(Signatures.load(signatures))
-    endpoints = API::Boot.endpoints(builder.mounts, providers: builder.providers, reader:, max_body_size:, strict:)
+    endpoints = API::Boot.endpoints(
+      builder.mounts,
+      providers: builder.providers,
+      reader:,
+      max_body_size:,
+      strict: strict || ENV.fetch("SKYWARD_STRICT", nil) == "1"
+    )
     static = API::Static.new(builder.statics)
     openapi = -> { API::OpenAPI.document(endpoints, title:, version:, description:, schema_names:) }
     documents =

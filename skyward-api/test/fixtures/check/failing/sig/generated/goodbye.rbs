@@ -1,0 +1,4 @@
+# Generated from goodbye.rb with RBS::Inline
+
+class Goodbye
+end

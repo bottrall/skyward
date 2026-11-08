@@ -98,6 +98,26 @@ describe Skyward do
       assert_match(%r{\ABootFixtures::Unsigned#greet \(GET /:name\)\n  It has no RBS signature}, error.message)
     end
 
+    describe "SKYWARD_STRICT" do
+      def with_strict(value)
+        saved = ENV.fetch("SKYWARD_STRICT", nil)
+        ENV["SKYWARD_STRICT"] = value
+        yield
+      ensure
+        ENV["SKYWARD_STRICT"] = saved
+      end
+
+      def boot_unsigned = Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Unsigned.new }
+
+      it "turns strict mode on when it's 1, whatever strict: says" do
+        with_strict("1") { assert_raises(Skyward::BootError) { boot_unsigned } }
+      end
+
+      it "leaves strict: as it is when it's anything else" do
+        with_strict("true") { assert_kind_of Skyward::API::Application, boot_unsigned }
+      end
+    end
+
     describe "docs" do
       def client(**options)
         app = Skyward.app(signatures:, logger: nil, **options) do |builder|

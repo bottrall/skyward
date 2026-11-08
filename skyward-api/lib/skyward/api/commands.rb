@@ -4,7 +4,24 @@ require "json"
 require "skyward/api"
 
 Skyward::Commands.register("serve", "Serve config.ru with Falcon in development, on PORT (default 9292)") do |_args|
-  Skyward::API::Serve.run(Dir.pwd, env: ENV.to_h, falcon: Skyward::API::Serve.executable("falcon"), kernel: Kernel)
+  Skyward::API::Serve.run(Dir.pwd, env: ENV.to_h, falcon: Skyward::API::Executable.find("falcon"), kernel: Kernel)
+end
+
+Skyward::Commands.register("check", "Check signatures, boot app.rb in strict mode and run Steep") do |_args|
+  # So CI shows each check as it finishes, not all of them at exit.
+  $stdout.sync = true
+  exit Skyward::API::Check.run(
+    Dir.pwd,
+    out: $stdout,
+    capture: lambda do |env, command, chdir|
+      # RBS doesn't list the [:child, :out] spelling of this redirect.
+      output = IO.popen(env, command, chdir:, err: [:child, 1], &:read)
+      # RBS doesn't declare Process.last_status, set by the popen above.
+      [output, Process.last_status.success?] # steep:ignore NoMethod
+    end,
+    rbs_inline: Skyward::API::Executable.find("rbs-inline", feature: "rbs/inline"),
+    steep: Skyward::API::Executable.find("steep")
+  )
 end
 
 Skyward::Commands.register("routes", "Print every route with its handler and signature") do |_args|

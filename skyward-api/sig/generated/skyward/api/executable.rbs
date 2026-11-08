@@ -1,0 +1,11 @@
+# Generated from lib/skyward/api/executable.rb with RBS::Inline
+
+module Skyward::API::Executable
+  # Under Bundler, Gem.find_files and Gem.bin_path see only the bundle's gems,
+  # so a gem installed outside the app's bundle isn't found. Checking first
+  # spares rescuing the error bin_path raises for a missing gem.
+  # @rbs name: String
+  # @rbs feature: String
+  # @rbs return: String?
+  def find: (String name, ?feature: String) -> String?
+end

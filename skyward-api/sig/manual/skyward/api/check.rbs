@@ -1,0 +1,3 @@
+module Skyward::API::Check
+  extend ::Skyward::API::Check
+end

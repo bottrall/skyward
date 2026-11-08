@@ -1,0 +1,10 @@
+# frozen_string_literal: true
+
+target :app do
+  # An app's RBS collection brings Skyward's signatures and the ones they use.
+  # The fixtures install no collection, so they're named here, with a stub for
+  # the Zeitwerk namespace Skyward's signatures reopen.
+  signature "sig", "../../../../sig", "../../../../../skyward-core/sig", "../zeitwerk"
+  library "rbs", "prism", "date"
+  check "app.rb"
+end

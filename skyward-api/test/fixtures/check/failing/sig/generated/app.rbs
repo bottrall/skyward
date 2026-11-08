@@ -1,0 +1,10 @@
+# Generated from app.rb with RBS::Inline
+
+class Hello < Skyward::API
+  def greet: () -> untyped
+
+  # @rbs return: Integer
+  def count: () -> Integer
+end
+
+App: untyped

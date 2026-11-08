@@ -34,6 +34,33 @@ describe "skyward/api/commands.rb" do
     end
   end
 
+  describe "check" do
+    let(:fixtures) { File.expand_path("../../fixtures/check", __dir__) }
+
+    def check(app)
+      output, status = skyward("check", chdir: File.join(fixtures, app))
+      [output, status, output.lines.grep(/\A(Signatures|Strict boot|Steep): /)]
+    end
+
+    it "passes an app with current signatures that boots in strict mode and that Steep passes" do
+      _output, status, reports = check("passing")
+
+      assert_equal [0, ["Signatures: passed\n", "Strict boot: passed\n", "Steep: passed\n"]], [status, reports]
+    end
+
+    it "runs every check on an app that fails each, saying why, and exits 1" do
+      output, status, reports = check("failing")
+      reasons = [
+        "sig/generated/goodbye.rbs isn't generated from any file",
+        "Hello#greet (GET /)\n  Its signature leaves the return type untyped, but strict: true refuses",
+        "Ruby::MethodBodyTypeMismatch"
+      ]
+
+      assert_equal [1, ["Signatures: failed\n", "Strict boot: failed\n", "Steep: failed\n"], reasons],
+                   [status, reports, reasons.select { |reason| output.include?(reason) }]
+    end
+  end
+
   describe "routes" do
     it "prints the routes of the app.rb in the directory it's run in, laid out as the README shows" do
       readme = File.read(File.expand_path("../../../README.md", __dir__))

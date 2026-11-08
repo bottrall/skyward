@@ -75,16 +75,6 @@ describe Skyward::API::Serve do
     end
   end
 
-  describe ".executable" do
-    it "finds the executable of a gem in the bundle" do
-      assert_equal Gem.bin_path("rake", "rake"), Skyward::API::Serve.executable("rake")
-    end
-
-    it "returns nil for a gem the bundle doesn't have" do
-      assert_nil Skyward::API::Serve.executable("falcon")
-    end
-  end
-
   describe ".reloader" do
     # Rack::Builder.parse_file's part, without Rack: config.ru's `run` names the app.
     let(:build) do
