@@ -201,13 +201,9 @@ module Skyward::API::Boot
     keywords.map { |name, required| [name, required, params.fetch(name).type] }
   end
 
-  # A signature file can wrap a method type over several lines, but skyward routes prints it on one.
   # @rbs method_type: RBS::MethodType
   # @rbs return: String
-  def signature(method_type)
-    source = method_type.location&.source || written(method_type.to_s)
-    source.gsub(/\s*\R\s*/, " ")
-  end
+  def signature(method_type) = method_type.location&.source || written(method_type.to_s)
 
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function

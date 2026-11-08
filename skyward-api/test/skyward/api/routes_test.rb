@@ -46,5 +46,12 @@ describe Skyward::API::Routes do
         GET     /           RoutesFixtures::Health#check   () -> untyped
       TEXT
     end
+
+    it "puts a signature wrapped over several lines on one" do
+      wrapped = endpoint("DELETE", ["", "todos", :id], :destroy, "(id: Integer)\n             -> (Todo | :gone)?")
+
+      assert_equal "DELETE  /todos/:id  RoutesFixtures::Todos#destroy  (id: Integer) -> (Todo | :gone)?\n",
+                   Skyward::API::Routes.table([wrapped])
+    end
   end
 end

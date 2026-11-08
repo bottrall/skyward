@@ -34,19 +34,19 @@ describe Skyward::API::AppFile do
 
     def run_in(directory, &output) = Skyward::API::AppFile.run(directory, out:, kernel:, &output)
 
-    it "writes what it makes of app.rb's App" do
-      directory do |path|
-        run_in(path) { |loaded| "#{loaded.equal?(App)} #{loaded.endpoints.size}\n" }
-
-        assert_equal ["true 0\n", nil], [out.string, kernel.aborted]
-      end
-    end
-
     it "fails with what's wrong when app.rb has no App to load" do
       directory(nil) do |path|
         run_in(path) { "unused" }
 
         assert_equal [Skyward::API::AppFile.load(path), ""], [kernel.aborted, out.string]
+      end
+    end
+
+    it "writes what it makes of app.rb's App" do
+      directory do |path|
+        run_in(path) { |loaded| "#{loaded.equal?(App)} #{loaded.endpoints.size}\n" }
+
+        assert_equal ["true 0\n", nil], [out.string, kernel.aborted]
       end
     end
 
@@ -69,19 +69,19 @@ describe Skyward::API::AppFile do
   end
 
   describe ".load" do
-    it "loads app.rb and returns its App" do
-      directory do |path|
-        loaded = Skyward::API::AppFile.load(path)
-
-        assert_same App, loaded
-      end
-    end
-
     it "names the directory and what app.rb must assign when it has no app.rb" do
       directory(nil) do |path|
         assert_equal "skyward: no app.rb in #{path}. Run skyward where your app's app.rb assigns " \
                      "App = Skyward.app { ... }.",
                      Skyward::API::AppFile.load(path)
+      end
+    end
+
+    it "loads app.rb and returns its App" do
+      directory do |path|
+        loaded = Skyward::API::AppFile.load(path)
+
+        assert_same App, loaded
       end
     end
 

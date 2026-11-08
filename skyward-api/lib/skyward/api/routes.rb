@@ -8,7 +8,9 @@ module Skyward::API::Routes
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs return: String
   def table(endpoints)
-    rows = endpoints.map { |endpoint| [endpoint.verb, path(endpoint.pattern), handler(endpoint), endpoint.signature] }
+    rows = endpoints.map do |endpoint|
+      [endpoint.verb, path(endpoint.pattern), handler(endpoint), endpoint.signature.gsub(/\s*\R\s*/, " ")]
+    end
     widths = rows.transpose.map { |column| (column.map(&:length).max || 0) + GAP }
     rows.map do |row|
       *padded, signature = row

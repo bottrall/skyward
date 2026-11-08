@@ -7,11 +7,7 @@ module Skyward::API::AppFile
 
   ASSIGNMENT = "App = Skyward.app { ... }" #: String
 
-  # @rbs directory: String
-  # @rbs out: _Writer
-  # @rbs kernel: singleton(Kernel)
-  # @rbs &: (Skyward::API::Application) -> String
-  # @rbs return: void
+  # @rbs (String directory, out: _Writer, kernel: singleton(Kernel)) { (Skyward::API::Application) -> String } -> void
   def run(directory, out:, kernel:, &)
     app = load(directory)
     case app

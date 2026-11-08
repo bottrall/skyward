@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "delegate"
 require "stringio"
 require "test_helper"
 require_relative "../../fixtures/boot/boot_fixtures"
@@ -71,8 +72,22 @@ describe Skyward::API::Boot do
                    endpoint(boot([todos, "/todos"]), :index).signature
     end
 
-    it "keeps a signature written over several lines on one" do
-      assert_equal "(id: Integer) -> (Todo | :gone)?", endpoint(boot([todos, "/todos"]), :destroy, "DELETE").signature
+    it "keeps a signature wrapped over several lines as it's wrapped" do
+      assert_equal "(id: Integer)\n               -> (Todo | :gone)?",
+                   endpoint(boot([todos, "/todos"]), :destroy, "DELETE").signature
+    end
+
+    it "writes a signature with no source as RBS prints it, without a leading ::" do
+      unlocated = SimpleDelegator.new(reader)
+      def unlocated.method_type(...) = __getobj__.method_type(...)&.update(location: nil)
+      endpoints = Skyward::API::Boot.endpoints(
+        [Skyward::API::Builder::Mount.new(api: todos, at: "/todos")],
+        reader: unlocated,
+        max_body_size: 10
+      )
+
+      assert_equal "(?done: bool?, ?tags: Array[:low | :high]) -> Array[BootFixtures::Todo]",
+                   endpoint(endpoints, :index).signature
     end
 
     it "joins the prefix to a route's path with one slash, as a pattern of segments and parameters" do

@@ -88,18 +88,16 @@ module Skyward::API::OpenAPI
     "default" => "A Rack response, whose status and content are known only when it's sent"
   }.freeze #: Hash[String, String]
 
+  # Takes the document unbuilt, so a route or static file at /openapi.json is refused before its other problems.
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs static: Skyward::API::Static
-  # @rbs title: String
-  # @rbs version: String
-  # @rbs description: String?
-  # @rbs schema_names: Hash[Class, String]
+  # @rbs document: ^() -> schema
   # @rbs return: String
-  def json(endpoints, static:, title:, version:, description:, schema_names:)
+  def json(endpoints, static:, document:)
     served = served(endpoints, static)
     raise Skyward::BootError, served if served
 
-    JSON.generate(document(endpoints, title:, version:, description:, schema_names:))
+    JSON.generate(document.call)
   end
 
   # Only serving the document needs /openapi.json free, so this doesn't check it.
