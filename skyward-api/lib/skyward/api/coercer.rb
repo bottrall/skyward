@@ -269,7 +269,11 @@ module Skyward::API::Coercer
         name = field.name.to_s
         found = "#{at}.#{name}"
         result = raw.key?(name) ? coercer.call(raw.fetch(name), found) : absent(field.type, field.required, found)
-        result ? [done << [field.name, result], count + errors([result]).size] : state
+        case result
+        when Ok then [done << [field.name, result], count]
+        when Invalid then [done << [field.name, result], count + result.errors.size]
+        else state
+        end
       end
       combined = combine(coerced.first.to_h)
       combined.is_a?(Ok) ? Ok.new(value: yield(combined.value)) : combined

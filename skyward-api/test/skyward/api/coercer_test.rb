@@ -313,6 +313,24 @@ describe Skyward::API::Coercer do
 
         assert_equal expected, coerce(record, { "page" => "2" })
       end
+
+      it "doesn't coerce the fields after MAX_ERRORS problems" do
+        built = []
+        counted = Data.define(:title) do
+          define_method(:initialize) do |title:|
+            built << title
+            super(title:)
+          end
+        end
+        title = [types::Field.new(name: :title, type: string, required: true)]
+        todo = types::Named.new(name: "Todo", klass: counted, fields: title)
+        max = Skyward::API::Coercer::MAX_ERRORS
+        fields = Array.new(max) { |index| types::Field.new(name: :"f#{index}", type: integer, required: true) }
+        record = types::Record.new(fields: [*fields, types::Field.new(name: :todo, type: todo, required: true)])
+        coerce(record, { "todo" => { "title" => "late" } })
+
+        assert_empty built
+      end
     end
 
     describe "a class with typed readers" do
