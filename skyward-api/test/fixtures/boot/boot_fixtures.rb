@@ -5,6 +5,7 @@
 # that fails to boot has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
+  User = Data.define(:id, :name, :password_hash)
   Holder = Class.new
   Node = Class.new
 
@@ -29,9 +30,9 @@ module BootFixtures
 
     def index(done: nil, tags: []) = { done:, tags: }
 
-    def show(id:) = { id: }
+    def show(id:) = Todo.new(id:, title: "Ship it")
 
-    def create(body:) = body
+    def create(body:) = Todo.new(id: 1, title: body[:title])
 
     def destroy(id:) = { id: }
   end
@@ -214,5 +215,36 @@ module BootFixtures
     get "/", to: :index
 
     def index = {}
+  end
+
+  Responding = Class.new(Skyward::API) do
+    get "/:id", to: :show
+    get "/users/:id", to: :user
+    get "/users/:id/todo", to: :misfit
+    post "/", to: :create
+    delete "/:id", to: :destroy
+
+    def show(id:) = not_found("Todo #{id} does not exist")
+
+    # Path parameters arrive as Strings until coercion lands.
+    def user(id:) = User.new(id: Integer(id), name: "Ada", password_hash: "$2a$12$secret")
+
+    def misfit(id:) = user(id:)
+
+    def create(body:) = created(Todo.new(id: 1, **body), headers: { "location" => "/1" })
+
+    def destroy(id:) = conflict("Todo #{id} is in use")
+  end
+
+  CreatedHash = Class.new(Skyward::API) do
+    post "/", to: :create
+
+    def create = created({})
+  end
+
+  CreatedBare = Class.new(Skyward::API) do
+    post "/", to: :create
+
+    def create = created({})
   end
 end

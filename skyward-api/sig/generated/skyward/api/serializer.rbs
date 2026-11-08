@@ -1,0 +1,76 @@
+# Generated from lib/skyward/api/serializer.rb with RBS::Inline
+
+class Skyward::API::Serializer
+  JSON_TYPE: Hash[String, String]
+
+  class Problem < Data
+    attr_reader status(): Integer
+
+    attr_reader title(): String
+
+    def self.new: (Integer status, String title) -> instance
+                | (status: Integer, title: String) -> instance
+
+    def self.members: () -> [ :status, :title ]
+
+    def members: () -> [ :status, :title ]
+  end
+
+  PROBLEMS: Hash[Class, Problem]
+
+  # Every response value but Skyward::Created, which carries a type of its own.
+  RESPONSES: Array[Class]
+
+  UNTYPED: Skyward::Types::Scalar
+
+  @writer: Skyward::API::Writers::Writer
+
+  @label: String
+
+  # @rbs returns: Array[Skyward::API::Router::returned]
+  # @rbs label: String
+  # @rbs return: void
+  def initialize: (Array[Skyward::API::Router::returned] returns, label: String) -> void
+
+  # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
+  # @rbs value: untyped
+  # @rbs return: Skyward::API::App::response
+  def call: (untyped value) -> Skyward::API::App::response
+
+  private
+
+  # @rbs member: Skyward::API::Router::returned
+  # @rbs return: Skyward::API::Writers::Writer
+  def compile: (Skyward::API::Router::returned member) -> Skyward::API::Writers::Writer
+
+  # Untyped code can return any response value.
+  # @rbs return: Skyward::API::Writers::Writer
+  def untyped: () -> Skyward::API::Writers::Writer
+
+  # @rbs writer: Skyward::API::Writers::Writer
+  # @rbs return: Skyward::API::Writers::Writer
+  def ok: (Skyward::API::Writers::Writer writer) -> Skyward::API::Writers::Writer
+
+  # @rbs writer: Skyward::API::Writers::Writer
+  # @rbs return: Skyward::API::Writers::Writer
+  def created: (Skyward::API::Writers::Writer writer) -> Skyward::API::Writers::Writer
+
+  # @rbs klass: Class
+  # @rbs return: Skyward::API::Writers::Writer
+  def response: (Class klass) -> Skyward::API::Writers::Writer
+
+  # @rbs problem: Problem
+  # @rbs given: untyped
+  # @rbs return: Skyward::API::App::response
+  def problem_response: (Problem problem, untyped given) -> Skyward::API::App::response
+
+  # @rbs written: untyped
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
+  # @rbs return: untyped
+  def json: (untyped written, Integer status, Hash[String, String] headers) -> untyped
+
+  # @rbs misfit: Skyward::API::Writers::Misfit
+  # @rbs return: String
+  def message: (Skyward::API::Writers::Misfit misfit) -> String
+end

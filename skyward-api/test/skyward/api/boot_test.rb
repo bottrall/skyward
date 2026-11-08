@@ -304,5 +304,51 @@ describe Skyward::API::Boot do
                      refusal([BootFixtures::SelfReferring.new, "/"])
       end
     end
+
+    describe "response values in the return type" do
+      let(:responding) { boot([BootFixtures::Responding.new, "/"]) }
+
+      def response(klass) = Skyward::API::Router::Response.new(klass:)
+
+      it "records each response value of a nullable union, nil among them" do
+        expected = [
+          response(Skyward::NoContent),
+          response(Skyward::Conflict),
+          response(Skyward::Unprocessable),
+          types::Literal.new(value: nil)
+        ]
+
+        assert_equal expected, endpoint(responding, :destroy, "DELETE").returns
+      end
+
+      it "records a response value as its class" do
+        assert_equal [todo, response(Skyward::NotFound)], endpoint(responding, :show).returns
+      end
+
+      it "records Created[T] with the type of its value" do
+        assert_equal [Skyward::API::Router::Created.new(type: todo)], endpoint(responding, :create, "POST").returns
+      end
+
+      it "refuses a Created without the type of its value" do
+        assert_equal "BootFixtures::CreatedBare#create (POST /)\n  " \
+                     "The return type can't be read: Skyward API doesn't read Skyward::Created. " \
+                     "Use Created[T] instead.",
+                     refusal([BootFixtures::CreatedBare.new, "/"])
+      end
+
+      it "refuses a Created whose value's type can't be read" do
+        assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
+                     "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
+                     "Use a record, or a class with public typed attr_readers instead.",
+                     refusal([BootFixtures::CreatedHash.new, "/"])
+      end
+    end
+
+    it "compiles a serializer for the return type, whose errors start with the route's label" do
+      error = assert_raises(Skyward::API::ReturnTypeError) { endpoint(boot([todos, "/"]), :show).serializer.call(nil) }
+
+      assert_equal "BootFixtures::Todos#show (GET /:id) returned nil, which isn't BootFixtures::Todo | :gone",
+                   error.message
+    end
   end
 end

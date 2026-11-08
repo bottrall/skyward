@@ -47,8 +47,7 @@ class Skyward::API::App
   def respond(match, env)
     inputs = match.inputs.call(env, match.params)
     case inputs
-    when Skyward::API::Coercer::Ok
-      json(200, { "content-type" => "application/json" }, match.api.public_send(match.to, **inputs.value))
+    when Skyward::API::Coercer::Ok then match.serializer.call(match.api.public_send(match.to, **inputs.value))
     when Skyward::API::Coercer::Invalid then problem(422, "Unprocessable Content", errors: inputs.errors.map(&:to_h))
     when :content_too_large then problem(413, "Content Too Large")
     else problem(415, "Unsupported Media Type")

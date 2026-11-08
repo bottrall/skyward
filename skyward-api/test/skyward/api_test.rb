@@ -80,7 +80,7 @@ describe Skyward do
       end
 
       it "coerces them to their types before the method runs" do
-        assert_equal({ id: 42 }, client.get("/42").json)
+        assert_equal({ id: 42, title: "Ship it" }, client.get("/42").json)
       end
 
       it "reads a body of up to 1 MiB by default" do
@@ -94,6 +94,32 @@ describe Skyward do
 
       it "refuses a body over the max_body_size it's given" do
         assert_equal 413, client(max_body_size: 10).post("/", json: { title: "Ship it" }).status
+      end
+    end
+
+    describe "answering by the return type" do
+      let(:client) do
+        Skyward::Test.client(
+          Skyward.app(signatures:, logger: nil) do |builder|
+            builder.mount BootFixtures::Responding.new
+          end
+        )
+      end
+
+      it "writes only the fields the return type declares" do
+        assert_equal({ id: 1, name: "Ada" }, client.get("/users/1").json)
+      end
+
+      it "answers a response value with its status" do
+        response = client.get("/2")
+
+        assert_equal [404, "Todo 2 does not exist"], [response.status, response.json[:detail]]
+      end
+
+      it "answers a value that doesn't fit with a 500 that sends none of it" do
+        response = client.get("/users/1/todo")
+
+        assert_equal [500, false], [response.status, response.body.include?("Ada")]
       end
     end
 

@@ -1,0 +1,122 @@
+# Generated from lib/skyward/api/writers.rb with RBS::Inline
+
+module Skyward::API::Writers
+  class Writer < Data
+    attr_reader name(): String
+
+    attr_reader fits(): ^(untyped) -> bool
+
+    attr_reader write(): ^(untyped, String) -> untyped
+
+    def self.new: (String name, ^(untyped) -> bool fits, ^(untyped, String) -> untyped write) -> instance
+                | (name: String, fits: ^(untyped) -> bool, write: ^(untyped, String) -> untyped) -> instance
+
+    def self.members: () -> [ :name, :fits, :write ]
+
+    def members: () -> [ :name, :fits, :write ]
+  end
+
+  class Misfit < Data
+    attr_reader at(): String
+
+    attr_reader expected(): String
+
+    attr_reader got(): String
+
+    def self.new: (String at, String expected, String got) -> instance
+                | (at: String, expected: String, got: String) -> instance
+
+    def self.members: () -> [ :at, :expected, :got ]
+
+    def members: () -> [ :at, :expected, :got ]
+  end
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: Writer
+  def writer: (Skyward::Types::t type) -> Writer
+
+  # @rbs members: Array[Writer]
+  # @rbs return: Writer
+  def union: (Array[Writer] members) -> Writer
+
+  # @rbs name: String
+  # @rbs fits: ^(untyped) -> bool
+  # @rbs write: ^(untyped, String) -> untyped
+  # @rbs return: Writer
+  def checked: (String name, ^(untyped) -> bool fits, ^(untyped, String) -> untyped write) -> Writer
+
+  private
+
+  # @rbs fitting: Array[Writer]
+  # @rbs value: untyped
+  # @rbs at: String
+  # @rbs failed: Misfit?
+  # @rbs return: untyped
+  def first_written: (Array[Writer] fitting, untyped value, String at, ?Misfit? failed) -> untyped
+
+  # @rbs name: Skyward::Types::scalar
+  # @rbs return: Writer
+  def scalar: (Skyward::Types::scalar name) -> Writer
+
+  # @rbs value: Skyward::Types::literal
+  # @rbs return: Writer
+  def literal: (Skyward::Types::literal value) -> Writer
+
+  # @rbs symbols: Array[Symbol]
+  # @rbs return: Writer
+  def enum: (Array[Symbol] symbols) -> Writer
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: Writer
+  def nullable: (Skyward::Types::t type) -> Writer
+
+  # @rbs item: Writer
+  # @rbs return: Writer
+  def array: (Writer item) -> Writer
+
+  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs return: Writer
+  def record: (Array[Skyward::Types::Field] fields) -> Writer
+
+  # @rbs field: Skyward::Types::Field
+  # @rbs writer: Writer
+  # @rbs hash: Hash[untyped, untyped]
+  # @rbs at: String
+  # @rbs return: [Symbol, untyped]?
+  def entry: (Skyward::Types::Field field, Writer writer, Hash[untyped, untyped] hash, String at) -> [ Symbol, untyped ]?
+
+  # Only declared readers are called, never to_h, so nothing else the object holds is written.
+  # @rbs type: Skyward::Types::Named
+  # @rbs return: Writer
+  def named: (Skyward::Types::Named type) -> Writer
+
+  # strftime rather than iso8601, which writes a DateTime with its time.
+  # @rbs value: Date
+  # @rbs return: String
+  def date: (Date value) -> String
+
+  # Six fractional digits, so a time read back from JSON equals the one written.
+  # @rbs value: Time
+  # @rbs return: String
+  def time: (Time value) -> String
+
+  # @rbs value: untyped
+  # @rbs at: String
+  # @rbs return: untyped
+  def untyped: (untyped value, String at) -> untyped
+
+  # @rbs written: Array[untyped]
+  # @rbs return: untyped
+  def items: (Array[untyped] written) -> untyped
+
+  # @rbs pairs: Array[[untyped, untyped]]
+  # @rbs return: untyped
+  def object: (Array[[ untyped, untyped ]] pairs) -> untyped
+
+  # Names a value by its class unless it's a scalar, so a message never carries a String or an object's fields.
+  # @rbs expected: String
+  # @rbs value: untyped
+  # @rbs at: String
+  # @rbs return: Misfit
+  def misfit: (String expected, untyped value, String at) -> Misfit
+end

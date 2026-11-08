@@ -1,11 +1,22 @@
 # frozen_string_literal: true
 
 class Skyward::API::Router
+  # @rbs! type returned = Skyward::Types::t | Created | Response
+
   Keyword = Data.define(
     :name, #: Symbol
     :source, #: :path | :query | :body
     :required, #: bool
     :type #: Skyward::Types::t
+  )
+
+  # Skyward::Created[T], which the reader can't read, so its value's type is read on its own.
+  Created = Data.define(
+    :type #: Skyward::Types::t
+  )
+
+  Response = Data.define(
+    :klass #: Class
   )
 
   Endpoint = Data.define(
@@ -14,15 +25,17 @@ class Skyward::API::Router
     :api, #: Skyward::API
     :to, #: Symbol
     :keywords, #: Array[Keyword]
-    :returns, #: Array[Skyward::Types::t]
-    :inputs #: Skyward::API::Inputs
+    :returns, #: Array[returned]
+    :inputs, #: Skyward::API::Inputs
+    :serializer #: Skyward::API::Serializer
   )
 
   Match = Data.define(
     :api, #: Skyward::API
     :to, #: Symbol
     :inputs, #: Skyward::API::Inputs
-    :params #: Hash[Symbol, String]
+    :params, #: Hash[Symbol, String]
+    :serializer #: Skyward::API::Serializer
   )
 
   METHODS = %w[GET HEAD POST PUT PATCH DELETE OPTIONS].freeze #: Array[String]
@@ -65,7 +78,9 @@ class Skyward::API::Router
     return unless endpoint.verb == verb
 
     params = params_for(endpoint.pattern, segments)
-    Match.new(api: endpoint.api, to: endpoint.to, inputs: endpoint.inputs, params:) if params
+    return unless params
+
+    Match.new(api: endpoint.api, to: endpoint.to, inputs: endpoint.inputs, params:, serializer: endpoint.serializer)
   end
 
   # @rbs pattern: Array[String | Symbol]

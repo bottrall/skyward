@@ -1,0 +1,28 @@
+# Generated from lib/skyward/api/responses.rb with RBS::Inline
+
+# Private, so a route can't name a helper as its method.
+module Skyward::API::Responses
+  private
+
+  # @rbs [T] (T value, ?headers: Hash[String, String]) -> Skyward::Created[T]
+  def created: [T] (T value, ?headers: Hash[String, String]) -> Skyward::Created[T]
+
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Skyward::NoContent
+  def no_content: (?headers: Hash[String, String]) -> Skyward::NoContent
+
+  # @rbs detail: String?
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Skyward::NotFound
+  def not_found: (?String? detail, ?headers: Hash[String, String]) -> Skyward::NotFound
+
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Skyward::Conflict
+  def conflict: (String detail, ?headers: Hash[String, String]) -> Skyward::Conflict
+
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Skyward::Unprocessable
+  def unprocessable: (String detail, ?headers: Hash[String, String]) -> Skyward::Unprocessable
+end

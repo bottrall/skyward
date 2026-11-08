@@ -12,11 +12,16 @@ describe Skyward::API::App do
 
       def fail(id:) = raise("todo #{id} is secret")
 
-      def rename(id:, body:) = { id:, title: body }
+      def rename(id:, body:) = { id: "#{id}: #{body}" }
     end.new
   end
   let(:middleware) { [] }
+  let(:returns) do
+    id = Skyward::Types::Field.new(name: :id, type: Skyward::Types::Scalar.new(name: :string), required: true)
+    [Skyward::Types::Record.new(fields: [id])]
+  end
   let(:app) do
+    serializer = Skyward::API::Serializer.new(returns, label: "Todos#show")
     string = Skyward::Types::Scalar.new(name: :string)
     id = Skyward::API::Router::Keyword.new(name: :id, source: :path, required: true, type: string)
     body = Skyward::API::Router::Keyword.new(name: :body, source: :body, required: true, type: string)
@@ -33,8 +38,9 @@ describe Skyward::API::App do
         api: todos,
         to:,
         keywords:,
-        returns: [],
-        inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10)
+        returns:,
+        inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10),
+        serializer:
       )
     end
     static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: File.join(root, "public"))])
@@ -114,14 +120,14 @@ describe Skyward::API::App do
       end
     end
 
-    it "calls the matched method with the path parameters and answers with its return value as JSON" do
-      expected = [200, { "content-type" => "application/json" }, ['{"id":"42","title":"Ship it"}']]
+    it "calls the matched method with the path parameters and answers with its serializer's response" do
+      expected = [200, { "content-type" => "application/json" }, ['{"id":"42"}']]
 
       assert_equal expected, request("GET", "/todos/42")
     end
 
     it "calls the method with its inputs" do
-      expected = [200, { "content-type" => "application/json" }, ['{"id":"42","title":"Done"}']]
+      expected = [200, { "content-type" => "application/json" }, ['{"id":"42: Done"}']]
 
       assert_equal expected, request("PUT", "/todos/42", body: '"Done"')
     end
@@ -151,7 +157,7 @@ describe Skyward::API::App do
     end
 
     it "lets a route take precedence over a static file" do
-      assert_equal ['{"id":"42","title":"Ship it"}'], request("GET", "/todos/42").last
+      assert_equal ['{"id":"42"}'], request("GET", "/todos/42").last
     end
 
     it "serves a static file at a path routed only under other methods" do
