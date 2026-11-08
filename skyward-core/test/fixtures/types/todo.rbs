@@ -2,6 +2,7 @@ module ReaderFixtures
   type priority = :low | :normal | :high
   type number = Integer | Float
   type list[T] = Array[T]
+  type key = String
   type tree = { children: Array[tree] }
 
   class Todo

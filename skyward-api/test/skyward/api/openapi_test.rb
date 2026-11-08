@@ -468,6 +468,11 @@ describe Skyward::API::OpenAPI do
         assert_equal %w[OpenAPIFixtures.Draft OpenAPIFixtures.List OpenAPIFixtures.Todo Problem], written.keys
       end
 
+      it "has a class used only as a hash's value" do
+        assert_equal %w[OpenAPIFixtures.Todo Problem],
+                     components(endpoint(:index, returns: [types::HashOf.new(type: todo)])).keys
+      end
+
       it "requires a nullable field of a class used only in responses" do
         assert_equal %w[title note],
                      components(endpoint(:index, returns: [draft])).dig("OpenAPIFixtures.Draft", "required")
@@ -525,6 +530,16 @@ describe Skyward::API::OpenAPI do
         )
       end
 
+      it "maps a Hash to an object whose additionalProperties are its values" do
+        written = [types::ArrayOf.new(type: todo), types::Scalar.new(name: :untyped)].map do |type|
+          returned(types::HashOf.new(type:))
+        end
+
+        assert_equal [{ "type" => "object", "additionalProperties" => { "type" => "array", "items" => todo_ref } },
+                      { "type" => "object", "additionalProperties" => {} }],
+                     written
+      end
+
       it "maps a record to an inline object, requiring the keys it requires" do
         record = types::Record.new(fields: [field.call(:id, integer), field.call(:note, string, false)])
 
@@ -568,7 +583,7 @@ describe Skyward::API::OpenAPI do
         endpoint(
           :index,
           keywords: [keyword(:tags, :query, types::ArrayOf.new(type: string), required: false)],
-          returns: [types::ArrayOf.new(type: todo), record],
+          returns: [types::ArrayOf.new(type: todo), record, types::HashOf.new(type: types::Nullable.new(type: todo))],
           summary: "List todos."
         ),
         endpoint(

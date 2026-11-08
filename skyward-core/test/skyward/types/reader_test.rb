@@ -12,6 +12,7 @@ describe Skyward::Types::Reader do
   string = types::Scalar.new(name: :string)
   priority = types::Enum.new(symbols: %i[low normal high])
   record_hint = "a record, or a class with public typed attr_readers"
+  hash_hint = "Hash[String, T] (only String keys are supported)"
 
   define_method(:read) { |source| reader.read(RBS::Parser.parse_type(source)) }
 
@@ -144,6 +145,35 @@ describe Skyward::Types::Reader do
       assert_instance_of types::Unreadable, read("::Array[[::Integer]]")
     end
 
+    it "reads a Hash with any other key type as unreadable, saying only String keys are supported" do
+      assert_equal(
+        [types::Unreadable.new(type: "Hash[Symbol, Integer]", at: nil, instead: hash_hint),
+         types::Unreadable.new(type: "Hash[Integer, Integer]", at: nil, instead: hash_hint)],
+        ["::Hash[::Symbol, ::Integer]", "::Hash[::Integer, ::Integer]"].map { |source| read(source) }
+      )
+    end
+
+    it "reads a bare Hash as unreadable, suggesting Hash[String, T]" do
+      assert_equal types::Unreadable.new(type: "Hash", at: nil, instead: hash_hint), read("::Hash")
+    end
+
+    it "reads a Hash without a value type as unreadable, suggesting Hash[String, T]" do
+      assert_equal types::Unreadable.new(type: "Hash[String]", at: nil, instead: hash_hint), read("::Hash[::String]")
+    end
+
+    it "reads Hash[String, T]" do
+      assert_equal types::HashOf.new(type: types::ArrayOf.new(type: integer)),
+                   read("::Hash[::String, ::Array[::Integer]]")
+    end
+
+    it "reads Hash[String, T] with its key type behind an alias" do
+      assert_equal types::HashOf.new(type: integer), read("::Hash[::ReaderFixtures::key, ::Integer]")
+    end
+
+    it "reads Hash of an unreadable type as unreadable" do
+      assert_equal "[ Integer ]", read("::Hash[::String, [::Integer]]").type
+    end
+
     it "reads a class RBS doesn't declare as unreadable" do
       assert_equal types::Unreadable.new(type: "Nowhere", at: nil, instead: record_hint), read("::Nowhere")
     end
@@ -233,7 +263,7 @@ describe Skyward::Types::Reader do
       expected = types::Unreadable.new(
         type: "Hash[Symbol, untyped]",
         at: "ReaderFixtures::Holder#tags",
-        instead: record_hint
+        instead: hash_hint
       )
 
       assert_equal expected, read("::ReaderFixtures::Holder")
@@ -254,7 +284,7 @@ describe Skyward::Types::Reader do
     end
 
     it "writes an unreadable type without leading colons" do
-      assert_equal "Hash[String, Integer]", read("::Hash[::String, ::Integer]").type
+      assert_equal "Hash[Symbol, Integer]", read("::Hash[::Symbol, ::Integer]").type
     end
   end
 

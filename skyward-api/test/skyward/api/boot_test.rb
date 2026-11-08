@@ -268,7 +268,7 @@ describe Skyward::API::Boot do
       it "names the class and reader where an unreadable type was found" do
         assert_equal "BootFixtures::HashBody#create (POST /)\n  " \
                      "The type of `body:` can't be read: Skyward API doesn't read Hash[Symbol, untyped], " \
-                     "at BootFixtures::Holder#tags. Use a record, or a class with public typed attr_readers instead.",
+                     "at BootFixtures::Holder#tags. Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::HashBody.new, "/"])
       end
 
@@ -277,6 +277,13 @@ describe Skyward::API::Boot do
                      "`ids:` comes from the path, which can't carry an array. " \
                      "Give it a type such as String, Integer or an enum.",
                      refusal([BootFixtures::ArrayPath.new, "/"])
+      end
+
+      it "refuses a hash in the path" do
+        assert_match(
+          /`scores:` comes from the path, which can't carry a hash\./,
+          refusal([BootFixtures::HashPath.new, "/"])
+        )
       end
 
       it "refuses a class in the path" do
@@ -291,6 +298,13 @@ describe Skyward::API::Boot do
                      "`filter:` comes from the query string, which can't carry a record. " \
                      "Give it a type such as String, Integer or an array of them, or take it in `body:`.",
                      refusal([BootFixtures::RecordQuery.new, "/"])
+      end
+
+      it "refuses a nullable hash in the query string" do
+        assert_match(
+          /`scores:` comes from the query string, which can't carry a hash\./,
+          refusal([BootFixtures::HashQuery.new, "/"])
+        )
       end
 
       it "refuses a nullable class in the query string" do
@@ -331,7 +345,7 @@ describe Skyward::API::Boot do
       it "refuses a return type that can't be read" do
         assert_equal "BootFixtures::HashReturn#index (GET /)\n  " \
                      "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use a record, or a class with public typed attr_readers instead.",
+                     "Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::HashReturn.new, "/"])
       end
 
@@ -398,7 +412,7 @@ describe Skyward::API::Boot do
       it "refuses a Created whose value's type can't be read" do
         assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
                      "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use a record, or a class with public typed attr_readers instead.",
+                     "Use Hash[String, T] (only String keys are supported) instead.",
                      refusal([BootFixtures::CreatedHash.new, "/"])
       end
     end

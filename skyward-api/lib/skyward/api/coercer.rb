@@ -29,9 +29,10 @@ module Skyward::API::Coercer
   # produce a large response.
   MAX_ERRORS = 1_000 #: Integer
 
-  # A message's expected type is cut to this many characters, so a large written
-  # type can't make a 422 many times larger than the body that caused it.
-  MAX_EXPECTED = 200 #: Integer
+  # A message's expected type and a hash's key in a path are cut to this many
+  # characters, so a large written type or key can't make a 422 many times
+  # larger than the body that caused it.
+  MAX_SHOWN = 200 #: Integer
 
   # Stands for every problem a union's member finds, since the union reports
   # none of them.
@@ -112,6 +113,7 @@ module Skyward::API::Coercer
     when Skyward::Types::Enum then enum(type.symbols, expected)
     when Skyward::Types::Nullable then nullable(build(type.type, strings, member, unions))
     when Skyward::Types::ArrayOf then array(build(type.type, strings, member, unions), strings, limit, expected)
+    when Skyward::Types::HashOf then hash_of(build(type.type, strings, member, unions), limit, expected)
     when Skyward::Types::Record then object(fields(type, strings, member, unions), limit, expected, &:itself)
     when Skyward::Types::Named
       klass = type.klass
@@ -271,32 +273,55 @@ module Skyward::API::Coercer
         end
       next mismatch(expected, raw, at) unless values
 
-      results = items(values, item, at, limit, seen)
-      errors = errors(results)
-      next Invalid.new(errors:) unless errors.empty?
+      collected(items(values, item, limit, seen) { |index| "#{at}[#{index}]" }, &:itself)
+    end
+  end
 
-      ok = results #: Array[Ok]
-      Ok.new(value: ok.map(&:value))
+  # @rbs value: coercer
+  # @rbs limit: Integer
+  # @rbs expected: String?
+  # @rbs return: coercer
+  def hash_of(value, limit, expected)
+    lambda do |raw, at, seen|
+      next mismatch(expected, raw, at) unless raw.is_a?(Hash)
+
+      keys = raw.keys
+      coerced = items(raw.values, value, limit, seen) do |index|
+        # JSON-quoted so a dot or a bracket in a key can't be read as part of the path.
+        "#{at}[#{JSON.generate(cut(keys.fetch(index)))}]"
+      end
+      collected(coerced) { |values| keys.zip(values).to_h }
     end
   end
 
   # @rbs values: Array[untyped]
   # @rbs item: coercer
-  # @rbs at: String
   # @rbs limit: Integer
   # @rbs seen: seen
+  # @rbs &: (Integer) -> String
   # @rbs return: Array[result]
-  def items(values, item, at, limit, seen)
+  def items(values, item, limit, seen)
     none = [[], 0] #: [Array[result], Integer]
     coerced = values.each_with_index.reduce(none) do |state, (value, index)|
       done, count = state
       break state if count >= limit
 
-      result = item.call(value, "#{at}[#{index}]", seen)
+      result = item.call(value, yield(index), seen)
       # Appended in place: copying the array for each item would be quadratic.
       [done << result, count + errors([result]).size]
     end
     coerced.first
+  end
+
+  # @rbs results: Array[result]
+  # @rbs &: (Array[untyped]) -> untyped
+  # @rbs return: result
+  def collected(results)
+    errors = errors(results)
+    return Invalid.new(errors:) unless errors.empty?
+
+    ok = results #: Array[Ok]
+    Ok.new(value: yield(ok.map(&:value)))
   end
 
   # @rbs fields: Array[[Skyward::Types::Field, coercer]]
@@ -352,9 +377,12 @@ module Skyward::API::Coercer
   # @rbs type: Skyward::Types::t
   # @rbs return: String
   def expectation(type)
-    text = type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type)
-    text.length > MAX_EXPECTED ? "#{text[0, MAX_EXPECTED - 1]}…" : text
+    cut(type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type))
   end
+
+  # @rbs text: String
+  # @rbs return: String
+  def cut(text) = text.length > MAX_SHOWN ? "#{text[0, MAX_SHOWN - 1]}…" : text
 
   # @rbs expected: String?
   # @rbs raw: untyped
@@ -378,6 +406,7 @@ module Skyward::API::Coercer
     when Skyward::Types::Enum then type.symbols.map(&:inspect).join(" | ")
     when Skyward::Types::Nullable then nullable_written(type.type)
     when Skyward::Types::ArrayOf then "Array[#{written(type.type)}]"
+    when Skyward::Types::HashOf then "Hash[String, #{written(type.type)}]"
     when Skyward::Types::Record
       fields = type.fields.map { |field| "#{"?" unless field.required}#{field.name}: #{written(field.type)}" }
       "{ #{fields.join(", ")} }"

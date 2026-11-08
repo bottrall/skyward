@@ -131,8 +131,16 @@ module BootFixtures
     def show: (todo: Todo) -> Todo
   end
 
+  class HashPath < Skyward::API
+    def show: (scores: Hash[String, Integer]) -> Array[Todo]
+  end
+
   class RecordQuery < Skyward::API
     def index: (filter: { done: bool }) -> Array[Todo]
+  end
+
+  class HashQuery < Skyward::API
+    def index: (?scores: Hash[String, Integer]?) -> Array[Todo]
   end
 
   class NullableClassQuery < Skyward::API

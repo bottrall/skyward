@@ -298,6 +298,7 @@ module Skyward::API::Boot
   def uncarried(type, within)
     case type
     when Skyward::Types::Record then "a record"
+    when Skyward::Types::HashOf then "a hash"
     when Skyward::Types::Named then "#{type.name}, a class"
     when Skyward::Types::ArrayOf
       case within

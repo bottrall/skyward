@@ -128,7 +128,7 @@ module Skyward::API::OpenAPI
   # @rbs return: Array[Skyward::Types::Named]
   def named(type)
     case type
-    when Skyward::Types::Nullable, Skyward::Types::ArrayOf then named(type.type)
+    when Skyward::Types::Nullable, Skyward::Types::ArrayOf, Skyward::Types::HashOf then named(type.type)
     when Skyward::Types::Record then type.fields.flat_map { |field| named(field.type) }
     when Skyward::Types::Named then [type, *type.fields.flat_map { |field| named(field.type) }]
     when Skyward::Types::Union then type.types.flat_map { |member| named(member) }
@@ -329,6 +329,7 @@ module Skyward::API::OpenAPI
     when Skyward::Types::Enum then { type: "string", enum: type.symbols.map(&:name) }
     when Skyward::Types::Nullable then nullable(schema(type.type, form, names))
     when Skyward::Types::ArrayOf then { type: "array", items: schema(type.type, form, names) }
+    when Skyward::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
     when Skyward::Types::Record then object(type.fields, form, names)
     when Skyward::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
     else { oneOf: type.types.map { |member| schema(member, form, names) } }

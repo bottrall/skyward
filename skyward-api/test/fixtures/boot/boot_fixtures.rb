@@ -212,10 +212,22 @@ module BootFixtures
     def show(todo:) = { todo: }
   end
 
+  HashPath = Class.new(Skyward::API) do
+    get "/:scores", to: :show
+
+    def show(scores:) = { scores: }
+  end
+
   RecordQuery = Class.new(Skyward::API) do
     get "/", to: :index
 
     def index(filter:) = { filter: }
+  end
+
+  HashQuery = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(scores: nil) = { scores: }
   end
 
   NullableClassQuery = Class.new(Skyward::API) do

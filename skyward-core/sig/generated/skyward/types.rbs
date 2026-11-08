@@ -5,7 +5,7 @@ module Skyward::Types
 
   type literal = String | Integer | bool | nil
 
-  type t = Scalar | Literal | Enum | Nullable | ArrayOf | Record | Named | Union
+  type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union
 
   type result = t | Unreadable
 
@@ -54,6 +54,17 @@ module Skyward::Types
   end
 
   class ArrayOf < Data
+    attr_reader type(): t
+
+    def self.new: (t type) -> instance
+                | (type: t) -> instance
+
+    def self.members: () -> [ :type ]
+
+    def members: () -> [ :type ]
+  end
+
+  class HashOf < Data
     attr_reader type(): t
 
     def self.new: (t type) -> instance
