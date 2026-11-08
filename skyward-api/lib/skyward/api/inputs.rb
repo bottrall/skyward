@@ -19,7 +19,6 @@ class Skyward::API::Inputs
   ) #: Skyward::API::Coercer::Invalid
 
   # @rbs @keywords: Array[[Skyward::API::Router::Keyword, Skyward::API::Coercer::t]]
-  # @rbs @query: bool
   # @rbs @body: bool
   # @rbs @max_body_size: Integer
 
@@ -30,7 +29,6 @@ class Skyward::API::Inputs
     @keywords = keywords.map do |keyword|
       [keyword, Skyward::API::Coercer.compile(keyword.type, strings: keyword.source != :body)]
     end
-    @query = keywords.any? { |keyword| keyword.source == :query }
     @body = keywords.any? { |keyword| keyword.source == :body }
     @max_body_size = max_body_size
     freeze
@@ -43,7 +41,7 @@ class Skyward::API::Inputs
     body = body(env) if @body
     case body
     when Symbol then body
-    else arguments(params, @query ? query(env["QUERY_STRING"].to_s) : {}, body)
+    else arguments(params, query(env["QUERY_STRING"].to_s), body)
     end
   end
 
@@ -57,8 +55,10 @@ class Skyward::API::Inputs
     results = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
     combined = Skyward::API::Coercer.combine(results.to_h)
     case combined
-    # A malformed query string is every query keyword's error, but one problem.
-    when Skyward::API::Coercer::Invalid then combined.with(errors: combined.errors.uniq)
+    # A malformed query string is every query keyword's error, but one problem,
+    # and each keyword can find up to MAX_ERRORS.
+    when Skyward::API::Coercer::Invalid
+      combined.with(errors: combined.errors.uniq.first(Skyward::API::Coercer::MAX_ERRORS))
     else combined
     end
   end

@@ -40,6 +40,10 @@ module Skyward::API::Coercer
     def members: () -> [ :errors ]
   end
 
+  # Coercion stops once it has found this many problems, so a small body can't
+  # produce a large response.
+  MAX_ERRORS: Integer
+
   # INTEGER, DATE and TIME match a String's bytes, because a path parameter
   # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
   INTEGER: Regexp
@@ -48,6 +52,7 @@ module Skyward::API::Coercer
 
   DATE: Regexp
 
+  # The fraction is cut to nanoseconds, which bounds what converting it costs.
   TIME: Regexp
 
   NAMES: Hash[Skyward::Types::scalar, String]
@@ -123,6 +128,13 @@ module Skyward::API::Coercer
   # @rbs strings: bool
   # @rbs return: t
   def array: (Skyward::Types::ArrayOf type, t item, bool strings) -> t
+
+  # Each item is coerced in turn, until the problems found reach MAX_ERRORS.
+  # @rbs values: Array[untyped]
+  # @rbs item: t
+  # @rbs at: String
+  # @rbs return: Array[result]
+  def items: (Array[untyped] values, t item, String at) -> Array[result]
 
   # @rbs type: Skyward::Types::Record | Skyward::Types::Named
   # @rbs strings: bool

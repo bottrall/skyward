@@ -23,6 +23,10 @@ module Skyward::API::Coercer
     :errors #: Array[Error]
   )
 
+  # Coercion stops once it has found this many problems, so a small body can't
+  # produce a large response.
+  MAX_ERRORS = 1_000 #: Integer
+
   # INTEGER, DATE and TIME match a String's bytes, because a path parameter
   # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
   INTEGER = /\A-?\d+\z/ #: Regexp
@@ -31,6 +35,7 @@ module Skyward::API::Coercer
 
   DATE = /\A(\d{4})-(\d{2})-(\d{2})\z/ #: Regexp
 
+  # The fraction is cut to nanoseconds, which bounds what converting it costs.
   TIME = /
     \A(\d{4}-\d{2}-\d{2})
     T([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d{1,9})\d*+)?
@@ -107,7 +112,7 @@ module Skyward::API::Coercer
     when :string then ->(raw) { Ok.new(value: raw) if raw.is_a?(String) }
     when :date then ->(raw) { date(raw) }
     when :time then ->(raw) { time(raw) }
-    else ->(raw) { Ok.new(value: raw) }
+    else ->(raw) { Ok.new(value: raw) if !strings || raw.is_a?(String) }
     end
   end
 
@@ -163,8 +168,7 @@ module Skyward::API::Coercer
 
     _, hour, minute, second, fraction, zone = match.captures
     on = day.value
-    # The fraction is cut to nanoseconds, which bounds what converting it costs.
-    seconds = second.to_i + Rational(fraction.to_i, 10**fraction.to_s.size)
+    seconds = Rational("#{second}.#{fraction || 0}")
     Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, seconds, zone))
   end
 
@@ -215,13 +219,31 @@ module Skyward::API::Coercer
         end
       next mismatch(type, raw, at) unless items
 
-      results = items.each_with_index.map { |value, index| item.call(value, "#{at}[#{index}]") }
+      results = items(items, item, at)
       errors = errors(results)
       next Invalid.new(errors:) unless errors.empty?
 
       ok = results #: Array[Ok]
       Ok.new(value: ok.map(&:value))
     end
+  end
+
+  # Each item is coerced in turn, until the problems found reach MAX_ERRORS.
+  # @rbs values: Array[untyped]
+  # @rbs item: t
+  # @rbs at: String
+  # @rbs return: Array[result]
+  def items(values, item, at)
+    none = [[], 0] #: [Array[result], Integer]
+    coerced = values.each_with_index.reduce(none) do |state, (value, index)|
+      done, count = state
+      break state if count >= MAX_ERRORS
+
+      result = item.call(value, "#{at}[#{index}]")
+      # Appended in place: copying the array for each item would be quadratic.
+      [done << result, count + errors([result]).size]
+    end
+    coerced.first
   end
 
   # @rbs type: Skyward::Types::Record | Skyward::Types::Named
@@ -280,9 +302,8 @@ module Skyward::API::Coercer
     when Skyward::Types::Nullable then nullable_written(type.type)
     when Skyward::Types::ArrayOf then "Array[#{written(type.type)}]"
     when Skyward::Types::Record
-      "{ #{type.fields.map do |field|
-        "#{"?" unless field.required}#{field.name}: #{written(field.type)}"
-      end.join(", ")} }"
+      fields = type.fields.map { |field| "#{"?" unless field.required}#{field.name}: #{written(field.type)}" }
+      "{ #{fields.join(", ")} }"
     when Skyward::Types::Named then type.name
     else type.types.map { |member| written(member) }.join(" | ")
     end

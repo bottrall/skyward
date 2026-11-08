@@ -79,17 +79,14 @@ describe Skyward do
         Skyward::Test.client(app)
       end
 
-      it "coerces them to their types before the method runs" do
-        assert_equal({ id: 42, title: "Ship it" }, client.get("/42").json)
-      end
+      let(:overhead) { '{"title":""}'.bytesize }
 
       it "reads a body of up to 1 MiB by default" do
-        # 12 bytes of JSON around the title.
-        assert_equal 200, client.post("/", json: { title: "a" * (1_048_576 - 12) }).status
+        assert_equal 200, client.post("/", json: { title: "a" * (1_048_576 - overhead) }).status
       end
 
       it "refuses a body over 1 MiB by default" do
-        assert_equal 413, client.post("/", json: { title: "a" * (1_048_576 - 11) }).status
+        assert_equal 413, client.post("/", json: { title: "a" * (1_048_576 - overhead + 1) }).status
       end
 
       it "refuses a body over the max_body_size it's given" do

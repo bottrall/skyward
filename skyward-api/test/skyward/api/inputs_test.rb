@@ -87,20 +87,16 @@ describe Skyward::API::Inputs do
 
         assert_equal expected, all.call(env(query: "limit=é"), { id: "x" })
       end
-
-      it "isn't read for an endpoint without one" do
-        assert_equal ok({}), inputs.call(env(query: "limit=é"), {})
-      end
     end
 
     describe "body:" do
       let(:body) { inputs(keyword(:body, :body, title)) }
 
       it "isn't read for an endpoint without one" do
-        request = env(body: "{}", length: "17")
-        inputs.call(request, {})
+        request = env(body: "{}")
+        result = inputs.call(request, {})
 
-        assert_equal 0, request["rack.input"].pos
+        assert_equal [ok({}), 0], [result, request["rack.input"].pos]
       end
 
       it "comes from the JSON body" do
@@ -181,6 +177,15 @@ describe Skyward::API::Inputs do
       )
 
       assert_equal expected, all.call(env(body: "{"), { id: "x" })
+    end
+
+    it "lists no more than MAX_ERRORS problems across keywords" do
+      max = Skyward::API::Coercer::MAX_ERRORS
+      integers = types::ArrayOf.new(type: integer)
+      all = inputs(keyword(:a, :query, integers), keyword(:b, :query, integers))
+      query = [*Array.new(max, "a=x"), *Array.new(max, "b=x")].join("&")
+
+      assert_equal max, all.call(env(query:), {}).errors.size
     end
   end
 end

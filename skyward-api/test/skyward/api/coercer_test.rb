@@ -116,16 +116,16 @@ describe Skyward::API::Coercer do
         assert_equal ok(Date.new(2026, 2, 28)), coerce(date, "2026-02-28")
       end
 
-      it "refuses a day that doesn't exist" do
-        assert_equal mismatch('expected Date (YYYY-MM-DD), got "2026-02-30"'), coerce(date, "2026-02-30")
+      it "refuses anything but a String" do
+        assert_equal mismatch("expected Date (YYYY-MM-DD), got 20260228"), coerce(date, 20_260_228)
       end
 
       it "refuses another format" do
         assert_equal mismatch('expected Date (YYYY-MM-DD), got "next tuesday"'), coerce(date, "next tuesday")
       end
 
-      it "refuses anything but a String" do
-        assert_equal mismatch("expected Date (YYYY-MM-DD), got 20260228"), coerce(date, 20_260_228)
+      it "refuses a day that doesn't exist" do
+        assert_equal mismatch('expected Date (YYYY-MM-DD), got "2026-02-30"'), coerce(date, "2026-02-30")
       end
     end
 
@@ -150,6 +150,10 @@ describe Skyward::API::Coercer do
         assert_equal 19_800, coerce(time, "2026-10-18T09:30:00+05:30").value.utc_offset
       end
 
+      it "refuses anything but a String" do
+        assert_equal mismatch("expected Time (ISO 8601), got 1"), coerce(time, 1)
+      end
+
       it "refuses a time without seconds" do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-10-18T09:30Z"'), coerce(time, "2026-10-18T09:30Z")
       end
@@ -168,41 +172,42 @@ describe Skyward::API::Coercer do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-02-30T09:30:00Z"'),
                      coerce(time, "2026-02-30T09:30:00Z")
       end
-
-      it "refuses anything but a String" do
-        assert_equal mismatch("expected Time (ISO 8601), got 1"), coerce(time, 1)
-      end
     end
 
     describe "untyped" do
       it "takes anything as it is" do
         assert_equal ok({ "title" => 1 }), coerce(types::Scalar.new(name: :untyped), { "title" => 1 })
       end
+
+      it "refuses a query key given more than once" do
+        assert_equal mismatch('expected untyped, got ["a","b"]'),
+                     coerce(types::Scalar.new(name: :untyped), %w[a b], strings: true)
+      end
     end
 
     describe "a literal" do
-      it "accepts its value" do
-        assert_equal ok("ok"), coerce(types::Literal.new(value: "ok"), "ok")
-      end
-
       it "parses an Integer from a path or query" do
         assert_equal ok(1), coerce(types::Literal.new(value: 1), "1", strings: true)
       end
 
-      it "parses a boolean from a path or query" do
-        assert_equal ok(true), coerce(types::Literal.new(value: true), "1", strings: true)
+      it "accepts a String" do
+        assert_equal ok("ok"), coerce(types::Literal.new(value: "ok"), "ok")
       end
 
       it "accepts nil as nil" do
         assert_equal ok(nil), coerce(types::Literal.new(value: nil), nil)
       end
 
-      it "refuses another value of its type" do
-        assert_equal mismatch("expected 1, got 2"), coerce(types::Literal.new(value: 1), 2)
+      it "parses a boolean from a path or query" do
+        assert_equal ok(true), coerce(types::Literal.new(value: true), "1", strings: true)
       end
 
       it "refuses a value of another type" do
         assert_equal mismatch('expected 1, got "1"'), coerce(types::Literal.new(value: 1), "1")
+      end
+
+      it "refuses another value of its type" do
+        assert_equal mismatch("expected 1, got 2"), coerce(types::Literal.new(value: 1), 2)
       end
     end
 
@@ -232,6 +237,7 @@ describe Skyward::API::Coercer do
 
     describe "an Array" do
       let(:integers) { types::ArrayOf.new(type: integer) }
+      let(:max) { Skyward::API::Coercer::MAX_ERRORS }
 
       it "coerces each item" do
         assert_equal ok([1, 2]), coerce(integers, %w[1 2], strings: true)
@@ -253,6 +259,25 @@ describe Skyward::API::Coercer do
         expected = invalid(["body[1]", 'expected Integer, got "x"'], ["body[2]", "expected Integer, got null"])
 
         assert_equal expected, coerce(integers, [1, "x", nil])
+      end
+
+      it "reports no more than MAX_ERRORS items" do
+        assert_equal max, coerce(integers, Array.new(max + 1)).errors.size
+      end
+
+      it "doesn't coerce the items after MAX_ERRORS problems" do
+        built = []
+        counted = Data.define(:title) do
+          define_method(:initialize) do |title:|
+            built << title
+            super(title:)
+          end
+        end
+        fields = [types::Field.new(name: :title, type: string, required: true)]
+        todos = types::ArrayOf.new(type: types::Named.new(name: "Todo", klass: counted, fields:))
+        coerce(todos, [*Array.new(max, 1), { "title" => "late" }])
+
+        assert_empty built
       end
     end
 
@@ -277,16 +302,16 @@ describe Skyward::API::Coercer do
         assert_equal ok({ priority: :low, due_on: nil }), coerce(record, { "priority" => "low" })
       end
 
-      it "reports every field that doesn't fit, at its name" do
-        expected = invalid(["body.priority", "is required"], ["body.page", 'expected Integer, got "2"'])
-
-        assert_equal expected, coerce(record, { "page" => "2" })
-      end
-
       it "refuses anything but an object" do
         message = "expected { priority: :low | :normal | :high, due_on: Date?, ?page: Integer }, got []"
 
         assert_equal mismatch(message), coerce(record, [])
+      end
+
+      it "reports every field that doesn't fit, at its name" do
+        expected = invalid(["body.priority", "is required"], ["body.page", 'expected Integer, got "2"'])
+
+        assert_equal expected, coerce(record, { "page" => "2" })
       end
     end
 
@@ -329,14 +354,26 @@ describe Skyward::API::Coercer do
     end
 
     describe "messages" do
+      it "write a Date or Time inside another type without its format" do
+        dates = types::ArrayOf.new(type: types::Union.new(types: [date, time]))
+
+        assert_equal mismatch("expected Array[Date | Time], got 1"), coerce(dates, 1)
+      end
+
       it "write bytes that aren't UTF-8 as replacement characters" do
-        assert_equal mismatch('expected Integer, got "caf�"'), coerce(integer, "caf\xE9", strings: true)
+        assert_equal mismatch("expected Integer, got \"caf\u{FFFD}\""), coerce(integer, "caf\xE9", strings: true)
       end
 
       it "write a value nested as deep as JSON.parse allows" do
         nested = JSON.parse("#{"[" * 100}[]#{"]" * 100}")
 
         assert_instance_of Skyward::API::Coercer::Invalid, coerce(string, nested)
+      end
+
+      it "write a nullable union of types in parentheses" do
+        nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Union.new(types: [integer, string])))
+
+        assert_equal mismatch("expected Array[(Integer | String)?], got 1"), coerce(nullable, 1)
       end
 
       it "write a nullable union in parentheses" do
@@ -349,18 +386,6 @@ describe Skyward::API::Coercer do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Enum.new(symbols: [:low])))
 
         assert_equal mismatch("expected Array[:low?], got 1"), coerce(nullable, 1)
-      end
-
-      it "write a nullable union of types in parentheses" do
-        nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Union.new(types: [integer, string])))
-
-        assert_equal mismatch("expected Array[(Integer | String)?], got 1"), coerce(nullable, 1)
-      end
-
-      it "write a Date or Time inside another type without its format" do
-        dates = types::ArrayOf.new(type: types::Union.new(types: [date, time]))
-
-        assert_equal mismatch("expected Array[Date | Time], got 1"), coerce(dates, 1)
       end
     end
   end

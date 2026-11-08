@@ -11,13 +11,11 @@ class Skyward::API::Inputs
 
   INVALID_JSON: Skyward::API::Coercer::Invalid
 
-  @max_body_size: Integer
+  @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
 
   @body: bool
 
-  @query: bool
-
-  @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
+  @max_body_size: Integer
 
   # @rbs keywords: Array[Skyward::API::Router::Keyword]
   # @rbs max_body_size: Integer
