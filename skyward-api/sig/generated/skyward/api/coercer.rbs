@@ -44,6 +44,10 @@ module Skyward::API::Coercer
   # produce a large response.
   MAX_ERRORS: Integer
 
+  # A message's expected type is cut to this many characters, so a large written
+  # type can't make a 422 many times larger than the body that caused it.
+  MAX_EXPECTED: Integer
+
   # INTEGER, DATE and TIME match a String's bytes, because a path parameter
   # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
   INTEGER: Regexp
@@ -155,10 +159,14 @@ module Skyward::API::Coercer
   def errors: (Array[result] results) -> Array[Error]
 
   # @rbs type: Skyward::Types::t
+  # @rbs return: String
+  def expectation: (Skyward::Types::t type) -> String
+
+  # @rbs expected: String
   # @rbs raw: untyped
   # @rbs at: String
   # @rbs return: Invalid
-  def mismatch: (Skyward::Types::t type, untyped raw, String at) -> Invalid
+  def mismatch: (String expected, untyped raw, String at) -> Invalid
 
   # @rbs type: Skyward::Types::t
   # @rbs return: String
