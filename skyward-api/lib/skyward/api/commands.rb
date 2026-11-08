@@ -14,8 +14,7 @@ Skyward::Commands.register("check", "Check signatures, boot app.rb in strict mod
     Dir.pwd,
     out: $stdout,
     capture: lambda do |env, command, chdir|
-      # [:child, 1] sends the child's stderr where its stdout goes, the pipe.
-      # RBS doesn't list the [:child, :out] spelling.
+      # RBS doesn't list the [:child, :out] spelling of this redirect.
       output = IO.popen(env, command, chdir:, err: [:child, 1], &:read)
       # RBS doesn't declare Process.last_status, set by the popen above.
       [output, Process.last_status.success?] # steep:ignore NoMethod

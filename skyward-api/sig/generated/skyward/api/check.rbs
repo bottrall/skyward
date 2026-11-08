@@ -26,7 +26,9 @@ module Skyward::API::Check
   UNCHECKED: Array[String]
 
   # The strict boot's own Ruby runs it, so the forced strict mode, the app's
-  # side effects and an exit or crash stay out of skyward check.
+  # side effects and an exit or crash stay out of skyward check. The require
+  # lives here because a `-r` on the command line runs before RUBYOPT's
+  # `-rbundler/setup` on newer Rubies, before the bundle's gems are loadable.
   BOOT: String
 
   INSTALL_RBS_INLINE: String

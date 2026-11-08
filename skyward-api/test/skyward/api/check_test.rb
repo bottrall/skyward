@@ -127,13 +127,13 @@ describe Skyward::API::Check do
 
   describe ".strict_boot" do
     def strict_boot(directory, answer = ["", true])
-      Skyward::API::Check.strict_boot(directory, capture: capture({ "-rskyward/api" => answer }))
+      Skyward::API::Check.strict_boot(directory, capture: capture({ "-e" => answer }))
     end
 
     it "boots app.rb in a Ruby of its own, in the directory, with SKYWARD_STRICT=1" do
       app do |directory|
         strict_boot(directory)
-        command = [Gem.ruby, "-rskyward/api", "-e", Skyward::API::Check::BOOT]
+        command = [Gem.ruby, "-e", Skyward::API::Check::BOOT]
 
         assert_equal [[{ "SKYWARD_STRICT" => "1" }, command, directory]], calls
       end

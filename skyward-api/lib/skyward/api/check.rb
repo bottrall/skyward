@@ -22,8 +22,10 @@ module Skyward::API::Check
   UNCHECKED = %w[test spec vendor tmp].freeze #: Array[String]
 
   # The strict boot's own Ruby runs it, so the forced strict mode, the app's
-  # side effects and an exit or crash stay out of skyward check.
-  BOOT = %(Skyward::API::AppFile.run(Dir.pwd, out: $stdout, kernel: Kernel) { "" }) #: String
+  # side effects and an exit or crash stay out of skyward check. The require
+  # lives here because a `-r` on the command line runs before RUBYOPT's
+  # `-rbundler/setup` on newer Rubies, before the bundle's gems are loadable.
+  BOOT = %(require "skyward/api"; Skyward::API::AppFile.run(Dir.pwd, out: $stdout, kernel: Kernel) { "" }) #: String
 
   INSTALL_RBS_INLINE = "rbs-inline isn't installed. Add `gem \"rbs-inline\", require: false` to the Gemfile " \
                        "and run `bundle install`.\n" #: String
@@ -55,7 +57,8 @@ module Skyward::API::Check
 
     paths = sources(directory)
     generate = "bundle exec rbs-inline --output=#{GENERATED} #{paths.join(" ")}"
-    unless File.directory?(File.join(directory, GENERATED))
+    generated = File.join(directory, GENERATED)
+    unless File.directory?(generated)
       return failed("There's no #{GENERATED}. Run `#{generate}` and commit the result.\n")
     end
 
@@ -63,7 +66,7 @@ module Skyward::API::Check
       log, ok = capture.call({}, [Gem.ruby, rbs_inline, "--output=#{output}", *paths], directory)
       next failed(log) unless ok
 
-      stale = differences(rbs_files(File.join(directory, GENERATED)), rbs_files(output))
+      stale = differences(rbs_files(generated), rbs_files(output))
       next PASSED if stale.empty?
 
       failed(
@@ -80,7 +83,7 @@ module Skyward::API::Check
   # @rbs capture: capture
   # @rbs return: Outcome
   def strict_boot(directory, capture:)
-    output, ok = capture.call({ "SKYWARD_STRICT" => "1" }, [Gem.ruby, "-rskyward/api", "-e", BOOT], directory)
+    output, ok = capture.call({ "SKYWARD_STRICT" => "1" }, [Gem.ruby, "-e", BOOT], directory)
     Outcome.new(passed: ok, detail: output)
   end
 
