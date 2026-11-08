@@ -26,6 +26,9 @@ class Skyward::API::Router
     :pattern, #: Array[String | Symbol]
     :api, #: Skyward::API
     :to, #: Symbol
+    :label, #: String
+    :summary, #: String?
+    :description, #: String?
     :keywords, #: Array[Keyword]
     :returns, #: Array[returned]
     :inputs, #: Skyward::API::Inputs

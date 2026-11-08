@@ -6,6 +6,7 @@
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
+  Draft = Data.define(:title, :priority, :due_on)
   Holder = Class.new
   Node = Class.new
 
@@ -276,6 +277,30 @@ module BootFixtures
     def written = [204, {}, []]
 
     def download(id:) = not_found("Todo #{id} does not exist")
+  end
+
+  # Every kind of route the OpenAPI document describes, each method routed once.
+  Documented = Class.new(Skyward::API) do
+    description "Things to do."
+
+    get "/", to: :index, summary: "List todos."
+    get "/:id", to: :show, summary: "Fetch a todo.", description: "It's *Markdown*."
+    post "/", to: :create
+    delete "/:id", to: :destroy
+    get "/:id/elsewhere", to: :moved
+    get "/:id/export", to: :export
+
+    def index(done: nil, tags: [], since: nil) = [{ done:, tags:, since: }]
+
+    def show(id:) = not_found("Todo #{id} does not exist")
+
+    def create(body:) = created(body)
+
+    def destroy(id:) = not_found("Todo #{id} does not exist")
+
+    def moved(id:) = redirect("/#{id}")
+
+    def export(id:) = [200, { "content-type" => "text/csv" }, ["#{id}\n"]]
   end
 
   CreatedHash = Class.new(Skyward::API) do

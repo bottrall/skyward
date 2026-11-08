@@ -196,4 +196,14 @@ describe Skyward::API::Static do
       assert_equal 200, status("/assets/style.css", { "HTTP_IF_MODIFIED_SINCE" => "yesterday" })
     end
   end
+
+  describe "#file" do
+    it "finds the file a path would serve, from the first static that has it" do
+      assert_equal File.join(public_dir, "docs/index.html"), files(["/", root], ["/", public_dir]).file("/docs/")
+    end
+
+    it "finds nothing for a path no static has a file at" do
+      assert_nil static.file("/assets/missing.css")
+    end
+  end
 end

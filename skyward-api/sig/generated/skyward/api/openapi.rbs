@@ -1,0 +1,176 @@
+# Generated from lib/skyward/api/openapi.rb with RBS::Inline
+
+module Skyward::API::OpenAPI
+  type schema = Hash[Symbol, untyped]
+
+  type form = :request | :response
+
+  class Answer < Data
+    attr_reader status(): String
+
+    attr_reader media_type(): String?
+
+    attr_reader schema(): schema?
+
+    def self.new: (String status, String? media_type, schema? schema) -> instance
+                | (status: String, media_type: String?, schema: schema?) -> instance
+
+    def self.members: () -> [ :status, :media_type, :schema ]
+
+    def members: () -> [ :status, :media_type, :schema ]
+  end
+
+  PATH: String
+
+  # OpenAPI's pattern for the name of a component.
+  NAME: Regexp
+
+  JSON_TYPE: String
+
+  PROBLEM_TYPE: String
+
+  SCALARS: Hash[Skyward::Types::scalar, schema]
+
+  NULL: schema
+
+  PROBLEM: schema
+
+  PROBLEM_SCHEMA: schema
+
+  NO_CONTENT: Answer
+
+  # A redirect's status is chosen when it's made, so it's documented as the range.
+  REDIRECT: Answer
+
+  RACK: Answer
+
+  INVALID: Answer
+
+  REFUSED: Array[Answer]
+
+  LOCATION: Hash[Symbol, untyped]
+
+  DESCRIPTIONS: Hash[String, String]
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs title: String
+  # @rbs version: String
+  # @rbs description: String?
+  # @rbs schema_names: Hash[Class, String]
+  # @rbs return: String
+  def json: (Array[Skyward::API::Router::Endpoint] endpoints, static: Skyward::API::Static, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> String
+
+  private
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: Array[Skyward::Types::t]
+  def types: (Skyward::API::Router::Endpoint endpoint) -> Array[Skyward::Types::t]
+
+  # @rbs type: Skyward::Types::t
+  # @rbs return: Array[Skyward::Types::Named]
+  def named: (Skyward::Types::t type) -> Array[Skyward::Types::Named]
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs return: String?
+  def served: (Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs return: String?
+  def operation_ids: (Array[Skyward::API::Router::Endpoint] endpoints) -> String?
+
+  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs schema_names: Hash[Class, String]
+  # @rbs return: Hash[Class, String] | String
+  def names: (Array[Skyward::Types::Named] types, Hash[Class, String] schema_names) -> (Hash[Class, String] | String)
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs info: Hash[Symbol, String]
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def document: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def operation: (Skyward::API::Router::Endpoint endpoint, Hash[Class, String] names) -> schema
+
+  # A path or query value can't be null, so its schema leaves null out.
+  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def parameter: (Skyward::API::Router::Keyword keyword, Hash[Class, String] names) -> schema
+
+  # @rbs keyword: Skyward::API::Router::Keyword
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def request_body: (Skyward::API::Router::Keyword keyword, Hash[Class, String] names) -> schema
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs body: Skyward::API::Router::Keyword?
+  # @rbs names: Hash[Class, String]
+  # @rbs return: Hash[String, schema]
+  def responses: (Skyward::API::Router::Endpoint endpoint, Skyward::API::Router::Keyword? body, Hash[Class, String] names) -> Hash[String, schema]
+
+  # @rbs member: Skyward::API::Router::returned
+  # @rbs names: Hash[Class, String]
+  # @rbs return: Answer
+  def answer: (Skyward::API::Router::returned member, Hash[Class, String] names) -> Answer
+
+  # @rbs klass: Class
+  # @rbs return: Answer
+  def response_value: (Class klass) -> Answer
+
+  # Every answer with one status has the same media type, because the status says what's sent.
+  # @rbs status: String
+  # @rbs answers: Array[Answer]
+  # @rbs return: schema
+  def response: (String status, Array[Answer] answers) -> schema
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs types: Array[Skyward::Types::Named]
+  # @rbs names: Hash[Class, String]
+  # @rbs return: Hash[String, schema]
+  def components: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Class, String] names) -> Hash[String, schema]
+
+  # @rbs type: Skyward::Types::t
+  # @rbs form: form
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def schema: (Skyward::Types::t type, form form, Hash[Class, String] names) -> schema
+
+  # @rbs schema: schema
+  # @rbs return: schema
+  def nullable: (schema schema) -> schema
+
+  # @rbs fields: Array[Skyward::Types::Field]
+  # @rbs form: form
+  # @rbs names: Hash[Class, String]
+  # @rbs return: schema
+  def object: (Array[Skyward::Types::Field] fields, form form, Hash[Class, String] names) -> schema
+
+  # A request may leave out a nullable value, which arrives as nil, but a response always writes it.
+  # @rbs required: bool
+  # @rbs type: Skyward::Types::t
+  # @rbs form: form
+  # @rbs return: bool
+  def required?: (bool required, Skyward::Types::t type, form form) -> bool
+
+  # @rbs pattern: Array[String | Symbol]
+  # @rbs return: String
+  def path: (Array[String | Symbol] pattern) -> String
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: String
+  def tag: (Skyward::API::Router::Endpoint endpoint) -> String
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: String
+  def operation_id: (Skyward::API::Router::Endpoint endpoint) -> String
+
+  # @rbs name: String
+  # @rbs return: String
+  def dotted: (String name) -> String
+end

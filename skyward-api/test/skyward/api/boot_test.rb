@@ -57,6 +57,13 @@ describe Skyward::API::Boot do
       assert_equal ["GET", todos, :show], [show.verb, show.api, show.to]
     end
 
+    it "keeps the route's label, summary and description" do
+      show = endpoint(boot([BootFixtures::Documented.new, "/todos"]), :show)
+
+      assert_equal ["BootFixtures::Documented#show (GET /todos/:id)", "Fetch a todo.", "It's *Markdown*."],
+                   [show.label, show.summary, show.description]
+    end
+
     it "joins the prefix to a route's path with one slash, as a pattern of segments and parameters" do
       assert_equal ["", "todos", :id], endpoint(boot([todos, "/todos"]), :show).pattern
     end

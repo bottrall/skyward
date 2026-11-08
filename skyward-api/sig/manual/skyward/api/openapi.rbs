@@ -1,0 +1,3 @@
+module Skyward::API::OpenAPI
+  extend ::Skyward::API::OpenAPI
+end

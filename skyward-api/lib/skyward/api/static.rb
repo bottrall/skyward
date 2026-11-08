@@ -42,9 +42,13 @@ class Skyward::API::Static
   def call(env)
     return unless %w[GET HEAD].include?(env["REQUEST_METHOD"])
 
-    file = @statics.lazy.filter_map { |static| find(static, env["PATH_INFO"]) }.first
+    file = file(env["PATH_INFO"])
     serve(file, env) if file
   end
+
+  # @rbs path: String
+  # @rbs return: String?
+  def file(path) = @statics.lazy.filter_map { |static| find(static, path) }.first
 
   private
 

@@ -16,6 +16,7 @@ describe Skyward::API::App do
     end.new
   end
   let(:middleware) { [] }
+  let(:openapi) { nil }
   let(:returns) do
     id = Skyward::Types::Field.new(name: :id, type: Skyward::Types::Scalar.new(name: :string), required: true)
     [Skyward::Types::Record.new(fields: [id])]
@@ -37,6 +38,9 @@ describe Skyward::API::App do
         pattern: ["", "todos", *pattern],
         api: todos,
         to:,
+        label: "Todos##{to}",
+        summary: nil,
+        description: nil,
         keywords:,
         returns:,
         inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10),
@@ -44,7 +48,7 @@ describe Skyward::API::App do
       )
     end
     static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: File.join(root, "public"))])
-    Skyward::API::App.new(Skyward::API::Router.new(endpoints), static, middleware)
+    Skyward::API::App.new(Skyward::API::Router.new(endpoints), static, middleware, openapi)
   end
 
   before do
@@ -118,6 +122,36 @@ describe Skyward::API::App do
           assert_equal [200, {}, [["/assets"], { max_age: 60 }, :configured]], request("GET", "/todos/42")
         end
       end
+    end
+
+    describe "with an OpenAPI document" do
+      let(:openapi) { '{"openapi":"3.1.0"}' }
+
+      it "serves it at /openapi.json as JSON" do
+        assert_equal [200, { "content-type" => "application/json" }, [openapi]], request("GET", "/openapi.json")
+      end
+
+      it "serves it before a static file at its path" do
+        File.write(File.join(root, "public/openapi.json"), "{}")
+
+        assert_equal [openapi], request("GET", "/openapi.json").last
+      end
+
+      it "answers HEAD with its status and headers and an empty body" do
+        assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/openapi.json")
+      end
+
+      it "answers a method other than GET or HEAD as if there were no document" do
+        assert_equal problem(404, "Not Found"), request("POST", "/openapi.json")
+      end
+
+      it "leaves every other path to the routes" do
+        assert_equal ['{"id":"42"}'], request("GET", "/todos/42").last
+      end
+    end
+
+    it "serves no OpenAPI document without one" do
+      assert_equal problem(404, "Not Found"), request("GET", "/openapi.json")
     end
 
     it "calls the matched method with the path parameters and answers with its serializer's response" do

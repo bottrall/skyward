@@ -5,17 +5,22 @@ require "json"
 class Skyward::API::App
   # @rbs! type response = [Integer, Hash[String, String], Array[String]]
 
+  INPUT_TITLES = { 413 => "Content Too Large", 415 => "Unsupported Media Type" }.freeze #: Hash[Integer, String]
+
   # @rbs @router: Skyward::API::Router
   # @rbs @static: Skyward::API::Static
   # @rbs @stack: Skyward::API::_RackApp
+  # @rbs @openapi: String?
 
   # @rbs router: Skyward::API::Router
   # @rbs static: Skyward::API::Static
   # @rbs middleware: Array[Skyward::API::Builder::Use]
+  # @rbs openapi: String?
   # @rbs return: void
-  def initialize(router, static, middleware)
+  def initialize(router, static, middleware, openapi)
     @router = router
     @static = static
+    @openapi = openapi
     innermost = method(:route) #: Skyward::API::_RackApp
     @stack = middleware.reverse.reduce(innermost) do |app, use|
       use.middleware.new(app, *use.args, **use.kwargs, &use.block)
@@ -36,9 +41,28 @@ class Skyward::API::App
   def route(env)
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
-    match = @router.match(verb, path)
-    status, headers, body = match ? respond(match, env) : @static.call(env) || unmatched(verb, @router.allowed(path))
+    status, headers, body = openapi(verb, path) || routed(env, verb, path)
     [status, headers, verb == "HEAD" ? dropped(body) : body]
+  end
+
+  # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: response?
+  def openapi(verb, path)
+    document = @openapi
+    return unless document && path == Skyward::API::OpenAPI::PATH && %w[GET HEAD].include?(verb)
+
+    [200, { "content-type" => "application/json" }, [document]]
+  end
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: Skyward::rack
+  def routed(env, verb, path)
+    match = @router.match(verb, path)
+    match ? respond(match, env) : @static.call(env) || unmatched(verb, @router.allowed(path))
   end
 
   # @rbs match: Skyward::API::Router::Match
@@ -49,8 +73,8 @@ class Skyward::API::App
     case inputs
     when Skyward::API::Coercer::Ok then match.serializer.call(match.api.public_send(match.to, **inputs.value))
     when Skyward::API::Coercer::Invalid then problem(422, "Unprocessable Content", errors: inputs.errors.map(&:to_h))
-    when :content_too_large then problem(413, "Content Too Large")
-    else problem(415, "Unsupported Media Type")
+    when :content_too_large then problem(413, INPUT_TITLES.fetch(413))
+    else problem(415, INPUT_TITLES.fetch(415))
     end
   end
 

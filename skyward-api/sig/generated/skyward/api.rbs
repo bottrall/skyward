@@ -11,9 +11,10 @@ end
 module Skyward
   type rack = [ Integer, Hash[String, String], untyped ]
 
-  # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer)
+  # @rbs (?signatures: String, ?docs: bool, ?title: String, ?version: String, ?description: String?,
+  #   ?schema_names: Hash[Class, String], ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer)
   #   { (API::Builder) -> void } -> API::RequestId
-  def self.app: (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
+  def self.app: (?signatures: String, ?docs: bool, ?title: String, ?version: String, ?description: String?, ?schema_names: Hash[Class, String], ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
 
   # These response helpers are public here, for code outside an API class, such as a provider.
   # @rbs detail: String

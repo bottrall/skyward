@@ -21,11 +21,11 @@ module Skyward::API::Boot
 
   # @rbs mount: Skyward::API::Builder::Mount
   # @rbs route: Skyward::API::Route
-  # @rbs built: Array[[String, Skyward::API::Router::Endpoint]]
+  # @rbs built: Array[Skyward::API::Router::Endpoint]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
-  # @rbs return: [String, Skyward::API::Router::Endpoint]
-  def boot: (Skyward::API::Builder::Mount mount, Skyward::API::Route route, Array[[ String, Skyward::API::Router::Endpoint ]] built, Skyward::Types::Reader reader, Integer max_body_size) -> [ String, Skyward::API::Router::Endpoint ]
+  # @rbs return: Skyward::API::Router::Endpoint
+  def boot: (Skyward::API::Builder::Mount mount, Skyward::API::Route route, Array[Skyward::API::Router::Endpoint] built, Skyward::Types::Reader reader, Integer max_body_size) -> Skyward::API::Router::Endpoint
 
   # @rbs route: Skyward::API::Route
   # @rbs return: String?
@@ -42,9 +42,9 @@ module Skyward::API::Boot
 
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
-  # @rbs built: Array[[String, Skyward::API::Router::Endpoint]]
+  # @rbs built: Array[Skyward::API::Router::Endpoint]
   # @rbs return: String?
-  def shadowing: (String verb, Array[String | Symbol] pattern, Array[[ String, Skyward::API::Router::Endpoint ]] built) -> String?
+  def shadowing: (String verb, Array[String | Symbol] pattern, Array[Skyward::API::Router::Endpoint] built) -> String?
 
   # A path parameter matches any segment but an empty one, which only the root path has.
   # @rbs pattern: Array[String | Symbol]

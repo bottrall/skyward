@@ -13,3 +13,6 @@ gem "rake", "~> 13.4"
 
 # Test-only, to show CORS working through use.
 gem "rack-cors", "~> 3.0"
+
+# Test-only, to validate the OpenAPI document against the OpenAPI 3.1 schema.
+gem "json_schemer", "~> 2.5"

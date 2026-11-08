@@ -13,6 +13,10 @@ class Skyward::API::Static
   # @rbs return: Skyward::API::App::response?
   def call: (Hash[String, untyped] env) -> Skyward::API::App::response?
 
+  # @rbs path: String
+  # @rbs return: String?
+  def file: (String path) -> String?
+
   private
 
   # @rbs static: Skyward::API::Builder::Static

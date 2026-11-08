@@ -8,7 +8,19 @@ describe Skyward::API::Router do
   let(:serializer) { Skyward::API::Serializer.new([], label: "Todos") }
 
   def endpoint(verb, pattern, to, api: todos)
-    Skyward::API::Router::Endpoint.new(verb:, pattern:, api:, to:, keywords: [], returns: [], inputs:, serializer:)
+    Skyward::API::Router::Endpoint.new(
+      verb:,
+      pattern:,
+      api:,
+      to:,
+      label: "Todos##{to}",
+      summary: nil,
+      description: nil,
+      keywords: [],
+      returns: [],
+      inputs:,
+      serializer:
+    )
   end
 
   let(:router) do

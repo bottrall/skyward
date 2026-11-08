@@ -10,6 +10,12 @@ module BootFixtures
     attr_reader name: String
   end
 
+  class Draft
+    attr_reader title: String
+    attr_reader priority: :low | :high
+    attr_reader due_on: Date?
+  end
+
   class Holder
     attr_reader tags: Hash[Symbol, untyped]
   end
@@ -154,6 +160,15 @@ module BootFixtures
     def letters: () -> Array[String]
     def written: () -> [Integer, Hash[String, String], untyped]
     def download: (id: Integer) -> (Todo | Skyward::NotFound | Skyward::rack)
+  end
+
+  class Documented < Skyward::API
+    def index: (?done: bool?, ?tags: Array[String], ?since: Time?) -> Array[{ id: Integer, title: String, ?note: String? }]
+    def show: (id: Integer) -> (Todo | Skyward::NotFound)
+    def create: (body: Draft) -> (Skyward::Created[Draft] | Skyward::Unprocessable)
+    def destroy: (id: Integer) -> (Skyward::NoContent | Skyward::NotFound)
+    def moved: (id: Integer) -> Skyward::Redirect
+    def export: (id: Integer) -> (Skyward::rack | Skyward::NotFound)
   end
 
   class CreatedHash < Skyward::API

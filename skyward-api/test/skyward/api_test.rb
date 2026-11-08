@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json_schemer"
 require "test_helper"
 # rack-cors expects the server to have loaded Rack already.
 require "rack"
@@ -71,6 +72,56 @@ describe Skyward do
       end
 
       assert_match(%r{\ABootFixtures::Unsigned#index \(GET /\)\n}, error.message)
+    end
+
+    describe "docs" do
+      def client(**options)
+        app = Skyward.app(signatures:, logger: nil, **options) do |builder|
+          builder.mount BootFixtures::Documented.new, at: "/todos"
+          builder.mount hello, at: "/hello"
+        end
+        Skyward::Test.client(app)
+      end
+
+      it "serves no OpenAPI document by default" do
+        assert_equal 404, client.get("/openapi.json").status
+      end
+
+      it "serves the app's OpenAPI document at /openapi.json with docs: true, valid against the OpenAPI 3.1 schema" do
+        document = JSON.parse(client(docs: true).get("/openapi.json").body)
+        errors = JSONSchemer.openapi(document).validate.map { |error| error["error"] }
+
+        assert_equal [[], ["/todos", "/todos/{id}", "/todos/{id}/elsewhere", "/todos/{id}/export", "/hello/{name}"]],
+                     [errors, document["paths"].keys]
+      end
+
+      it "titles the document API, version 0.1.0, by default" do
+        assert_equal({ title: "API", version: "0.1.0" }, client(docs: true).get("/openapi.json").json[:info])
+      end
+
+      it "takes the document's info and schema names from its options" do
+        json = client(
+          docs: true,
+          title: "Todos",
+          version: "1.0.0",
+          description: "Lists of things.",
+          schema_names: { BootFixtures::Draft => "Draft" }
+        ).get("/openapi.json").json
+
+        assert_equal [{ title: "Todos", version: "1.0.0", description: "Lists of things." }, true],
+                     [json[:info], json.dig(:components, :schemas).key?(:Draft)]
+      end
+
+      it "refuses to boot an app whose document has a problem" do
+        error = assert_raises(Skyward::BootError) do
+          Skyward.app(signatures:, logger: nil, docs: true) do |builder|
+            builder.mount hello, at: "/hello"
+            builder.mount hello, at: "/hi"
+          end
+        end
+
+        assert_match(/Its OpenAPI operation ID, BootFixtures\.Hello_greet, is/, error.message)
+      end
     end
 
     describe "inputs" do

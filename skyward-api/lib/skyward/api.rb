@@ -6,7 +6,7 @@ require "zeitwerk"
 require_relative "api/version"
 
 loader = Zeitwerk::Loader.for_gem_extension(Skyward)
-loader.inflector.inflect("api" => "API")
+loader.inflector.inflect("api" => "API", "openapi" => "OpenAPI")
 # The skyward executable loads it, and it defines no constant.
 loader.ignore("#{__dir__}/api/commands.rb")
 loader.setup
@@ -25,18 +25,32 @@ end
 module Skyward
   # @rbs! type rack = [Integer, Hash[String, String], untyped]
 
-  # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer)
+  # @rbs (?signatures: String, ?docs: bool, ?title: String, ?version: String, ?description: String?,
+  #   ?schema_names: Hash[Class, String], ?logger: API::_Logger?, ?on_error: API::_OnError?, ?max_body_size: Integer)
   #   { (API::Builder) -> void } -> API::RequestId
-  def self.app(signatures: "sig", logger: API::LineLogger.new($stdout), on_error: nil, max_body_size: 1_048_576, &)
+  def self.app(
+    signatures: "sig",
+    docs: false,
+    title: "API",
+    version: "0.1.0",
+    description: nil,
+    schema_names: {},
+    logger: API::LineLogger.new($stdout),
+    on_error: nil,
+    max_body_size: 1_048_576,
+    &
+  )
     raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
 
     builder = API::Builder.new
     yield builder
     builder.freeze
     reader = Types::Reader.new(Signatures.load(signatures))
-    router = API::Router.new(API::Boot.endpoints(builder.mounts, reader:, max_body_size:))
+    endpoints = API::Boot.endpoints(builder.mounts, reader:, max_body_size:)
+    static = API::Static.new(builder.statics)
+    openapi = (API::OpenAPI.json(endpoints, static:, title:, version:, description:, schema_names:) if docs)
     app = API::Rescue.new(
-      API::App.new(router, API::Static.new(builder.statics), builder.middleware),
+      API::App.new(API::Router.new(endpoints), static, builder.middleware, openapi),
       logger:,
       on_error:,
       development: ENV.fetch("RACK_ENV") { ENV.fetch("APP_ENV", nil) } == "development"

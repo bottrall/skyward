@@ -3,17 +3,22 @@
 class Skyward::API::App
   type response = [ Integer, Hash[String, String], Array[String] ]
 
-  @router: Skyward::API::Router
+  INPUT_TITLES: Hash[Integer, String]
+
+  @openapi: String?
+
+  @stack: Skyward::API::_RackApp
 
   @static: Skyward::API::Static
 
-  @stack: Skyward::API::_RackApp
+  @router: Skyward::API::Router
 
   # @rbs router: Skyward::API::Router
   # @rbs static: Skyward::API::Static
   # @rbs middleware: Array[Skyward::API::Builder::Use]
+  # @rbs openapi: String?
   # @rbs return: void
-  def initialize: (Skyward::API::Router router, Skyward::API::Static static, Array[Skyward::API::Builder::Use] middleware) -> void
+  def initialize: (Skyward::API::Router router, Skyward::API::Static static, Array[Skyward::API::Builder::Use] middleware, String? openapi) -> void
 
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::API::rack_response
@@ -24,6 +29,18 @@ class Skyward::API::App
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::rack
   def route: (Hash[String, untyped] env) -> Skyward::rack
+
+  # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: response?
+  def openapi: (String verb, String path) -> response?
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs verb: String
+  # @rbs path: String
+  # @rbs return: Skyward::rack
+  def routed: (Hash[String, untyped] env, String verb, String path) -> Skyward::rack
 
   # @rbs match: Skyward::API::Router::Match
   # @rbs env: Hash[String, untyped]
