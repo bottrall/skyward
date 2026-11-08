@@ -41,11 +41,11 @@ class Skyward::API::App
   def route(env)
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
+    # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
     status, headers, body = openapi(verb, path) || routed(env, verb, path)
     [status, headers, verb == "HEAD" ? dropped(body) : body]
   end
 
-  # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
   # @rbs verb: String
   # @rbs path: String
   # @rbs return: response?

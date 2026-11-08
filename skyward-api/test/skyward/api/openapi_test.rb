@@ -43,6 +43,7 @@ describe Skyward::API::OpenAPI do
     klass: OpenAPIFixtures::List,
     fields: [field.call(:todos, types::ArrayOf.new(type: draft))]
   )
+  request = types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: [])
   todo_ref = { "$ref" => "#/components/schemas/OpenAPIFixtures.Todo" }
   problem_ref = { "$ref" => "#/components/schemas/Problem" }
 
@@ -257,6 +258,12 @@ describe Skyward::API::OpenAPI do
 
         assert_equal [false, { "type" => "string" }], written.last.values_at("required", "schema")
       end
+
+      it "leaves out request:, which is no part of the HTTP contract" do
+        written = parameters(keyword(:id, :path, integer), keyword(:request, :request, request))
+
+        assert_equal(["id"], written.map { |parameter| parameter["name"] })
+      end
     end
 
     describe "the request body" do
@@ -290,6 +297,20 @@ describe Skyward::API::OpenAPI do
           { "description" => "Unprocessable Content", "content" => content("application/problem+json", problem_ref) },
           written["422"]
         )
+      end
+
+      it "adds no 422 to an endpoint that takes only request:" do
+        written = responses(endpoint(:index, keywords: [keyword(:request, :request, request)]))
+
+        refute_includes written.keys, "422"
+      end
+
+      it "adds a 422 to an endpoint that takes request: and a query keyword" do
+        written = responses(
+          endpoint(:index, keywords: [keyword(:request, :request, request), keyword(:limit, :query, integer)])
+        )
+
+        assert_includes written.keys, "422"
       end
 
       it "adds a 413 and a 415 to an endpoint that takes body:" do
@@ -373,6 +394,12 @@ describe Skyward::API::OpenAPI do
     end
 
     describe "components" do
+      it "has no component for Skyward::Request, which request: takes" do
+        written = components(endpoint(:index, keywords: [keyword(:request, :request, request)]))
+
+        assert_equal ["Problem"], written.keys
+      end
+
       it "always has the Problem schema, of RFC 9457 problem+json and a 422's errors" do
         problem = components(endpoint(:index)).fetch("Problem")
 

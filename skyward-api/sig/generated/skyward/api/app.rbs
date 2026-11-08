@@ -30,7 +30,6 @@ class Skyward::API::App
   # @rbs return: Skyward::rack
   def route: (Hash[String, untyped] env) -> Skyward::rack
 
-  # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
   # @rbs verb: String
   # @rbs path: String
   # @rbs return: response?

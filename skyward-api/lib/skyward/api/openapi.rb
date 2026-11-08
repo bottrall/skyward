@@ -101,6 +101,11 @@ module Skyward::API::OpenAPI
 
   private
 
+  # The request: keyword is Skyward's, not part of the HTTP contract.
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: Array[Skyward::API::Router::Keyword]
+  def described(endpoint) = endpoint.keywords.reject { |keyword| keyword.source == :request }
+
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs return: Array[Skyward::Types::t]
   def types(endpoint)
@@ -111,7 +116,7 @@ module Skyward::API::OpenAPI
       else member
       end
     end
-    [*endpoint.keywords.map(&:type), *returned]
+    [*described(endpoint).map(&:type), *returned]
   end
 
   # @rbs type: Skyward::Types::t
@@ -197,7 +202,7 @@ module Skyward::API::OpenAPI
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def operation(endpoint, names)
-    bodies, others = endpoint.keywords.partition { |keyword| keyword.source == :body }
+    bodies, others = described(endpoint).partition { |keyword| keyword.source == :body }
     body = bodies.first
     parameters = others.map { |keyword| parameter(keyword, names) }
     {
@@ -242,7 +247,7 @@ module Skyward::API::OpenAPI
   def responses(endpoint, body, names)
     answers = [
       *endpoint.returns.map { |member| answer(member, names) },
-      *([INVALID] unless endpoint.keywords.empty?),
+      *([INVALID] unless described(endpoint).empty?),
       *(REFUSED if body)
     ] #: Array[Answer]
     answers.group_by(&:status).sort_by(&:first).to_h { |status, same| [status, response(status, same)] }
@@ -276,14 +281,14 @@ module Skyward::API::OpenAPI
   # @rbs answers: Array[Answer]
   # @rbs return: schema
   def response(status, answers)
-    described = { description: DESCRIPTIONS.fetch(status) }
+    base = { description: DESCRIPTIONS.fetch(status) }
     media_type = answers.fetch(0).media_type
     schemas = answers.filter_map(&:schema).uniq
     if media_type
-      { **described, content: { media_type => { schema: schemas.one? ? schemas.fetch(0) : { oneOf: schemas } } } }
-    elsif status == REDIRECT.status then { **described, headers: LOCATION }
+      { **base, content: { media_type => { schema: schemas.one? ? schemas.fetch(0) : { oneOf: schemas } } } }
+    elsif status == REDIRECT.status then { **base, headers: LOCATION }
     else
-      described
+      base
     end
   end
 
@@ -292,7 +297,7 @@ module Skyward::API::OpenAPI
   # @rbs names: Hash[Class, String]
   # @rbs return: Hash[String, schema]
   def components(endpoints, types, names)
-    requested = endpoints.flat_map { |endpoint| endpoint.keywords.flat_map { |keyword| named(keyword.type) } }
+    requested = endpoints.flat_map { |endpoint| described(endpoint).flat_map { |keyword| named(keyword.type) } }
     types.to_h do |type|
       [names.fetch(type.klass), object(type.fields, requested.include?(type) ? :request : :response, names)]
     end.merge("Problem" => PROBLEM_SCHEMA).sort_by(&:first).to_h

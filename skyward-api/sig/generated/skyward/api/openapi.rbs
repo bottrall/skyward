@@ -63,6 +63,11 @@ module Skyward::API::OpenAPI
 
   private
 
+  # The request: keyword is Skyward's, not part of the HTTP contract.
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: Array[Skyward::API::Router::Keyword]
+  def described: (Skyward::API::Router::Endpoint endpoint) -> Array[Skyward::API::Router::Keyword]
+
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs return: Array[Skyward::Types::t]
   def types: (Skyward::API::Router::Endpoint endpoint) -> Array[Skyward::Types::t]
