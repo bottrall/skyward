@@ -418,8 +418,8 @@ describe Skyward::API::Coercer do
         assert_equal mismatch("expected Integer, got \"caf\u{FFFD}\""), coerce(integer, "caf\xE9", strings: true)
       end
 
-      it "write a value nested as deep as JSON.parse allows" do
-        nested = JSON.parse("#{"[" * 100}[]#{"]" * 100}")
+      it "write a value nested past JSON.generate's default limit" do
+        nested = Array.new(100).reduce([]) { |inner, _| [inner] }
 
         assert_instance_of Skyward::API::Coercer::Invalid, coerce(string, nested)
       end
