@@ -261,13 +261,17 @@ module Skyward::API::Coercer
     lambda do |raw, at|
       next mismatch(type, raw, at) unless raw.is_a?(Hash)
 
-      results = fields.filter_map do |field, coercer|
+      none = [[], 0] #: [Array[[Symbol, result]], Integer]
+      coerced = fields.reduce(none) do |state, (field, coercer)|
+        done, count = state
+        break state if count >= limit
+
         name = field.name.to_s
         found = "#{at}.#{name}"
         result = raw.key?(name) ? coercer.call(raw.fetch(name), found) : absent(field.type, field.required, found)
-        [field.name, result] if result
+        result ? [done << [field.name, result], count + errors([result]).size] : state
       end
-      combined = combine(results.to_h)
+      combined = combine(coerced.first.to_h)
       combined.is_a?(Ok) ? Ok.new(value: yield(combined.value)) : combined
     end
   end

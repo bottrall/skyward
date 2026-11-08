@@ -366,6 +366,27 @@ describe Skyward::API::Coercer do
 
         assert_empty built
       end
+
+      it "stops coercing a member's fields at its first problem" do
+        built = []
+        counted = Data.define(:title) do
+          define_method(:initialize) do |title:|
+            built << title
+            super(title:)
+          end
+        end
+        title = [types::Field.new(name: :title, type: string, required: true)]
+        todo = types::Named.new(name: "Todo", klass: counted, fields: title)
+        note = types::Record.new(
+          fields: [
+            types::Field.new(name: :text, type: string, required: true),
+            types::Field.new(name: :todo, type: todo, required: true)
+          ]
+        )
+        coerce(types::Union.new(types: [note, string]), { "todo" => { "title" => "late" } })
+
+        assert_empty built
+      end
     end
 
     describe "messages" do
