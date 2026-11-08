@@ -22,7 +22,7 @@ PATH
 PATH
   remote: skyward
   specs:
-    skyward (0.1.0)
+    skyward (0.2.0)
       skyward-api (= 0.1.0)
       skyward-orm (= 0.1.0)
 
