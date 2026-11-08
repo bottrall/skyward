@@ -7,6 +7,10 @@ module Skyward::API::Boot
 
   KEYWORD = %i[keyreq key].freeze #: Array[Symbol]
 
+  RACK = ["::Skyward::rack", "[::Integer, ::Hash[::String, ::String], untyped]"].map do |type|
+    RBS::Parser.parse_type(type)
+  end.freeze #: Array[RBS::Types::t?]
+
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
   # @rbs return: Array[Skyward::API::Router::Endpoint]
@@ -273,8 +277,10 @@ module Skyward::API::Boot
 
   # @rbs type: RBS::Types::t
   # @rbs reader: Skyward::Types::Reader
-  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil
+  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::API::Router::Rack
+  #   | Skyward::Types::Unreadable | nil
   def response(type, reader)
+    return Skyward::API::Router::Rack.new if RACK.include?(type)
     return unless type.is_a?(RBS::Types::ClassInstance)
 
     name = type.name.to_s

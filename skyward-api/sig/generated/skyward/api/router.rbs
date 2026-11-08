@@ -1,7 +1,7 @@
 # Generated from lib/skyward/api/router.rb with RBS::Inline
 
 class Skyward::API::Router
-  type returned = Skyward::Types::t | Created | Response
+  type returned = Skyward::Types::t | Created | Response | Rack
 
   class Keyword < Data
     attr_reader name(): Symbol
@@ -41,6 +41,15 @@ class Skyward::API::Router
     def self.members: () -> [ :klass ]
 
     def members: () -> [ :klass ]
+  end
+
+  class Rack < Data
+    def self.new: () -> instance
+                | () -> instance
+
+    def self.members: () -> [ ]
+
+    def members: () -> [ ]
   end
 
   class Endpoint < Data

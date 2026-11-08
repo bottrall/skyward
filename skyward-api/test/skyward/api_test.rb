@@ -97,6 +97,29 @@ describe Skyward do
 
         assert_equal [500, false], [response.status, response.body.include?("Ada")]
       end
+
+      describe "with a Rack triple" do
+        let(:client) do
+          Skyward::Test.client(
+            Skyward.app(signatures:, logger: nil) do |builder|
+              builder.mount BootFixtures::Racking.new
+            end
+          )
+        end
+
+        it "streams the body it's given, with its status, its headers and the request ID" do
+          response = client.get("/stream", headers: { "X-Request-Id" => "abc-123" })
+          headers = { "content-type" => "text/plain", "x-request-id" => "abc-123" }
+
+          assert_equal [200, headers, "first\nsecond\n"], [response.status, response.headers, response.body]
+        end
+
+        it "answers an Array of three items as JSON when the return type is an Array" do
+          response = client.get("/letters")
+
+          assert_equal ["application/json", %w[a b c]], [response.headers["content-type"], response.json]
+        end
+      end
     end
 
     it "runs the app inside the middleware the block uses, inside the request ID" do

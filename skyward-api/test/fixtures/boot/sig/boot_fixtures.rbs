@@ -140,6 +140,13 @@ module BootFixtures
     def destroy: (id: Integer) -> (Skyward::NoContent | Skyward::Conflict | Skyward::Unprocessable)?
   end
 
+  class Racking < Skyward::API
+    def stream: () -> Skyward::rack
+    def letters: () -> Array[String]
+    def written: () -> [Integer, Hash[String, String], untyped]
+    def download: (id: Integer) -> (Todo | Skyward::NotFound | Skyward::rack)
+  end
+
   class CreatedHash < Skyward::API
     def create: () -> Skyward::Created[Hash[Symbol, untyped]]
   end

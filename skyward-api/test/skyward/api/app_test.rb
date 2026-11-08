@@ -180,5 +180,34 @@ describe Skyward::API::App do
 
       assert_equal expected, request("HEAD", "/todos/42/complete")
     end
+
+    describe "when the method returns a Rack triple" do
+      let(:body) do
+        Class.new do
+          attr_reader :closed
+
+          def each = yield("Hello")
+
+          def close
+            @closed = true
+          end
+        end.new
+      end
+      let(:todos) do
+        sent = body
+        Class.new(Skyward::API) { define_method(:show) { |id:| [200, { "x-todo" => id }, sent] } }.new
+      end
+      let(:returns) { [Skyward::API::Router::Rack.new] }
+
+      it "answers it with its body untouched" do
+        assert_equal [200, { "x-todo" => "42" }, body], request("GET", "/todos/42")
+      end
+
+      it "closes the body it drops for HEAD" do
+        response = request("HEAD", "/todos/42")
+
+        assert_equal [[], true], [response.last, body.closed]
+      end
+    end
   end
 end

@@ -32,18 +32,26 @@ class Skyward::API::App
   private
 
   # @rbs env: Hash[String, untyped]
-  # @rbs return: response
+  # @rbs return: Skyward::rack
   def route(env)
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
     match = @router.match(verb, path)
     status, headers, body = match ? respond(match) : @static.call(env) || unmatched(verb, @router.allowed(path))
-    [status, headers, verb == "HEAD" ? [] : body]
+    [status, headers, verb == "HEAD" ? dropped(body) : body]
   end
 
   # @rbs match: Skyward::API::Router::Match
-  # @rbs return: response
+  # @rbs return: Skyward::rack
   def respond(match) = match.serializer.call(match.api.public_send(match.to, **match.params))
+
+  # A server closes the body it sends, so one that's never sent is closed here.
+  # @rbs body: untyped
+  # @rbs return: Array[String]
+  def dropped(body)
+    body.close if body.respond_to?(:close)
+    []
+  end
 
   # @rbs verb: String
   # @rbs allowed: Array[String]

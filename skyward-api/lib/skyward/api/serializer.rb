@@ -35,7 +35,7 @@ class Skyward::API::Serializer
 
   # The whole body is written before anything is answered, so a value that doesn't fit sends none of it.
   # @rbs value: untyped
-  # @rbs return: Skyward::API::App::response
+  # @rbs return: Skyward::rack
   def call(value)
     response = @writer.write.call(value, "")
     case response
@@ -52,6 +52,7 @@ class Skyward::API::Serializer
     case member
     when Skyward::API::Router::Created then created(Skyward::API::Writers.writer(member.type))
     when Skyward::API::Router::Response then response(member.klass)
+    when Skyward::API::Router::Rack then rack
     when UNTYPED then untyped
     else ok(Skyward::API::Writers.writer(member))
     end
@@ -92,6 +93,15 @@ class Skyward::API::Serializer
       else ->(given, _) { [204, given.headers.dup, []] }
       end #: ^(untyped, String) -> Skyward::API::App::response
     Skyward::API::Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
+  end
+
+  # @rbs return: Skyward::API::Writers::Writer
+  def rack
+    Skyward::API::Writers.checked(
+      "Skyward::rack",
+      ->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) },
+      ->(given, _) { given }
+    )
   end
 
   # @rbs problem: Problem

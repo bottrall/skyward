@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Skyward::API::Router
-  # @rbs! type returned = Skyward::Types::t | Created | Response
+  # @rbs! type returned = Skyward::Types::t | Created | Response | Rack
 
   Keyword = Data.define(
     :name, #: Symbol
@@ -18,6 +18,8 @@ class Skyward::API::Router
   Response = Data.define(
     :klass #: Class
   )
+
+  Rack = Data.define
 
   Endpoint = Data.define(
     :verb, #: String

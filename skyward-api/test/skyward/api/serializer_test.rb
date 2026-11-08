@@ -84,6 +84,36 @@ describe Skyward::API::Serializer do
       end
     end
 
+    describe "a Rack triple" do
+      rack = router::Rack.new
+      strings = types::ArrayOf.new(type: types::Scalar.new(name: :string))
+
+      it "answers it as given, so a streaming body passes through untouched" do
+        triple = [200, { "content-type" => "text/plain" }, ->(stream) { stream.write("Hello") }]
+
+        assert_same triple, serializer(rack).call(triple)
+      end
+
+      it "raises for anything but an Array of an Integer, a Hash and a body" do
+        messages = [{ status: 200 }, [200, {}], [:ok, {}, []], [200, [], []]].map { |value| failure([rack], value) }
+        expected = %w[Hash Array Array Array].map do |got|
+          "TodosAPI#show (GET /todos/:id) returned #{got}, which isn't Skyward::rack"
+        end
+
+        assert_equal expected, messages
+      end
+
+      it "answers an Array of three items as JSON when an Array member is first" do
+        assert_equal [200, json, ['["a","b","c"]']], serializer(strings, rack).call(%w[a b c])
+      end
+
+      it "answers a triple an Array member before it can't write as given" do
+        triple = [200, {}, ["Hello"]]
+
+        assert_same triple, serializer(strings, rack).call(triple)
+      end
+    end
+
     describe "an untyped return" do
       it "answers each response value as itself" do
         statuses = [

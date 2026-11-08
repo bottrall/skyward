@@ -309,6 +309,20 @@ describe Skyward::API::Boot do
         assert_equal expected, endpoint(responding, :destroy, "DELETE").returns
       end
 
+      describe "a Rack triple" do
+        let(:racking) { boot([BootFixtures::Racking.new, "/"]) }
+
+        it "records Skyward::rack as a Rack triple, among the other members" do
+          expected = [todo, response(Skyward::NotFound), Skyward::API::Router::Rack.new]
+
+          assert_equal expected, endpoint(racking, :download).returns
+        end
+
+        it "records the tuple Skyward::rack names as a Rack triple" do
+          assert_equal [Skyward::API::Router::Rack.new], endpoint(racking, :written).returns
+        end
+      end
+
       it "records a response value as its class" do
         assert_equal [todo, response(Skyward::NotFound)], endpoint(responding, :show).returns
       end

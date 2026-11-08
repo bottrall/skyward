@@ -5,6 +5,8 @@ module Skyward::API::Boot
 
   KEYWORD: Array[Symbol]
 
+  RACK: Array[RBS::Types::t?]
+
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
   # @rbs return: Array[Skyward::API::Router::Endpoint]
@@ -112,8 +114,9 @@ module Skyward::API::Boot
 
   # @rbs type: RBS::Types::t
   # @rbs reader: Skyward::Types::Reader
-  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil
-  def response: (RBS::Types::t type, Skyward::Types::Reader reader) -> (Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::Types::Unreadable | nil)
+  # @rbs return: Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::API::Router::Rack
+  #   | Skyward::Types::Unreadable | nil
+  def response: (RBS::Types::t type, Skyward::Types::Reader reader) -> (Skyward::API::Router::Created | Skyward::API::Router::Response | Skyward::API::Router::Rack | Skyward::Types::Unreadable | nil)
 
   # @rbs type: RBS::Types::ClassInstance
   # @rbs reader: Skyward::Types::Reader

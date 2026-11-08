@@ -236,6 +236,27 @@ module BootFixtures
     def destroy(id:) = conflict("Todo #{id} is in use")
   end
 
+  Racking = Class.new(Skyward::API) do
+    get "/stream", to: :stream
+    get "/letters", to: :letters
+    get "/written", to: :written
+    get "/:id", to: :download
+
+    def stream
+      chunks = Enumerator.new do |out|
+        out << "first\n"
+        out << "second\n"
+      end
+      [200, { "content-type" => "text/plain" }, chunks]
+    end
+
+    def letters = %w[a b c]
+
+    def written = [204, {}, []]
+
+    def download(id:) = not_found("Todo #{id} does not exist")
+  end
+
   CreatedHash = Class.new(Skyward::API) do
     post "/", to: :create
 

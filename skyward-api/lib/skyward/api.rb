@@ -23,6 +23,8 @@ class Skyward::API
 end
 
 module Skyward
+  # @rbs! type rack = [Integer, Hash[String, String], untyped]
+
   # @rbs (?signatures: String, ?logger: API::_Logger?, ?on_error: API::_OnError?) { (API::Builder) -> void } -> API::RequestId
   def self.app(signatures: "sig", logger: API::LineLogger.new($stdout), on_error: nil, &)
     raise ArgumentError, "Skyward.app needs a block that mounts the app's APIs" unless block_given?
