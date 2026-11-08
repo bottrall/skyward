@@ -181,13 +181,23 @@ describe Skyward::API::Coercer do
     end
 
     describe "untyped" do
-      it "takes anything as it is" do
-        assert_equal ok({ "title" => 1 }), coerce(types::Scalar.new(name: :untyped), { "title" => 1 })
+      untyped = types::Scalar.new(name: :untyped)
+
+      it "takes the last value of a query key given more than once" do
+        assert_equal ok("b"), coerce(untyped, %w[a b], strings: true)
       end
 
-      it "refuses a query key given more than once" do
-        assert_equal mismatch('expected untyped, got ["a","b"]'),
-                     coerce(types::Scalar.new(name: :untyped), %w[a b], strings: true)
+      it "takes a path or query String as it is" do
+        assert_equal ok("42"), coerce(untyped, "42", strings: true)
+      end
+
+      it "takes a body with symbol keys at every level" do
+        assert_equal ok({ todo: { tags: [{ name: "low" }] }, done: true }),
+                     coerce(untyped, { "todo" => { "tags" => [{ "name" => "low" }] }, "done" => true })
+      end
+
+      it "takes any other body value as it is" do
+        assert_equal ok(42), coerce(untyped, 42)
       end
     end
 

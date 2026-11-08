@@ -115,6 +115,16 @@ module Skyward::API::Coercer
   # @rbs return: ^(untyped) -> Ok?
   def parser: (Skyward::Types::scalar name, bool strings) -> ^(untyped) -> Ok?
 
+  # A query key given more than once arrives as an Array of its values, of
+  # which untyped takes the last, as Rack's params do.
+  # @rbs raw: String | Array[String]
+  # @rbs return: String?
+  def last: (String | Array[String] raw) -> String?
+
+  # @rbs raw: untyped
+  # @rbs return: untyped
+  def symbolized: (untyped raw) -> untyped
+
   # @rbs raw: untyped
   # @rbs strings: bool
   # @rbs return: Ok?

@@ -66,12 +66,30 @@ describe Skyward do
       assert_equal 200, app.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/ruby" }).first
     end
 
-    it "refuses to boot a route that doesn't fit its method" do
-      error = assert_raises(Skyward::BootError) do
-        Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Unsigned.new }
+    it "boots the README's opening example, which has no signatures directory, and answers it" do
+      response = nil
+      capture_io do
+        app = Dir.chdir(File.expand_path("../fixtures/hello", __dir__)) { Rack::Builder.parse_file("config.ru") }
+        response = Skyward::Test.client(app).get("/hello/ruby?shout=true")
       end
 
-      assert_match(%r{\ABootFixtures::Unsigned#index \(GET /\)\n}, error.message)
+      assert_equal '{"message":"HELLO, RUBY"}', response.body
+    end
+
+    it "refuses to boot a route that doesn't fit its method" do
+      error = assert_raises(Skyward::BootError) do
+        Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Positional.new }
+      end
+
+      assert_match(%r{\ABootFixtures::Positional#show \(GET /:id\)\n}, error.message)
+    end
+
+    it "refuses to boot an untyped endpoint with strict: true" do
+      error = assert_raises(Skyward::BootError) do
+        Skyward.app(signatures:, logger: nil, strict: true) { |builder| builder.mount BootFixtures::Unsigned.new }
+      end
+
+      assert_match(%r{\ABootFixtures::Unsigned#greet \(GET /:name\)\n  It has no RBS signature}, error.message)
     end
 
     describe "docs" do

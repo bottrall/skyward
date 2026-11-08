@@ -146,7 +146,23 @@ module Skyward::API::Coercer
     when :string then ->(raw) { Ok.new(value: raw) if raw.is_a?(String) }
     when :date then ->(raw) { date(raw) }
     when :time then ->(raw) { time(raw) }
-    else ->(raw) { Ok.new(value: raw) if !strings || raw.is_a?(String) }
+    else ->(raw) { Ok.new(value: strings ? last(raw) : symbolized(raw)) }
+    end
+  end
+
+  # A query key given more than once arrives as an Array of its values, of
+  # which untyped takes the last, as Rack's params do.
+  # @rbs raw: String | Array[String]
+  # @rbs return: String?
+  def last(raw) = raw.is_a?(Array) ? raw.last : raw
+
+  # @rbs raw: untyped
+  # @rbs return: untyped
+  def symbolized(raw)
+    case raw
+    when Hash then raw.to_h { |key, value| [key.to_sym, symbolized(value)] }
+    when Array then raw.map { |item| symbolized(item) }
+    else raw
     end
   end
 

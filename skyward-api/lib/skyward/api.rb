@@ -25,11 +25,12 @@ end
 module Skyward
   # @rbs! type rack = [Integer, Hash[String, String], untyped]
 
-  # @rbs (?signatures: String, ?docs: bool, ?title: String, ?version: String, ?description: String?,
+  # @rbs (?signatures: String, ?strict: bool, ?docs: bool, ?title: String, ?version: String, ?description: String?,
   #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
   #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
   def self.app(
     signatures: "sig",
+    strict: false,
     docs: false,
     title: "API",
     version: "0.1.0",
@@ -47,7 +48,7 @@ module Skyward
     yield builder
     builder.freeze
     reader = Types::Reader.new(Signatures.load(signatures))
-    endpoints = API::Boot.endpoints(builder.mounts, reader:, max_body_size:)
+    endpoints = API::Boot.endpoints(builder.mounts, reader:, max_body_size:, strict:)
     static = API::Static.new(builder.statics)
     documents =
       if docs

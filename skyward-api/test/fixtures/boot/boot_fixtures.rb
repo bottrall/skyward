@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# Signed in sig/boot_fixtures.rbs, except Unsigned and the classes refused
-# before their signature is read: Unrouted, Private and Protected. Each class
-# that fails to boot has one problem.
+# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedPositional and the
+# classes refused before their signature is read: Unrouted, Private and
+# Protected. Each class that fails to boot has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
@@ -105,15 +105,39 @@ module BootFixtures
   end
 
   Unsigned = Class.new(Skyward::API) do
-    get "/", to: :index
+    get "/:name", to: :greet
 
-    def index = []
+    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
   end
 
   UnsignedMethod = Class.new(Skyward::API) do
     get "/", to: :index
 
     def index = []
+  end
+
+  UnsignedPositional = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(id) = { id: }
+  end
+
+  Inlined = Class.new(Skyward::API) do
+    get "/:name", to: :greet
+
+    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
+  end
+
+  UntypedKeyword = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(id:) = Todo.new(id: 1, title: id)
+  end
+
+  NestedUntyped = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(tags: []) = tags
   end
 
   Positional = Class.new(Skyward::API) do

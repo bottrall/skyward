@@ -277,6 +277,13 @@ describe Skyward::API::OpenAPI do
         assert_equal [false, { "type" => "string" }], written.last.values_at("required", "schema")
       end
 
+      it "writes an untyped path or query keyword as a string, which is all either carries" do
+        untyped = types::Scalar.new(name: :untyped)
+        written = parameters(keyword(:id, :path, untyped), keyword(:shout, :query, types::Nullable.new(type: untyped)))
+
+        assert_equal([{ "type" => "string" }] * 2, written.map { |parameter| parameter["schema"] })
+      end
+
       it "leaves out request:, which is no part of the HTTP contract" do
         written = parameters(keyword(:id, :path, integer), keyword(:request, :request, request))
 

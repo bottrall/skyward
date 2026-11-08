@@ -15,17 +15,28 @@ module Skyward::API::Boot
 
   REQUEST_TYPE = Skyward::Types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: []) #: Skyward::Types::Named
 
+  # A method with no signature is read as if each keyword and the return were
+  # untyped, which is what rbs-inline writes for a method with no annotations.
+  ANY = RBS::Types::Bases::Any.new(location: nil) #: RBS::Types::Bases::Any
+
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
+  # @rbs strict: bool
   # @rbs return: Array[Skyward::API::Router::Endpoint]
-  def endpoints(mounts, reader:, max_body_size:)
+  def endpoints(mounts, reader:, max_body_size:, strict:)
     none = [] #: Array[Skyward::API::Router::Endpoint]
-    mounts.reduce(none) do |built, mount|
-      mount.api.class.routes.reduce(built) do |so_far, route|
+    built = mounts.reduce(none) do |booted, mount|
+      mount.api.class.routes.reduce(booted) do |so_far, route|
         [*so_far, boot(mount, route, so_far, reader, max_body_size)]
       end
     end
+    return built unless strict
+
+    refused = built.filter_map { |endpoint| untyped(endpoint, reader) }
+    raise Skyward::BootError, refused.join("\n") unless refused.empty?
+
+    built
   end
 
   private
@@ -109,7 +120,7 @@ module Skyward::API::Boot
     method_type = method_type(api.class, route.to, reader)
     return method_type if method_type.is_a?(String)
 
-    signed = signed(api.class.instance_method(route.to).parameters, method_type)
+    signed = signed(api.class.instance_method(route.to).parameters, method_type&.type)
     return signed if signed.is_a?(String)
 
     unnamed = pattern.grep(Symbol).find { |name| signed.none? { |keyword, _, _| keyword == name } }
@@ -124,7 +135,7 @@ module Skyward::API::Boot
 
     keywords = read.grep(Skyward::API::Router::Keyword) #: Array[Skyward::API::Router::Keyword]
 
-    returns = returns(method_type.type.return_type, reader)
+    returns = returns(method_type ? method_type.type.return_type : ANY, reader)
     return returns if returns.is_a?(String)
 
     inputs = Skyward::API::Inputs.new(keywords, max_body_size:)
@@ -151,29 +162,38 @@ module Skyward::API::Boot
   # @rbs klass: Class
   # @rbs to: Symbol
   # @rbs reader: Skyward::Types::Reader
-  # @rbs return: RBS::MethodType | String
+  # @rbs return: RBS::MethodType | String | nil
   def method_type(klass, to, reader)
     unless klass.public_method_defined?(to)
       return "#{klass} has no public method `#{to}`. Define it as a public method, or change to:."
     end
 
+    signature(klass, to, reader)
+  end
+
+  # @rbs klass: Class
+  # @rbs to: Symbol
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: RBS::MethodType?
+  def signature(klass, to, reader)
     type_name = reader.type_name(klass)
-    method_type = reader.method_type(type_name, to) if type_name
-    method_type || "#{klass}##{to} has no RBS signature. Run rbs-inline, or check `signatures:`."
+    reader.method_type(type_name, to) if type_name
   end
 
   # @rbs parameters: Method::param_types
-  # @rbs method_type: RBS::MethodType
+  # @rbs type: RBS::Types::function?
   # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | String
-  def signed(parameters, method_type)
+  def signed(parameters, type)
     if parameters.any? { |kind, _| UNNAMED.include?(kind) }
       return "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
              "Take each input as a keyword, such as `id:`."
     end
 
     keywords = parameters.filter_map { |kind, name| [name, kind == :keyreq] if KEYWORD.include?(kind) }.to_h
-    function = keyword_only(method_type.type)
-    return stale(keywords, method_type.type) unless function && keyword_requirements(function) == keywords
+    return keywords.map { |name, required| [name, required, ANY] } unless type
+
+    function = keyword_only(type)
+    return stale(keywords, type) unless function && keyword_requirements(function) == keywords
 
     params = function.required_keywords.merge(function.optional_keywords)
     keywords.map { |name, required| [name, required, params.fetch(name).type] }
@@ -242,7 +262,7 @@ module Skyward::API::Boot
   # @rbs type: RBS::Types::t
   # @rbs return: Skyward::API::Router::Keyword | String
   def request(required, type)
-    unless type == REQUEST
+    unless [REQUEST, ANY].include?(type)
       return "`request:` is always the Skyward::Request, but its signature types it as #{written(type.to_s)}. " \
              "Type it as Skyward::Request, or rename the keyword."
     end
@@ -350,6 +370,36 @@ module Skyward::API::Boot
     when Skyward::Types::Nullable then [*members(type.type), Skyward::Types::Reader::NIL_LITERAL]
     else [type]
     end
+  end
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs reader: Skyward::Types::Reader
+  # @rbs return: String?
+  def untyped(endpoint, reader)
+    problem =
+      if signature(endpoint.api.class, endpoint.to, reader)
+        untyped_parts(endpoint)
+      else
+        "It has no RBS signature, but strict: true refuses an untyped endpoint. " \
+          "Annotate it and run rbs-inline, or check `signatures:`."
+      end
+    "#{endpoint.label}\n  #{problem}" if problem
+  end
+
+  # Only a keyword's whole type or a member of the return type counts, so
+  # strict: true lets through untyped inside a type, as in Array[untyped].
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: String?
+  def untyped_parts(endpoint)
+    any = Skyward::API::Serializer::UNTYPED
+    keywords = endpoint.keywords.filter_map { |keyword| "`#{keyword.name}:`" if keyword.type == any }
+    parts = endpoint.returns.include?(any) ? [*keywords, "the return type"] : keywords
+    return if parts.empty?
+
+    *rest, last = parts
+    listed = rest.empty? ? last : "#{rest.join(", ")} and #{last}"
+    "Its signature leaves #{listed} untyped, but strict: true refuses an untyped endpoint. " \
+      "Give #{parts.one? ? "it" : "each"} a type."
   end
 
   # @rbs subject: String

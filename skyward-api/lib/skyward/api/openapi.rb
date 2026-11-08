@@ -229,17 +229,19 @@ module Skyward::API::OpenAPI
     }.compact
   end
 
-  # A path or query value can't be null, so its schema leaves null out.
+  # A path or query value can't be null, so its schema leaves null out, and it's
+  # always a String, so an untyped one is a string.
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
   def parameter(keyword, names)
     type = keyword.type
+    carried = type.is_a?(Skyward::Types::Nullable) ? type.type : type
     {
       name: keyword.name,
       in: keyword.source,
       required: keyword.source == :path || required?(keyword.required, type, :request),
-      schema: schema(type.is_a?(Skyward::Types::Nullable) ? type.type : type, :request, names)
+      schema: carried == Skyward::API::Serializer::UNTYPED ? SCALARS.fetch(:string) : schema(carried, :request, names)
     }
   end
 

@@ -111,7 +111,8 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def operation: (Skyward::API::Router::Endpoint endpoint, Hash[Class, String] names) -> schema
 
-  # A path or query value can't be null, so its schema leaves null out.
+  # A path or query value can't be null, so its schema leaves null out, and it's
+  # always a String, so an untyped one is a string.
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
