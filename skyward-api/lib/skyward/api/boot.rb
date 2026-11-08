@@ -151,7 +151,7 @@ module Skyward::API::Boot
       description: route.description,
       keywords:,
       returns:,
-      signature: signature(method_type),
+      signature: written_signature(method_type || unannotated(signed)),
       inputs:,
       serializer:
     )
@@ -203,7 +203,19 @@ module Skyward::API::Boot
 
   # @rbs method_type: RBS::MethodType
   # @rbs return: String
-  def signature(method_type) = method_type.location&.source || written(method_type.to_s)
+  def written_signature(method_type) = method_type.location&.source || method_type.to_s
+
+  # @rbs signed: Array[[Symbol, bool, RBS::Types::t]]
+  # @rbs return: RBS::MethodType
+  def unannotated(signed)
+    params = signed.to_h { |name, _, type| [name, RBS::Types::Function::Param.new(type:, name: nil)] }
+    required = signed.filter_map { |name, needed, _| name if needed }
+    function = RBS::Types::Function.empty(ANY).update(
+      required_keywords: params.slice(*required),
+      optional_keywords: params.except(*required)
+    )
+    RBS::MethodType.new(type_params: [], type: function, block: nil, location: nil)
+  end
 
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function

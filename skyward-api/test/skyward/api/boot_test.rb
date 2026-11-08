@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "delegate"
 require "stringio"
 require "test_helper"
 require_relative "../../fixtures/boot/boot_fixtures"
@@ -77,17 +76,13 @@ describe Skyward::API::Boot do
                    endpoint(boot([todos, "/todos"]), :destroy, "DELETE").signature
     end
 
-    it "writes a signature with no source as RBS prints it, without a leading ::" do
-      unlocated = SimpleDelegator.new(reader)
-      def unlocated.method_type(...) = __getobj__.method_type(...)&.update(location: nil)
-      endpoints = Skyward::API::Boot.endpoints(
-        [Skyward::API::Builder::Mount.new(api: todos, at: "/todos")],
-        reader: unlocated,
-        max_body_size: 10
-      )
+    it "writes an untyped endpoint's signature as rbs-inline would, with each keyword and the return untyped" do
+      assert_equal "(name: untyped, ?shout: untyped, ?request: untyped) -> untyped",
+                   endpoint(boot([BootFixtures::Unsigned.new, "/"]), :greet).signature
+    end
 
-      assert_equal "(?done: bool?, ?tags: Array[:low | :high]) -> Array[BootFixtures::Todo]",
-                   endpoint(endpoints, :index).signature
+    it "writes an untyped endpoint with no keywords as taking none" do
+      assert_equal "() -> untyped", endpoint(boot([BootFixtures::UnsignedMethod.new, "/"]), :index).signature
     end
 
     it "joins the prefix to a route's path with one slash, as a pattern of segments and parameters" do

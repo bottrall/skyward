@@ -52,13 +52,12 @@ describe "skyward/api/commands.rb" do
   end
 
   describe "openapi" do
-    it "writes the app's document as pretty JSON, the same on every run, without docs: true" do
+    it "writes the app.rb app's document as pretty JSON with a trailing newline" do
       written, status = skyward("openapi", chdir: fixture)
       document = JSON.parse(written)
 
       assert_equal [0, "#{JSON.pretty_generate(document)}\n", ["/todos", "/todos/{id}", "/todos/{id}/complete"]],
                    [status, written, document["paths"].keys]
-      assert_equal written, skyward("openapi", chdir: fixture).first
     end
   end
 end

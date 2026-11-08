@@ -86,7 +86,11 @@ module Skyward::API::Boot
 
   # @rbs method_type: RBS::MethodType
   # @rbs return: String
-  def signature: (RBS::MethodType method_type) -> String
+  def written_signature: (RBS::MethodType method_type) -> String
+
+  # @rbs signed: Array[[Symbol, bool, RBS::Types::t]]
+  # @rbs return: RBS::MethodType
+  def unannotated: (Array[[ Symbol, bool, RBS::Types::t ]] signed) -> RBS::MethodType
 
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function
