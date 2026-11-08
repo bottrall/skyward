@@ -27,7 +27,7 @@ module Skyward
 
   # @rbs (?signatures: String, ?strict: bool, ?docs: bool, ?title: String, ?version: String, ?description: String?,
   #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
-  #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::RequestId
+  #   ?max_body_size: Integer) { (API::Builder) -> void } -> API::Application
   def self.app(
     signatures: "sig",
     strict: false,
@@ -78,7 +78,11 @@ module Skyward
       else
         app
       end
-    API::RequestId.new(logged, generate: -> { SecureRandom.uuid })
+    API::Application.new(
+      API::RequestId.new(logged, generate: -> { SecureRandom.uuid }),
+      endpoints:,
+      openapi: -> { API::OpenAPI.document(endpoints, title:, version:, description:, schema_names:) }
+    )
   end
 
   # These response helpers are public here, for code outside an API class, such as a provider.

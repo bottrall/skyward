@@ -63,6 +63,15 @@ module Skyward::API::OpenAPI
   # @rbs return: String
   def json: (Array[Skyward::API::Router::Endpoint] endpoints, static: Skyward::API::Static, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> String
 
+  # Only serving the document needs /openapi.json free, so this doesn't check it.
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs title: String
+  # @rbs version: String
+  # @rbs description: String?
+  # @rbs schema_names: Hash[Class, String]
+  # @rbs return: schema
+  def document: (Array[Skyward::API::Router::Endpoint] endpoints, title: String, version: String, description: String?, schema_names: Hash[Class, String]) -> schema
+
   private
 
   # The request: keyword is Skyward's, not part of the HTTP contract.
@@ -104,7 +113,7 @@ module Skyward::API::OpenAPI
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def document: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
+  def assembled: (Array[Skyward::API::Router::Endpoint] endpoints, Array[Skyward::Types::Named] types, Hash[Symbol, String] info, Hash[Class, String] names) -> schema
 
   # @rbs endpoint: Skyward::API::Router::Endpoint
   # @rbs names: Hash[Class, String]

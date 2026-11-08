@@ -43,6 +43,7 @@ describe Skyward::API::App do
         description: nil,
         keywords:,
         returns:,
+        signature: "(id: String) -> { id: String }",
         inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10),
         serializer:
       )

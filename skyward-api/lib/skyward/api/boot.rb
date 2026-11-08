@@ -151,6 +151,7 @@ module Skyward::API::Boot
       description: route.description,
       keywords:,
       returns:,
+      signature: signature(method_type),
       inputs:,
       serializer:
     )
@@ -198,6 +199,14 @@ module Skyward::API::Boot
 
     params = function.required_keywords.merge(function.optional_keywords)
     keywords.map { |name, required| [name, required, params.fetch(name).type] }
+  end
+
+  # A signature file can wrap a method type over several lines, but skyward routes prints it on one.
+  # @rbs method_type: RBS::MethodType
+  # @rbs return: String
+  def signature(method_type)
+    source = method_type.location&.source || written(method_type.to_s)
+    source.gsub(/\s*\R\s*/, " ")
   end
 
   # @rbs keywords: Hash[Symbol, bool]

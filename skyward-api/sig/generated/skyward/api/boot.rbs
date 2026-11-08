@@ -84,6 +84,11 @@ module Skyward::API::Boot
   # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | String
   def signed: (Method::param_types parameters, RBS::Types::function? type) -> (Array[[ Symbol, bool, RBS::Types::t ]] | String)
 
+  # A signature file can wrap a method type over several lines, but skyward routes prints it on one.
+  # @rbs method_type: RBS::MethodType
+  # @rbs return: String
+  def signature: (RBS::MethodType method_type) -> String
+
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function
   # @rbs return: String

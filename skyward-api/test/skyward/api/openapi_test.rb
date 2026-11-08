@@ -70,6 +70,7 @@ describe Skyward::API::OpenAPI do
       description:,
       keywords:,
       returns:,
+      signature: "() -> untyped",
       inputs: Skyward::API::Inputs.new(keywords, max_body_size: 10),
       serializer: Skyward::API::Serializer.new(returns, label: "")
     )
@@ -590,6 +591,28 @@ describe Skyward::API::OpenAPI do
       errors = JSONSchemer.openapi(document(*endpoints, description: "Todos.")).validate.map { |error| error["error"] }
 
       assert_empty errors
+    end
+  end
+
+  describe ".document" do
+    def built(*endpoints)
+      Skyward::API::OpenAPI.document(endpoints, title: "API", version: "0.1.0", description: nil, schema_names: {})
+    end
+
+    it "builds the document .json writes" do
+      assert_equal document(endpoint(:index)), JSON.parse(JSON.generate(built(endpoint(:index))))
+    end
+
+    it "allows a route at /openapi.json, which only a served document needs free" do
+      assert_equal ["/openapi.json"], built(endpoint(:docs, path: ["", "openapi.json"]))[:paths].keys
+    end
+
+    it "refuses a document it can't build, such as one with two operations of one ID" do
+      error = assert_raises(Skyward::BootError) do
+        built(endpoint(:index), endpoint(:index, path: ["", "todos", "done"]))
+      end
+
+      assert_match(/Its OpenAPI operation ID, OpenAPIFixtures\.Todos_index, is/, error.message)
     end
   end
 end

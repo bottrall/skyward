@@ -31,6 +31,7 @@ class Skyward::API::Router
     :description, #: String?
     :keywords, #: Array[Keyword]
     :returns, #: Array[returned]
+    :signature, #: String
     :inputs, #: Skyward::API::Inputs
     :serializer #: Skyward::API::Serializer
   )

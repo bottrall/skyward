@@ -1,0 +1,22 @@
+# Generated from lib/skyward/api/application.rb with RBS::Inline
+
+class Skyward::API::Application
+  @app: Skyward::API::_RackApp
+
+  @openapi: ^() -> Skyward::API::OpenAPI::schema
+
+  # @dynamic endpoints
+  attr_reader endpoints: Array[Skyward::API::Router::Endpoint]
+
+  # @rbs (Skyward::API::_RackApp app, endpoints: Array[Skyward::API::Router::Endpoint],
+  #       openapi: ^() -> Skyward::API::OpenAPI::schema) -> void
+  def initialize: (Skyward::API::_RackApp app, endpoints: Array[Skyward::API::Router::Endpoint], openapi: ^() -> Skyward::API::OpenAPI::schema) -> void
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Skyward::API::rack_response
+  def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
+
+  # Built when asked for, because only an app with docs: true refuses to boot over a document that can't be built.
+  # @rbs return: Skyward::API::OpenAPI::schema
+  def openapi: () -> Skyward::API::OpenAPI::schema
+end

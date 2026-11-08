@@ -36,7 +36,9 @@ module BootFixtures
     def index: (?done: bool?, ?tags: Array[:low | :high]) -> Array[Todo]
     def show: (id: Integer) -> (Todo | :gone)
     def create: (body: { title: String }) -> Todo
-    def destroy: (id: Integer) -> (Todo | :gone)?
+    # Wrapped, as a signature file can be.
+    def destroy: (id: Integer)
+               -> (Todo | :gone)?
   end
 
   class NewForm < Skyward::API

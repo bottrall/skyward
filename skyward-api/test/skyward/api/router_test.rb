@@ -18,6 +18,7 @@ describe Skyward::API::Router do
       description: nil,
       keywords: [],
       returns: [],
+      signature: "() -> untyped",
       inputs:,
       serializer:
     )

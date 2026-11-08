@@ -96,11 +96,25 @@ module Skyward::API::OpenAPI
   # @rbs schema_names: Hash[Class, String]
   # @rbs return: String
   def json(endpoints, static:, title:, version:, description:, schema_names:)
+    served = served(endpoints, static)
+    raise Skyward::BootError, served if served
+
+    JSON.generate(document(endpoints, title:, version:, description:, schema_names:))
+  end
+
+  # Only serving the document needs /openapi.json free, so this doesn't check it.
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs title: String
+  # @rbs version: String
+  # @rbs description: String?
+  # @rbs schema_names: Hash[Class, String]
+  # @rbs return: schema
+  def document(endpoints, title:, version:, description:, schema_names:)
     types = endpoints.flat_map { |endpoint| types(endpoint).flat_map { |type| named(type) } }.uniq
-    names = served(endpoints, static) || operation_ids(endpoints) || names(types, schema_names)
+    names = operation_ids(endpoints) || names(types, schema_names)
     case names
     when String then raise Skyward::BootError, names
-    else JSON.generate(document(endpoints, types, { title:, version:, description: }.compact, names))
+    else assembled(endpoints, types, { title:, version:, description: }.compact, names)
     end
   end
 
@@ -197,7 +211,7 @@ module Skyward::API::OpenAPI
   # @rbs info: Hash[Symbol, String]
   # @rbs names: Hash[Class, String]
   # @rbs return: schema
-  def document(endpoints, types, info, names)
+  def assembled(endpoints, types, info, names)
     {
       openapi: "3.1.0",
       info:,

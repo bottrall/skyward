@@ -1,0 +1,18 @@
+# Generated from lib/skyward/api/app_file.rb with RBS::Inline
+
+module Skyward::API::AppFile
+  FILE: String
+
+  ASSIGNMENT: String
+
+  # @rbs directory: String
+  # @rbs out: _Writer
+  # @rbs kernel: singleton(Kernel)
+  # @rbs &: (Skyward::API::Application) -> String
+  # @rbs return: void
+  def run: (String directory, out: untyped, kernel: singleton(Kernel)) { (Skyward::API::Application) -> String } -> void
+
+  # @rbs directory: String
+  # @rbs return: Skyward::API::Application | String
+  def load: (String directory) -> (Skyward::API::Application | String)
+end

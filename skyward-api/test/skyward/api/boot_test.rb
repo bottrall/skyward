@@ -66,6 +66,15 @@ describe Skyward::API::Boot do
                    [show.label, show.summary, show.description]
     end
 
+    it "keeps the method's signature as its signature file writes it" do
+      assert_equal "(?done: bool?, ?tags: Array[:low | :high]) -> Array[Todo]",
+                   endpoint(boot([todos, "/todos"]), :index).signature
+    end
+
+    it "keeps a signature written over several lines on one" do
+      assert_equal "(id: Integer) -> (Todo | :gone)?", endpoint(boot([todos, "/todos"]), :destroy, "DELETE").signature
+    end
+
     it "joins the prefix to a route's path with one slash, as a pattern of segments and parameters" do
       assert_equal ["", "todos", :id], endpoint(boot([todos, "/todos"]), :show).pattern
     end

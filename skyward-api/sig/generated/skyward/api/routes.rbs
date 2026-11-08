@@ -1,0 +1,19 @@
+# Generated from lib/skyward/api/routes.rb with RBS::Inline
+
+module Skyward::API::Routes
+  GAP: Integer
+
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs return: String
+  def table: (Array[Skyward::API::Router::Endpoint] endpoints) -> String
+
+  private
+
+  # @rbs pattern: Array[String | Symbol]
+  # @rbs return: String
+  def path: (Array[String | Symbol] pattern) -> String
+
+  # @rbs endpoint: Skyward::API::Router::Endpoint
+  # @rbs return: String
+  def handler: (Skyward::API::Router::Endpoint endpoint) -> String
+end
