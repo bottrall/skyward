@@ -128,7 +128,7 @@ describe Skyward::API::App do
     end
 
     it "lets a route take precedence over a static file" do
-      assert_equal ['{"id":"42","title":"Ship it"}'], request("GET", "/todos/42").last
+      assert_equal ['{"id":"42"}'], request("GET", "/todos/42").last
     end
 
     it "serves a static file at a path routed only under other methods" do

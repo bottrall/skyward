@@ -25,24 +25,6 @@ describe Skyward::API::Serializer do
   end
 
   describe "#call" do
-    it "answers a value of a type with a 200 and the value as that type writes it" do
-      assert_equal [200, json, ['{"title":"Ship it"}']], serializer(todo).call({ title: "Ship it", secret: "x" })
-    end
-
-    it "answers nil with a 200 and null where the return type is nullable" do
-      assert_equal [200, json, ["null"]], serializer(todo, types::Reader::NIL_LITERAL).call(nil)
-    end
-
-    it "writes a value with the first member it fits" do
-      response = serializer(
-        router::Created.new(type: todo),
-        not_found,
-        todo
-      ).call(Skyward::NotFound.new(detail: nil, headers: {}))
-
-      assert_equal 404, response.first
-    end
-
     describe "a Created" do
       let(:created) { Skyward::Created.new(value: { title: "Ship it", secret: "x" }, headers: { "location" => "/todos/1" }) }
 
@@ -58,6 +40,14 @@ describe Skyward::API::Serializer do
         assert_equal "TodosAPI#show (GET /todos/:id) returned nil at value.title, which isn't String, " \
                      "in its return type Skyward::Created[{ title: String }]",
                      message
+      end
+
+      it "writes a value with a later Created whose value's type fits it" do
+        value = Skyward::Created.new(value: ["a"], headers: {})
+        returns = [router::Created.new(type: types::ArrayOf.new(type: types::Scalar.new(name: :integer))),
+                   router::Created.new(type: types::ArrayOf.new(type: types::Scalar.new(name: :string)))]
+
+        assert_equal [201, json, ['["a"]']], serializer(*returns).call(value)
       end
     end
 
@@ -121,6 +111,24 @@ describe Skyward::API::Serializer do
         assert_equal "TodosAPI#show (GET /todos/:id) returned Object, which isn't something with to_h",
                      failure([untyped], Object.new)
       end
+    end
+
+    it "answers a value of a type with a 200 and the value as that type writes it" do
+      assert_equal [200, json, ['{"title":"Ship it"}']], serializer(todo).call({ title: "Ship it", secret: "x" })
+    end
+
+    it "answers nil with a 200 and null where the return type is nullable" do
+      assert_equal [200, json, ["null"]], serializer(todo, types::Reader::NIL_LITERAL).call(nil)
+    end
+
+    it "writes a value with the first member it fits" do
+      response = serializer(
+        router::Created.new(type: todo),
+        not_found,
+        todo
+      ).call(Skyward::NotFound.new(detail: nil, headers: {}))
+
+      assert_equal 404, response.first
     end
 
     it "raises for a value no member fits, naming the endpoint, the return type and the value's class" do

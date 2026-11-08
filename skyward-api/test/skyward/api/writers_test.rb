@@ -135,8 +135,10 @@ describe Skyward::API::Writers do
         assert_equal([nil, 42], [nil, 42].map { |value| write(types::Nullable.new(type: integer), value) })
       end
 
-      it "doesn't fit what its type doesn't" do
-        refute writer(types::Nullable.new(type: integer)).fits.call("42")
+      it "fits nil, and what its type fits" do
+        nullable = writer(types::Nullable.new(type: integer))
+
+        assert_equal([true, false], [nil, "42"].map { |value| nullable.fits.call(value) })
       end
 
       it "is named with a ?, grouping a union or an enum of several symbols" do
@@ -209,6 +211,25 @@ describe Skyward::API::Writers do
 
         assert_equal [{ id: 1 }, { id: "a" }], [write(union, user.new(1, "Ada", "x")), write(union, { id: "a" })]
       end
+
+      it "writes a value with a later record that fits it by its fields" do
+        ok = types::Literal.new(value: true)
+        failed = types::Literal.new(value: false)
+        union = types::Union.new(
+          types: [
+            types::Record.new(fields: [field(:ok, ok), field(:id, integer)]),
+            types::Record.new(fields: [field(:ok, failed), field(:error, string)])
+          ]
+        )
+
+        assert_equal({ ok: false, error: "nope" }, write(union, { ok: false, error: "nope" }))
+      end
+
+      it "writes a value with a later array that fits its items" do
+        union = types::Union.new(types: [types::ArrayOf.new(type: integer), types::ArrayOf.new(type: string)])
+
+        assert_equal %w[a b], write(union, %w[a b])
+      end
     end
   end
 
@@ -222,6 +243,13 @@ describe Skyward::API::Writers do
 
     it "answers a value no member fits with a misfit naming the union" do
       assert_equal misfit(".at", "Integer | :low | :high", "String"), union.write.call("1", ".at")
+    end
+
+    it "answers a value only fitting members misfit with the first of their misfits" do
+      members = [integer, string].map { |type| writer(types::ArrayOf.new(type:)) }
+      arrays = Skyward::API::Writers.union(members)
+
+      assert_equal misfit(".at[0]", "Integer", ":a"), arrays.write.call([:a], ".at")
     end
   end
 

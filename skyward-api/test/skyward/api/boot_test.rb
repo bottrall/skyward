@@ -298,14 +298,6 @@ describe Skyward::API::Boot do
 
       def response(klass) = Skyward::API::Router::Response.new(klass:)
 
-      it "records a response value as its class" do
-        assert_equal [todo, response(Skyward::NotFound)], endpoint(responding, :show).returns
-      end
-
-      it "records Created[T] with the type of its value" do
-        assert_equal [Skyward::API::Router::Created.new(type: todo)], endpoint(responding, :create, "POST").returns
-      end
-
       it "records each response value of a nullable union, nil among them" do
         expected = [
           response(Skyward::NoContent),
@@ -317,11 +309,12 @@ describe Skyward::API::Boot do
         assert_equal expected, endpoint(responding, :destroy, "DELETE").returns
       end
 
-      it "refuses a Created whose value's type can't be read" do
-        assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use a record, or a class with public typed attr_readers instead.",
-                     refusal([BootFixtures::CreatedHash.new, "/"])
+      it "records a response value as its class" do
+        assert_equal [todo, response(Skyward::NotFound)], endpoint(responding, :show).returns
+      end
+
+      it "records Created[T] with the type of its value" do
+        assert_equal [Skyward::API::Router::Created.new(type: todo)], endpoint(responding, :create, "POST").returns
       end
 
       it "refuses a Created without the type of its value" do
@@ -329,6 +322,13 @@ describe Skyward::API::Boot do
                      "The return type can't be read: Skyward API doesn't read Skyward::Created. " \
                      "Use Created[T] instead.",
                      refusal([BootFixtures::CreatedBare.new, "/"])
+      end
+
+      it "refuses a Created whose value's type can't be read" do
+        assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
+                     "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
+                     "Use a record, or a class with public typed attr_readers instead.",
+                     refusal([BootFixtures::CreatedHash.new, "/"])
       end
     end
 

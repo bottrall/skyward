@@ -224,7 +224,7 @@ module BootFixtures
     post "/", to: :create
     delete "/:id", to: :destroy
 
-    def show(id:) = id == 1 ? Todo.new(id:, title: "Ship it") : not_found("Todo #{id} does not exist")
+    def show(id:) = not_found("Todo #{id} does not exist")
 
     # Path parameters arrive as Strings until coercion lands.
     def user(id:) = User.new(id: Integer(id), name: "Ada", password_hash: "$2a$12$secret")
@@ -233,7 +233,7 @@ module BootFixtures
 
     def create(body:) = created(Todo.new(id: 1, **body), headers: { "location" => "/1" })
 
-    def destroy(id:) = id == 1 ? no_content : conflict("Todo #{id} is locked")
+    def destroy(id:) = no_content(headers: { "x-deleted" => id })
   end
 
   CreatedHash = Class.new(Skyward::API) do

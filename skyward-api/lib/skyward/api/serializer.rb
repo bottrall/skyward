@@ -57,7 +57,7 @@ class Skyward::API::Serializer
     end
   end
 
-  # Untyped code can return any response value, so each is answered as itself, and anything else with a 200.
+  # Untyped code can return any response value.
   # @rbs return: Skyward::API::Writers::Writer
   def untyped
     writer = Skyward::API::Writers.writer(UNTYPED)
@@ -71,14 +71,14 @@ class Skyward::API::Serializer
     writer.with(write: ->(value, at) { json(writer.write.call(value, at)) { |body| [200, JSON_TYPE.dup, body] } })
   end
 
-  # @rbs value: Skyward::API::Writers::Writer
+  # @rbs writer: Skyward::API::Writers::Writer
   # @rbs return: Skyward::API::Writers::Writer
-  def created(value)
+  def created(writer)
     Skyward::API::Writers.checked(
-      "Skyward::Created[#{value.name}]",
+      "Skyward::Created[#{writer.name}]",
       ->(given) { given.is_a?(Skyward::Created) },
       lambda do |given, at|
-        json(value.write.call(given.value, "#{at}.value")) { |body| [201, { **JSON_TYPE, **given.headers }, body] }
+        json(writer.write.call(given.value, "#{at}.value")) { |body| [201, { **JSON_TYPE, **given.headers }, body] }
       end
     )
   end

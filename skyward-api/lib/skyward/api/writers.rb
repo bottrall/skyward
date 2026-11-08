@@ -41,10 +41,24 @@ module Skyward::API::Writers
       name:,
       fits: ->(value) { members.any? { |member| member.fits.call(value) } },
       write: lambda do |value, at|
-        member = members.find { |candidate| candidate.fits.call(value) }
-        member ? member.write.call(value, at) : misfit(name, value, at)
+        fitting = members.select { |candidate| candidate.fits.call(value) }
+        fitting.empty? ? misfit(name, value, at) : first_written(fitting, value, at)
       end
     )
+  end
+
+  # The first member's misfit stands when none writes the value, so the error names the closest member.
+  # @rbs fitting: Array[Writer]
+  # @rbs value: untyped
+  # @rbs at: String
+  # @rbs failed: Misfit?
+  # @rbs return: untyped
+  def first_written(fitting, value, at, failed = nil)
+    head, *rest = fitting
+    return failed unless head
+
+    written = head.write.call(value, at)
+    written.is_a?(Misfit) ? first_written(rest, value, at, failed || written) : written
   end
 
   # @rbs name: String
