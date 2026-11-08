@@ -27,6 +27,10 @@ module Skyward::API::Coercer
   # produce a large response.
   MAX_ERRORS = 1_000 #: Integer
 
+  # A message's expected type is cut to this many characters, so a large written
+  # type can't make a 422 many times larger than the body that caused it.
+  MAX_EXPECTED = 200 #: Integer
+
   # INTEGER, DATE and TIME match a String's bytes, because a path parameter
   # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
   INTEGER = /\A-?\d+\z/ #: Regexp
@@ -101,7 +105,10 @@ module Skyward::API::Coercer
   # @rbs type: Skyward::Types::t
   # @rbs parse: ^(untyped) -> Ok?
   # @rbs return: t
-  def scalar(type, parse) = ->(raw, at) { parse.call(raw) || mismatch(type, raw, at) }
+  def scalar(type, parse)
+    expected = expectation(type)
+    ->(raw, at) { parse.call(raw) || mismatch(expected, raw, at) }
+  end
 
   # @rbs name: Skyward::Types::scalar
   # @rbs strings: bool
@@ -187,9 +194,10 @@ module Skyward::API::Coercer
       else :bool
       end #: Skyward::Types::scalar
     parse = parser(name, strings)
+    expected = expectation(type)
     lambda do |raw, at|
       parsed = parse.call(raw)
-      parsed && parsed.value == value ? parsed : mismatch(type, raw, at)
+      parsed && parsed.value == value ? parsed : mismatch(expected, raw, at)
     end
   end
 
@@ -197,9 +205,10 @@ module Skyward::API::Coercer
   # @rbs return: t
   def enum(type)
     symbols = type.symbols.to_h { |symbol| [symbol.name, symbol] }
+    expected = expectation(type)
     lambda do |raw, at|
       symbol = symbols.fetch(raw, nil)
-      symbol ? Ok.new(value: symbol) : mismatch(type, raw, at)
+      symbol ? Ok.new(value: symbol) : mismatch(expected, raw, at)
     end
   end
 
@@ -213,6 +222,7 @@ module Skyward::API::Coercer
   # @rbs limit: Integer
   # @rbs return: t
   def array(type, item, strings, limit)
+    expected = expectation(type)
     lambda do |raw, at|
       values =
         case raw
@@ -220,7 +230,7 @@ module Skyward::API::Coercer
         # A query string repeats a key for each item, so one value is one item.
         when String then [raw] if strings
         end
-      next mismatch(type, raw, at) unless values
+      next mismatch(expected, raw, at) unless values
 
       results = items(values, item, at, limit)
       errors = errors(results)
@@ -258,8 +268,9 @@ module Skyward::API::Coercer
     fields = type.fields.map do |field|
       [field, compile(field.type, strings:, limit:)]
     end #: Array[[Skyward::Types::Field, t]]
+    expected = expectation(type)
     lambda do |raw, at|
-      next mismatch(type, raw, at) unless raw.is_a?(Hash)
+      next mismatch(expected, raw, at) unless raw.is_a?(Hash)
 
       none = [[], 0] #: [Array[[Symbol, result]], Integer]
       coerced = fields.reduce(none) do |state, (field, coercer)|
@@ -284,9 +295,10 @@ module Skyward::API::Coercer
   # @rbs coercers: Array[t]
   # @rbs return: t
   def union(type, coercers)
+    expected = expectation(type)
     lambda do |raw, at|
       coercers.lazy.map { |coercer| coercer.call(raw, at) }.find { |result| result.is_a?(Ok) } ||
-        mismatch(type, raw, at)
+        mismatch(expected, raw, at)
     end
   end
 
@@ -295,11 +307,17 @@ module Skyward::API::Coercer
   def errors(results) = results.flat_map { |result| result.is_a?(Invalid) ? result.errors : [] }
 
   # @rbs type: Skyward::Types::t
+  # @rbs return: String
+  def expectation(type)
+    text = type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type)
+    text.length > MAX_EXPECTED ? "#{text[0, MAX_EXPECTED - 1]}…" : text
+  end
+
+  # @rbs expected: String
   # @rbs raw: untyped
   # @rbs at: String
   # @rbs return: Invalid
-  def mismatch(type, raw, at)
-    expected = type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type)
+  def mismatch(expected, raw, at)
     # A path parameter can be any bytes, and a body any number, nested as deep
     # as JSON.parse allows, all of which JSON.generate refuses by default.
     got = JSON.generate(raw.is_a?(String) ? raw.scrub : raw, allow_nan: true, max_nesting: false)

@@ -408,10 +408,39 @@ describe Skyward::API::Coercer do
     end
 
     describe "messages" do
+      let(:fields) do
+        Array.new(20) { |index| types::Field.new(name: :"description#{index}", type: string, required: true) }
+      end
+
       it "write a Date or Time inside another type without its format" do
         dates = types::ArrayOf.new(type: types::Union.new(types: [date, time]))
 
         assert_equal mismatch("expected Array[Date | Time], got 1"), coerce(dates, 1)
+      end
+
+      it "write a type of MAX_EXPECTED characters in full" do
+        long = "a" * (Skyward::API::Coercer::MAX_EXPECTED - 2)
+
+        assert_equal mismatch("expected \"#{long}\", got 1"), coerce(types::Literal.new(value: long), 1)
+      end
+
+      it "cut a longer type to MAX_EXPECTED characters, ending with …" do
+        long = "a" * (Skyward::API::Coercer::MAX_EXPECTED - 1)
+
+        assert_equal mismatch("expected \"#{long.chop}…, got 1"), coerce(types::Literal.new(value: long), 1)
+      end
+
+      it "cut a large union in every message, so a 422 stays proportional to its body" do
+        records = types::Union.new(types: [types::Record.new(fields:), types::Record.new(fields: fields.reverse)])
+        max = Skyward::API::Coercer::MAX_ERRORS
+        messages = coerce(types::ArrayOf.new(type: records), Array.new(max, 1)).errors.map(&:message)
+
+        assert_equal max, messages.size
+        assert_empty messages.grep_v(/\Aexpected \{ .{197}…, got 1\z/)
+      end
+
+      it "cut a large record" do
+        assert_match(/\Aexpected \{ .{197}…, got 1\z/, coerce(types::Record.new(fields:), 1).errors.first.message)
       end
 
       it "write bytes that aren't UTF-8 as replacement characters" do
