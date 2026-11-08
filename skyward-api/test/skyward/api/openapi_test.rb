@@ -128,6 +128,24 @@ describe Skyward::API::OpenAPI do
         end
       end
 
+      it "refuses a route at /docs, where the API reference is served" do
+        assert_equal "OpenAPIFixtures::Todos#docs (GET /docs)\n  " \
+                     "With docs: true, /docs serves the API reference. " \
+                     "Change the route's path, or leave out docs:.",
+                     refusal(endpoint(:docs, path: ["", "docs"]))
+      end
+
+      it "refuses a static file at /docs" do
+        Dir.mktmpdir do |root|
+          File.write(File.join(root, "docs"), "<h1>Docs</h1>")
+          static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: root)])
+
+          assert_equal "static serves #{root}/docs at /docs, where docs: true serves the API reference. " \
+                       "Move the file, or leave out docs:.",
+                       refusal(endpoint(:index), static:)
+        end
+      end
+
       it "refuses two operations with the same ID" do
         assert_equal "OpenAPIFixtures::Todos#index (GET /todos/done)\n  " \
                      "Its OpenAPI operation ID, OpenAPIFixtures.Todos_index, is OpenAPIFixtures::Todos#index " \

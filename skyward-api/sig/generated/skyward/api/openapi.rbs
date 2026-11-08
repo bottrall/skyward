@@ -22,6 +22,8 @@ module Skyward::API::OpenAPI
 
   PATH: String
 
+  SERVED: Hash[String, String]
+
   # OpenAPI's pattern for the name of a component.
   NAME: Regexp
 
@@ -80,6 +82,13 @@ module Skyward::API::OpenAPI
   # @rbs static: Skyward::API::Static
   # @rbs return: String?
   def served: (Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
+
+  # @rbs at: String
+  # @rbs serves: String
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs return: String?
+  def taken: (String at, String serves, Array[Skyward::API::Router::Endpoint] endpoints, Skyward::API::Static static) -> String?
 
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
   # @rbs return: String?

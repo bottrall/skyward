@@ -16,7 +16,7 @@ describe Skyward::API::App do
     end.new
   end
   let(:middleware) { [] }
-  let(:openapi) { nil }
+  let(:documents) { {} }
   let(:returns) do
     id = Skyward::Types::Field.new(name: :id, type: Skyward::Types::Scalar.new(name: :string), required: true)
     [Skyward::Types::Record.new(fields: [id])]
@@ -48,7 +48,7 @@ describe Skyward::API::App do
       )
     end
     static = Skyward::API::Static.new([Skyward::API::Builder::Static.new(prefix: "/", from: File.join(root, "public"))])
-    Skyward::API::App.new(Skyward::API::Router.new(endpoints), static, middleware, openapi)
+    Skyward::API::App.new(Skyward::API::Router.new(endpoints), static, middleware, documents)
   end
 
   before do
@@ -124,14 +124,25 @@ describe Skyward::API::App do
       end
     end
 
-    describe "with an OpenAPI document" do
+    describe "with documents" do
       let(:openapi) { '{"openapi":"3.1.0"}' }
-
-      it "serves it at /openapi.json as JSON" do
-        assert_equal [200, { "content-type" => "application/json" }, [openapi]], request("GET", "/openapi.json")
+      let(:documents) do
+        {
+          "/openapi.json" => Skyward::API::App::Document.new(type: "application/json", body: openapi),
+          "/docs" => Skyward::API::App::Document.new(type: "text/html; charset=utf-8", body: "<!doctype html>")
+        }
       end
 
-      it "serves it before a static file at its path" do
+      it "serves each at its path with its content type" do
+        expected = [
+          [200, { "content-type" => "application/json" }, [openapi]],
+          [200, { "content-type" => "text/html; charset=utf-8" }, ["<!doctype html>"]]
+        ]
+
+        assert_equal expected, [request("GET", "/openapi.json"), request("GET", "/docs")]
+      end
+
+      it "serves one before a static file at its path" do
         File.write(File.join(root, "public/openapi.json"), "{}")
 
         assert_equal [openapi], request("GET", "/openapi.json").last
@@ -150,7 +161,7 @@ describe Skyward::API::App do
       end
     end
 
-    it "serves no OpenAPI document without one" do
+    it "serves no document without one" do
       assert_equal problem(404, "Not Found"), request("GET", "/openapi.json")
     end
 

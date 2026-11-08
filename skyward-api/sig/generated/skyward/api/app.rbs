@@ -5,7 +5,20 @@ class Skyward::API::App
 
   INPUT_TITLES: Hash[Integer, String]
 
-  @openapi: String?
+  class Document < Data
+    attr_reader type(): String
+
+    attr_reader body(): String
+
+    def self.new: (String type, String body) -> instance
+                | (type: String, body: String) -> instance
+
+    def self.members: () -> [ :type, :body ]
+
+    def members: () -> [ :type, :body ]
+  end
+
+  @documents: Hash[String, Document]
 
   @stack: Skyward::API::_RackApp
 
@@ -16,9 +29,9 @@ class Skyward::API::App
   # @rbs router: Skyward::API::Router
   # @rbs static: Skyward::API::Static
   # @rbs middleware: Array[Skyward::API::Builder::Use]
-  # @rbs openapi: String?
+  # @rbs documents: Hash[String, Document]
   # @rbs return: void
-  def initialize: (Skyward::API::Router router, Skyward::API::Static static, Array[Skyward::API::Builder::Use] middleware, String? openapi) -> void
+  def initialize: (Skyward::API::Router router, Skyward::API::Static static, Array[Skyward::API::Builder::Use] middleware, Hash[String, Document] documents) -> void
 
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::API::rack_response
@@ -33,7 +46,7 @@ class Skyward::API::App
   # @rbs verb: String
   # @rbs path: String
   # @rbs return: response?
-  def openapi: (String verb, String path) -> response?
+  def served: (String verb, String path) -> response?
 
   # @rbs env: Hash[String, untyped]
   # @rbs verb: String

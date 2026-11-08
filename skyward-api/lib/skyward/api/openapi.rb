@@ -17,6 +17,11 @@ module Skyward::API::OpenAPI
 
   PATH = "/openapi.json" #: String
 
+  SERVED = {
+    PATH => "the OpenAPI document",
+    Skyward::API::Docs::PATH => "the API reference"
+  }.freeze #: Hash[String, String]
+
   # OpenAPI's pattern for the name of a component.
   NAME = /\A[A-Za-z0-9._-]+\z/ #: Regexp
 
@@ -135,16 +140,24 @@ module Skyward::API::OpenAPI
   # @rbs static: Skyward::API::Static
   # @rbs return: String?
   def served(endpoints, static)
-    routed = endpoints.find { |endpoint| path(endpoint.pattern) == PATH }
+    SERVED.lazy.filter_map { |at, serves| taken(at, serves, endpoints, static) }.first
+  end
+
+  # @rbs at: String
+  # @rbs serves: String
+  # @rbs endpoints: Array[Skyward::API::Router::Endpoint]
+  # @rbs static: Skyward::API::Static
+  # @rbs return: String?
+  def taken(at, serves, endpoints, static)
+    routed = endpoints.find { |endpoint| path(endpoint.pattern) == at }
     if routed
-      return "#{routed.label}\n  With docs: true, #{PATH} serves the OpenAPI document. " \
-             "Change the route's path, or leave out docs:."
+      return "#{routed.label}\n  With docs: true, #{at} serves #{serves}. Change the route's path, or leave out docs:."
     end
 
-    file = static.file(PATH)
+    file = static.file(at)
     return unless file
 
-    "static serves #{file} at #{PATH}, where docs: true serves the OpenAPI document. Move the file, or leave out docs:."
+    "static serves #{file} at #{at}, where docs: true serves #{serves}. Move the file, or leave out docs:."
   end
 
   # @rbs endpoints: Array[Skyward::API::Router::Endpoint]

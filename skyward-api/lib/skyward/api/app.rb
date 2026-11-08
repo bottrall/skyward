@@ -7,20 +7,25 @@ class Skyward::API::App
 
   INPUT_TITLES = { 413 => "Content Too Large", 415 => "Unsupported Media Type" }.freeze #: Hash[Integer, String]
 
+  Document = Data.define(
+    :type, #: String
+    :body #: String
+  )
+
   # @rbs @router: Skyward::API::Router
   # @rbs @static: Skyward::API::Static
   # @rbs @stack: Skyward::API::_RackApp
-  # @rbs @openapi: String?
+  # @rbs @documents: Hash[String, Document]
 
   # @rbs router: Skyward::API::Router
   # @rbs static: Skyward::API::Static
   # @rbs middleware: Array[Skyward::API::Builder::Use]
-  # @rbs openapi: String?
+  # @rbs documents: Hash[String, Document]
   # @rbs return: void
-  def initialize(router, static, middleware, openapi)
+  def initialize(router, static, middleware, documents)
     @router = router
     @static = static
-    @openapi = openapi
+    @documents = documents
     innermost = method(:route) #: Skyward::API::_RackApp
     @stack = middleware.reverse.reduce(innermost) do |app, use|
       use.middleware.new(app, *use.args, **use.kwargs, &use.block)
@@ -41,19 +46,19 @@ class Skyward::API::App
   def route(env)
     verb = env["REQUEST_METHOD"]
     path = env["PATH_INFO"]
-    # Boot refuses a route or a file at the document's path, but a path parameter can still match it, so it comes first.
-    status, headers, body = openapi(verb, path) || routed(env, verb, path)
+    # Boot refuses a route or a file at a document's path, but a path parameter can still match it, so it comes first.
+    status, headers, body = served(verb, path) || routed(env, verb, path)
     [status, headers, verb == "HEAD" ? dropped(body) : body]
   end
 
   # @rbs verb: String
   # @rbs path: String
   # @rbs return: response?
-  def openapi(verb, path)
-    document = @openapi
-    return unless document && path == Skyward::API::OpenAPI::PATH && %w[GET HEAD].include?(verb)
+  def served(verb, path)
+    document = @documents[path]
+    return unless document && %w[GET HEAD].include?(verb)
 
-    [200, { "content-type" => "application/json" }, [document]]
+    [200, { "content-type" => document.type }, [document.body]]
   end
 
   # @rbs env: Hash[String, untyped]

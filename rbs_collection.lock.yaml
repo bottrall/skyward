@@ -1,6 +1,10 @@
 ---
 path: ".gem_rbs_collection"
 gems:
+- name: cgi-escape
+  version: '0'
+  source:
+    type: stdlib
 - name: date
   version: '0'
   source:
