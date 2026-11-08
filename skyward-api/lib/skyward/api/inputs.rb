@@ -20,16 +20,19 @@ class Skyward::API::Inputs
 
   # @rbs @keywords: Array[[Skyward::API::Router::Keyword, Skyward::API::Coercer::t]]
   # @rbs @body: bool
+  # @rbs @request: bool
   # @rbs @max_body_size: Integer
 
   # @rbs keywords: Array[Skyward::API::Router::Keyword]
   # @rbs max_body_size: Integer
   # @rbs return: void
   def initialize(keywords, max_body_size:)
-    @keywords = keywords.map do |keyword|
+    requested, coerced = keywords.partition { |keyword| keyword.source == :request }
+    @keywords = coerced.map do |keyword|
       [keyword, Skyward::API::Coercer.compile(keyword.type, strings: keyword.source != :body)]
     end
-    @body = keywords.any? { |keyword| keyword.source == :body }
+    @body = coerced.any? { |keyword| keyword.source == :body }
+    @request = requested.any?
     @max_body_size = max_body_size
     freeze
   end
@@ -39,9 +42,10 @@ class Skyward::API::Inputs
   # @rbs return: Skyward::API::Coercer::result | refusal
   def call(env, params)
     body = body(env) if @body
+    request = Skyward::Request.new(env) if @request
     case body
     when Symbol then body
-    else arguments(params, query(env["QUERY_STRING"].to_s), body)
+    else arguments(params, query(env["QUERY_STRING"].to_s), body, request)
     end
   end
 
@@ -50,9 +54,11 @@ class Skyward::API::Inputs
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
+  # @rbs request: Skyward::Request?
   # @rbs return: Skyward::API::Coercer::result
-  def arguments(params, query, body)
-    results = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
+  def arguments(params, query, body, request)
+    coerced = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
+    results = request ? [*coerced, [:request, Skyward::API::Coercer::Ok.new(value: request)]] : coerced
     combined = Skyward::API::Coercer.combine(results.to_h)
     case combined
     # A malformed query string is every query keyword's error, but one problem,

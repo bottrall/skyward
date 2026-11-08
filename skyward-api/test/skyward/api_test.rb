@@ -94,6 +94,22 @@ describe Skyward do
       end
     end
 
+    describe "request:" do
+      let(:client) do
+        Skyward::Test.client(
+          Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Requesting.new }
+        )
+      end
+
+      it "gives the endpoint the request's headers, cookies, IP and request ID" do
+        headers = { "Authorization" => "Bearer abc", "X-Forwarded-For" => "203.0.113.7", "X-Request-Id" => "abc-123" }
+        response = client.get("/?request=x", headers:, cookies: { "session" => "s3cret" })
+        expected = { authorization: "Bearer abc", session: "s3cret", ip: "203.0.113.7", request_id: "abc-123" }
+
+        assert_equal expected, response.json
+      end
+    end
+
     describe "answering by the return type" do
       let(:client) do
         Skyward::Test.client(

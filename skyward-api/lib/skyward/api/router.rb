@@ -5,7 +5,7 @@ class Skyward::API::Router
 
   Keyword = Data.define(
     :name, #: Symbol
-    :source, #: :path | :query | :body
+    :source, #: :path | :query | :body | :request
     :required, #: bool
     :type #: Skyward::Types::t
   )

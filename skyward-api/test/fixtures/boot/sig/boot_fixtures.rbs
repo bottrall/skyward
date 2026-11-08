@@ -124,6 +124,15 @@ module BootFixtures
     def index: (grid: Array[Array[Integer]]) -> Array[Todo]
   end
 
+  class Requesting < Skyward::API
+    def index: (request: Skyward::Request) -> { authorization: String?, session: String?, ip: String?, request_id: String }
+    def show: (id: Integer, ?request: Skyward::Request) -> Todo
+  end
+
+  class MistypedRequest < Skyward::API
+    def index: (request: String) -> Array[Todo]
+  end
+
   class HashReturn < Skyward::API
     def index: () -> Hash[Symbol, untyped]
   end

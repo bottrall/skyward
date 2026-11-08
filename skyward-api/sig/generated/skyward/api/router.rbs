@@ -6,14 +6,14 @@ class Skyward::API::Router
   class Keyword < Data
     attr_reader name(): Symbol
 
-    attr_reader source(): :path | :query | :body
+    attr_reader source(): :path | :query | :body | :request
 
     attr_reader required(): bool
 
     attr_reader type(): Skyward::Types::t
 
-    def self.new: (Symbol name, :path | :query | :body source, bool required, Skyward::Types::t type) -> instance
-                | (name: Symbol, source: :path | :query | :body, required: bool, type: Skyward::Types::t) -> instance
+    def self.new: (Symbol name, :path | :query | :body | :request source, bool required, Skyward::Types::t type) -> instance
+                | (name: Symbol, source: :path | :query | :body | :request, required: bool, type: Skyward::Types::t) -> instance
 
     def self.members: () -> [ :name, :source, :required, :type ]
 

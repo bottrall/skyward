@@ -7,6 +7,10 @@ module Skyward::API::Boot
 
   RACK: Array[RBS::Types::t?]
 
+  REQUEST: RBS::Types::t?
+
+  REQUEST_TYPE: Skyward::Types::Named
+
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
@@ -84,21 +88,27 @@ module Skyward::API::Boot
 
   # @rbs name: Symbol
   # @rbs required: bool
-  # @rbs type: Skyward::Types::result
+  # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
+  # @rbs reader: Skyward::Types::Reader
   # @rbs return: Skyward::API::Router::Keyword | String
-  def keyword: (Symbol name, bool required, Skyward::Types::result type, Array[String | Symbol] pattern) -> (Skyward::API::Router::Keyword | String)
+  def keyword: (Symbol name, bool required, RBS::Types::t type, Array[String | Symbol] pattern, Skyward::Types::Reader reader) -> (Skyward::API::Router::Keyword | String)
 
   # @rbs name: Symbol
   # @rbs pattern: Array[String | Symbol]
-  # @rbs return: :path | :query | :body
-  def source: (Symbol name, Array[String | Symbol] pattern) -> (:path | :query | :body)
+  # @rbs return: :path | :query | :body | :request
+  def source: (Symbol name, Array[String | Symbol] pattern) -> (:path | :query | :body | :request)
+
+  # @rbs required: bool
+  # @rbs type: RBS::Types::t
+  # @rbs return: Skyward::API::Router::Keyword | String
+  def request: (bool required, RBS::Types::t type) -> (Skyward::API::Router::Keyword | String)
 
   # @rbs name: Symbol
-  # @rbs source: :path | :query | :body
+  # @rbs source: :path | :query | :body | :request
   # @rbs type: Skyward::Types::t
   # @rbs return: String?
-  def carried: (Symbol name, :path | :query | :body source, Skyward::Types::t type) -> String?
+  def carried: (Symbol name, :path | :query | :body | :request source, Skyward::Types::t type) -> String?
 
   # @rbs type: Skyward::Types::t
   # @rbs within: :path | :query | :array

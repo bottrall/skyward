@@ -168,6 +168,24 @@ describe Skyward::API::Inputs do
       end
     end
 
+    describe "request:" do
+      let(:request_type) { Skyward::API::Boot::REQUEST_TYPE }
+
+      it "is the request, built from the env and never from the query string" do
+        request = env(query: "request=x").merge("skyward.request_id" => "abc-123")
+        passed = inputs(keyword(:request, :request, request_type)).call(request, {}).value.fetch(:request)
+
+        assert_equal [Skyward::Request, request], [passed.class, passed.env]
+      end
+
+      it "is passed even when it has a default" do
+        request = env.merge("skyward.request_id" => "abc-123")
+        passed = inputs(keyword(:request, :request, request_type, required: false)).call(request, {})
+
+        assert_equal [:request], passed.value.keys
+      end
+    end
+
     it "lists every problem, in the method's order" do
       all = inputs(keyword(:id, :path, integer), keyword(:limit, :query, integer), keyword(:body, :body, title))
       expected = invalid(

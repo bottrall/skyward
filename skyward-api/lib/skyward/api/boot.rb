@@ -11,6 +11,10 @@ module Skyward::API::Boot
     RBS::Parser.parse_type(type)
   end.freeze #: Array[RBS::Types::t?]
 
+  REQUEST = RBS::Parser.parse_type("::Skyward::Request") #: RBS::Types::t?
+
+  REQUEST_TYPE = Skyward::Types::Named.new(name: "Skyward::Request", klass: Skyward::Request, fields: []) #: Skyward::Types::Named
+
   # @rbs mounts: Array[Skyward::API::Builder::Mount]
   # @rbs reader: Skyward::Types::Reader
   # @rbs max_body_size: Integer
@@ -115,7 +119,7 @@ module Skyward::API::Boot
              "Add `#{unnamed}:` to the method, or rename the path parameter."
     end
 
-    read = signed.map { |name, required, type| keyword(name, required, reader.read(type), pattern) }
+    read = signed.map { |name, required, type| keyword(name, required, type, pattern, reader) }
     problem = read.find { |keyword| keyword.is_a?(String) }
     return problem if problem.is_a?(String)
 
@@ -197,30 +201,46 @@ module Skyward::API::Boot
 
   # @rbs name: Symbol
   # @rbs required: bool
-  # @rbs type: Skyward::Types::result
+  # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
+  # @rbs reader: Skyward::Types::Reader
   # @rbs return: Skyward::API::Router::Keyword | String
-  def keyword(name, required, type, pattern)
-    case type
-    when Skyward::Types::Unreadable then unreadable("The type of `#{name}:`", type)
-    else
-      source = source(name, pattern)
-      carried(name, source, type) || Skyward::API::Router::Keyword.new(name:, source:, required:, type:)
+  def keyword(name, required, type, pattern, reader)
+    source = source(name, pattern)
+    return request(required, type) if source == :request
+
+    read = reader.read(type)
+    case read
+    when Skyward::Types::Unreadable then unreadable("The type of `#{name}:`", read)
+    else carried(name, source, read) || Skyward::API::Router::Keyword.new(name:, source:, required:, type: read)
     end
   end
 
   # @rbs name: Symbol
   # @rbs pattern: Array[String | Symbol]
-  # @rbs return: :path | :query | :body
+  # @rbs return: :path | :query | :body | :request
   def source(name, pattern)
     if pattern.include?(name) then :path
     elsif name == :body then :body
+    elsif name == :request then :request
     else :query
     end
   end
 
+  # @rbs required: bool
+  # @rbs type: RBS::Types::t
+  # @rbs return: Skyward::API::Router::Keyword | String
+  def request(required, type)
+    unless type == REQUEST
+      return "`request:` is always the Skyward::Request, but its signature types it as #{written(type.to_s)}. " \
+             "Type it as Skyward::Request, or rename the keyword."
+    end
+
+    Skyward::API::Router::Keyword.new(name: :request, source: :request, required:, type: REQUEST_TYPE)
+  end
+
   # @rbs name: Symbol
-  # @rbs source: :path | :query | :body
+  # @rbs source: :path | :query | :body | :request
   # @rbs type: Skyward::Types::t
   # @rbs return: String?
   def carried(name, source, type)

@@ -1,0 +1,65 @@
+# Generated from lib/skyward/request.rb with RBS::Inline
+
+class Skyward::Request
+  # Rack passes these two headers without the HTTP_ prefix the others get.
+  UNPREFIXED: Hash[String, String]
+
+  OCTET: String
+
+  # Rack's trusted proxies: loopback, the private ranges and Unix sockets.
+  TRUSTED_PROXY: Regexp
+
+  IPV6: Regexp
+
+  # Rack's authority grammar: a bracketed IPv6 address or an RFC 3986 host, then an optional port.
+  AUTHORITY: Regexp
+
+  # @dynamic env
+  attr_reader env: Hash[String, untyped]
+
+  # @dynamic headers
+  attr_reader headers: Hash[String, String]
+
+  # @dynamic cookies
+  attr_reader cookies: Hash[String, String]
+
+  # @dynamic ip
+  attr_reader ip: String?
+
+  # @dynamic request_id
+  attr_reader request_id: String
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: void
+  def initialize: (Hash[String, untyped] env) -> void
+
+  private
+
+  # @rbs env: Hash[String, untyped]
+  # @rbs return: Hash[String, String]
+  def read_headers: (Hash[String, untyped] env) -> Hash[String, String]
+
+  # @rbs header: String?
+  # @rbs return: Hash[String, String]
+  def read_cookies: (String? header) -> Hash[String, String]
+
+  # @rbs header: String?
+  # @rbs return: Array[String]
+  def addresses: (String? header) -> Array[String]
+
+  # Rack wraps a bare IPv6 address, which clients send without brackets.
+  # @rbs entry: String
+  # @rbs return: String?
+  def bare: (String entry) -> String?
+
+  # As Rack does, a forwarded address is trusted only from a trusted proxy,
+  # and the client is the last address that isn't one.
+  # @rbs remote: Array[String?]
+  # @rbs forwarded: Array[String?]
+  # @rbs return: String?
+  def client_ip: (Array[String?] remote, Array[String?] forwarded) -> String?
+
+  # @rbs addresses: Array[String?]
+  # @rbs return: Array[String?]?
+  def untrusted: (Array[String?] addresses) -> Array[String?]?
+end

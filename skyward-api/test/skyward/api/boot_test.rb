@@ -204,6 +204,28 @@ describe Skyward::API::Boot do
         assert_equal [keyword(:body, :body, true, body)], endpoint(boot([todos, "/"]), :create, "POST").keywords
       end
 
+      describe "request:" do
+        let(:requesting) { boot([BootFixtures::Requesting.new, "/"]) }
+
+        it "takes request: from the request, never the query string" do
+          expected = [keyword(:request, :request, true, Skyward::API::Boot::REQUEST_TYPE)]
+
+          assert_equal expected, endpoint(requesting, :index).keywords
+        end
+
+        it "takes request: with a default" do
+          assert_equal keyword(:request, :request, false, Skyward::API::Boot::REQUEST_TYPE),
+                       endpoint(requesting, :show).keywords.last
+        end
+
+        it "refuses request: typed as anything but Skyward::Request" do
+          assert_equal "BootFixtures::MistypedRequest#index (GET /)\n  " \
+                       "`request:` is always the Skyward::Request, but its signature types it as String. " \
+                       "Type it as Skyward::Request, or rename the keyword.",
+                       refusal([BootFixtures::MistypedRequest.new, "/"])
+        end
+      end
+
       it "takes any other keyword from the query string, in the method's order, required or not" do
         expected = [
           keyword(:done, :query, false, types::Nullable.new(type: types::Scalar.new(name: :bool))),

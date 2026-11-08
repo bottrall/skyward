@@ -205,6 +205,28 @@ module BootFixtures
     def index(grid:) = { grid: }
   end
 
+  Requesting = Class.new(Skyward::API) do
+    get "/", to: :index
+    get "/:id", to: :show
+
+    def index(request:)
+      {
+        authorization: request.headers["authorization"],
+        session: request.cookies["session"],
+        ip: request.ip,
+        request_id: request.request_id
+      }
+    end
+
+    def show(id:, request: nil) = Todo.new(id:, title: request.request_id)
+  end
+
+  MistypedRequest = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(request:) = { request: }
+  end
+
   HashReturn = Class.new(Skyward::API) do
     get "/", to: :index
 

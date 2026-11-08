@@ -11,11 +11,13 @@ class Skyward::API::Inputs
 
   INVALID_JSON: Skyward::API::Coercer::Invalid
 
-  @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
+  @max_body_size: Integer
+
+  @request: bool
 
   @body: bool
 
-  @max_body_size: Integer
+  @keywords: Array[[ Skyward::API::Router::Keyword, Skyward::API::Coercer::t ]]
 
   # @rbs keywords: Array[Skyward::API::Router::Keyword]
   # @rbs max_body_size: Integer
@@ -32,8 +34,9 @@ class Skyward::API::Inputs
   # @rbs params: Hash[Symbol, String]
   # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
+  # @rbs request: Skyward::Request?
   # @rbs return: Skyward::API::Coercer::result
-  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body) -> Skyward::API::Coercer::result
+  def arguments: (Hash[Symbol, String] params, Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid query, Skyward::API::Coercer::result? body, Skyward::Request? request) -> Skyward::API::Coercer::result
 
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs coercer: Skyward::API::Coercer::t
