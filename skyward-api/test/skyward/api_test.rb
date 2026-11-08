@@ -237,4 +237,48 @@ describe Skyward do
       end
     end
   end
+
+  describe "the response helpers" do
+    let(:headers) { { "www-authenticate" => "Bearer" } }
+
+    def fields(value, *names) = [value.class, *names.map { |name| value.public_send(name) }, value.frozen?]
+
+    it ".bad_request, .unauthorized and .forbidden make a frozen problem with its detail and headers" do
+      made = [Skyward.bad_request("Bad", headers:), Skyward.unauthorized("Sign in first"),
+              Skyward.forbidden("Not yours")]
+
+      assert_equal(
+        [[Skyward::BadRequest, "Bad", headers, true], [Skyward::Unauthorized, "Sign in first", {}, true],
+         [Skyward::Forbidden, "Not yours", {}, true]],
+        made.map { |value| fields(value, :detail, :headers) }
+      )
+    end
+
+    describe ".redirect" do
+      it "raises for a status that isn't a redirect's" do
+        error = assert_raises(ArgumentError) { Skyward.redirect("/todos", status: 200) }
+
+        assert_equal "A redirect's status must be one of 301, 302, 303, 307, 308, not 200", error.message
+      end
+
+      it "raises for a location with a carriage return or a line feed" do
+        messages = ["/\rx", "/\nx"].map { |to| assert_raises(ArgumentError) { Skyward.redirect(to) }.message }
+
+        assert_equal(
+          ["A redirect's location can't contain a line break: \"/\\rx\"",
+           "A redirect's location can't contain a line break: \"/\\nx\""],
+          messages
+        )
+      end
+
+      it "makes a frozen Redirect, with a 303 unless it's given a status" do
+        made = [Skyward.redirect("/todos"), Skyward.redirect("/todos/1", status: 308, headers:)]
+
+        assert_equal(
+          [[Skyward::Redirect, "/todos", 303, {}, true], [Skyward::Redirect, "/todos/1", 308, headers, true]],
+          made.map { |value| fields(value, :to, :status, :headers) }
+        )
+      end
+    end
+  end
 end

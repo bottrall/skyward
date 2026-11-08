@@ -51,4 +51,35 @@ module Skyward
       end
     API::RequestId.new(logged, generate: -> { SecureRandom.uuid })
   end
+
+  # These response helpers are public here, for code outside an API class, such as a provider.
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: BadRequest
+  def self.bad_request(detail, headers: {}) = BadRequest.new(detail:, headers:)
+
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Unauthorized
+  def self.unauthorized(detail, headers: {}) = Unauthorized.new(detail:, headers:)
+
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Forbidden
+  def self.forbidden(detail, headers: {}) = Forbidden.new(detail:, headers:)
+
+  # @rbs to: String
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
+  # @rbs return: Redirect
+  def self.redirect(to, status: 303, headers: {})
+    unless Redirect::STATUSES.include?(status)
+      raise ArgumentError, "A redirect's status must be one of #{Redirect::STATUSES.join(", ")}, not #{status}"
+    end
+
+    # A line break in the location would let it smuggle in headers of its own.
+    raise ArgumentError, "A redirect's location can't contain a line break: #{to.inspect}" if to.match?(/[\r\n]/)
+
+    Redirect.new(to:, status:, headers:)
+  end
 end

@@ -72,16 +72,25 @@ describe Skyward::API::Serializer do
         assert_equal [body], serializer(not_found).call(Skyward::NotFound.new(detail: nil, headers: {})).last
       end
 
-      it "answers a Conflict with a 409 and an Unprocessable with a 422" do
-        responses = [Skyward::Conflict, Skyward::Unprocessable].map do |klass|
+      it "answers each other problem with its own status and title" do
+        classes = [Skyward::BadRequest, Skyward::Unauthorized, Skyward::Forbidden, Skyward::Conflict, Skyward::Unprocessable]
+        responses = classes.map do |klass|
           serializer(router::Response.new(klass:)).call(klass.new(detail: "Taken", headers: {}))
         end
 
         assert_equal(
-          [[409, "Conflict"], [422, "Unprocessable Content"]],
+          [[400, "Bad Request"], [401, "Unauthorized"], [403, "Forbidden"], [409, "Conflict"],
+           [422, "Unprocessable Content"]],
           responses.map { |status, _, body| [status, JSON.parse(body.first).fetch("title")] }
         )
       end
+    end
+
+    it "answers a Redirect with its status, a location header and its headers, and no body" do
+      value = Skyward::Redirect.new(to: "/todos/1", status: 307, headers: { "x-moved" => "yes" })
+
+      assert_equal [307, { "location" => "/todos/1", "x-moved" => "yes" }, []],
+                   serializer(router::Response.new(klass: Skyward::Redirect)).call(value)
     end
 
     describe "an untyped return" do
@@ -89,12 +98,16 @@ describe Skyward::API::Serializer do
         statuses = [
           Skyward::Created.new(value: {}, headers: {}),
           Skyward::NoContent.new(headers: {}),
+          Skyward::BadRequest.new(detail: "Bad", headers: {}),
+          Skyward::Unauthorized.new(detail: "Sign in first", headers: {}),
+          Skyward::Forbidden.new(detail: "Not yours", headers: {}),
           Skyward::NotFound.new(detail: nil, headers: {}),
           Skyward::Conflict.new(detail: "Taken", headers: {}),
-          Skyward::Unprocessable.new(detail: "Bad", headers: {})
+          Skyward::Unprocessable.new(detail: "Bad", headers: {}),
+          Skyward::Redirect.new(to: "/", status: 302, headers: {})
         ].map { |value| serializer(untyped).call(value).first }
 
-        assert_equal [201, 204, 404, 409, 422], statuses
+        assert_equal [201, 204, 400, 401, 403, 404, 409, 422, 302], statuses
       end
 
       it "answers a Created's value as untyped" do
