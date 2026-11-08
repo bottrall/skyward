@@ -62,8 +62,9 @@ module Skyward::API::Coercer
   # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Types::t
   # @rbs strings: bool
+  # @rbs limit: Integer
   # @rbs return: t
-  def compile: (Skyward::Types::t type, strings: bool) -> t
+  def compile: (Skyward::Types::t type, strings: bool, ?limit: Integer) -> t
 
   # @rbs type: Skyward::Types::t
   # @rbs required: bool
@@ -126,21 +127,23 @@ module Skyward::API::Coercer
   # @rbs type: Skyward::Types::ArrayOf
   # @rbs item: t
   # @rbs strings: bool
+  # @rbs limit: Integer
   # @rbs return: t
-  def array: (Skyward::Types::ArrayOf type, t item, bool strings) -> t
+  def array: (Skyward::Types::ArrayOf type, t item, bool strings, Integer limit) -> t
 
-  # Each item is coerced in turn, until the problems found reach MAX_ERRORS.
   # @rbs values: Array[untyped]
   # @rbs item: t
   # @rbs at: String
+  # @rbs limit: Integer
   # @rbs return: Array[result]
-  def items: (Array[untyped] values, t item, String at) -> Array[result]
+  def items: (Array[untyped] values, t item, String at, Integer limit) -> Array[result]
 
   # @rbs type: Skyward::Types::Record | Skyward::Types::Named
   # @rbs strings: bool
-  # @rbs &build: (Hash[Symbol, untyped]) -> untyped
+  # @rbs limit: Integer
+  # @rbs &: (Hash[Symbol, untyped]) -> untyped
   # @rbs return: t
-  def object: (Skyward::Types::Record | Skyward::Types::Named type, bool strings) { (Hash[Symbol, untyped]) -> untyped } -> t
+  def object: (Skyward::Types::Record | Skyward::Types::Named type, bool strings, Integer limit) { (Hash[Symbol, untyped]) -> untyped } -> t
 
   # @rbs type: Skyward::Types::Union
   # @rbs coercers: Array[t]

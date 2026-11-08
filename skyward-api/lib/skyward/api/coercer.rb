@@ -57,19 +57,21 @@ module Skyward::API::Coercer
   # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Types::t
   # @rbs strings: bool
+  # @rbs limit: Integer
   # @rbs return: t
-  def compile(type, strings:)
+  def compile(type, strings:, limit: MAX_ERRORS)
     case type
     when Skyward::Types::Scalar then scalar(type, parser(type.name, strings))
     when Skyward::Types::Literal then literal(type, strings)
     when Skyward::Types::Enum then enum(type)
-    when Skyward::Types::Nullable then nullable(compile(type.type, strings:))
-    when Skyward::Types::ArrayOf then array(type, compile(type.type, strings:), strings)
-    when Skyward::Types::Record then object(type, strings, &:itself)
+    when Skyward::Types::Nullable then nullable(compile(type.type, strings:, limit:))
+    when Skyward::Types::ArrayOf then array(type, compile(type.type, strings:, limit:), strings, limit)
+    when Skyward::Types::Record then object(type, strings, limit, &:itself)
     when Skyward::Types::Named
       klass = type.klass
-      object(type, strings) { |fields| klass.new(**fields) }
-    else union(type, type.types.map { |member| compile(member, strings:) })
+      object(type, strings, limit) { |fields| klass.new(**fields) }
+    # A union reports its own mismatch, so a member only needs to know whether it fits.
+    else union(type, type.types.map { |member| compile(member, strings:, limit: 1) })
     end
   end
 
@@ -208,18 +210,19 @@ module Skyward::API::Coercer
   # @rbs type: Skyward::Types::ArrayOf
   # @rbs item: t
   # @rbs strings: bool
+  # @rbs limit: Integer
   # @rbs return: t
-  def array(type, item, strings)
+  def array(type, item, strings, limit)
     lambda do |raw, at|
-      items =
+      values =
         case raw
         when Array then raw
         # A query string repeats a key for each item, so one value is one item.
         when String then [raw] if strings
         end
-      next mismatch(type, raw, at) unless items
+      next mismatch(type, raw, at) unless values
 
-      results = items(items, item, at)
+      results = items(values, item, at, limit)
       errors = errors(results)
       next Invalid.new(errors:) unless errors.empty?
 
@@ -228,16 +231,16 @@ module Skyward::API::Coercer
     end
   end
 
-  # Each item is coerced in turn, until the problems found reach MAX_ERRORS.
   # @rbs values: Array[untyped]
   # @rbs item: t
   # @rbs at: String
+  # @rbs limit: Integer
   # @rbs return: Array[result]
-  def items(values, item, at)
+  def items(values, item, at, limit)
     none = [[], 0] #: [Array[result], Integer]
     coerced = values.each_with_index.reduce(none) do |state, (value, index)|
       done, count = state
-      break state if count >= MAX_ERRORS
+      break state if count >= limit
 
       result = item.call(value, "#{at}[#{index}]")
       # Appended in place: copying the array for each item would be quadratic.
@@ -248,10 +251,11 @@ module Skyward::API::Coercer
 
   # @rbs type: Skyward::Types::Record | Skyward::Types::Named
   # @rbs strings: bool
-  # @rbs &build: (Hash[Symbol, untyped]) -> untyped
+  # @rbs limit: Integer
+  # @rbs &: (Hash[Symbol, untyped]) -> untyped
   # @rbs return: t
-  def object(type, strings, &)
-    fields = type.fields.map { |field| [field, compile(field.type, strings:)] } #: Array[[Skyward::Types::Field, t]]
+  def object(type, strings, limit, &)
+    fields = type.fields.map { |field| [field, compile(field.type, strings:, limit:)] } #: Array[[Skyward::Types::Field, t]]
     lambda do |raw, at|
       next mismatch(type, raw, at) unless raw.is_a?(Hash)
 

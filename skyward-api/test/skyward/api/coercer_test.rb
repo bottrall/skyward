@@ -351,6 +351,21 @@ describe Skyward::API::Coercer do
       it "refuses what no member fits, naming them all" do
         assert_equal mismatch("expected Integer | String, got true"), coerce(union, true)
       end
+
+      it "stops coercing a member at its first problem" do
+        built = []
+        counted = Data.define(:title) do
+          define_method(:initialize) do |title:|
+            built << title
+            super(title:)
+          end
+        end
+        fields = [types::Field.new(name: :title, type: string, required: true)]
+        todos = types::ArrayOf.new(type: types::Named.new(name: "Todo", klass: counted, fields:))
+        coerce(types::Union.new(types: [todos, string]), [1, { "title" => "late" }])
+
+        assert_empty built
+      end
     end
 
     describe "messages" do
