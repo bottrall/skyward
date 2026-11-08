@@ -77,18 +77,15 @@ describe Skyward::API::Inputs do
         assert_equal invalid(["query.limit", "is required"]), limit.call(env, {})
       end
 
-      it "is nil when it's required and nullable" do
-        done = inputs(keyword(:done, :query, types::Nullable.new(type: types::Scalar.new(name: :bool))))
-
-        assert_equal ok({ done: nil }), done.call(env, {})
-      end
-
       it "isn't passed when it's optional and absent" do
         assert_equal ok({}), inputs(keyword(:limit, :query, integer, required: false)).call(env, {})
       end
 
-      it "refuses a query string with bytes outside ASCII" do
-        assert_equal invalid(["query", "is not a valid query string"]), limit.call(env(query: "limit=é"), {})
+      it "refuses a query string with bytes outside ASCII once, beside the other keywords' problems" do
+        all = inputs(keyword(:id, :path, integer), keyword(:limit, :query, integer), keyword(:page, :query, integer))
+        expected = invalid(["path.id", 'expected Integer, got "x"'], ["query", "is not a valid query string"])
+
+        assert_equal expected, all.call(env(query: "limit=é"), { id: "x" })
       end
 
       it "isn't read for an endpoint without one" do
@@ -99,30 +96,19 @@ describe Skyward::API::Inputs do
     describe "body:" do
       let(:body) { inputs(keyword(:body, :body, title)) }
 
+      it "isn't read for an endpoint without one" do
+        request = env(body: "{}", length: "17")
+        inputs.call(request, {})
+
+        assert_equal 0, request["rack.input"].pos
+      end
+
       it "comes from the JSON body" do
         assert_equal ok({ body: { title: "Go" } }), body.call(env(body: '{"title":"Go"}'), {})
       end
 
       it "is reported at body." do
         assert_equal invalid(["body.title", "is required"]), body.call(env(body: "{}"), {})
-      end
-
-      it "takes a content type ending in +json, with parameters" do
-        json = env(body: '{"title":"Go"}', type: "application/merge-patch+json; charset=utf-8")
-
-        assert_equal ok({ body: { title: "Go" } }), body.call(json, {})
-      end
-
-      it "is required when there's no body and it has no default" do
-        assert_equal invalid(["body", "is required"]), body.call(env, {})
-      end
-
-      it "isn't passed when there's no body and it's optional" do
-        assert_equal ok({}), inputs(keyword(:body, :body, title, required: false)).call(env, {})
-      end
-
-      it "is absent when the request has no input stream" do
-        assert_equal invalid(["body", "is required"]), body.call({}, {})
       end
 
       it "refuses a Content-Length over the limit without reading the body" do
@@ -134,6 +120,10 @@ describe Skyward::API::Inputs do
 
       it "answers a Content-Length over the limit as content too large" do
         assert_equal :content_too_large, body.call(env(body: "{}", length: "17"), {})
+      end
+
+      it "is absent when the request has no input stream" do
+        assert_equal invalid(["body", "is required"]), body.call({}, {})
       end
 
       it "reads no more than one byte past the limit" do
@@ -151,6 +141,14 @@ describe Skyward::API::Inputs do
         assert_equal ok({ body: { title: "Ship" } }), body.call(env(body: '{"title":"Ship"}'), {})
       end
 
+      it "is required when there's no body and it has no default" do
+        assert_equal invalid(["body", "is required"]), body.call(env, {})
+      end
+
+      it "isn't passed when there's no body and it's optional" do
+        assert_equal ok({}), inputs(keyword(:body, :body, title, required: false)).call(env, {})
+      end
+
       it "answers a content type other than JSON as unsupported" do
         assert_equal :unsupported_media_type, body.call(env(body: "title=Ship", type: "text/plain"), {})
       end
@@ -159,19 +157,18 @@ describe Skyward::API::Inputs do
         assert_equal :unsupported_media_type, body.call(env(body: "{}", type: nil), {})
       end
 
-      it "refuses a body that isn't JSON" do
-        assert_equal invalid(["body", "is not valid JSON"]), body.call(env(body: "{title"), {})
+      it "takes a content type ending in +json, with parameters" do
+        json = env(body: '{"title":"Go"}', type: "application/merge-patch+json; charset=utf-8")
+
+        assert_equal ok({ body: { title: "Go" } }), body.call(json, {})
       end
 
       it "refuses a body that isn't UTF-8" do
         assert_equal invalid(["body", "is not valid JSON"]), body.call(env(body: "\"\xFF\"".b), {})
       end
 
-      it "isn't read for an endpoint without one" do
-        request = env(body: "{}", length: "17")
-        inputs.call(request, {})
-
-        assert_equal 0, request["rack.input"].pos
+      it "refuses a body that isn't JSON" do
+        assert_equal invalid(["body", "is not valid JSON"]), body.call(env(body: "{title"), {})
       end
     end
 

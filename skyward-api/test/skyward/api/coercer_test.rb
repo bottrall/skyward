@@ -109,10 +109,6 @@ describe Skyward::API::Coercer do
       it "refuses a query key given more than once" do
         assert_equal mismatch('expected String, got ["a","b"]'), coerce(string, %w[a b], strings: true)
       end
-
-      it "writes bytes that aren't UTF-8 in its message as replacement characters" do
-        assert_equal mismatch('expected Integer, got "caf�"'), coerce(integer, "caf\xE9", strings: true)
-      end
     end
 
     describe "Date" do
@@ -142,6 +138,12 @@ describe Skyward::API::Coercer do
         expected = Time.new(2026, 10, 18, 9, 30, Rational("7.125"), "-05:30")
 
         assert_equal ok(expected), coerce(time, "2026-10-18T09:30:07.125-05:30")
+      end
+
+      it "cuts a fraction to nanoseconds" do
+        expected = Time.utc(2026, 10, 18, 9, 30, Rational(7_123_456_789, 10**9))
+
+        assert_equal ok(expected), coerce(time, "2026-10-18T09:30:07.1234567891234Z")
       end
 
       it "keeps the offset" do
@@ -200,7 +202,7 @@ describe Skyward::API::Coercer do
       end
 
       it "refuses a value of another type" do
-        assert_equal mismatch("expected nil, got \"\""), coerce(types::Literal.new(value: nil), "", strings: true)
+        assert_equal mismatch('expected 1, got "1"'), coerce(types::Literal.new(value: 1), "1")
       end
     end
 
@@ -327,6 +329,16 @@ describe Skyward::API::Coercer do
     end
 
     describe "messages" do
+      it "write bytes that aren't UTF-8 as replacement characters" do
+        assert_equal mismatch('expected Integer, got "caf�"'), coerce(integer, "caf\xE9", strings: true)
+      end
+
+      it "write a value nested as deep as JSON.parse allows" do
+        nested = JSON.parse("#{"[" * 100}[]#{"]" * 100}")
+
+        assert_instance_of Skyward::API::Coercer::Invalid, coerce(string, nested)
+      end
+
       it "write a nullable union in parentheses" do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: priority))
 

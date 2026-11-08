@@ -33,7 +33,7 @@ module Skyward::API::Coercer
 
   TIME = /
     \A(\d{4}-\d{2}-\d{2})
-    T([01]\d|2[0-3]):([0-5]\d):([0-5]\d(?:\.\d+)?)
+    T([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d{1,9})\d*+)?
     (Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)\z
   /x #: Regexp
 
@@ -49,8 +49,7 @@ module Skyward::API::Coercer
 
   FORMATS = { date: "Date (YYYY-MM-DD)", time: "Time (ISO 8601)" }.freeze #: Hash[Skyward::Types::scalar, String]
 
-  # Path and query values are Strings, so with strings: true a coercer also
-  # parses numbers and booleans, and takes one value as a one-item array.
+  # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Types::t
   # @rbs strings: bool
   # @rbs return: t
@@ -162,9 +161,11 @@ module Skyward::API::Coercer
     day = date(match[1]) if match
     return unless match && day
 
-    _, hour, minute, second, zone = match.captures.map(&:to_s)
+    _, hour, minute, second, fraction, zone = match.captures
     on = day.value
-    Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, Rational(second), zone))
+    # The fraction is cut to nanoseconds, which bounds what converting it costs.
+    seconds = second.to_i + Rational(fraction.to_i, 10**fraction.to_s.size)
+    Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, seconds, zone))
   end
 
   # @rbs type: Skyward::Types::Literal
@@ -263,9 +264,9 @@ module Skyward::API::Coercer
   # @rbs return: Invalid
   def mismatch(type, raw, at)
     expected = type.is_a?(Skyward::Types::Scalar) ? FORMATS.fetch(type.name) { written(type) } : written(type)
-    # A path parameter can be any bytes, and a body any number, which JSON
-    # can't write as they are.
-    got = JSON.generate(raw.is_a?(String) ? raw.scrub : raw, allow_nan: true)
+    # A path parameter can be any bytes, and a body any number, nested as deep
+    # as JSON.parse allows, all of which JSON.generate refuses by default.
+    got = JSON.generate(raw.is_a?(String) ? raw.scrub : raw, allow_nan: true, max_nesting: false)
     Invalid.new(errors: [Error.new(at:, message: "expected #{expected}, got #{got}")])
   end
 
@@ -274,7 +275,7 @@ module Skyward::API::Coercer
   def written(type)
     case type
     when Skyward::Types::Scalar then NAMES.fetch(type.name)
-    when Skyward::Types::Literal then type.value.nil? ? "nil" : type.value.inspect
+    when Skyward::Types::Literal then type.value.inspect
     when Skyward::Types::Enum then type.symbols.map(&:inspect).join(" | ")
     when Skyward::Types::Nullable then nullable_written(type.type)
     when Skyward::Types::ArrayOf then "Array[#{written(type.type)}]"

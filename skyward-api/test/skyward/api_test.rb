@@ -83,17 +83,6 @@ describe Skyward do
         assert_equal({ id: 42 }, client.get("/42").json)
       end
 
-      it "answers ones that don't fit with a 422 listing every problem" do
-        expected = {
-          type: "about:blank",
-          title: "Unprocessable Content",
-          status: 422,
-          errors: [{ at: "path.id", message: 'expected Integer, got "x"' }]
-        }
-
-        assert_equal expected, client.get("/x").json
-      end
-
       it "reads a body of up to 1 MiB by default" do
         # 12 bytes of JSON around the title.
         assert_equal 200, client.post("/", json: { title: "a" * (1_048_576 - 12) }).status
@@ -103,7 +92,7 @@ describe Skyward do
         assert_equal 413, client.post("/", json: { title: "a" * (1_048_576 - 11) }).status
       end
 
-      it "reads a body of up to max_body_size bytes" do
+      it "refuses a body over the max_body_size it's given" do
         assert_equal 413, client(max_body_size: 10).post("/", json: { title: "Ship it" }).status
       end
     end

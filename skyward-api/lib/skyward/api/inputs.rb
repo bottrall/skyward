@@ -54,18 +54,19 @@ class Skyward::API::Inputs
   # @rbs body: Skyward::API::Coercer::result?
   # @rbs return: Skyward::API::Coercer::result
   def arguments(params, query, body)
-    case query
-    when Skyward::API::Coercer::Invalid then query
-    else
-      results = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
-      Skyward::API::Coercer.combine(results.to_h)
+    results = @keywords.filter_map { |keyword, coercer| argument(keyword, coercer, params, query, body) }
+    combined = Skyward::API::Coercer.combine(results.to_h)
+    case combined
+    # A malformed query string is every query keyword's error, but one problem.
+    when Skyward::API::Coercer::Invalid then combined.with(errors: combined.errors.uniq)
+    else combined
     end
   end
 
   # @rbs keyword: Skyward::API::Router::Keyword
   # @rbs coercer: Skyward::API::Coercer::t
   # @rbs params: Hash[Symbol, String]
-  # @rbs query: Hash[String, String | Array[String]]
+  # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
   # @rbs body: Skyward::API::Coercer::result?
   # @rbs return: [Symbol, Skyward::API::Coercer::result]?
   def argument(keyword, coercer, params, query, body)
@@ -74,7 +75,7 @@ class Skyward::API::Inputs
     raw =
       case keyword.source
       when :path then Skyward::API::Coercer::Ok.new(value: params.fetch(name))
-      when :query then (Skyward::API::Coercer::Ok.new(value: query.fetch(name.to_s)) if query.key?(name.to_s))
+      when :query then from_query(query, name.to_s)
       else body
       end
     result =
@@ -84,6 +85,16 @@ class Skyward::API::Inputs
       else Skyward::API::Coercer.absent(keyword.type, keyword.required, at)
       end
     [name, result] if result
+  end
+
+  # @rbs query: Hash[String, String | Array[String]] | Skyward::API::Coercer::Invalid
+  # @rbs key: String
+  # @rbs return: Skyward::API::Coercer::result?
+  def from_query(query, key)
+    case query
+    when Skyward::API::Coercer::Invalid then query
+    else (Skyward::API::Coercer::Ok.new(value: query.fetch(key)) if query.key?(key))
+    end
   end
 
   # @rbs string: String
