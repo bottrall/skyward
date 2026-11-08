@@ -1,0 +1,14 @@
+# Generated from lib/skyward/bad_request.rb with RBS::Inline
+
+class Skyward::BadRequest
+  # @dynamic detail
+  attr_reader detail: String
+
+  # @dynamic headers
+  attr_reader headers: Hash[String, String]
+
+  # @rbs detail: String
+  # @rbs headers: Hash[String, String]
+  # @rbs return: void
+  def initialize: (detail: String, headers: Hash[String, String]) -> void
+end

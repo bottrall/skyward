@@ -1,0 +1,20 @@
+# Generated from lib/skyward/redirect.rb with RBS::Inline
+
+class Skyward::Redirect
+  STATUSES: Array[Integer]
+
+  # @dynamic to
+  attr_reader to: String
+
+  # @dynamic status
+  attr_reader status: Integer
+
+  # @dynamic headers
+  attr_reader headers: Hash[String, String]
+
+  # @rbs to: String
+  # @rbs status: Integer
+  # @rbs headers: Hash[String, String]
+  # @rbs return: void
+  def initialize: (to: String, status: Integer, headers: Hash[String, String]) -> void
+end
