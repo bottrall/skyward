@@ -4,17 +4,17 @@ require "test_helper"
 
 describe Skyward::ORM::Adapters do
   adapters = Skyward::ORM::Adapters
-  adapter = Data.define(:driver) { def connect(location) = "connection to #{location}" }.new(driver: "fakedb")
+  adapter = Data.define(:driver).new(driver: "fakedb")
   schemes = { "fake" => adapter, "other" => adapter }.freeze
   requirer = ->(_feature) {}
 
   def refusal(url, schemes, requirer)
-    assert_raises(Skyward::Core::BootError) { Skyward::ORM::Adapters.connect(url, schemes:, requirer:) }.message
+    assert_raises(Skyward::Core::BootError) { Skyward::ORM::Adapters.resolve(url, schemes:, requirer:) }.message
   end
 
-  describe ".connect" do
+  describe ".resolve" do
     it "picks the adapter by the URL's scheme" do
-      picked, = adapters.connect("fake://todos.db", schemes:, requirer:)
+      picked, = adapters.resolve("fake://todos.db", schemes:, requirer:)
 
       assert_same adapter, picked
     end
@@ -31,7 +31,7 @@ describe Skyward::ORM::Adapters do
 
     it "requires the adapter's driver" do
       required = []
-      adapters.connect("fake://todos.db", schemes:, requirer: ->(feature) { required << feature })
+      adapters.resolve("fake://todos.db", schemes:, requirer: ->(feature) { required << feature })
 
       assert_equal ["fakedb"], required
     end
@@ -44,10 +44,10 @@ describe Skyward::ORM::Adapters do
                    refusal("fake://todos.db", schemes, missing)
     end
 
-    it "connects to the database the rest of the URL locates" do
-      _, connection = adapters.connect("fake://todos.db", schemes:, requirer:)
+    it "gives the rest of the URL as the database's location" do
+      _, location = adapters.resolve("fake://todos.db", schemes:, requirer:)
 
-      assert_equal "connection to todos.db", connection
+      assert_equal "todos.db", location
     end
   end
 end

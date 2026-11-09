@@ -11,7 +11,7 @@ describe Skyward::ORM::Connection::Session do
   let(:database) do
     Skyward::ORM::Connection::Database.new(
       sqlite,
-      sqlite.connect(":memory:"),
+      Skyward::ORM::Connection::Pool.new(1, -> { sqlite.connect(":memory:") }),
       Skyward::ORM::Tables::ColumnTypes.new(reader),
       []
     )

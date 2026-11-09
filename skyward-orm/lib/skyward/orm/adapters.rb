@@ -6,8 +6,8 @@ module Skyward::ORM::Adapters
   SCHEMES = { "sqlite" => SQLite }.freeze #: Hash[String, Skyward::ORM::_Adapter]
 
   # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
-  #   -> [Skyward::ORM::_Adapter, Skyward::ORM::_Connection]
-  def connect(url, schemes:, requirer:)
+  #   -> [Skyward::ORM::_Adapter, String]
+  def resolve(url, schemes:, requirer:)
     scheme, location = url.split("://", 2)
     adapter = schemes[scheme.to_s] if location
     raise Skyward::Core::BootError, unsupported(location && scheme, schemes) unless adapter && location
@@ -20,7 +20,7 @@ module Skyward::ORM::Adapters
             "Skyward ORM needs the #{adapter.driver} gem to connect to a #{scheme}:// URL. " \
             "Add `gem \"#{adapter.driver}\"` to your Gemfile."
     end
-    [adapter, adapter.connect(location)]
+    [adapter, location]
   end
 
   private

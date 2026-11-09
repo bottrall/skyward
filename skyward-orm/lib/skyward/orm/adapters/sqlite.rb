@@ -38,6 +38,8 @@ module Skyward::ORM::Adapters::SQLite
 
   UNIQUE_KINDS = %i[unique primary_key].freeze #: Array[Skyward::ORM::Catalog::constraint_kind]
 
+  BUSY_TIMEOUT_MS = 5000 #: Integer
+
   COLUMNS = <<~SQL #: String
     SELECT m.name, m.sql, c.name, c.type, c."notnull", c.pk
     FROM sqlite_schema AS m JOIN pragma_table_info(m.name) AS c
@@ -60,10 +62,20 @@ module Skyward::ORM::Adapters::SQLite
   def connect(location)
     connection = SQLite3::Database.new(location)
     connection.extended_result_codes = true
+    # busy_timeout= would hold the GVL while it waits, so no other thread or
+    # fiber could run, including the one holding the lock.
+    connection.busy_handler_timeout = BUSY_TIMEOUT_MS
     connection.execute("PRAGMA foreign_keys = ON")
     require_version(connection.execute("SELECT sqlite_version()").dig(0, 0).to_s)
     connection
   end
+
+  # Each connection to :memory: opens its own empty database, so there can be
+  # only the one.
+  # @rbs location: String
+  # @rbs size: Integer
+  # @rbs return: Integer
+  def pool_size(location, size) = location == ":memory:" ? 1 : size
 
   # @rbs version: String
   # @rbs return: void

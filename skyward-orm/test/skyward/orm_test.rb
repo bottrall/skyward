@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "tmpdir"
 require_relative "../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM do
@@ -19,8 +20,9 @@ describe Skyward::ORM do
 end
 
 describe Skyward do
+  fixtures = File.expand_path("../fixtures/tables", __dir__)
+
   describe ".connect" do
-    fixtures = File.expand_path("../fixtures/tables", __dir__)
     todo = TablesFixtures::Todo
     values = [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"]
 
@@ -40,6 +42,35 @@ describe Skyward do
       database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:") }
 
       assert_equal :normal, database.decoder(todo, todo).call(values).priority
+    end
+
+    it "opens up to pool: connections" do
+      Dir.mktmpdir do |dir|
+        database = Skyward.connect(
+          "sqlite://#{File.join(dir, "todos.db")}",
+          signatures: File.join(fixtures, "sig"),
+          pool: 2
+        )
+        outer, inner = database.connection { |first| database.connection { |second| [first, second] } }
+
+        refute_same outer, inner
+      end
+    end
+  end
+
+  describe ".transaction" do
+    it "runs the block in a transaction on the connected database" do
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+
+      assert(Skyward.transaction { Skyward.transaction? })
+    end
+  end
+
+  describe ".transaction?" do
+    it "is false outside a transaction on the connected database" do
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+
+      refute_predicate Skyward, :transaction?
     end
   end
 

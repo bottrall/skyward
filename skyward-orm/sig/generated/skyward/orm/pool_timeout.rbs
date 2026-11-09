@@ -1,0 +1,4 @@
+# Generated from lib/skyward/orm/pool_timeout.rb with RBS::Inline
+
+class Skyward::ORM::PoolTimeout < StandardError
+end

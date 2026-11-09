@@ -18,23 +18,25 @@ Skyward::Core::Signatures.register(File.expand_path("../../sig", dir))
 module Skyward
   # @rbs url: String
   # @rbs signatures: String
+  # @rbs pool: Integer
   # @rbs return: ORM::Connection::Database
-  def self.connect(url, signatures: "sig")
+  def self.connect(url, signatures: "sig", pool: 5)
     column_types = ORM::Tables::ColumnTypes.new(Core::Types::Reader.new(Core::Signatures.load(signatures)))
-    adapter, connection = ORM::Adapters.connect(
+    adapter, location = ORM::Adapters.resolve(
       url,
       schemes: ORM::Adapters::SCHEMES,
       requirer: ->(feature) { require(feature) }
     )
-    ORM::Connection::SESSION.connect(
-      ORM::Connection::Database.new(
-        adapter,
-        connection,
-        column_types,
-        adapter.tables(connection)
-      )
-    )
+    connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), -> { adapter.connect(location) })
+    tables = connections.with { |connection| adapter.tables(connection) }
+    ORM::Connection::SESSION.connect(ORM::Connection::Database.new(adapter, connections, column_types, tables))
   end
+
+  # @rbs [T] () { () -> T } -> T
+  def self.transaction(&) = ORM::Connection::SESSION.database.transaction(&)
+
+  # @rbs return: bool
+  def self.transaction? = ORM::Connection::SESSION.database.transaction?
 
   # @rbs expression: String
   # @rbs return: ORM::Tables::SQL
