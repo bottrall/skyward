@@ -40,10 +40,13 @@ module Skyward::ORM::Migrations::Runner
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> outcome
   def run(adapter, connection, migrations)
-    connection.execute(
-      "CREATE TABLE IF NOT EXISTS #{TABLE} (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
-      "ran_at #{adapter.sql_type(:time)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
-    )
+    # Only when it's missing: on SQLite, even committing nothing under the
+    # migration lock fails while another connection reads.
+    refused = create_table(adapter, connection) unless adapter.tables(connection).any? { |table| table.name == TABLE }
+    if refused
+      return migrations.empty? ? [] : Locked.new(file: migrations.fetch(0).file, message: refused)
+    end
+
     ran = connection.execute("SELECT version, checksum FROM #{TABLE}").to_h
     # A migration that ran but whose file is gone doesn't stop the rest, so old
     # migrations can be squashed.
@@ -132,6 +135,32 @@ module Skyward::ORM::Migrations::Runner
   end
 
   private
+
+  # Made under the migration lock, since two migrators making it at once on
+  # PostgreSQL can collide in its catalog, and IF NOT EXISTS doesn't stop that.
+  # Returns the database's message when the lock can't be taken.
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> String?
+  def create_table(adapter, connection)
+    connection.execute_batch(adapter.begin_migration)
+  rescue StandardError => e
+    cancel(connection)
+    e.message
+  else
+    settled = false
+    begin
+      connection.execute(
+        "CREATE TABLE IF NOT EXISTS #{TABLE} (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
+        "ran_at #{adapter.sql_type(:time)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+      )
+      connection.execute("COMMIT")
+      settled = true
+    ensure
+      cancel(connection) unless settled
+    end
+    nil
+  ensure
+    connection.execute_batch(adapter.end_migration)
+  end
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
   #   { () -> (bool | Failed) } -> (bool | Locked | Failed)

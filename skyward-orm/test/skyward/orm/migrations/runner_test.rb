@@ -103,15 +103,20 @@ describe Skyward::ORM::Migrations::Runner do
   describe ".run" do
     # What running migrations does on every database, so each runs these.
     running = proc do
-      # Runs create_a for the other migrator, after this one has read schema_migrations.
+      # Runs create_a for the other migrator, after this one has read
+      # schema_migrations: the first lock it takes is for making that table.
       let(:racing) do
         racing_on = adapter
+        locks = 0
         Module.new do
           extend racing_on
 
-          def self.begin_migration
+          define_singleton_method(:begin_migration) do
+            locks += 1
+            next super() if locks == 1
+
             "INSERT INTO schema_migrations (version, checksum) VALUES ('20261001000000', 'theirs') " \
-              "ON CONFLICT DO NOTHING; #{super}"
+              "ON CONFLICT DO NOTHING; #{super()}"
           end
         end
       end
@@ -142,6 +147,18 @@ describe Skyward::ORM::Migrations::Runner do
         migrate(create_a, create_b)
 
         assert_equal ["20261003000000"], migrate(create_b, create_c)
+      end
+
+      it "raises when it can't make schema_migrations, and leaves no transaction open" do
+        broken_on = adapter
+        broken = Module.new do
+          extend broken_on
+
+          def self.sql_type(_type) = "("
+        end
+
+        assert_raises(StandardError) { runner.run(broken, connection, [create_a]) }
+        assert_equal [true, []], [idle?, tables]
       end
 
       it "runs each migration in order and returns their versions" do
@@ -195,19 +212,28 @@ describe Skyward::ORM::Migrations::Runner do
         counted = (10..19).map do |number|
           runner.parse("#{number}_count.sql", "INSERT INTO runs (version) VALUES ('#{number}');\n")
         end
-        # Neither takes the lock until both have read that nothing has run, so
-        # both try every migration. The one migrating sleeps where it asks for a
-        # placeholder, inside its transaction, for the other to try to take the
-        # lock then: SQLite's driver holds Ruby's lock while SQLite works.
-        arrived = Queue.new
-        together = Thread.new { 2.times { arrived.pop } }
+        # Both make schema_migrations at once, and neither takes the lock for a
+        # migration until both have read that nothing has run, so both try every
+        # migration. A round gives up waiting for a migrator that never comes, as
+        # when it failed, so the test fails rather than hangs. The one migrating
+        # sleeps where it asks for a placeholder, inside its transaction, for the
+        # other to try to take the lock then: SQLite's driver holds Ruby's lock
+        # while SQLite works.
+        rounds = Array.new(2) do
+          arrived = Queue.new
+          [arrived, Thread.new { 2.times { arrived.pop(timeout: 5) } }]
+        end
         migrating_on = adapter
         both = Module.new do
           extend migrating_on
 
           define_singleton_method(:begin_migration) do
-            arrived << true
-            together.join
+            round = Thread.current[:migration_round] = Thread.current[:migration_round].to_i + 1
+            arrived, together = rounds[round - 1]
+            if together
+              arrived << true
+              together.join
+            end
             super()
           end
 
@@ -239,6 +265,16 @@ describe Skyward::ORM::Migrations::Runner do
       end
 
       class_exec(&running)
+
+      it "runs nothing when it can't take the migration lock to make schema_migrations" do
+        holder = empty.connect
+        holder.execute("BEGIN IMMEDIATE")
+        connection.busy_handler_timeout = 10
+        locked = runner::Locked.new(file: create_a.file, message: "database is locked")
+
+        assert_equal [[], locked, true, []],
+                     [runner.run(sqlite, connection, []), runner.run(sqlite, connection, [create_a]), idle?, tables]
+      end
 
       it "runs nothing when it can't take the migration lock, naming the file and the database's message" do
         holder = empty.connect
@@ -324,6 +360,16 @@ describe Skyward::ORM::Migrations::Runner do
       end
 
       class_exec(&running)
+
+      it "runs nothing when it can't take the migration lock to make schema_migrations" do
+        holder = empty.connect
+        holder.execute_batch(adapter.begin_migration)
+        connection.execute("SET lock_timeout = '10ms'")
+        locked = runner::Locked.new(file: create_a.file, message: "ERROR:  canceling statement due to lock timeout\n")
+
+        assert_equal [[], locked, true, []],
+                     [runner.run(adapter, connection, []), runner.run(adapter, connection, [create_a]), idle?, tables]
+      end
 
       it "runs nothing when it can't take the migration lock, and leaves no transaction open" do
         holder = empty.connect

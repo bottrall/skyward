@@ -36,6 +36,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: test ${{ matrix.gem }} (ruby ${{ matrix.ruby }})
+    # A hung test fails the job in minutes rather than holding it for hours.
+    timeout-minutes: 10
     # head is an early warning of the next Ruby's breakages, not a gate.
     continue-on-error: ${{ matrix.ruby == 'head' }}
 
@@ -68,6 +70,7 @@ jobs:
   test-orm:
     runs-on: ubuntu-latest
     name: test skyward-orm (ruby ${{ matrix.ruby }})
+    timeout-minutes: 10
     continue-on-error: ${{ matrix.ruby == 'head' }}
 
     strategy:
