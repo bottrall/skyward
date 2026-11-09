@@ -87,6 +87,8 @@ class Skyward::ORM::Query[R]
 
   @conditions: Array[condition]
 
+  @all: bool
+
   @expressions: Hash[Symbol, String]
 
   @row: Class
@@ -97,18 +99,21 @@ class Skyward::ORM::Query[R]
 
   @table: singleton(Skyward::ORM::Record)
 
+  # all: is true only for an explicit Todo.all, which may update or delete
+  # every row.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
+  # @rbs all: bool
   # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: void
-  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?all: bool, ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs **on: Symbol
@@ -190,18 +195,30 @@ class Skyward::ORM::Query[R]
   # @rbs return: [String, Array[untyped]]
   def to_sql: () -> [ String, Array[untyped] ]
 
+  # @rbs **values: untyped
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def update: (**untyped values) -> (Array[R] | Skyward::ORM::Violation)
+
+  # @rbs **values: untyped
+  # @rbs return: Array[R]
+  def update!: (**untyped values) -> Array[R]
+
+  # @rbs return: Array[R]
+  def delete!: () -> Array[R]
+
   private
 
   # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
+  # @rbs all: bool
   # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[untyped]
-  def with: (?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[untyped]
+  def with: (?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?all: bool, ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[untyped]
 
   # @rbs keyword: String
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -220,14 +237,12 @@ class Skyward::ORM::Query[R]
   # @rbs return: Array[Comparison]
   def comparisons: (Symbol column, untyped value) -> Array[Comparison]
 
-  # @rbs columns: Array[Symbol]
-  # @rbs table: singleton(Skyward::ORM::Record)
+  # Neither PostgreSQL nor SQLite (as it's usually built) takes a JOIN,
+  # ORDER BY, GROUP BY, LIMIT or OFFSET on an UPDATE or DELETE, and an into
+  # expression, such as an aggregate, means nothing portable in its RETURNING.
+  # @rbs method: Symbol
   # @rbs return: void
-  def require_columns: (Array[Symbol] columns, ?singleton(Skyward::ORM::Record) table) -> void
-
-  # @rbs conditions: Hash[Symbol, untyped]
-  # @rbs return: void
-  def require_types: (Hash[Symbol, untyped] conditions) -> void
+  def require_writable: (Symbol method) -> void
 
   # @rbs method: Symbol
   # @rbs count: Integer
@@ -254,6 +269,13 @@ class Skyward::ORM::Query[R]
   # @rbs join: Join
   # @rbs return: String
   def joining: (Join join) -> String
+
+  # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
+  # start after them.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs position: Integer
+  # @rbs return: [String?, Array[untyped]]
+  def filter: (Skyward::ORM::Connection::Database database, Integer position) -> [ String?, Array[untyped] ]
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs conditions: Array[condition]
@@ -323,8 +345,13 @@ class Skyward::ORM::Query[R]
   # @rbs return: String
   def qualified: (Symbol name, ?singleton(Skyward::ORM::Record) table) -> String
 
-  # Quoted, so a column named order or user is still a column.
-  # @rbs name: Symbol
-  # @rbs return: String
-  def quote: (Symbol name) -> String
+  # @rbs method: Symbol
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[untyped] | Skyward::ORM::Violation
+  def write: (Symbol method, String sql, Array[untyped] values) -> (Array[untyped] | Skyward::ORM::Violation)
+
+  # @rbs written: Array[untyped] | Skyward::ORM::Violation
+  # @rbs return: Array[untyped]
+  def unviolated: (Array[untyped] | Skyward::ORM::Violation written) -> Array[untyped]
 end

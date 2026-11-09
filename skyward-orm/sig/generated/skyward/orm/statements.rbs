@@ -1,0 +1,53 @@
+# Generated from lib/skyward/orm/statements.rb with RBS::Inline
+
+module Skyward::ORM::Statements
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: [String, Array[untyped]]
+  def insert: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Symbol]
+  # @rbs return: void
+  def require_columns: (singleton(Skyward::ORM::Record) table, Array[Symbol] columns) -> void
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs conditions: Hash[Symbol, untyped]
+  # @rbs return: void
+  def require_conditions: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] conditions) -> void
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: void
+  def require_values: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> void
+
+  # @rbs columns: Array[Symbol]
+  # @rbs return: String
+  def returning: (Array[Symbol] columns) -> String
+
+  # Quoted, so a column named order or user is still a column.
+  # @rbs name: Symbol
+  # @rbs return: String
+  def quote: (Symbol name) -> String
+
+  private
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs &: (Skyward::ORM::Tables::Column column, untyped value) -> String?
+  # @rbs return: void
+  def refuse: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) { (Skyward::ORM::Tables::Column column, untyped value) -> String? } -> void
+
+  # An untyped column's nullability is unknown, so it's left to the database,
+  # like a column the class doesn't declare.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs given: Array[Symbol]
+  # @rbs return: void
+  def require_present: (singleton(Skyward::ORM::Record) table, Array[Skyward::ORM::Tables::Column] columns, Array[Symbol] given) -> void
+end

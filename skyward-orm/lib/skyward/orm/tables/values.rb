@@ -21,6 +21,10 @@ module Skyward::ORM::Tables::Values
     time: "Time"
   }.freeze #: Hash[Symbol, String]
 
+  UNTYPED = "untyped, which takes any value but a Hash or a nested Array" #: String
+
+  UNTYPED_WRITE = "untyped, which takes any one value but an Array, a Hash or a Range" #: String
+
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
@@ -29,11 +33,31 @@ module Skyward::ORM::Tables::Values
     refused = candidates(value).reject { |candidate| accepts?(column, candidate) }
     return if refused.empty?
 
-    given = refused.first
-    "#{table}.#{column.name} is #{written(column)}, not #{given.inspect} (#{given.class})"
+    refusal(table, column, refused.first, UNTYPED)
+  end
+
+  # A write binds each value to one placeholder, so an Array or a Range, which
+  # a where unpacks, is never one value, and the driver can't bind a Range.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def write_mismatch(table, column, value)
+    return if accepts?(column, value) && !value.is_a?(Range)
+
+    refusal(table, column, value, UNTYPED_WRITE)
   end
 
   private
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs untyped: String
+  # @rbs return: String
+  def refusal(table, column, value, untyped)
+    "#{table}.#{column.name} is #{written(column, untyped)}, not #{value.inspect} (#{value.class})"
+  end
 
   # A range's nil end leaves it open, so it isn't a NULL to check.
   # @rbs value: untyped
@@ -63,10 +87,11 @@ module Skyward::ORM::Tables::Values
   end
 
   # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs untyped: String
   # @rbs return: String
-  def written(column)
+  def written(column, untyped)
     case column.type
-    when :untyped then "untyped, which takes any value but a Hash or a nested Array"
+    when :untyped then untyped
     when :enum
       symbols = column.symbols.map(&:inspect).join(" | ")
       column.nullable ? "(#{symbols})?" : symbols

@@ -42,6 +42,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | orm | `Skyward::ORM::Catalog` | the database's schema as an adapter reads it: its tables, columns, indexes and constraints |
 | orm | `Skyward::ORM::Adapters` | what differs between databases: each adapter's connection, SQL types, codec, schema reads and violations |
 | orm | `Skyward::ORM::Connection` | the database `Skyward.connect` opens, and the session that holds it for every query |
+| orm | `Skyward::ORM::Statements` | the SQL that queries and writes share: quoted names, columns checked against a table class, and the `INSERT` a table class writes |
 
 ## Ruby
 

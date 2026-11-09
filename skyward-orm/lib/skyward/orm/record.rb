@@ -15,7 +15,7 @@ class Skyward::ORM::Record
   class_eval(Skyward::ORM::Tables::Rows.source([]), __FILE__, __LINE__)
 
   # @rbs return: Skyward::ORM::Query[instance]
-  def self.all = Skyward::ORM::Query.new(self, Skyward::ORM::Connection::SESSION)
+  def self.all = Skyward::ORM::Query.new(self, Skyward::ORM::Connection::SESSION, all: true)
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs **on: Symbol
@@ -47,6 +47,28 @@ class Skyward::ORM::Record
   # @rbs **conditions: untyped
   # @rbs return: instance?
   def self.find_by(**conditions) = all.find_by(**conditions)
+
+  # @rbs **values: untyped
+  # @rbs return: instance | Skyward::ORM::Violation
+  def self.insert(**values)
+    database = Skyward::ORM::Connection::SESSION.database
+    sql, binds = Skyward::ORM::Statements.insert(database.adapter, database.column_types, self, values)
+    written = database.write(self, self, sql, binds)
+    case written
+    when Skyward::ORM::Violation then written
+    else written.fetch(0)
+    end
+  end
+
+  # @rbs **values: untyped
+  # @rbs return: instance
+  def self.insert!(**values)
+    row = insert(**values)
+    case row
+    when Skyward::ORM::Violation then raise Skyward::ORM::ViolationError, row
+    else row
+    end
+  end
 
   # @rbs return: Array[Symbol]
   def self.members = schema.columns

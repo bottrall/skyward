@@ -47,6 +47,14 @@ class Skyward::ORM::Record
   # @rbs return: instance?
   def self.find_by: (**untyped conditions) -> instance?
 
+  # @rbs **values: untyped
+  # @rbs return: instance | Skyward::ORM::Violation
+  def self.insert: (**untyped values) -> (instance | Skyward::ORM::Violation)
+
+  # @rbs **values: untyped
+  # @rbs return: instance
+  def self.insert!: (**untyped values) -> instance
+
   # @rbs return: Array[Symbol]
   def self.members: () -> Array[Symbol]
 
