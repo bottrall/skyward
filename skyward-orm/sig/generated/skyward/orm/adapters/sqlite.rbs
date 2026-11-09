@@ -23,6 +23,8 @@ module Skyward::ORM::Adapters::SQLite
 
   UNIQUE_KINDS: Array[Skyward::ORM::Catalog::constraint_kind]
 
+  BUSY_TIMEOUT_MS: Integer
+
   COLUMNS: String
 
   INDEXES: String
@@ -33,6 +35,13 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs location: String
   # @rbs return: Skyward::ORM::_Connection
   def connect: (String location) -> Skyward::ORM::_Connection
+
+  # Each connection to :memory: opens its own empty database, so there can be
+  # only the one.
+  # @rbs location: String
+  # @rbs size: Integer
+  # @rbs return: Integer
+  def pool_size: (String location, Integer size) -> Integer
 
   # @rbs version: String
   # @rbs return: void

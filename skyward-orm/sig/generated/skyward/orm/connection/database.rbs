@@ -1,6 +1,45 @@
 # Generated from lib/skyward/orm/connection/database.rb with RBS::Inline
 
 class Skyward::ORM::Connection::Database
+  class Held < Data
+    attr_reader connection(): Skyward::ORM::_Connection
+
+    attr_reader fiber(): Fiber
+
+    def self.new: (Skyward::ORM::_Connection connection, Fiber fiber) -> instance
+                | (connection: Skyward::ORM::_Connection, fiber: Fiber) -> instance
+
+    def self.members: () -> [ :connection, :fiber ]
+
+    def members: () -> [ :connection, :fiber ]
+  end
+
+  class Statements < Data
+    attr_reader start(): String
+
+    attr_reader commit(): Array[String]
+
+    attr_reader rollback(): Array[String]
+
+    def self.new: (String start, Array[String] commit, Array[String] rollback) -> instance
+                | (start: String, commit: Array[String], rollback: Array[String]) -> instance
+
+    def self.members: () -> [ :start, :commit, :rollback ]
+
+    def members: () -> [ :start, :commit, :rollback ]
+  end
+
+  TRANSACTION: Statements
+
+  # A savepoint is released even when it's rolled back to, so the innermost of
+  # this name is always the block's own: SQLite and PostgreSQL both take a
+  # repeated name to mean the innermost.
+  SAVEPOINT: Statements
+
+  FOREIGN: String
+
+  @key: Symbol
+
   @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
 
   @lock: Thread::Mutex
@@ -13,13 +52,24 @@ class Skyward::ORM::Connection::Database
 
   @column_types: Skyward::ORM::Tables::ColumnTypes
 
-  @connection: Skyward::ORM::_Connection
+  @pool: Skyward::ORM::Connection::Pool
 
   @adapter: Skyward::ORM::_Adapter
 
-  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection,
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
   #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
-  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+
+  # The seam every query runs through. Fiber storage is copied into child
+  # fibers and threads, so one can find a transaction here that isn't its own.
+  # @rbs [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+  def connection: [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+
+  # @rbs [T] () { () -> T } -> T
+  def transaction: [T] () { () -> T } -> T
+
+  # @rbs return: bool
+  def transaction?: () -> bool
 
   # @dynamic adapter
   attr_reader adapter: Skyward::ORM::_Adapter
@@ -51,6 +101,22 @@ class Skyward::ORM::Connection::Database
   def violation: (StandardError error, Symbol table) -> Skyward::ORM::Violation?
 
   private
+
+  # @rbs held: Held
+  # @rbs return: bool
+  def owned?: (Held held) -> bool
+
+  # Rolled back in ensure rather than rescue, so a block left by throw or a
+  # killed thread rolls back too, and so does a commit that fails.
+  # @rbs [T] (Skyward::ORM::_Connection connection, Statements statements) { () -> T } -> T
+  def atomically: [T] (Skyward::ORM::_Connection connection, Statements statements) { () -> T } -> T
+
+  # Untyped, because Steep narrows a generic result to the violation it's
+  # tested for and then can't return it as the block's type.
+  # @rbs statements: Statements
+  # @rbs result: untyped
+  # @rbs return: Array[String]
+  def ending: (Statements statements, untyped result) -> Array[String]
 
   # Every query and write decodes through here, so a table class loaded after
   # connect is checked before its first use.
