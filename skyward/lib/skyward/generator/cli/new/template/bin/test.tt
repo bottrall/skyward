@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Any arguments go to rake, so `bin/test N=/404/` runs only the tests whose
+# names match.
+set -e
+cd "$(dirname "$0")/.."
+
+exec bundle exec rake test "$@"

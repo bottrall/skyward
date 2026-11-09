@@ -1,0 +1,50 @@
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+# @rbs use Skyward::API::*
+
+class Notes::API < Skyward::API
+  description "Notes, each a title and an optional body."
+
+  get  "/",    to: :index,  summary: "List notes, newest first."
+  get  "/:id", to: :show,   summary: "Fetch a single note."
+  post "/",    to: :create, summary: "Write a note."
+
+  NewNote = Data.define(
+    :title, #: String
+    :body   #: String?
+  )
+
+  # @rbs @notes: singleton(Notes::Record)
+
+  # @rbs notes: singleton(Notes::Record)
+  # @rbs return: void
+  def initialize(notes:)
+    super()
+    @notes = notes
+  end
+
+  # @rbs limit: Integer
+  # @rbs return: Array[Notes::Record]
+  def index(limit: 50)
+    @notes.order(id: :desc).limit(limit).to_a
+  end
+
+  # @rbs id: Integer
+  # @rbs return: Notes::Record | Responses::NotFound
+  def show(id:)
+    @notes.find_by(id:) || not_found
+  end
+
+  # The database checks the title's length, and refuses a note that breaks it.
+  # @rbs body: NewNote
+  # @rbs return: Responses::Created[Notes::Record] | Responses::Unprocessable
+  def create(body:)
+    note = @notes.insert(title: body.title, body: body.body)
+    case note
+    when Notes::Record then created note
+    else unprocessable "A title needs 1 to 200 characters"
+    end
+  end
+end

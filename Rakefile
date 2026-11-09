@@ -151,22 +151,31 @@ namespace :package do
     end
   end
 
-  desc "Install the built gems into an empty GEM_HOME, load them and run skyward, as a user would"
+  desc "Install the built gems into an empty GEM_HOME, load them and run skyward, then check the app skyward new " \
+       "writes passes its own bin/ci, as a user would"
   task check: :build do
     Dir.mktmpdir("skyward-gems") do |home|
       env = { "GEM_HOME" => home, "GEM_PATH" => home }
+      skyward = File.join(home, "bin", "skyward")
       Bundler.with_unbundled_env do
         GEMS.each { |gem| sh env, "gem", "install", "--no-document", *Dir["#{PKG}/#{gem}-[0-9]*.gem"] }
         # Eager loading every loader fails on a file the gemspec left out.
         sh env, Gem.ruby, "-e", <<~RUBY
           require "skyward"
+          require "skyward/generator"
           Zeitwerk::Loader.eager_load_all
           puts "Installed and loaded skyward \#{Skyward::VERSION} from #{PKG}/"
         RUBY
-        output, status = Open3.capture2e(env, File.join(home, "bin", "skyward"))
+        output, status = Open3.capture2e(env, skyward)
         puts output
         usage = output.start_with?("Usage: skyward COMMAND [ARGS]\n")
         abort "The installed skyward didn't exit 0 and print its usage" unless status.success? && usage
+        # The app's Gemfile pins skyward at this version, which Bundler finds
+        # among the gems just installed, released or not.
+        Dir.mktmpdir("skyward-new") do |apps|
+          sh env, skyward, "new", "demo", chdir: apps
+          sh env, "bin/ci", chdir: File.join(apps, "demo")
+        end
       end
     end
   end

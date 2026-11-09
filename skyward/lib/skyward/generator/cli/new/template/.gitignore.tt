@@ -1,0 +1,4 @@
+/.bundle/
+/vendor/
+/.gem_rbs_collection/
+/db/*.sqlite3*

@@ -22,7 +22,8 @@ jobs:
           - name: tooling
             run: bundle exec rake test:tooling
           # Builds every gem, installs them into an empty GEM_HOME, loads them
-          # and runs skyward, which catches a file the gemspec leaves out.
+          # and runs skyward, which catches a file the gemspec leaves out, then
+          # runs skyward new and the new app's own bin/ci with them.
           - name: package
             run: bundle exec rake package:check
 

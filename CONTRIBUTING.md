@@ -21,7 +21,7 @@ That installs the dev bundle, each gem's and example's own bundle, and the gem s
 | `bin/rbs`      | regenerates each gem's and example's `sig/generated` from its inline annotations       |
 | `bin/rbs-watch` | regenerates them on every change                                          |
 | `bin/typecheck` | checks the signatures are current, then runs Steep on every gem and example        |
-| `bin/ci`       | everything CI runs, including building and installing the gems           |
+| `bin/ci`       | everything CI runs, including building and installing the gems, and running the `bin/ci` of the app `skyward new` writes with them |
 
 Run `bin/ci` before you push.
 

@@ -1,0 +1,19 @@
+# Generated from lib/skyward/generator/cli/new.rb with RBS::Inline
+
+module Skyward::Generator::CLI::New
+  SKIP_BUNDLE: String
+
+  # Lowercase, so it names one directory on every filesystem, and a constant
+  # once camelized.
+  NAME: Regexp
+
+  # @rbs (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
+  def run: (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
+
+  private
+
+  # @rbs names: Array[String]
+  # @rbs directory: String
+  # @rbs return: String?
+  def problem: (Array[String] names, String directory) -> String?
+end
