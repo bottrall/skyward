@@ -17,6 +17,16 @@ class Skyward::ORM::Record
   # @rbs return: Skyward::ORM::Query[instance]
   def self.all = Skyward::ORM::Query.new(self, Skyward::ORM::Connection::SESSION)
 
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.join(table, **on) = all.join(table, **on)
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.left_join(table, **on) = all.left_join(table, **on)
+
   # @rbs sql: String?
   # @rbs *values: untyped
   # @rbs **conditions: untyped
