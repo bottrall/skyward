@@ -163,6 +163,12 @@ describe Skyward::ORM::Query do
 
       assert_equal "TablesFixtures::Todo has no column zzzzzz.", error.message
     end
+
+    it "refuses a value its column's type doesn't take" do
+      error = assert_raises(ArgumentError) { query.where(done: "yes") }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
   end
 
   describe "#order" do
@@ -327,6 +333,12 @@ describe Skyward::ORM::Query do
       insert(milk, eggs)
 
       assert_equal eggs, query.find_by(done: true)
+    end
+
+    it "refuses a value its column's type doesn't take" do
+      error = assert_raises(ArgumentError) { query.find_by(priority: :urgent) }
+
+      assert_equal "TablesFixtures::Todo.priority is :low | :normal | :high, not :urgent (Symbol)", error.message
     end
   end
 

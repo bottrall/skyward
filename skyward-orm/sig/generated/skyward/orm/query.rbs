@@ -97,6 +97,10 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs return: void
   def require_columns: (Array[Symbol] columns) -> void
 
+  # @rbs conditions: Hash[Symbol, untyped]
+  # @rbs return: void
+  def require_types: (Hash[Symbol, untyped] conditions) -> void
+
   # @rbs method: Symbol
   # @rbs count: Integer
   # @rbs return: Integer

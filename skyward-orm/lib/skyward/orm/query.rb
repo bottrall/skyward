@@ -40,6 +40,7 @@ class Skyward::ORM::Query
   # @rbs return: Skyward::ORM::Query[R]
   def where(**conditions)
     require_columns(conditions.keys)
+    require_types(conditions)
     with(conditions: [*@conditions, *conditions.to_a])
   end
 
@@ -139,6 +140,16 @@ class Skyward::ORM::Query
 
     suggestion = DidYouMean::SpellChecker.new(dictionary: known).correct(unknown).first
     raise ArgumentError, "#{@table} has no column #{unknown}.#{" Did you mean #{suggestion}?" if suggestion}"
+  end
+
+  # @rbs conditions: Hash[Symbol, untyped]
+  # @rbs return: void
+  def require_types(conditions)
+    columns = @session.database.column_types.columns(@table).to_h { |column| [column.name, column] }
+    mismatch = conditions.filter_map do |name, value|
+      Skyward::ORM::Tables::Values.mismatch(@table, columns.fetch(name), value)
+    end.first
+    raise ArgumentError, mismatch if mismatch
   end
 
   # @rbs method: Symbol
