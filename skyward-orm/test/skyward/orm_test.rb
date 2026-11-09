@@ -36,13 +36,13 @@ describe Skyward do
     it "reads column types from the signatures given" do
       database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
-      assert_equal :normal, database.decoder(todo, todo).call(values).priority
+      assert_equal :normal, database.decoder(todo, todo, []).call(values).priority
     end
 
     it "reads them from sig/ in the current directory by default" do
       database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:", check: false) }
 
-      assert_equal :normal, database.decoder(todo, todo).call(values).priority
+      assert_equal :normal, database.decoder(todo, todo, []).call(values).priority
     end
 
     it "opens up to pool: connections" do

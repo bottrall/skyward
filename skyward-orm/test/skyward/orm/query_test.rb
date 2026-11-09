@@ -512,6 +512,86 @@ describe Skyward::ORM::Query do
     end
   end
 
+  describe "#into" do
+    title = TablesFixtures::TodoTitle
+    open_count = TablesFixtures::OpenCount
+
+    it "returns a new frozen query, leaving the one it started from as it was" do
+      assert_equal [true, [select, []]], [query.into(title).frozen?, query.to_sql]
+    end
+
+    it "selects the README's TodoTitle from the same-named columns" do
+      insert(milk, eggs)
+      titles = query.where(done: false).into(title)
+      expected = [[%(SELECT "id", "title" FROM "todos" WHERE "done" = ?), [0]], [title.new(id: 1, title: "Buy milk")]]
+
+      assert_equal expected, [titles.to_sql, titles.to_a]
+    end
+
+    it "selects the README's OpenCount, with an expression AS its member" do
+      insert(milk.with(list_id: 1), eggs.with(list_id: 1), milk.with(id: 3, list_id: 2), milk.with(id: 4, list_id: 2))
+      counts = query.where(done: false).group(:list_id).into(open_count, open: "count(*)")
+      expected = [
+        [%(SELECT "list_id", count(*) AS "open" FROM "todos" WHERE "done" = ? GROUP BY "list_id"), [0]],
+        [open_count.new(list_id: 1, open: 1), open_count.new(list_id: 2, open: 2)]
+      ]
+
+      assert_equal expected, [counts.to_sql, counts.sort_by(&:list_id)]
+    end
+
+    it "keeps the clauses before it, and takes more after it" do
+      projected = query.where(done: false).order(:id).limit(20).offset(40).into(title)
+                       .where(title: "Buy milk").order(created_at: :desc)
+      expected = [
+        %(SELECT "id", "title" FROM "todos" WHERE "done" = ? AND "title" = ? ORDER BY "id" ASC, "created_at" DESC ) \
+        "LIMIT ? OFFSET ?",
+        [0, "Buy milk", 20, 40]
+      ]
+
+      assert_equal expected, projected.to_sql
+    end
+
+    it "replaces the projection when called again" do
+      assert_equal [%(SELECT "id", "title" FROM "todos"), []],
+                   query.into(open_count, open: "count(*)").into(title).to_sql
+    end
+
+    it "leaves where, order and group naming the table's columns, not the row class's members" do
+      counts = query.into(open_count, open: "count(*)")
+      errors = [-> { counts.where(open: 1) }, -> { counts.order(:open) }, -> { counts.group(:open) }].map do |call|
+        assert_raises(ArgumentError, &call).message
+      end
+
+      assert_equal ["TablesFixtures::Todo has no column open."] * 3, errors
+    end
+
+    it "leaves where checking its values against the table's column types" do
+      error = assert_raises(ArgumentError) { query.into(title).where(done: "yes") }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
+    it "decodes an expressed member as the expression, not as the column it's named like" do
+      insert(milk.with(list_id: 1), milk.with(id: 3, list_id: 1))
+      summary = Data.define(:done)
+
+      assert_equal [summary.new(done: 2)], query.where(done: false).group(:list_id).into(summary, done: "count(*)").to_a
+    end
+
+    it "refuses an expression for a name that isn't a member" do
+      error = assert_raises(ArgumentError) { query.into(title, total: "count(*)") }
+
+      assert_equal "TablesFixtures::TodoTitle has no member total to take an expression", error.message
+    end
+
+    it "refuses a member that's neither a column nor given an expression" do
+      error = assert_raises(ArgumentError) { query.into(open_count) }
+
+      assert_equal "TablesFixtures::Todo has no column open, so TablesFixtures::OpenCount needs an expression for it",
+                   error.message
+    end
+  end
+
   describe "#first" do
     it "returns the first row in the query's order" do
       insert(milk, eggs)
