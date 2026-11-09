@@ -1,0 +1,3 @@
+module Skyward::ORM::CLI::Migration
+  extend ::Skyward::ORM::CLI::Migration
+end

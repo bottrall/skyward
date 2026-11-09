@@ -1,0 +1,30 @@
+# Generated from lib/skyward/orm/migrations/summary.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Summary
+  # @rbs changes: Array[Skyward::ORM::Migrations::change]
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def text: (Array[Skyward::ORM::Migrations::change] changes, Skyward::ORM::_Adapter adapter) -> String
+
+  private
+
+  # @rbs change: Skyward::ORM::Migrations::change
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def section: (Skyward::ORM::Migrations::change change, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs change: Skyward::ORM::Migrations::CreateTable
+  # @rbs return: String
+  def counts: (Skyward::ORM::Migrations::CreateTable change) -> String
+
+  # @rbs size: Integer
+  # @rbs one: String
+  # @rbs many: String
+  # @rbs return: String
+  def count: (Integer size, String one, String many) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def column: (Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+end

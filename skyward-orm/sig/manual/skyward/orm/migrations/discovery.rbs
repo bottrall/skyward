@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Discovery
+  extend ::Skyward::ORM::Migrations::Discovery
+end

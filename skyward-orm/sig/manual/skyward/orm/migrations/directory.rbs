@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Directory
+  extend ::Skyward::ORM::Migrations::Directory
+end

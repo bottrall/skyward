@@ -1,0 +1,53 @@
+module MigrationsFixtures
+  class List < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader name: String
+  end
+
+  class Todo < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader list_id: Integer
+    attr_reader title: String
+    attr_reader priority: :low | :normal | :high
+    attr_reader due_on: Date?
+    attr_reader done: bool
+    attr_reader created_at: Time
+  end
+
+  # extra has no type.
+  class NotedTodo < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader list_id: Integer
+    attr_reader title: String
+    attr_reader priority: :low | :normal | :high
+    attr_reader due_on: Date?
+    attr_reader done: bool
+    attr_reader created_at: Time
+    attr_reader notes: String?
+    attr_reader rank: Integer
+    attr_reader code: String
+    attr_reader extra: untyped
+  end
+
+  class Attachment < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader todo_id: Integer
+  end
+
+  class Member < ::Skyward::ORM::Record
+    attr_reader email: String
+    attr_reader list_id: Integer?
+    attr_reader mentor_email: String?
+    attr_reader handle: String
+    attr_reader nickname: String
+    attr_reader score: Float
+    attr_reader joined_on: Date
+    attr_reader role: (:admin | :member)?
+    attr_reader note: String?
+  end
+
+  # payload has no type.
+  class Scrap < ::Skyward::ORM::Record
+    attr_reader id: Integer
+  end
+end

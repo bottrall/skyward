@@ -10,6 +10,8 @@ module Skyward::ORM
     def connect: (String location) -> _Connection
     def placeholder: (Integer position) -> String
     def sql_type: (Tables::column_type type) -> String?
+    def identity: () -> String?
+    def default_expression: (String expression) -> String
     def compatible?: (Tables::column_type type, String sql_type) -> bool
     def encode: (untyped value) -> untyped
     def decode: (Tables::column_type type, untyped value) -> untyped

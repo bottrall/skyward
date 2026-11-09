@@ -17,6 +17,19 @@ class Skyward::ORM::Connection::Database
     @decoders = {}
   end
 
+  # @dynamic adapter
+  attr_reader :adapter #: Skyward::ORM::_Adapter
+
+  # @dynamic column_types
+  attr_reader :column_types #: Skyward::ORM::Tables::ColumnTypes
+
+  # @dynamic tables
+  attr_reader :tables #: Array[Skyward::ORM::Catalog::Table]
+
+  # @rbs sql: String
+  # @rbs return: Array[Array[untyped]]
+  def execute(sql) = @connection.execute(sql)
+
   # A query selects its row class's columns in order, so the decoder reads
   # each value by position, as its table's column type says.
   # @rbs table: singleton(Skyward::ORM::Record)

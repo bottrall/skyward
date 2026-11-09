@@ -1,0 +1,33 @@
+# Generated from lib/skyward/orm/migrations/directory.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Directory
+  PATH: String
+
+  # @rbs directory: String
+  # @rbs name: String
+  # @rbs return: String?
+  def named: (String directory, String name) -> String?
+
+  # A migration's version is the timestamp its file name starts with.
+  # @rbs directory: String
+  # @rbs ran: Array[String]
+  # @rbs return: Array[String]
+  def pending: (String directory, Array[String] ran) -> Array[String]
+
+  # @rbs directory: String
+  # @rbs time: Time
+  # @rbs name: String
+  # @rbs sql: String
+  # @rbs return: String
+  def write: (String directory, Time time, String name, String sql) -> String
+
+  private
+
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def files: (String directory) -> Array[String]
+
+  # @rbs file: String
+  # @rbs return: String
+  def version: (String file) -> String
+end

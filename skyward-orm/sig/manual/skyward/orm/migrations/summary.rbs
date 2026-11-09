@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Summary
+  extend ::Skyward::ORM::Migrations::Summary
+end
