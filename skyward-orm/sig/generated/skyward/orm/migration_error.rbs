@@ -1,0 +1,4 @@
+# Generated from lib/skyward/orm/migration_error.rb with RBS::Inline
+
+class Skyward::ORM::MigrationError < StandardError
+end

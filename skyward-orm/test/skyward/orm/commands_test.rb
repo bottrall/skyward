@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "open3"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe "skyward/orm/commands.rb" do
@@ -40,11 +40,7 @@ describe "skyward/orm/commands.rb" do
     it "has nothing to write once that migration has run" do
       app do |directory|
         skyward("migration", "create_todos", chdir: directory)
-        file = Dir.glob("db/migrate/*.sql", base: directory).fetch(0)
-        connection = Skyward::ORM::Adapters::SQLite.connect(File.join(directory, "app.sqlite3"))
-        connection.execute_batch(File.read(File.join(directory, file)).split("-- down\n").fetch(0))
-        connection.execute("CREATE TABLE schema_migrations (version TEXT PRIMARY KEY)")
-        connection.execute("INSERT INTO schema_migrations (version) VALUES (?)", [File.basename(file)[/\A\d+/]])
+        skyward("migrate", chdir: directory)
 
         assert_equal ["Every table matches its class. Nothing to write.\n", 0],
                      skyward("migration", "add_notes_to_todos", chdir: directory)
@@ -54,6 +50,34 @@ describe "skyward/orm/commands.rb" do
     it "shows how to use it, and exits 1, without a name" do
       app do |directory|
         assert_equal ["#{Skyward::ORM::CLI::Migration::USAGE}\n", 1], skyward("migration", chdir: directory)
+      end
+    end
+  end
+
+  describe "migrate" do
+    it "runs the migration skyward migration wrote, once" do
+      app do |directory|
+        skyward("migration", "create_todos", chdir: directory)
+        ran = [skyward("migrate", chdir: directory), skyward("migrate", chdir: directory)]
+
+        assert_equal(
+          [["Migrated TIMESTAMP\n", 0], ["No pending migrations.\n", 0]],
+          ran.map { |output, status| [output.sub(/\d{14}/, "TIMESTAMP"), status] }
+        )
+      end
+    end
+
+    it "fails without a backtrace, and exits 1, when a migration fails" do
+      app do |directory|
+        FileUtils.mkdir_p(File.join(directory, "db/migrate"))
+        File.write(File.join(directory, "db/migrate/20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
+
+        assert_equal [
+          "20261001000000_broken.sql failed, so it was rolled back and no later migration ran: " \
+          "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);\n",
+          1
+        ],
+                     skyward("migrate", chdir: directory)
       end
     end
   end

@@ -132,6 +132,12 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Array[untyped]
   def rows: (Class row, String sql, Array[untyped] values) -> Array[untyped]
 
+  # Migrating changes the schema read at connect, even when a later migration
+  # fails, so it's read again, and every class is checked against it afresh.
+  # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
+  # @rbs return: Skyward::ORM::Migrations::Runner::outcome
+  def migrate: (Array[Skyward::ORM::Migrations::Runner::Migration] migrations) -> Skyward::ORM::Migrations::Runner::outcome
+
   private
 
   # @rbs held: Held

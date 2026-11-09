@@ -351,6 +351,52 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".begin_migration" do
+    it "turns foreign keys off, then takes SQLite's write lock as the transaction begins" do
+      assert_equal "PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE", sqlite.begin_migration
+    end
+
+    it "keeps the rows that refer to a table rebuilt in its transaction, which would cascade with foreign keys on" do
+      cascading = sqlite.connect(":memory:")
+      cascading.execute_batch(<<~SQL)
+        CREATE TABLE lists (id INTEGER PRIMARY KEY);
+        CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists ON DELETE CASCADE);
+        INSERT INTO lists (id) VALUES (1);
+        INSERT INTO todos (list_id) VALUES (1);
+      SQL
+      cascading.execute_batch(sqlite.begin_migration)
+      cascading.execute_batch(<<~SQL)
+        CREATE TABLE new_lists (id INTEGER PRIMARY KEY, name TEXT);
+        INSERT INTO new_lists (id) SELECT id FROM lists;
+        DROP TABLE lists;
+        ALTER TABLE new_lists RENAME TO lists;
+        COMMIT;
+      SQL
+
+      assert_equal [[1, 1]], cascading.execute("SELECT id, list_id FROM todos")
+    end
+  end
+
+  describe ".foreign_key_violations" do
+    it "describes each row that refers to a missing one" do
+      connection.execute("PRAGMA foreign_keys = OFF")
+      connection.execute("INSERT INTO todos (list_id, title) VALUES (9, 'Eggs')")
+
+      assert_equal ["todos row 2 refers to a missing lists row (foreign key 0)"],
+                   sqlite.foreign_key_violations(connection)
+    end
+
+    it "has none when every reference is there" do
+      assert_empty sqlite.foreign_key_violations(connection)
+    end
+  end
+
+  describe ".end_migration" do
+    it "turns foreign keys back on" do
+      assert_equal "PRAGMA foreign_keys = ON", sqlite.end_migration
+    end
+  end
+
   describe ".violation" do
     it "is nil for an error that isn't a constraint" do
       assert_nil violation("SELECT * FROM missing", :missing)

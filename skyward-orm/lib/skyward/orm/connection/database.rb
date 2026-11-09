@@ -170,6 +170,22 @@ class Skyward::ORM::Connection::Database
     fetched.map(&compile(row, columns, types.fetch_values(*columns)))
   end
 
+  # Migrating changes the schema read at connect, even when a later migration
+  # fails, so it's read again, and every class is checked against it afresh.
+  # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
+  # @rbs return: Skyward::ORM::Migrations::Runner::outcome
+  def migrate(migrations)
+    connection do |checked_out|
+      migrated = Skyward::ORM::Migrations::Runner.run(@adapter, checked_out, migrations)
+      tables = @adapter.tables(checked_out)
+      @lock.synchronize do
+        @tables = tables
+        @checked.clear
+      end
+      migrated
+    end
+  end
+
   private
 
   # @rbs held: Held

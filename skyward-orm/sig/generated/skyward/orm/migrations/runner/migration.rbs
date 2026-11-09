@@ -1,0 +1,20 @@
+# Generated from lib/skyward/orm/migrations/runner/migration.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  class Migration < Data
+    attr_reader file(): String
+
+    attr_reader version(): String
+
+    attr_reader up(): String
+
+    attr_reader checksum(): String
+
+    def self.new: (String file, String version, String up, String checksum) -> instance
+                | (file: String, version: String, up: String, checksum: String) -> instance
+
+    def self.members: () -> [ :file, :version, :up, :checksum ]
+
+    def members: () -> [ :file, :version, :up, :checksum ]
+  end
+end

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require "test_helper"
 require "tmpdir"
 require_relative "../fixtures/tables/tables_fixtures"
@@ -131,6 +132,69 @@ describe Skyward do
       error = assert_raises(ArgumentError) { Skyward.query(:todos, "SELECT 1") }
 
       assert_equal "Skyward.query takes a row class or the SQL as its first argument", error.message
+    end
+  end
+
+  describe ".migrate" do
+    # Its own process, so the only table class loaded is the one the migration makes a table for.
+    it "runs the directory's pending migrations, then checks the loaded table classes against them" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "20261001000000_create_notes.sql"), "CREATE TABLE notes (id INTEGER);\n")
+        script = <<~RUBY
+          require "skyward/orm"
+
+          class Note < Skyward::ORM::Record
+            table :notes
+            attr_reader :id
+          end
+
+          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          p Skyward.migrate(#{directory.inspect}), Skyward.migrate(#{directory.inspect})
+        RUBY
+        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+        assert_equal [%(["20261001000000"]\n[]\n), 0], [output, status.exitstatus]
+      end
+    end
+
+    # Its own process too: other tests' table classes include ones whose declarations are invalid on purpose.
+    it "raises SchemaMismatch for a table class that doesn't match once it has migrated, even with nothing pending" do
+      Dir.mktmpdir do |directory|
+        script = <<~RUBY
+          require "skyward/orm"
+
+          class Note < Skyward::ORM::Record
+            table :notes
+            attr_reader :id
+          end
+
+          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          begin
+            Skyward.migrate(#{directory.inspect})
+          rescue Skyward::ORM::SchemaMismatch => e
+            puts e.message.lines.first
+          end
+        RUBY
+        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+        assert_equal ["Note doesn't match the notes table\n", 0], [output, status.exitstatus]
+      end
+    end
+
+    it "raises what went wrong when it can't migrate" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
+        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__), check: false)
+        error = assert_raises(Skyward::ORM::MigrationError) { Skyward.migrate(directory) }
+
+        assert_equal Skyward::ORM::Migrations::Runner.message(
+          Skyward::ORM::Migrations::Runner::Failed.new(
+            file: "20261001000000_broken.sql",
+            message: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);"
+          )
+        ),
+                     error.message
+      end
     end
   end
 
