@@ -1,0 +1,11 @@
+# Generated from lib/skyward/orm/transactional.rb with RBS::Inline
+
+# @rbs module-self Minitest::Test::LifecycleHooks
+module Skyward::ORM::Transactional : Minitest::Test::LifecycleHooks
+  # @rbs return: void
+  def before_setup: () -> void
+
+  # Minitest calls this even when setup or the test raised.
+  # @rbs return: void
+  def after_teardown: () -> void
+end
