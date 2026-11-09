@@ -157,13 +157,27 @@ describe Skyward do
       end
     end
 
-    # Other tests' table classes are loaded too, so this looks only for one of its own.
+    # Its own process too: other tests' table classes include ones whose declarations are invalid on purpose.
     it "raises SchemaMismatch for a table class that doesn't match once it has migrated, even with nothing pending" do
       Dir.mktmpdir do |directory|
-        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
-        error = assert_raises(Skyward::ORM::SchemaMismatch) { Skyward.migrate(directory) }
+        script = <<~RUBY
+          require "skyward/orm"
 
-        assert_includes error.message, "TablesFixtures::Todo doesn't match the todos table"
+          class Note < Skyward::ORM::Record
+            table :notes
+            attr_reader :id
+          end
+
+          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          begin
+            Skyward.migrate(#{directory.inspect})
+          rescue Skyward::ORM::SchemaMismatch => e
+            puts e.message.lines.first
+          end
+        RUBY
+        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+        assert_equal ["Note doesn't match the notes table\n", 0], [output, status.exitstatus]
       end
     end
 
