@@ -1,0 +1,14 @@
+class List < ::Skyward::ORM::Record
+  attr_reader id: Integer
+  attr_reader name: String
+end
+
+class Todo < ::Skyward::ORM::Record
+  attr_reader id: Integer
+  attr_reader list_id: Integer
+  attr_reader title: String
+  attr_reader priority: :low | :normal | :high
+  attr_reader due_on: Date?
+  attr_reader done: bool
+  attr_reader created_at: Time
+end

@@ -1,0 +1,5 @@
+# Generated from lib/skyward/orm/migrations.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  type change = CreateTable | AddColumns
+end

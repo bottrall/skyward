@@ -6,7 +6,7 @@ require "zeitwerk"
 require_relative "orm/version"
 
 loader = Zeitwerk::Loader.for_gem_extension(Skyward)
-loader.inflector.inflect("orm" => "ORM", "sql" => "SQL", "sqlite" => "SQLite")
+loader.inflector.inflect("orm" => "ORM", "sql" => "SQL", "sqlite" => "SQLite", "cli" => "CLI")
 # The skyward executable loads it, and it defines no constant.
 loader.ignore("#{__dir__}/orm/commands.rb")
 loader.setup

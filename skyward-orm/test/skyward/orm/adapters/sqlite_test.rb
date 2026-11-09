@@ -88,6 +88,22 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".identity" do
+    it "has no clause, since an INTEGER PRIMARY KEY numbers its rows" do
+      assert_nil sqlite.identity
+    end
+  end
+
+  describe ".default_expression" do
+    it "puts the expression in parentheses, which SQLite needs for anything but a literal" do
+      connection = sqlite.connect(":memory:")
+      connection.execute("CREATE TABLE stamps (at TEXT DEFAULT #{sqlite.default_expression("datetime('now')")})")
+      connection.execute("INSERT INTO stamps DEFAULT VALUES")
+
+      assert_match(/\A\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\z/, connection.execute("SELECT at FROM stamps").dig(0, 0))
+    end
+  end
+
   describe ".compatible?" do
     it "accepts any declared type for an untyped column" do
       assert sqlite.compatible?(:untyped, "BLOB")

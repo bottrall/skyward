@@ -1,0 +1,25 @@
+# Generated from lib/skyward/orm/cli/migration.rb with RBS::Inline
+
+module Skyward::ORM::CLI::Migration
+  NAME: Regexp
+
+  USAGE: String
+
+  NOTHING: String
+
+  # @rbs (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel),
+  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def run: (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+
+  private
+
+  # Writing a second migration before the first has run would write the same
+  # change twice, so a pending one stops it.
+  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, out: _Writer,
+  #   kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def write: (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+
+  # @rbs files: Array[String]
+  # @rbs return: String
+  def pending: (Array[String] files) -> String
+end

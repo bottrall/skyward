@@ -1,0 +1,10 @@
+# Generated from lib/skyward/orm/cli/boot_file.rb with RBS::Inline
+
+module Skyward::ORM::CLI::BootFile
+  FILE: String
+
+  # @rbs directory: String
+  # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs return: Skyward::ORM::Connection::Database | String
+  def load: (String directory, Skyward::ORM::Connection::Session session) -> (Skyward::ORM::Connection::Database | String)
+end

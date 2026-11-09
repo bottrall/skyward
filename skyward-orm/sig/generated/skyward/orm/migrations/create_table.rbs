@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/migrations/create_table.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class CreateTable < Data
+    attr_reader klass(): singleton(Skyward::ORM::Record)
+
+    attr_reader columns(): Array[Skyward::ORM::Tables::Column]
+
+    def self.new: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns) -> instance
+                | (klass: singleton(Skyward::ORM::Record), columns: Array[Skyward::ORM::Tables::Column]) -> instance
+
+    def self.members: () -> [ :klass, :columns ]
+
+    def members: () -> [ :klass, :columns ]
+  end
+end

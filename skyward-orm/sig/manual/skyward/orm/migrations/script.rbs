@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Script
+  extend ::Skyward::ORM::Migrations::Script
+end

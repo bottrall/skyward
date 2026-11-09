@@ -1,0 +1,97 @@
+# Generated from lib/skyward/orm/migrations/script.rb with RBS::Inline
+
+# Every constraint and index is named, so a violation names the same
+# constraint on every database: SQLite reports an unnamed check by its
+# expression, where PostgreSQL would make up these names.
+module Skyward::ORM::Migrations::Script
+  ON_DELETE: Hash[Skyward::ORM::Tables::on_delete, String]
+
+  # @rbs changes: Array[Skyward::ORM::Migrations::change]
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def write: (Array[Skyward::ORM::Migrations::change] changes, Skyward::ORM::_Adapter adapter) -> String
+
+  private
+
+  # @rbs change: Skyward::ORM::Migrations::change
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def up: (Skyward::ORM::Migrations::change change, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs change: Skyward::ORM::Migrations::change
+  # @rbs return: Array[String]
+  def down: (Skyward::ORM::Migrations::change change) -> Array[String]
+
+  # Columns line up as a person would write them. A generated key's type runs
+  # on into its identity clause, so it doesn't set the width.
+  # @rbs change: Skyward::ORM::Migrations::CreateTable
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def create: (Skyward::ORM::Migrations::CreateTable change, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs change: Skyward::ORM::Migrations::AddColumns
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def add: (Skyward::ORM::Migrations::AddColumns change, Skyward::ORM::_Adapter adapter) -> String
+
+  # The rows a table already has need a value for a new required column.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def add_column: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+
+  # A column's type, and the clauses that follow it, or nil when it has no type.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: [String, String]?
+  def definition: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> [ String, String ]?
+
+  # @rbs schema: Skyward::ORM::Tables::Schema
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs return: bool
+  def generated?: (Skyward::ORM::Tables::Schema schema, Skyward::ORM::Tables::Column column) -> bool
+
+  # @rbs value: untyped
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def default: (untyped value, Skyward::ORM::_Adapter adapter) -> String
+
+  # A symbol union's check comes first, as part of the column's type.
+  # @rbs table: Symbol
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs checks: Array[Skyward::ORM::Tables::Check]
+  # @rbs return: Array[String]
+  def checks: (Symbol table, Skyward::ORM::Tables::Column column, Array[Skyward::ORM::Tables::Check] checks) -> Array[String]
+
+  # @rbs column: Symbol
+  # @rbs rule: Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length
+  # @rbs return: String
+  def rule: (Symbol column, Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length rule) -> String
+
+  # @rbs column: Symbol
+  # @rbs length: Skyward::ORM::Tables::Length
+  # @rbs return: String
+  def length: (Symbol column, Skyward::ORM::Tables::Length length) -> String
+
+  # @rbs table: Symbol
+  # @rbs reference: Skyward::ORM::Tables::Reference
+  # @rbs return: String
+  def reference: (Symbol table, Skyward::ORM::Tables::Reference reference) -> String
+
+  # @rbs table: Symbol
+  # @rbs columns: Array[Symbol]
+  # @rbs suffix: String
+  # @rbs return: String
+  def name: (Symbol table, Array[Symbol] columns, String suffix) -> String
+
+  # @rbs table: Symbol
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs return: String
+  def todo_type: (Symbol table, Skyward::ORM::Tables::Column column) -> String
+
+  # @rbs value: untyped
+  # @rbs return: String
+  def literal: (untyped value) -> String
+end
