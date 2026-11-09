@@ -32,6 +32,10 @@ Skyward API coerces and validates `id` from the signature, publishes the endpoin
 
 Skyward API and Skyward ORM each work without the other. All four gems release together, at one version.
 
+## Getting started
+
+[The getting-started guide](docs/getting-started.md) takes you from `gem install skyward` to a running, tested, documented API. For agents, [`llms.txt`](llms.txt) lists Skyward's docs as Markdown.
+
 ## Ruby
 
 Skyward supports every Ruby that isn't end-of-life (3.3 and later, as of November 2026), and CI tests each one.
