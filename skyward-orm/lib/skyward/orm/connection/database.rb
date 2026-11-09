@@ -33,7 +33,7 @@ class Skyward::ORM::Connection::Database
   # @rbs @check: bool
   # @rbs @checked: Set[singleton(Skyward::ORM::Record)]
   # @rbs @lock: Thread::Mutex
-  # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record)], ^(Array[untyped]) -> Skyward::ORM::Record]
+  # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), Class, Array[Symbol]], ^(Array[untyped]) -> untyped]
   # @rbs @key: Symbol
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
@@ -129,12 +129,13 @@ class Skyward::ORM::Connection::Database
     end
   end
 
-  # A query selects its row class's columns in order, so the decoder reads
-  # each value by position, as its table's column type says.
+  # A query selects its row class's members in order, so the decoder reads
+  # each value by position.
   # @rbs table: singleton(Skyward::ORM::Record)
-  # @rbs row: singleton(Skyward::ORM::Record)
-  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
-  def decoder(table, row) = @decoders[[table, row]] ||= build(table, row)
+  # @rbs row: Class
+  # @rbs expressed: Array[Symbol]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def decoder(table, row, expressed) = @decoders[[table, row, expressed]] ||= build(table, row, expressed)
 
   # Every query and write calls this before it touches its table, so a table
   # class loaded after connect is checked before its first use.
@@ -213,13 +214,16 @@ class Skyward::ORM::Connection::Database
   def ending(statements, result) = result.is_a?(Skyward::ORM::Violation) ? statements.rollback : statements.commit
 
   # @rbs table: singleton(Skyward::ORM::Record)
-  # @rbs row: singleton(Skyward::ORM::Record)
-  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
-  def build(table, row)
+  # @rbs row: Class
+  # @rbs expressed: Array[Symbol]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def build(table, row, expressed)
     prepare(table)
-    columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }
-    members = row.schema.columns
-    compile(row, members, members.map { |member| columns[member] || :untyped })
+    # An expression reads no column, so without a type of its own its value passes through.
+    columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }.except(*expressed)
+    members = @column_types.columns(row)
+    types = members.map { |member| member.type == :untyped ? columns[member.name] || :untyped : member.type }
+    compile(row, members.map(&:name), types)
   end
 
   # @rbs row: Class

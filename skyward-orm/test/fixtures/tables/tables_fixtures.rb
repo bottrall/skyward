@@ -88,4 +88,13 @@ module TablesFixtures
 
   # Due's note is untyped.
   Due = Data.define(:title, :due_on, :note)
+
+  # The README's TodoTitle and OpenCount, from Projections, joins and aggregates.
+  TodoTitle = Data.define(:id, :title)
+  OpenCount = Data.define(:list_id, :open)
+
+  # Labelled types priority unlike Todo's column, and Todo has no column
+  # finished.
+  Labelled = Data.define(:priority)
+  Progress = Data.define(:list_id, :finished)
 end

@@ -42,7 +42,7 @@ class Skyward::ORM::Connection::Database
 
   @key: Symbol
 
-  @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
+  @decoders: Hash[[ singleton(Skyward::ORM::Record), Class, Array[Symbol] ], ^(Array[untyped]) -> untyped]
 
   @lock: Thread::Mutex
 
@@ -101,12 +101,13 @@ class Skyward::ORM::Connection::Database
   # @rbs return: void
   def check: (Array[singleton(Skyward::ORM::Record)] tables) -> void
 
-  # A query selects its row class's columns in order, so the decoder reads
-  # each value by position, as its table's column type says.
+  # A query selects its row class's members in order, so the decoder reads
+  # each value by position.
   # @rbs table: singleton(Skyward::ORM::Record)
-  # @rbs row: singleton(Skyward::ORM::Record)
-  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
-  def decoder: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+  # @rbs row: Class
+  # @rbs expressed: Array[Symbol]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def decoder: (singleton(Skyward::ORM::Record) table, Class row, Array[Symbol] expressed) -> ^(Array[untyped]) -> untyped
 
   # Every query and write calls this before it touches its table, so a table
   # class loaded after connect is checked before its first use.
@@ -154,9 +155,10 @@ class Skyward::ORM::Connection::Database
   def ending: (Statements statements, untyped result) -> Array[String]
 
   # @rbs table: singleton(Skyward::ORM::Record)
-  # @rbs row: singleton(Skyward::ORM::Record)
-  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
-  def build: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+  # @rbs row: Class
+  # @rbs expressed: Array[Symbol]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def build: (singleton(Skyward::ORM::Record) table, Class row, Array[Symbol] expressed) -> ^(Array[untyped]) -> untyped
 
   # @rbs row: Class
   # @rbs members: Array[Symbol]

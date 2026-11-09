@@ -450,7 +450,7 @@ describe Skyward::ORM::Connection::Database do
     let(:values) { [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"] }
 
     it "checks its table class first" do
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list) }
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list, []) }
 
       assert_equal mismatch(list), error.message
     end
@@ -466,29 +466,51 @@ describe Skyward::ORM::Connection::Database do
         created_at: Time.utc(2026, 10, 18, 9, 30)
       )
 
-      assert_equal expected, database.decoder(todo, todo).call(values)
+      assert_equal expected, database.decoder(todo, todo, []).call(values)
     end
 
     it "builds a table's decoder once" do
-      assert_same database.decoder(todo, todo), database.decoder(todo, todo)
+      assert_same database.decoder(todo, todo, []), database.decoder(todo, todo, [])
     end
 
     it "builds one for each row class" do
       summary = Class.new(Skyward::ORM::Record) { attr_reader :done }
 
-      refute_same database.decoder(todo, todo), database.decoder(todo, summary)
+      refute_same database.decoder(todo, todo, []), database.decoder(todo, summary, [])
     end
 
-    it "reads a member of another row class by its table's column of that name" do
-      summary = Class.new(Skyward::ORM::Record) { attr_reader :title, :done }
+    it "builds one for each set of expressed members" do
+      summary = Data.define(:done)
 
-      assert_equal summary.new(title: "Buy milk", done: true), database.decoder(todo, summary).call(["Buy milk", 1])
+      refute_same database.decoder(todo, summary, []), database.decoder(todo, summary, [:done])
+    end
+
+    it "reads a member by the row class's own type before its table's column type" do
+      assert_equal TablesFixtures::Labelled.new(priority: "high"),
+                   database.decoder(todo, TablesFixtures::Labelled, []).call(["high"])
+    end
+
+    it "reads an expressed member by the row class's own type" do
+      assert_equal TablesFixtures::Progress.new(list_id: 1, finished: true),
+                   database.decoder(todo, TablesFixtures::Progress, [:finished]).call([1, 1])
+    end
+
+    it "reads a member the row class doesn't type by its table's column of that name" do
+      summary = Data.define(:title, :done)
+
+      assert_equal summary.new(title: "Buy milk", done: true), database.decoder(todo, summary, []).call(["Buy milk", 1])
+    end
+
+    it "passes through an expressed member the row class doesn't type, even one named like a column" do
+      summary = Data.define(:done)
+
+      assert_equal summary.new(done: 3), database.decoder(todo, summary, [:done]).call([3])
     end
 
     it "passes through a member its table has no column for" do
       late = Class.new(Skyward::ORM::Record) { attr_reader :days_late }
 
-      assert_equal late.new(days_late: 3), database.decoder(todo, late).call([3])
+      assert_equal late.new(days_late: 3), database.decoder(todo, late, []).call([3])
     end
   end
 
