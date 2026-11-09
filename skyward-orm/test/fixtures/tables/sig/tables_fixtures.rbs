@@ -88,4 +88,13 @@ module TablesFixtures
     attr_reader title: String
     attr_reader due_on: Date
   end
+
+  class Labelled < ::Data
+    attr_reader priority: String
+  end
+
+  # list_id has no reader, so it's read by Todo's column type.
+  class Progress < ::Data
+    attr_reader finished: bool
+  end
 end

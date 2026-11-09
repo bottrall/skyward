@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# @rbs generic R < Skyward::ORM::Record
+# @rbs generic R
 class Skyward::ORM::Query
   include Enumerable #[R]
 
@@ -11,6 +11,8 @@ class Skyward::ORM::Query
 
   # @rbs @table: singleton(Skyward::ORM::Record)
   # @rbs @session: Skyward::ORM::Connection::Session
+  # @rbs @row: Class
+  # @rbs @expressions: Hash[Symbol, String]
   # @rbs @conditions: Array[[Symbol, untyped]]
   # @rbs @orders: Array[[Symbol, direction]]
   # @rbs @groups: Array[Symbol]
@@ -19,15 +21,29 @@ class Skyward::ORM::Query
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: void
-  def initialize(table, session, conditions: [], orders: [], groups: [], limit: nil, offset: nil)
+  def initialize(
+    table,
+    session,
+    row: table,
+    expressions: {},
+    conditions: [],
+    orders: [],
+    groups: [],
+    limit: nil,
+    offset: nil
+  )
     @table = table
     @session = session
+    @row = row
+    @expressions = expressions.dup.freeze
     @conditions = [*conditions].freeze
     @orders = [*orders].freeze
     @groups = [*groups].freeze
@@ -70,6 +86,15 @@ class Skyward::ORM::Query
   # @rbs count: Integer
   # @rbs return: Skyward::ORM::Query[R]
   def offset(count) = with(offset: require_count(:offset, count))
+
+  # Steep ties the row class to S only through its new, so the query keeps it
+  # as the Class it is.
+  # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Query[S]
+  def into(row, **expressions)
+    klass = row #: Class
+    require_members(klass, expressions)
+    with(row: klass, expressions:)
+  end
 
   # Ordered by the primary key when nothing else orders it, so both databases
   # return the same row.
@@ -123,14 +148,24 @@ class Skyward::ORM::Query
 
   private
 
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
-  # @rbs return: Skyward::ORM::Query[R]
-  def with(conditions: @conditions, orders: @orders, groups: @groups, limit: @limit, offset: @offset)
-    Skyward::ORM::Query.new(@table, @session, conditions:, orders:, groups:, limit:, offset:)
+  # @rbs return: Skyward::ORM::Query[untyped]
+  def with(
+    row: @row,
+    expressions: @expressions,
+    conditions: @conditions,
+    orders: @orders,
+    groups: @groups,
+    limit: @limit,
+    offset: @offset
+  )
+    Skyward::ORM::Query.new(@table, @session, row:, expressions:, conditions:, orders:, groups:, limit:, offset:)
   end
 
   # @rbs columns: Array[Symbol]
@@ -163,13 +198,31 @@ class Skyward::ORM::Query
     raise ArgumentError, "#{@table} can't #{method} by #{count.inspect}, only by a non-negative Integer"
   end
 
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
+  # @rbs return: void
+  def require_members(row, expressions)
+    members = Skyward::ORM::Members.of(row)
+    unknown = expressions.keys - members
+    raise ArgumentError, "#{row} has no member #{unknown.join(", ")} to take an expression" unless unknown.empty?
+
+    unread = members - @table.schema.columns - expressions.keys
+    return if unread.empty?
+
+    raise ArgumentError, "#{@table} has no column #{unread.join(", ")}, so #{row} needs an expression for it"
+  end
+
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
   def statement(database, orders, limit)
     sql, binds = from(database, orders, limit)
-    ["SELECT #{@table.schema.columns.map { |column| quote(column) }.join(", ")} #{sql}", binds]
+    columns = Skyward::ORM::Members.of(@row).map do |member|
+      expression = @expressions.fetch(member, nil)
+      expression ? "#{expression} AS #{quote(member)}" : quote(member)
+    end.join(", ")
+    ["SELECT #{columns} #{sql}", binds]
   end
 
   # @rbs database: Skyward::ORM::Connection::Database
@@ -229,14 +282,14 @@ class Skyward::ORM::Query
     [sql, present.map { |value| database.adapter.encode(value) }]
   end
 
-  # Steep can't tie a table class to R, so the rows are untyped here and each
+  # Steep can't tie the row class to R, so the rows are untyped here and each
   # public method types them.
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: Array[untyped]
   def rows(orders, limit)
     database = @session.database
-    decode = database.decoder(@table, @table)
+    decode = database.decoder(@table, @row, @expressions.keys)
     sql, binds = statement(database, orders, limit)
     database.execute(sql, binds).map(&decode)
   end

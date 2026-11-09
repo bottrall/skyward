@@ -1,7 +1,7 @@
 # Generated from lib/skyward/orm/query.rb with RBS::Inline
 
-# @rbs generic R < Skyward::ORM::Record
-class Skyward::ORM::Query[R < Skyward::ORM::Record]
+# @rbs generic R
+class Skyward::ORM::Query[R]
   include Enumerable[R]
 
   type direction = :asc | :desc
@@ -18,19 +18,25 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   @conditions: Array[[ Symbol, untyped ]]
 
+  @expressions: Hash[Symbol, String]
+
+  @row: Class
+
   @session: Skyward::ORM::Connection::Session
 
   @table: singleton(Skyward::ORM::Record)
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: void
-  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
 
   # @rbs **conditions: untyped
   # @rbs return: Skyward::ORM::Query[R]
@@ -52,6 +58,11 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs count: Integer
   # @rbs return: Skyward::ORM::Query[R]
   def offset: (Integer count) -> Skyward::ORM::Query[R]
+
+  # Steep ties the row class to S only through its new, so the query keeps it
+  # as the Class it is.
+  # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Query[S]
+  def into: [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Query[S]
 
   # Ordered by the primary key when nothing else orders it, so both databases
   # return the same row.
@@ -85,13 +96,15 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   private
 
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
-  # @rbs return: Skyward::ORM::Query[R]
-  def with: (?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[R]
+  # @rbs return: Skyward::ORM::Query[untyped]
+  def with: (?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[untyped]
 
   # @rbs columns: Array[Symbol]
   # @rbs return: void
@@ -105,6 +118,11 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs count: Integer
   # @rbs return: Integer
   def require_count: (Symbol method, Integer count) -> Integer
+
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
+  # @rbs return: void
+  def require_members: (Class row, Hash[Symbol, String] expressions) -> void
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs orders: Array[[Symbol, direction]]
@@ -133,7 +151,7 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs return: [String, Array[untyped]]
   def within: (Skyward::ORM::Connection::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
 
-  # Steep can't tie a table class to R, so the rows are untyped here and each
+  # Steep can't tie the row class to R, so the rows are untyped here and each
   # public method types them.
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
