@@ -1,0 +1,29 @@
+module TypesFixtures
+  class Everything < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader count: Integer
+    attr_reader ratio: Float
+    attr_reader title: String
+    attr_reader done: bool
+    attr_reader due_on: Date
+    attr_reader due_at: Time
+    attr_reader priority: :low | :high
+    attr_reader nullable_count: Integer?
+    attr_reader nullable_ratio: Float?
+    attr_reader nullable_title: String?
+    attr_reader nullable_done: bool?
+    attr_reader nullable_due_on: Date?
+    attr_reader nullable_due_at: Time?
+    attr_reader nullable_priority: (:low | :high)?
+  end
+
+  class EverythingAPI < ::Skyward::API
+    @received: Thread::Queue
+
+    def initialize: (received: Thread::Queue) -> void
+
+    def show: (id: Integer) -> (Everything | ::Skyward::API::Responses::NotFound)
+
+    def receive: (body: Everything) -> ::Skyward::API::Responses::NoContent
+  end
+end

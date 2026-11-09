@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gem: [skyward-core, skyward-api, skyward, examples/todos]
+        gem: [skyward-core, skyward-api, examples/todos]
         # Every Ruby that isn't end-of-life.
         ruby: ["3.3", "3.4", "4.0", head]
 
@@ -63,19 +63,21 @@ jobs:
           working-directory: ${{ matrix.gem }}
       - run: bundle exec rake test
 
-  # The ORM's suite runs on each database it supports, one after the other in
-  # one job, so the job keeps the name main's required checks give it. Both
-  # runs have PostgreSQL, because the PostgreSQL adapter's own tests always use
-  # it, as the SQLite adapter's always use SQLite, so neither skips a test.
-  test-orm:
+  # The suites that use a database, the ORM's and the skyward gem's, run on
+  # each database Skyward ORM supports, one after the other in one job, so the
+  # job keeps the name main's required checks give it. Both runs have
+  # PostgreSQL, because the PostgreSQL adapter's own tests always use it, as
+  # the SQLite adapter's always use SQLite, so neither skips a test.
+  test-databases:
     runs-on: ubuntu-latest
-    name: test skyward-orm (ruby ${{ matrix.ruby }})
+    name: test ${{ matrix.gem }} (ruby ${{ matrix.ruby }})
     timeout-minutes: 10
     continue-on-error: ${{ matrix.ruby == 'head' }}
 
     strategy:
       fail-fast: false
       matrix:
+        gem: [skyward-orm, skyward]
         ruby: ["3.3", "3.4", "4.0", head]
 
     services:
@@ -96,7 +98,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: skyward-orm
+        working-directory: ${{ matrix.gem }}
 
     steps:
       - uses: actions/checkout@v7
@@ -104,7 +106,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-          working-directory: skyward-orm
+          working-directory: ${{ matrix.gem }}
       - name: test on SQLite
         run: bundle exec rake test
         env:
