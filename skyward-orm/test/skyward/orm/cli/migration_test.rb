@@ -77,6 +77,30 @@ describe Skyward::ORM::CLI::Migration do
       end
     end
 
+    it "shows how to use it given --empty without a name" do
+      app do |directory|
+        run_in(directory, "--empty")
+
+        assert_equal [migration::USAGE, []], [kernel.aborted, written(directory)]
+      end
+    end
+
+    it "shows how to use it given any other flag" do
+      app do |directory|
+        run_in(directory, "--force", "create_todos")
+
+        assert_equal [migration::USAGE, []], [kernel.aborted, written(directory)]
+      end
+    end
+
+    it "shows how to use it given --empty twice" do
+      app do |directory|
+        run_in(directory, "--empty", "backfill", "--empty")
+
+        assert_equal [migration::USAGE, []], [kernel.aborted, written(directory)]
+      end
+    end
+
     it "refuses a name a migration already has" do
       app do |directory|
         migration_file(directory, "20261001000000_create_todos.sql")
@@ -85,6 +109,34 @@ describe Skyward::ORM::CLI::Migration do
         assert_equal "skyward: db/migrate/20261001000000_create_todos.sql is already named create_todos. " \
                      "Choose another name.",
                      kernel.aborted
+      end
+    end
+
+    it "refuses an empty migration a name a migration already has" do
+      app do |directory|
+        migration_file(directory, "20261001000000_backfill.sql")
+        run_in(directory, "--empty", "backfill")
+
+        assert_equal "skyward: db/migrate/20261001000000_backfill.sql is already named backfill. Choose another name.",
+                     kernel.aborted
+      end
+    end
+
+    it "writes an empty migration, without booting an app that has no boot.rb yet, and says where" do
+      Dir.mktmpdir do |directory|
+        run_in(directory, "--empty", "backfill_priorities")
+        file = "db/migrate/20261018093000_backfill_priorities.sql"
+
+        assert_equal ["Wrote #{file}. Add your SQL, then run `skyward migrate`.\n", "\n-- down\n", nil],
+                     [out.string, File.read(File.join(directory, file)), kernel.aborted]
+      end
+    end
+
+    it "writes an empty migration given --empty after the name" do
+      Dir.mktmpdir do |directory|
+        run_in(directory, "backfill_priorities", "--empty")
+
+        assert_equal ["db/migrate/20261018093000_backfill_priorities.sql"], written(directory)
       end
     end
 
