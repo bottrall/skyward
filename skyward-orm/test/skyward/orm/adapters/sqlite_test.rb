@@ -98,6 +98,12 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".unlimited" do
+    it "is LIMIT -1, which SQLite needs before an OFFSET" do
+      assert_equal [[3]], sqlite.connect(":memory:").execute("SELECT 3 #{sqlite.unlimited} OFFSET 0")
+    end
+  end
+
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
       types = %i[integer float string bool date time enum].to_h { |type| [type, sqlite.sql_type(type)] }

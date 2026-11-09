@@ -54,6 +54,10 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs (Integer _position) -> String
   def placeholder: (Integer _position) -> String
 
+  # SQLite takes an OFFSET only after a LIMIT, and a negative one is no limit.
+  # @rbs return: String
+  def unlimited: () -> String
+
   # @rbs type: Skyward::ORM::Tables::column_type
   # @rbs return: String?
   def sql_type: (Skyward::ORM::Tables::column_type type) -> String?

@@ -12,6 +12,7 @@ module Skyward::ORM
     def connect: (String location) -> _Connection
     def pool_size: (String location, Integer size) -> Integer
     def placeholder: (Integer position) -> String
+    def unlimited: () -> String?
     def sql_type: (Tables::column_type type) -> String?
     def identity: () -> String?
     def alters_in_place?: () -> bool
