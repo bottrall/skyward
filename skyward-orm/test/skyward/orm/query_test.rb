@@ -1203,51 +1203,48 @@ describe Skyward::ORM::Query do
     end
   end
 
-  describe "#delete!" do
+  describe "#delete" do
     let(:connection) { constrained }
 
     before { insert(milk.with(list_id: 1), eggs) }
 
     it "deletes the rows that match, and returns them" do
-      assert_equal [eggs], query.where(done: true).delete!
+      assert_equal [eggs], query.where(done: true).delete
     end
 
     it "runs one DELETE, returning the rows it deleted" do
-      assert_equal(
-        [%(DELETE FROM "todos" WHERE "id" = 2 RETURNING #{columns})],
-        traced { query.where(id: 2).delete! }
-      )
+      assert_equal([%(DELETE FROM "todos" WHERE "id" = 2 RETURNING #{columns})], traced { query.where(id: 2).delete })
     end
 
     it "deletes the rows an explicit all's exclude leaves" do
-      assert_equal [eggs], Skyward::ORM::Query.new(todo, session, all: true).exclude(done: false).delete!
+      assert_equal [eggs], Skyward::ORM::Query.new(todo, session, all: true).exclude(done: false).delete
     end
 
     it "deletes the rows a where or an or matches, grouping a range's ends" do
       assert_equal(
         [%(DELETE FROM "todos" WHERE ("id" >= 2 AND "id" <= 2) OR "title" = 'Buy bread' RETURNING #{columns})],
-        traced { query.where(id: 2..2).or(title: "Buy bread").delete! }
+        traced { query.where(id: 2..2).or(title: "Buy bread").delete }
       )
     end
 
     it "refuses a left join before any SQL runs" do
       joined_query = query.left_join(list, list_id: :id).where(id: 1)
 
-      assert_empty(traced { assert_raises(ArgumentError) { joined_query.delete! } })
+      assert_empty(traced { assert_raises(ArgumentError) { joined_query.delete } })
     end
 
-    it "refuses a limit or offset, naming delete!" do
-      error = assert_raises(ArgumentError) { query.where(done: true).limit(1).offset(1).delete! }
+    it "refuses a limit or offset, naming delete" do
+      error = assert_raises(ArgumentError) { query.where(done: true).limit(1).offset(1).delete }
 
-      assert_equal "TablesFixtures::Todo can't delete! a query with limit or offset, " \
+      assert_equal "TablesFixtures::Todo can't delete a query with limit or offset, " \
                    "which PostgreSQL and SQLite don't both support",
                    error.message
     end
 
-    it "refuses a query with no conditions, naming delete!" do
-      error = assert_raises(ArgumentError) { query.delete! }
+    it "refuses a query with no conditions, naming delete" do
+      error = assert_raises(ArgumentError) { query.delete }
 
-      assert_equal "TablesFixtures::Todo can't delete! a query with no conditions, which would change every row. " \
+      assert_equal "TablesFixtures::Todo can't delete a query with no conditions, which would change every row. " \
                    "Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row.",
                    error.message
     end
@@ -1255,29 +1252,44 @@ describe Skyward::ORM::Query do
     it "returns the rows as an into's row class" do
       title = TablesFixtures::TodoTitle
 
-      assert_equal [title.new(id: 2, title: "Buy eggs")], query.where(id: 2).into(title).delete!
+      assert_equal [title.new(id: 2, title: "Buy eggs")], query.where(id: 2).into(title).delete
     end
 
     it "deletes every row of an explicit all" do
-      Skyward::ORM::Query.new(todo, session, all: true).delete!
+      Skyward::ORM::Query.new(todo, session, all: true).delete
 
       assert_empty query.to_a
     end
 
-    it "raises the violation of a row another restricts" do
-      error = assert_raises(Skyward::ORM::ViolationError) do
-        Skyward::ORM::Query.new(TablesFixtures::List, session).where(id: 1).delete!
-      end
-
-      assert_equal violations.fetch(:foreign_key), error.violation
+    it "returns the violation of a row another restricts" do
+      assert_equal violations.fetch(:foreign_key),
+                   Skyward::ORM::Query.new(TablesFixtures::List, session).where(id: 1).delete
     end
 
     describe "with the check on" do
       let(:check) { true }
 
       it "checks its table class before writing" do
-        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).where(id: 1).delete! }
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).where(id: 1).delete }
       end
+    end
+  end
+
+  describe "#delete!" do
+    let(:connection) { constrained }
+
+    before { insert(milk.with(list_id: 1), eggs) }
+
+    it "returns the rows it deleted" do
+      assert_equal [eggs], query.where(done: true).delete!
+    end
+
+    it "raises the violation delete returns" do
+      error = assert_raises(Skyward::ORM::ViolationError) do
+        Skyward::ORM::Query.new(TablesFixtures::List, session).where(id: 1).delete!
+      end
+
+      assert_equal violations.fetch(:foreign_key), error.violation
     end
   end
 end

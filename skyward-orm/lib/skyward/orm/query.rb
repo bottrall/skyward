@@ -236,8 +236,11 @@ class Skyward::ORM::Query
   # @rbs return: Array[R]
   def update!(**values) = unviolated(update(**values))
 
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def delete = write(:delete, "DELETE FROM #{Skyward::ORM::Statements.quote(@table.table_name)}", [])
+
   # @rbs return: Array[R]
-  def delete! = unviolated(write(:delete!, "DELETE FROM #{Skyward::ORM::Statements.quote(@table.table_name)}", []))
+  def delete! = unviolated(delete)
 
   private
 

@@ -203,6 +203,9 @@ class Skyward::ORM::Query[R]
   # @rbs return: Array[R]
   def update!: (**untyped values) -> Array[R]
 
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def delete: () -> (Array[R] | Skyward::ORM::Violation)
+
   # @rbs return: Array[R]
   def delete!: () -> Array[R]
 
