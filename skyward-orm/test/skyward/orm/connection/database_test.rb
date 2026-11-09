@@ -676,6 +676,36 @@ describe Skyward::ORM::Connection::Database do
     end
   end
 
+  describe "#rollback" do
+    runner = Skyward::ORM::Migrations::Runner
+    create_notes = runner.parse(
+      "20261001000000_create_notes.sql",
+      "CREATE TABLE notes (id INTEGER);\n-- down\nDROP TABLE notes;\n"
+    )
+    note = Class.new(Skyward::ORM::Record) do
+      table :notes
+      attr_reader :id
+    end
+
+    it "rolls back on a connection it checks out, through its adapter" do
+      database.migrate([create_notes])
+
+      assert_equal [create_notes.version, []],
+                   [
+                     database.rollback([create_notes]),
+                     connection.execute("SELECT name FROM sqlite_schema WHERE name = 'notes'")
+                   ]
+    end
+
+    it "reads the schema again, so a class is checked against the tables it rolled back to" do
+      database.migrate([create_notes])
+      database.check([note])
+      database.rollback([create_notes])
+
+      assert_raises(Skyward::ORM::SchemaMismatch) { database.check([note]) }
+    end
+  end
+
   describe "#write" do
     it "checks its table class before it writes" do
       assert_raises(Skyward::ORM::SchemaMismatch) do

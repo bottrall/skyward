@@ -5,6 +5,7 @@ module Skyward::ORM::Migrations::Runner
     :file, #: String
     :version, #: String
     :up, #: String
+    :down, #: String
     :checksum #: String
   )
 end

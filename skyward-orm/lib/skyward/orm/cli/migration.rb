@@ -29,14 +29,9 @@ module Skyward::ORM::CLI::Migration
     # the app can connect.
     return write_empty(name, directory:, time:, out:) if empty
 
-    database = session.without_check { Skyward::ORM::CLI::BootFile.load(directory, session) }
-    case database
-    when String then kernel.abort(database)
-    else write(name, database, directory:, time:, input:, out:, kernel:, discover:)
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+      write(name, database, directory:, time:, input:, out:, kernel:, discover:)
     end
-  # Booting the app raises it, and so does a table class that can't be migrated.
-  rescue Skyward::Core::BootError => e
-    kernel.abort(e.message)
   end
 
   private
@@ -54,7 +49,7 @@ module Skyward::ORM::CLI::Migration
   # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, input: IO,
   #   out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
   def write(name, database, directory:, time:, input:, out:, kernel:, discover:)
-    ran = Skyward::ORM::Migrations::Versions.ran(database)
+    ran = Skyward::ORM::Migrations::Versions.checksums(database).keys
     pending = Skyward::ORM::Migrations::Directory.pending(directory, ran)
     return kernel.abort(pending(pending)) unless pending.empty?
 

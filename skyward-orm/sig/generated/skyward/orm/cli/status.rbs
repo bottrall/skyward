@@ -1,0 +1,17 @@
+# Generated from lib/skyward/orm/cli/status.rb with RBS::Inline
+
+module Skyward::ORM::CLI::Status
+  # Status only reports, so it can't ask whether a column was renamed, and
+  # shows one as a column dropped and another added.
+  UNASKED: ^(Symbol, Symbol, Symbol) -> bool
+
+  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+
+  private
+
+  # @rbs (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel),
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def report: (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+end

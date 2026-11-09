@@ -18,4 +18,21 @@ module Skyward::ORM::CLI::BootFile
     require path
     session.database
   end
+
+  # The migration commands are what fixes a schema that doesn't match, so they
+  # boot the app with the check off.
+  # @rbs directory: String
+  # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs kernel: singleton(Kernel)
+  # @rbs &: (Skyward::ORM::Connection::Database) -> void
+  # @rbs return: void
+  def boot(directory, session, kernel, &)
+    database = session.without_check { load(directory, session) }
+    case database
+    when String then kernel.abort(database)
+    else yield database
+    end
+  rescue Skyward::Core::BootError => e
+    kernel.abort(e.message)
+  end
 end

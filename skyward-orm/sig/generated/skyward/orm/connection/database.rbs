@@ -133,11 +133,13 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Array[untyped]
   def rows: (Class row, String sql, Array[untyped] values) -> Array[untyped]
 
-  # Migrating changes the schema read at connect, even when a later migration
-  # fails, so it's read again, and every class is checked against it afresh.
   # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
   # @rbs return: Skyward::ORM::Migrations::Runner::outcome
   def migrate: (Array[Skyward::ORM::Migrations::Runner::Migration] migrations) -> Skyward::ORM::Migrations::Runner::outcome
+
+  # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
+  # @rbs return: Skyward::ORM::Migrations::Runner::rolled_back
+  def rollback: (Array[Skyward::ORM::Migrations::Runner::Migration] migrations) -> Skyward::ORM::Migrations::Runner::rolled_back
 
   # RETURNING lists the row class's members in order, as its decoder reads
   # them. Steep can't tie the row class to its rows, so they're untyped here.
@@ -149,6 +151,12 @@ class Skyward::ORM::Connection::Database
   def write: (singleton(Skyward::ORM::Record) table, Class row, String sql, Array[untyped] binds) -> (Array[untyped] | Skyward::ORM::Violation)
 
   private
+
+  # Migrating or rolling back changes the schema read at connect, even when a
+  # later migration fails, so it's read again, and every class is checked
+  # against it afresh.
+  # @rbs [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+  def changing: [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
 
   # @rbs held: Held
   # @rbs return: bool

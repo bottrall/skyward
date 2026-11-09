@@ -3,6 +3,10 @@
 module Skyward::ORM::Migrations::Runner
   type outcome = Array[String] | Edited | Locked | Failed
 
+  type unrolled = :nothing | Missing | Irreversible | Raced | Locked | Failed
+
+  type rolled_back = String | unrolled
+
   TABLE: Symbol
 
   DOWN: Regexp
@@ -21,26 +25,43 @@ module Skyward::ORM::Migrations::Runner
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> outcome
   def run: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> outcome
 
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations)
+  #   -> rolled_back
+  def rollback: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> rolled_back
+
   # @rbs failure: Edited | Locked | Failed
   # @rbs return: String
   def message: (Edited | Locked | Failed failure) -> String
 
+  # @rbs failure: unrolled
+  # @rbs return: String
+  def rollback_message: (unrolled failure) -> String
+
   private
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
-  #   -> (bool | Locked | Failed)
-  def apply: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Locked | Failed)
+  #   { () -> (bool | Failed) } -> (bool | Locked | Failed)
+  def apply: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Locked | Failed)
 
   # Rolled back in ensure rather than rescue, so a migration left by throw or a
   # killed thread rolls back too, before foreign keys go back on.
-  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Failed)
-  def run_locked: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Failed)
+  # @rbs (Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Failed)
+  def run_locked: (Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Failed)
 
   # SQLite ends the transaction itself on some failures, such as ON CONFLICT
   # ROLLBACK, and then ROLLBACK raises, though the outcome is already decided.
   # @rbs (Skyward::ORM::_Connection connection) -> void
-  def rollback: (Skyward::ORM::_Connection connection) -> void
+  def cancel: (Skyward::ORM::_Connection connection) -> void
 
-  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (true | Failed)
-  def up: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (true | Failed)
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> bool
+  def pending?: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> bool
+
+  # Versions sort in filename order, which is the order they ran in, so the
+  # greatest is the latest.
+  # @rbs (Skyward::ORM::_Connection connection) -> String?
+  def latest: (Skyward::ORM::_Connection connection) -> String?
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration, String section)
+  #   { () -> void } -> (true | Failed)
+  def change: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration, String section) { () -> void } -> (true | Failed)
 end
