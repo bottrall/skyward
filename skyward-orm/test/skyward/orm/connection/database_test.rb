@@ -675,4 +675,37 @@ describe Skyward::ORM::Connection::Database do
       assert_equal mismatch(todo), error.message
     end
   end
+
+  describe "#write" do
+    it "checks its table class before it writes" do
+      assert_raises(Skyward::ORM::SchemaMismatch) do
+        database.write(list, list, "DELETE FROM missing RETURNING id, name", [])
+      end
+    end
+
+    describe "with the check off" do
+      let(:check) { false }
+
+      it "returns the rows the write returns, as the table's rows" do
+        assert_equal [list.new(id: 2, name: "Work")],
+                     database.write(list, list, "INSERT INTO lists (name) VALUES (?) RETURNING id, name", ["Work"])
+      end
+
+      it "returns a violation the write causes, filled in for the table written" do
+        expected = Skyward::ORM::Violation.new(
+          kind: :unique,
+          constraint: "lists_name_key",
+          columns: [:name],
+          message: "UNIQUE constraint failed: lists.name"
+        )
+
+        assert_equal expected,
+                     database.write(list, list, "INSERT INTO lists (name) VALUES (?) RETURNING id, name", ["Home"])
+      end
+
+      it "raises any other error as it is" do
+        assert_raises(SQLite3::SQLException) { database.write(list, list, "DELETE FROM missing RETURNING id, name", []) }
+      end
+    end
+  end
 end

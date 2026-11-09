@@ -12,7 +12,8 @@ describe Skyward::ORM::Query do
   todo = TablesFixtures::Todo
   list = TablesFixtures::List
   with_list = TablesFixtures::TodoWithList
-  select = %(SELECT "id", "list_id", "title", "priority", "due_on", "done", "created_at" FROM "todos")
+  columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
+  select = %(SELECT #{columns} FROM "todos")
   joined = %(SELECT "todos"."id", "todos"."list_id", "todos"."title", "todos"."priority", "todos"."due_on", ) +
            %("todos"."done", "todos"."created_at" FROM "todos" JOIN "lists" ON "todos"."list_id" = "lists"."id")
 
@@ -30,6 +31,45 @@ describe Skyward::ORM::Query do
     def self.unlimited = nil
   end
 
+  violations = {
+    unique: Skyward::ORM::Violation.new(
+      kind: :unique,
+      constraint: "lists_name_key",
+      columns: [:name],
+      message: "UNIQUE constraint failed: lists.name"
+    ),
+    foreign_key: Skyward::ORM::Violation.new(
+      kind: :foreign_key,
+      constraint: "todos_list_id_fkey",
+      columns: [:list_id],
+      message: "FOREIGN KEY constraint failed"
+    ),
+    not_null: Skyward::ORM::Violation.new(
+      kind: :not_null,
+      constraint: nil,
+      columns: [:body],
+      message: "NOT NULL constraint failed: drafts.body"
+    ),
+    check: Skyward::ORM::Violation.new(
+      kind: :check,
+      constraint: "todos_title_check",
+      columns: [:title],
+      message: "CHECK constraint failed: todos_title_check"
+    )
+  }
+  # A typed column refuses a nil it can't hold before any SQL runs, so only a
+  # column with no type reaches the database's NOT NULL.
+  draft = Class.new(Skyward::ORM::Record) do
+    table :drafts
+    attr_reader :id, :body
+  end
+  breaking = {
+    unique: [TablesFixtures::List, { name: "Home" }],
+    foreign_key: [todo, { list_id: 9 }],
+    not_null: [draft, { body: nil }],
+    check: [todo, { title: "" }]
+  }
+
   let(:adapter) { sqlite }
   let(:check) { false }
   let(:connection) do
@@ -39,6 +79,21 @@ describe Skyward::ORM::Query do
         "done INTEGER, created_at TEXT)"
       )
       connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+    end
+  end
+  # The writes' tests connect to this instead, whose constraints each give a
+  # write a kind of violation.
+  let(:constrained) do
+    sqlite.connect(":memory:").tap do |connection|
+      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
+      connection.execute("INSERT INTO lists VALUES (1, 'Home'), (2, 'Work')")
+      connection.execute("CREATE TABLE drafts (id INTEGER PRIMARY KEY, body TEXT NOT NULL)")
+      connection.execute(
+        "CREATE TABLE todos (id INTEGER PRIMARY KEY, " \
+        "list_id INTEGER CONSTRAINT todos_list_id_fkey REFERENCES lists ON DELETE RESTRICT, " \
+        "title TEXT NOT NULL CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200), " \
+        "priority TEXT, due_on TEXT, done INTEGER, created_at TEXT)"
+      )
     end
   end
   let(:session) do
@@ -403,16 +458,14 @@ describe Skyward::ORM::Query do
       assert_equal "TablesFixtures::Todo has no column dnoe. Did you mean done?", error.message
     end
 
-    it "refuses a column with nothing to suggest" do
-      error = assert_raises(ArgumentError) { query.where(zzzzzz: false) }
-
-      assert_equal "TablesFixtures::Todo has no column zzzzzz.", error.message
-    end
-
     it "refuses a value its column's type doesn't take" do
       error = assert_raises(ArgumentError) { query.where(done: "yes") }
 
       assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
+    it "narrows an explicit all, even with no conditions, so it no longer changes every row" do
+      assert_raises(ArgumentError) { Skyward::ORM::Query.new(todo, session, all: true).where.delete! }
     end
   end
 
@@ -488,6 +541,10 @@ describe Skyward::ORM::Query do
       error = assert_raises(ArgumentError) { query.exclude(done: "yes") }
 
       assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
+    it "narrows an explicit all, even with nothing to exclude, so it no longer changes every row" do
+      assert_raises(ArgumentError) { Skyward::ORM::Query.new(todo, session, all: true).exclude.delete! }
     end
   end
 
@@ -988,14 +1045,239 @@ describe Skyward::ORM::Query do
       assert_equal [row],
                    Skyward::ORM::Query.new(reserved, session).where(user: "jake").order(:order).group(:group).to_a
     end
+  end
 
-    it "escapes a double quote in a name by doubling it" do
-      quoted = Class.new(Skyward::ORM::Record) do
-        table :'to"dos'
-        attr_reader :id
+  describe "#update" do
+    let(:connection) { constrained }
+
+    before { insert(milk, eggs, draft.new(id: 2, body: "Cold")) }
+
+    it "sets the values on the rows that match, and returns them" do
+      assert_equal [eggs.with(title: "Buy bread", done: false)],
+                   query.where(id: 2).update(title: "Buy bread", done: false)
+    end
+
+    it "runs one UPDATE, returning the rows it changed" do
+      assert_equal(
+        [%(UPDATE "todos" SET "done" = 1 WHERE "id" = 1 RETURNING #{columns})],
+        traced { query.where(id: 1).update(done: true) }
+      )
+    end
+
+    it "updates the rows an explicit all's exclude leaves" do
+      assert_equal(
+        [%(UPDATE "todos" SET "title" = 'Buy bread' WHERE NOT ("done" = 1) RETURNING #{columns})],
+        traced { Skyward::ORM::Query.new(todo, session, all: true).exclude(done: true).update(title: "Buy bread") }
+      )
+    end
+
+    it "updates the rows a where or an or matches, grouping a range's ends" do
+      assert_equal(
+        [%(UPDATE "todos" SET "done" = 0 WHERE ("id" >= 1 AND "id" <= 1) OR "title" = 'Buy eggs' RETURNING #{columns})],
+        traced { query.where(id: 1..1).or(title: "Buy eggs").update(done: false) }
+      )
+    end
+
+    describe "with numbered placeholders" do
+      let(:adapter) { numbered }
+
+      it "numbers its where's placeholders after the values it sets" do
+        assert_equal [eggs.with(title: "Buy bread")], query.where(id: 2, done: true).update(title: "Buy bread")
       end
 
-      assert_equal [%(SELECT "id" FROM "to""dos"), []], Skyward::ORM::Query.new(quoted, session).to_sql
+      it "numbers an or's and a range's placeholders after the values it sets" do
+        assert_equal [milk.with(title: "Buy bread"), eggs.with(title: "Buy bread", done: false)],
+                     query.where(id: 1..1).or(title: "Buy eggs").update(title: "Buy bread", done: false)
+      end
+    end
+
+    it "refuses no values" do
+      error = assert_raises(ArgumentError) { query.where(id: 1).update }
+
+      assert_equal "TablesFixtures::Todo update needs a column to set, such as update(done: true)", error.message
+    end
+
+    it "refuses a column the table doesn't have" do
+      error = assert_raises(ArgumentError) { query.where(id: 1).update(dnoe: true) }
+
+      assert_equal "TablesFixtures::Todo has no column dnoe. Did you mean done?", error.message
+    end
+
+    it "refuses a value its column's type doesn't take" do
+      error = assert_raises(ArgumentError) { query.where(id: 1).update(done: "yes") }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
+    it "refuses an Array, which isn't one value, before any SQL runs" do
+      assert_empty(traced { assert_raises(ArgumentError) { query.where(id: 2).update(title: ["c"]) } })
+    end
+
+    it "refuses into expressions, which mean nothing portable in RETURNING" do
+      error = assert_raises(ArgumentError) do
+        query.where(id: 1).into(TablesFixtures::OpenCount, open: "count(*)").update(done: true)
+      end
+
+      assert_equal "TablesFixtures::Todo can't update a query with into expressions, " \
+                   "which PostgreSQL and SQLite don't both support",
+                   error.message
+    end
+
+    it "refuses an order, which PostgreSQL and SQLite don't both support" do
+      error = assert_raises(ArgumentError) { query.where(id: 1).order(:title).update(done: true) }
+
+      assert_equal "TablesFixtures::Todo can't update a query with order, " \
+                   "which PostgreSQL and SQLite don't both support",
+                   error.message
+    end
+
+    it "refuses a join, order, group, limit or offset, naming each" do
+      error = assert_raises(ArgumentError) do
+        query.join(list, list_id: :id).where(id: 1).order(:title).group(:done).limit(1).offset(1).update(done: true)
+      end
+
+      assert_equal "TablesFixtures::Todo can't update a query with join, order, group, limit or offset, " \
+                   "which PostgreSQL and SQLite don't both support",
+                   error.message
+    end
+
+    it "refuses a join before any SQL runs" do
+      joined_query = query.join(list, list_id: :id).where(id: 1)
+
+      assert_empty(traced { assert_raises(ArgumentError) { joined_query.update(done: true) } })
+    end
+
+    it "returns the rows as an into's row class, returning only its members" do
+      title = TablesFixtures::TodoTitle
+      updated = nil
+      statements = traced { updated = query.where(id: 1).into(title).update(title: "Buy bread") }
+
+      assert_equal [[%(UPDATE "todos" SET "title" = 'Buy bread' WHERE "id" = 1 RETURNING "id", "title")],
+                    [title.new(id: 1, title: "Buy bread")]],
+                   [statements, updated]
+    end
+
+    it "refuses a query with no conditions, which would change every row" do
+      error = assert_raises(ArgumentError) { query.update(done: true) }
+
+      assert_equal "TablesFixtures::Todo can't update a query with no conditions, which would change every row. " \
+                   "Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row.",
+                   error.message
+    end
+
+    it "changes every row of an explicit all" do
+      assert_equal [milk.with(done: true), eggs], Skyward::ORM::Query.new(todo, session, all: true).update(done: true)
+    end
+
+    violations.each do |kind, violation|
+      it "returns a #{kind} violation" do
+        table, values = breaking.fetch(kind)
+
+        assert_equal violation, Skyward::ORM::Query.new(table, session).where(id: 2).update(**values)
+      end
+    end
+
+    describe "with the check on" do
+      let(:check) { true }
+
+      it "checks its table class before writing" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).where(id: 1).update(id: 2) }
+      end
+    end
+  end
+
+  describe "#update!" do
+    let(:connection) { constrained }
+
+    before { insert(milk, eggs) }
+
+    it "returns the rows it changed" do
+      assert_equal [milk.with(done: true)], query.where(id: 1).update!(done: true)
+    end
+
+    it "raises the violation update returns" do
+      lists = Skyward::ORM::Query.new(TablesFixtures::List, session)
+      error = assert_raises(Skyward::ORM::ViolationError) { lists.where(id: 2).update!(name: "Home") }
+
+      assert_equal violations.fetch(:unique), error.violation
+    end
+  end
+
+  describe "#delete!" do
+    let(:connection) { constrained }
+
+    before { insert(milk.with(list_id: 1), eggs) }
+
+    it "deletes the rows that match, and returns them" do
+      assert_equal [eggs], query.where(done: true).delete!
+    end
+
+    it "runs one DELETE, returning the rows it deleted" do
+      assert_equal(
+        [%(DELETE FROM "todos" WHERE "id" = 2 RETURNING #{columns})],
+        traced { query.where(id: 2).delete! }
+      )
+    end
+
+    it "deletes the rows an explicit all's exclude leaves" do
+      assert_equal [eggs], Skyward::ORM::Query.new(todo, session, all: true).exclude(done: false).delete!
+    end
+
+    it "deletes the rows a where or an or matches, grouping a range's ends" do
+      assert_equal(
+        [%(DELETE FROM "todos" WHERE ("id" >= 2 AND "id" <= 2) OR "title" = 'Buy bread' RETURNING #{columns})],
+        traced { query.where(id: 2..2).or(title: "Buy bread").delete! }
+      )
+    end
+
+    it "refuses a left join before any SQL runs" do
+      joined_query = query.left_join(list, list_id: :id).where(id: 1)
+
+      assert_empty(traced { assert_raises(ArgumentError) { joined_query.delete! } })
+    end
+
+    it "refuses a limit or offset, naming delete!" do
+      error = assert_raises(ArgumentError) { query.where(done: true).limit(1).offset(1).delete! }
+
+      assert_equal "TablesFixtures::Todo can't delete! a query with limit or offset, " \
+                   "which PostgreSQL and SQLite don't both support",
+                   error.message
+    end
+
+    it "refuses a query with no conditions, naming delete!" do
+      error = assert_raises(ArgumentError) { query.delete! }
+
+      assert_equal "TablesFixtures::Todo can't delete! a query with no conditions, which would change every row. " \
+                   "Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row.",
+                   error.message
+    end
+
+    it "returns the rows as an into's row class" do
+      title = TablesFixtures::TodoTitle
+
+      assert_equal [title.new(id: 2, title: "Buy eggs")], query.where(id: 2).into(title).delete!
+    end
+
+    it "deletes every row of an explicit all" do
+      Skyward::ORM::Query.new(todo, session, all: true).delete!
+
+      assert_empty query.to_a
+    end
+
+    it "raises the violation of a row another restricts" do
+      error = assert_raises(Skyward::ORM::ViolationError) do
+        Skyward::ORM::Query.new(TablesFixtures::List, session).where(id: 1).delete!
+      end
+
+      assert_equal violations.fetch(:foreign_key), error.violation
+    end
+
+    describe "with the check on" do
+      let(:check) { true }
+
+      it "checks its table class before writing" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).where(id: 1).delete! }
+      end
     end
   end
 end

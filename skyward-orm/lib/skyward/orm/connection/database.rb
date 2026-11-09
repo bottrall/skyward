@@ -187,6 +187,21 @@ class Skyward::ORM::Connection::Database
     end
   end
 
+  # RETURNING lists the row class's members in order, as its decoder reads
+  # them. Steep can't tie the row class to its rows, so they're untyped here.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs row: Class
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs return: Array[untyped] | Skyward::ORM::Violation
+  def write(table, row, sql, binds)
+    # Building the decoder prepares the table, so it's built before the write runs.
+    decode = decoder(table, row, [])
+    execute(sql, binds).map(&decode)
+  rescue StandardError => e
+    violation(e, table.table_name) || raise
+  end
+
   private
 
   # @rbs held: Held

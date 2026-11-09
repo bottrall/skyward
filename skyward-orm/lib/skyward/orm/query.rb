@@ -41,17 +41,21 @@ class Skyward::ORM::Query
   # @rbs @joins: Array[Join]
   # @rbs @row: Class
   # @rbs @expressions: Hash[Symbol, String]
+  # @rbs @all: bool
   # @rbs @conditions: Array[condition]
   # @rbs @orders: Array[[Symbol, direction]]
   # @rbs @groups: Array[Symbol]
   # @rbs @limit: Integer?
   # @rbs @offset: Integer?
 
+  # all: is true only for an explicit Todo.all, which may update or delete
+  # every row.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
+  # @rbs all: bool
   # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
@@ -64,6 +68,7 @@ class Skyward::ORM::Query
     joins: [],
     row: table,
     expressions: {},
+    all: false,
     conditions: [],
     orders: [],
     groups: [],
@@ -75,6 +80,7 @@ class Skyward::ORM::Query
     @joins = [*joins].freeze
     @row = row
     @expressions = expressions.dup.freeze
+    @all = all
     @conditions = [*conditions].freeze
     @orders = [*orders].freeze
     @groups = [*groups].freeze
@@ -97,7 +103,9 @@ class Skyward::ORM::Query
   # @rbs *values: untyped
   # @rbs **conditions: untyped
   # @rbs return: Skyward::ORM::Query[R]
-  def where(sql = nil, *values, **conditions) = with(conditions: [*@conditions, *build(sql, values, conditions)])
+  def where(sql = nil, *values, **conditions)
+    with(all: false, conditions: [*@conditions, *build(sql, values, conditions)])
+  end
 
   # @rbs sql: String?
   # @rbs *values: untyped
@@ -105,7 +113,7 @@ class Skyward::ORM::Query
   # @rbs return: Skyward::ORM::Query[R]
   def exclude(sql = nil, *values, **conditions)
     built = build(sql, values, conditions)
-    built.empty? ? self : with(conditions: [*@conditions, Negation.new(conditions: built)])
+    with(all: false, conditions: built.empty? ? @conditions : [*@conditions, Negation.new(conditions: built)])
   end
 
   # @rbs sql: String?
@@ -125,7 +133,7 @@ class Skyward::ORM::Query
   # @rbs **directions: direction
   # @rbs return: Skyward::ORM::Query[R]
   def order(*columns, **directions)
-    require_columns([*columns, *directions.keys])
+    Skyward::ORM::Statements.require_columns(@table, [*columns, *directions.keys])
     # The direction is written into the SQL, so only these two may reach it.
     column, direction = directions.find { |_, candidate| !DIRECTIONS.include?(candidate) }
     raise ArgumentError, "#{@table} can't order #{column} by #{direction.inspect}, only :asc or :desc" if column
@@ -136,7 +144,7 @@ class Skyward::ORM::Query
   # @rbs *columns: Symbol
   # @rbs return: Skyward::ORM::Query[R]
   def group(*columns)
-    require_columns(columns)
+    Skyward::ORM::Statements.require_columns(@table, columns)
     with(groups: [*@groups, *columns])
   end
 
@@ -207,11 +215,36 @@ class Skyward::ORM::Query
   # @rbs return: [String, Array[untyped]]
   def to_sql = statement(@session.database, @orders, @limit)
 
+  # @rbs **values: untyped
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def update(**values)
+    raise ArgumentError, "#{@table} update needs a column to set, such as update(done: true)" if values.empty?
+
+    database = @session.database
+    Skyward::ORM::Statements.require_values(database.column_types, @table, values)
+    assignments = values.keys.each.with_index(1).map do |column, position|
+      "#{Skyward::ORM::Statements.quote(column)} = #{database.adapter.placeholder(position)}"
+    end
+    write(
+      :update,
+      "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(", ")}",
+      values.values
+    )
+  end
+
+  # @rbs **values: untyped
+  # @rbs return: Array[R]
+  def update!(**values) = unviolated(update(**values))
+
+  # @rbs return: Array[R]
+  def delete! = unviolated(write(:delete!, "DELETE FROM #{Skyward::ORM::Statements.quote(@table.table_name)}", []))
+
   private
 
   # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
+  # @rbs all: bool
   # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
@@ -222,6 +255,7 @@ class Skyward::ORM::Query
     joins: @joins,
     row: @row,
     expressions: @expressions,
+    all: @all,
     conditions: @conditions,
     orders: @orders,
     groups: @groups,
@@ -229,7 +263,17 @@ class Skyward::ORM::Query
     offset: @offset
   )
     Skyward::ORM::Query.new(
-      @table, @session, joins:, row:, expressions:, conditions:, orders:, groups:, limit:, offset:
+      @table,
+      @session,
+      joins:,
+      row:,
+      expressions:,
+      all:,
+      conditions:,
+      orders:,
+      groups:,
+      limit:,
+      offset:
     )
   end
 
@@ -248,8 +292,8 @@ class Skyward::ORM::Query
     end
     raise ArgumentError, "#{@table} can't join #{table} on nothing. Give it columns, such as list_id: :id" if on.empty?
 
-    require_columns(on.keys)
-    require_columns(on.values, table)
+    Skyward::ORM::Statements.require_columns(@table, on.keys)
+    Skyward::ORM::Statements.require_columns(table, on.values)
     with(joins: [*@joins, Join.new(keyword:, table:, on:)])
   end
 
@@ -258,8 +302,7 @@ class Skyward::ORM::Query
   # @rbs conditions: Hash[Symbol, untyped]
   # @rbs return: Array[condition]
   def build(sql, values, conditions)
-    require_columns(conditions.keys)
-    require_types(conditions)
+    Skyward::ORM::Statements.require_conditions(@session.database.column_types, @table, conditions)
     [(Fragment.new(sql:, values:) if sql), *conditions.flat_map { |column, value| comparisons(column, value) }].compact
   end
 
@@ -278,26 +321,31 @@ class Skyward::ORM::Query
     ends
   end
 
-  # @rbs columns: Array[Symbol]
-  # @rbs table: singleton(Skyward::ORM::Record)
+  # Neither PostgreSQL nor SQLite (as it's usually built) takes a JOIN,
+  # ORDER BY, GROUP BY, LIMIT or OFFSET on an UPDATE or DELETE, and an into
+  # expression, such as an aggregate, means nothing portable in its RETURNING.
+  # @rbs method: Symbol
   # @rbs return: void
-  def require_columns(columns, table = @table)
-    known = table.schema.columns
-    unknown = (columns - known).first #: Symbol?
-    return unless unknown
+  def require_writable(method)
+    clauses = [
+      ("into expressions" unless @expressions.empty?),
+      ("join" unless @joins.empty?),
+      ("order" unless @orders.empty?),
+      ("group" unless @groups.empty?),
+      ("limit" if @limit),
+      ("offset" if @offset)
+    ].compact
+    unless clauses.empty?
+      *others, last = clauses
+      listed = others.empty? ? last : "#{others.join(", ")} or #{last}"
+      raise ArgumentError,
+            "#{@table} can't #{method} a query with #{listed}, which PostgreSQL and SQLite don't both support"
+    end
+    return unless @conditions.empty? && !@all
 
-    suggestion = DidYouMean::SpellChecker.new(dictionary: known).correct(unknown).first
-    raise ArgumentError, "#{table} has no column #{unknown}.#{" Did you mean #{suggestion}?" if suggestion}"
-  end
-
-  # @rbs conditions: Hash[Symbol, untyped]
-  # @rbs return: void
-  def require_types(conditions)
-    columns = @session.database.column_types.columns(@table).to_h { |column| [column.name, column] }
-    mismatch = conditions.filter_map do |name, value|
-      Skyward::ORM::Tables::Values.mismatch(@table, columns.fetch(name), value)
-    end.first
-    raise ArgumentError, mismatch if mismatch
+    raise ArgumentError,
+          "#{@table} can't #{method} a query with no conditions, which would change every row. " \
+          "Narrow it with where or exclude, or start from #{@table}.all to change every row."
   end
 
   # @rbs method: Symbol
@@ -331,7 +379,7 @@ class Skyward::ORM::Query
     sql, binds = from(database, orders, limit)
     columns = Skyward::ORM::Members.of(@row).map do |member|
       expression = @expressions.fetch(member, nil)
-      expression ? "#{expression} AS #{quote(member)}" : qualified(member)
+      expression ? "#{expression} AS #{Skyward::ORM::Statements.quote(member)}" : qualified(member)
     end.join(", ")
     ["SELECT #{columns} #{sql}", binds]
   end
@@ -342,17 +390,17 @@ class Skyward::ORM::Query
   # @rbs return: [String, Array[untyped]]
   def from(database, orders, limit)
     adapter = database.adapter
-    clauses, binds = conjunction(database, @conditions, 1)
-    ordered = orders.map { |column, direction| "#{qualified(column)} #{direction.upcase}" }.join(", ")
+    where, binds = filter(database, 1)
+    ordered = orders.map { |column, direction| "#{qualified(column)} #{direction.upcase}" }
     # The limit and offset are bound rather than written in, so every page of a
     # query shares one SQL string.
     paging = [limit, @offset].compact
     sql = [
-      "FROM #{quote(@table.table_name)}",
+      "FROM #{Skyward::ORM::Statements.quote(@table.table_name)}",
       *@joins.map { |join| joining(join) },
-      ("WHERE #{clauses}" unless @conditions.empty?),
+      where,
       ("GROUP BY #{@groups.map { |column| qualified(column) }.join(", ")}" unless @groups.empty?),
-      ("ORDER BY #{ordered}" unless orders.empty?),
+      ("ORDER BY #{ordered.join(", ")}" unless orders.empty?),
       limit ? "LIMIT #{adapter.placeholder(binds.size + 1)}" : (adapter.unlimited if @offset),
       ("OFFSET #{adapter.placeholder(binds.size + paging.size)}" if @offset)
     ].compact.join(" ")
@@ -363,7 +411,17 @@ class Skyward::ORM::Query
   # @rbs return: String
   def joining(join)
     on = join.on.map { |column, joined| "#{qualified(column)} = #{qualified(joined, join.table)}" }.join(" AND ")
-    "#{join.keyword} #{quote(join.table.table_name)} ON #{on}"
+    "#{join.keyword} #{Skyward::ORM::Statements.quote(join.table.table_name)} ON #{on}"
+  end
+
+  # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
+  # start after them.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs position: Integer
+  # @rbs return: [String?, Array[untyped]]
+  def filter(database, position)
+    clauses, binds = conjunction(database, @conditions, position)
+    [("WHERE #{clauses}" unless @conditions.empty?), binds]
   end
 
   # @rbs database: Skyward::ORM::Connection::Database
@@ -499,10 +557,33 @@ class Skyward::ORM::Query
   # @rbs name: Symbol
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs return: String
-  def qualified(name, table = @table) = @joins.empty? ? quote(name) : "#{quote(table.table_name)}.#{quote(name)}"
+  def qualified(name, table = @table)
+    quoted = Skyward::ORM::Statements.quote(name)
+    @joins.empty? ? quoted : "#{Skyward::ORM::Statements.quote(table.table_name)}.#{quoted}"
+  end
 
-  # Quoted, so a column named order or user is still a column.
-  # @rbs name: Symbol
-  # @rbs return: String
-  def quote(name) = %("#{name.name.gsub('"', '""')}")
+  # @rbs method: Symbol
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[untyped] | Skyward::ORM::Violation
+  def write(method, sql, values)
+    require_writable(method)
+    database = @session.database
+    where, binds = filter(database, values.size + 1)
+    database.write(
+      @table,
+      @row,
+      [sql, where, Skyward::ORM::Statements.returning(Skyward::ORM::Members.of(@row))].compact.join(" "),
+      [*values.map { |value| database.adapter.encode(value) }, *binds]
+    )
+  end
+
+  # @rbs written: Array[untyped] | Skyward::ORM::Violation
+  # @rbs return: Array[untyped]
+  def unviolated(written)
+    case written
+    when Skyward::ORM::Violation then raise Skyward::ORM::ViolationError, written
+    else written
+    end
+  end
 end

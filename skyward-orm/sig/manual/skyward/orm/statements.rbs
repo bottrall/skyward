@@ -1,0 +1,3 @@
+module Skyward::ORM::Statements
+  extend ::Skyward::ORM::Statements
+end

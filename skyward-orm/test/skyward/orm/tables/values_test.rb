@@ -129,4 +129,50 @@ describe Skyward::ORM::Tables::Values do
       assert_equal "#{todo}.value is Date, not #{date_time.inspect} (DateTime)", mismatch(column(:date), date_time)
     end
   end
+
+  describe ".write_mismatch" do
+    def write_mismatch(column, value) = Skyward::ORM::Tables::Values.write_mismatch(TablesFixtures::Todo, column, value)
+
+    it "takes one value its column's type takes" do
+      assert_nil write_mismatch(column(:string), "Buy milk")
+    end
+
+    it "checks it as the type does, refusing nil for a column that isn't nullable" do
+      assert_equal "#{todo}.value is String, not nil (NilClass)", write_mismatch(column(:string), nil)
+    end
+
+    it "refuses an Array, whose elements the type would take" do
+      assert_equal "#{todo}.value is String, not [\"c\"] (Array)", write_mismatch(column(:string), ["c"])
+    end
+
+    it "refuses an empty Array" do
+      assert_equal "#{todo}.value is String, not [] (Array)", write_mismatch(column(:string), [])
+    end
+
+    it "refuses a Range, whose ends the type would take" do
+      assert_equal "#{todo}.value is String, not \"x\"..\"y\" (Range)", write_mismatch(column(:string), "x".."y")
+    end
+
+    describe "on an untyped column" do
+      untyped = "#{todo}.value is untyped, which takes any one value but an Array, a Hash or a Range"
+
+      it "takes any other value, nil included" do
+        assert_nil write_mismatch(column(:untyped), nil)
+      end
+
+      it "refuses an Array, which the driver would spread across placeholders" do
+        assert_equal "#{untyped}, not [] (Array)", write_mismatch(column(:untyped), [])
+      end
+
+      it "refuses a Hash" do
+        hash = { id: 1 }
+
+        assert_equal "#{untyped}, not #{hash.inspect} (Hash)", write_mismatch(column(:untyped), hash)
+      end
+
+      it "refuses a Range, which the driver can't bind" do
+        assert_equal "#{untyped}, not 1..2 (Range)", write_mismatch(column(:untyped), 1..2)
+      end
+    end
+  end
 end
