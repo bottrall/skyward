@@ -58,9 +58,12 @@ $ bundle exec skyward serve   # http://localhost:9292/docs
 
 The app is an API with no frontend. Its consumers generate their clients from its OpenAPI document, at `/openapi.json`.
 
+[The getting-started guide](../docs/getting-started.md) walks through an app step by step, from `skyward new` to a new column, a new endpoint, its tests, `bin/ci` and the OpenAPI document.
+
 ## Status
 
 This README is the spec. Skyward 0.1 is a skeleton: `require "skyward"` loads both gems. This section lists each part as it lands.
 
 - **One reading of each type.** The `skyward` gem's tests hold Skyward API and Skyward ORM to the promise both READMEs make, that a row read from the database and the same class sent as JSON are the same thing, on SQLite and on PostgreSQL. A table class with a column of every type both read (`Integer`, `Float`, `String`, `bool`, `Date`, `Time` and a union of symbols, and a nullable one of each) makes the round trip: a row the ORM inserts, returned from an endpoint typed with the class, read back with `Skyward::API::Test.client` and posted to an endpoint that takes the class as `body:`, arrives `==` to the row the database holds, a `Time` with microseconds and a non-UTC offset included. The class's OpenAPI component and the ORM's columns agree, field by field, on name, type, nullability and enum values. The types only one gem reads are listed in the test, so teaching either gem a type means updating the list: for now `Hash[String, T]`, `Array[T]`, records, classes with typed readers, unions of them and literals are read by Skyward API alone, and `BigDecimal` by neither.
 - **`skyward new`.** `skyward new NAME` writes the app [Starting an app](#starting-an-app) describes, every file of it from a function of the name alone, then runs `bundle install` in it unless given `--skip-bundle`. A missing name, more than one, a name that isn't lowercase letters, digits and underscores starting with a letter, or a path that exists and isn't an empty directory prints why and exits 1, writing nothing. The packaging check builds and installs the gems, runs `skyward new demo`, and fails unless the app's own `bin/ci` passes with them.
+- **The getting-started guide and `llms.txt`.** [`docs/getting-started.md`](../docs/getting-started.md) walks a newcomer from `gem install skyward` to a running, tested, documented API, showing each step's command, code and output, for Skyward 0.3. [`llms.txt`](../llms.txt), at the repository root, points agents at the guide, each gem's README and the `AGENTS.md` that `skyward new` writes, as raw Markdown.

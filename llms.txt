@@ -1,0 +1,15 @@
+# Skyward
+
+> Skyward is a set of Ruby gems for typed JSON APIs, where an endpoint is a method and a row is a value. Skyward API is a web framework that coerces and validates requests from each method's RBS signature and publishes an OpenAPI 3.1 document, Skyward ORM is an ORM where a class is a table, its rows are frozen values and migrations are generated from the class, and `skyward new` writes an app that uses both. Each gem's README is its spec, and its Status section lists what's built.
+
+## Docs
+
+- [Getting started](https://raw.githubusercontent.com/bottrall/skyward/main/docs/getting-started.md): from installing Skyward to a running, tested, documented API, step by step
+- [skyward](https://raw.githubusercontent.com/bottrall/skyward/main/skyward/README.md): installs Skyward API and Skyward ORM, and adds `skyward new` and the app it writes
+- [Skyward API](https://raw.githubusercontent.com/bottrall/skyward/main/skyward-api/README.md): endpoints, inputs, responses, types, the OpenAPI document, providers, errors, testing and the `skyward` commands for an API
+- [Skyward ORM](https://raw.githubusercontent.com/bottrall/skyward/main/skyward-orm/README.md): tables, migrations, queries, writes, transactions, types, testing and the `skyward` commands for a database
+- [Skyward Core](https://raw.githubusercontent.com/bottrall/skyward/main/skyward-core/README.md): the namespace, the `skyward` command and RBS loading the other gems share
+
+## Apps
+
+- [AGENTS.md for a Skyward app](https://raw.githubusercontent.com/bottrall/skyward/main/skyward/lib/skyward/generator/cli/new/template/AGENTS.md.tt): the conventions `skyward new` writes into every app for agents working in it, with `{{title}}` and `{{name}}` standing for the app's title and name
