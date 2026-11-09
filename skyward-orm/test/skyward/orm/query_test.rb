@@ -27,6 +27,7 @@ describe Skyward::ORM::Query do
   end
 
   let(:adapter) { sqlite }
+  let(:check) { false }
   let(:connection) do
     sqlite.connect(":memory:").tap do |connection|
       connection.execute(
@@ -42,12 +43,19 @@ describe Skyward::ORM::Query do
           adapter,
           Skyward::ORM::Connection::Pool.new(1, -> { connection }),
           Skyward::ORM::Tables::ColumnTypes.new(reader),
-          sqlite.tables(connection)
+          sqlite.tables(connection),
+          check:
         )
       )
     end
   end
   let(:query) { Skyward::ORM::Query.new(todo, session) }
+  let(:notes) do
+    Class.new(Skyward::ORM::Record) do
+      table :notes
+      attr_reader :id
+    end
+  end
   let(:milk) do
     todo.new(
       id: 1,
@@ -392,6 +400,14 @@ describe Skyward::ORM::Query do
 
       assert_equal 1, query.count(milk)
     end
+
+    describe "with the check on" do
+      let(:check) { true }
+
+      it "checks its table class before counting" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).count }
+      end
+    end
   end
 
   describe "#exists?" do
@@ -425,6 +441,14 @@ describe Skyward::ORM::Query do
 
       refute_predicate query.limit(0), :exists?
     end
+
+    describe "with the check on" do
+      let(:check) { true }
+
+      it "checks its table class before running the query" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).exists? }
+      end
+    end
   end
 
   describe "#each" do
@@ -456,6 +480,14 @@ describe Skyward::ORM::Query do
       insert(milk, eggs)
 
       assert_equal [eggs], query.select(&:done)
+    end
+
+    describe "with the check on" do
+      let(:check) { true }
+
+      it "checks its table class before running the query" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).to_a }
+      end
     end
   end
 

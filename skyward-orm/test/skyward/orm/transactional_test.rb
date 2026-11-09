@@ -11,7 +11,7 @@ describe Skyward::ORM::Transactional do
   end
   names = -> { Skyward::ORM::Connection::SESSION.database.execute("SELECT name FROM lists ORDER BY id") }
 
-  let(:database) { Skyward.connect("sqlite://:memory:", signatures:) }
+  let(:database) { Skyward.connect("sqlite://:memory:", signatures:, check: false) }
 
   before { database.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)") }
 

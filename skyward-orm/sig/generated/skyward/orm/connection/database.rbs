@@ -44,6 +44,12 @@ class Skyward::ORM::Connection::Database
 
   @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
 
+  @lock: Thread::Mutex
+
+  @checked: Set[singleton(Skyward::ORM::Record)]
+
+  @check: bool
+
   @tables: Array[Skyward::ORM::Catalog::Table]
 
   @column_types: Skyward::ORM::Tables::ColumnTypes
@@ -53,8 +59,8 @@ class Skyward::ORM::Connection::Database
   @adapter: Skyward::ORM::_Adapter
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
-  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
-  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
 
   # The seam every query runs through. Fiber storage is copied into child
   # fibers and threads, so one can find a transaction here that isn't its own.
@@ -91,12 +97,22 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Array[Array[untyped]]
   def execute: (String sql, ?Array[untyped] binds) -> Array[Array[untyped]]
 
+  # @rbs tables: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: void
+  def check: (Array[singleton(Skyward::ORM::Record)] tables) -> void
+
   # A query selects its row class's columns in order, so the decoder reads
   # each value by position, as its table's column type says.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def decoder: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+
+  # Every query and write calls this before it touches its table, so a table
+  # class loaded after connect is checked before its first use.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: void
+  def prepare: (singleton(Skyward::ORM::Record) table) -> void
 
   # @rbs error: StandardError
   # @rbs table: Symbol?

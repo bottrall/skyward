@@ -27,19 +27,19 @@ describe Skyward do
     values = [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"]
 
     it "keeps the database it connects to, for every query" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       assert_same database, Skyward::ORM::Connection::SESSION.database
     end
 
     it "reads column types from the signatures given" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       assert_equal :normal, database.decoder(todo, todo).call(values).priority
     end
 
     it "reads them from sig/ in the current directory by default" do
-      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:") }
+      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:", check: false) }
 
       assert_equal :normal, database.decoder(todo, todo).call(values).priority
     end
@@ -49,18 +49,45 @@ describe Skyward do
         database = Skyward.connect(
           "sqlite://#{File.join(dir, "todos.db")}",
           signatures: File.join(fixtures, "sig"),
-          pool: 2
+          pool: 2,
+          check: false
         )
         outer, inner = database.connection { |first| database.connection { |second| [first, second] } }
 
         refute_same outer, inner
       end
     end
+
+    # Other tests' table classes are loaded too, so this looks only for one of its own.
+    it "checks every loaded table class against the schema" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_includes error.message, "TablesFixtures::Todo doesn't match the todos table"
+    end
+
+    it "connects with the check off inside the session's without_check" do
+      database = Skyward::ORM::Connection::SESSION.without_check do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_same database, Skyward::ORM::Connection::SESSION.database
+    end
+
+    it "doesn't keep a database that doesn't match" do
+      kept = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      assert_raises(Skyward::ORM::SchemaMismatch) do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_same kept, Skyward::ORM::Connection::SESSION.database
+    end
   end
 
   describe ".transaction" do
     it "runs the block in a transaction on the connected database" do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       assert(Skyward.transaction { Skyward.transaction? })
     end
@@ -68,7 +95,7 @@ describe Skyward do
 
   describe ".transaction?" do
     it "is false outside a transaction on the connected database" do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       refute_predicate Skyward, :transaction?
     end
@@ -76,7 +103,7 @@ describe Skyward do
 
   describe ".query" do
     before do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
       Skyward.query("CREATE TABLE todos (title TEXT NOT NULL, due_on TEXT, done INTEGER NOT NULL)")
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Milk", Date.new(2026, 10, 1), false)
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Eggs", Date.today + 1, false)

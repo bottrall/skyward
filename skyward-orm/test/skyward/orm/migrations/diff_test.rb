@@ -25,7 +25,6 @@ describe Skyward::ORM::Migrations::Diff do
   describe ".changes" do
     it "checks each class's declarations name its columns" do
       broken = Class.new(Skyward::ORM::Record) do
-        table :broken
         index :missing
         attr_reader :id
       end

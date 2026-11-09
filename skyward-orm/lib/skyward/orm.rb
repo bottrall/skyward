@@ -19,8 +19,9 @@ module Skyward
   # @rbs url: String
   # @rbs signatures: String
   # @rbs pool: Integer
+  # @rbs check: bool
   # @rbs return: ORM::Connection::Database
-  def self.connect(url, signatures: "sig", pool: 5)
+  def self.connect(url, signatures: "sig", pool: 5, check: ORM::Connection::SESSION.check?)
     column_types = ORM::Tables::ColumnTypes.new(Core::Types::Reader.new(Core::Signatures.load(signatures)))
     adapter, location = ORM::Adapters.resolve(
       url,
@@ -29,7 +30,9 @@ module Skyward
     )
     connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), -> { adapter.connect(location) })
     tables = connections.with { |connection| adapter.tables(connection) }
-    ORM::Connection::SESSION.connect(ORM::Connection::Database.new(adapter, connections, column_types, tables))
+    database = ORM::Connection::Database.new(adapter, connections, column_types, tables, check:)
+    database.check(ORM::Tables::Loaded.table_classes(ORM::Record)) if check
+    ORM::Connection::SESSION.connect(database)
   end
 
   # @rbs [T] () { () -> T } -> T

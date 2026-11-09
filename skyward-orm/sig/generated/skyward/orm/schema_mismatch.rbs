@@ -1,0 +1,4 @@
+# Generated from lib/skyward/orm/schema_mismatch.rb with RBS::Inline
+
+class Skyward::ORM::SchemaMismatch < Skyward::Core::BootError
+end

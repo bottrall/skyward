@@ -5,7 +5,7 @@ require "test_helper"
 describe Skyward::ORM::Migrations::Discovery do
   describe ".table_classes" do
     # The loader is set up in the test, so no other test can have loaded its classes first.
-    it "eager-loads, so it finds a table class nothing has loaded, below one with no table" do
+    it "eager-loads, so it finds a table class nothing has loaded" do
       loader = Zeitwerk::Loader.new
       loader.push_dir(File.expand_path("../../../fixtures/discovery", __dir__))
       loader.setup
