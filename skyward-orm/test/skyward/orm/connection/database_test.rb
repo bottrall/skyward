@@ -108,7 +108,7 @@ describe Skyward::ORM::Connection::Database do
 
   describe "#tables" do
     it "is the schema it was given" do
-      assert_equal [:lists], database.tables.map(&:name)
+      assert_equal %i[lists todos], database.tables.map(&:name)
     end
   end
 

@@ -9,15 +9,6 @@ module Skyward::ORM::Migrations::Discovery
   # @rbs return: Array[singleton(Skyward::ORM::Record)]
   def table_classes(loader)
     loader.eager_load_all
-    descendants(Skyward::ORM::Record).select { |klass| klass.schema.table }
-  end
-
-  private
-
-  # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs return: Array[singleton(Skyward::ORM::Record)]
-  def descendants(klass)
-    subclasses = klass.subclasses #: Array[singleton(Skyward::ORM::Record)]
-    subclasses.flat_map { |subclass| [subclass, *descendants(subclass)] }
+    Skyward::ORM::Tables::Loaded.table_classes(Skyward::ORM::Record)
   end
 end

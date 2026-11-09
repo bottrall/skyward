@@ -6,10 +6,4 @@ module Skyward::ORM::Migrations::Discovery
   # @rbs loader: singleton(Zeitwerk::Loader)
   # @rbs return: Array[singleton(Skyward::ORM::Record)]
   def table_classes: (singleton(Zeitwerk::Loader) loader) -> Array[singleton(Skyward::ORM::Record)]
-
-  private
-
-  # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs return: Array[singleton(Skyward::ORM::Record)]
-  def descendants: (singleton(Skyward::ORM::Record) klass) -> Array[singleton(Skyward::ORM::Record)]
 end

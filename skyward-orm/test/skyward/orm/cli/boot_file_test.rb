@@ -32,7 +32,7 @@ describe Skyward::ORM::CLI::BootFile do
         Skyward::ORM::Adapters::SQLite.connect(database).execute("CREATE TABLE booted (id INTEGER PRIMARY KEY)")
         File.write(
           File.join(directory, "boot.rb"),
-          "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect})\n"
+          "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect}, check: false)\n"
         )
 
         loaded = Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION)

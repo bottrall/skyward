@@ -51,6 +51,14 @@ describe Skyward do
       assert_includes error.message, "TablesFixtures::Todo doesn't match the todos table"
     end
 
+    it "connects with the check off inside the session's without_check" do
+      database = Skyward::ORM::Connection::SESSION.without_check do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_same database, Skyward::ORM::Connection::SESSION.database
+    end
+
     it "doesn't keep a database that doesn't match" do
       kept = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
       assert_raises(Skyward::ORM::SchemaMismatch) do

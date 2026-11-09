@@ -20,7 +20,7 @@ module Skyward
   # @rbs signatures: String
   # @rbs check: bool
   # @rbs return: ORM::Connection::Database
-  def self.connect(url, signatures: "sig", check: true)
+  def self.connect(url, signatures: "sig", check: ORM::Connection::SESSION.check?)
     column_types = ORM::Tables::ColumnTypes.new(Core::Types::Reader.new(Core::Signatures.load(signatures)))
     adapter, connection = ORM::Adapters.connect(
       url,

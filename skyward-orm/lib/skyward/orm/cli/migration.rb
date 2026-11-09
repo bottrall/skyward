@@ -19,7 +19,7 @@ module Skyward::ORM::CLI::Migration
     taken = Skyward::ORM::Migrations::Directory.named(directory, name)
     return kernel.abort("skyward: #{taken} is already named #{name}. Choose another name.") if taken
 
-    database = Skyward::ORM::CLI::BootFile.load(directory, session)
+    database = session.without_check { Skyward::ORM::CLI::BootFile.load(directory, session) }
     case database
     when String then kernel.abort(database)
     else write(name, database, directory:, time:, out:, kernel:, discover:)
