@@ -25,6 +25,22 @@ That installs the dev bundle, each gem's and example's own bundle, and the gem s
 
 Run `bin/ci` before you push.
 
+## PostgreSQL
+
+Skyward ORM's tests run on SQLite unless `TEST_DATABASE=postgresql` says to run them on PostgreSQL. Either way, the PostgreSQL adapter's own tests need a PostgreSQL, at `TEST_POSTGRES_URL`, so `bin/test` and `bin/ci` do too. Before each test that uses it, the suite drops that database's `public` schema and closes its other connections, so give it a database of its own, such as one in a container:
+
+```sh
+docker run -d --rm --name skyward-postgres -e POSTGRES_PASSWORD=postgres -p 54320:5432 postgres:17
+export TEST_POSTGRES_URL=postgres://postgres:postgres@localhost:54320/postgres
+
+bin/test                            # the ORM's suite on SQLite
+TEST_DATABASE=postgresql bin/test   # and on PostgreSQL
+
+docker stop skyward-postgres
+```
+
+CI runs the ORM's suite both ways, on every supported Ruby.
+
 ## Pull requests
 
 PR titles are [Conventional Commits](https://www.conventionalcommits.org/) with a scope naming the gem they change (`feat(api): add providers`, `fix(orm): quote column names`), because each becomes a squash commit on `main` and the changelog is built from them. Fill in the PR template.

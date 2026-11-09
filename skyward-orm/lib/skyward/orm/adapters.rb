@@ -3,7 +3,11 @@
 module Skyward::ORM::Adapters
   extend self
 
-  SCHEMES = { "sqlite" => SQLite }.freeze #: Hash[String, Skyward::ORM::_Adapter]
+  SCHEMES = {
+    "postgres" => PostgreSQL,
+    "postgresql" => PostgreSQL,
+    "sqlite" => SQLite
+  }.freeze #: Hash[String, Skyward::ORM::_Adapter]
 
   # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
   #   -> [Skyward::ORM::_Adapter, String]

@@ -5,6 +5,8 @@ module Skyward::ORM::Migrations::Diff
 
   ON_DELETE = /\bON\s+DELETE\s+(CASCADE|RESTRICT|SET\s+NULL|SET\s+DEFAULT|NO\s+ACTION)\b/i #: Regexp
 
+  NULL = "NULL" #: String
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -138,7 +140,8 @@ module Skyward::ORM::Migrations::Diff
     sql_type = adapter.sql_type(column.type)
     retyped = sql_type unless adapter.compatible?(column.type, had.type)
     default = Skyward::ORM::Migrations::Definitions.default(klass, name, adapter)
-    redefaulted = had.default != default
+    # PostgreSQL keeps no default for DEFAULT NULL, which is the same as none.
+    redefaulted = (had.default || NULL) != (default || NULL)
     renulled = sql_type && had.nullable != column.nullable
     [
       (Skyward::ORM::Migrations::ChangeType.new(column: name, from: had.type, to: retyped) if retyped),

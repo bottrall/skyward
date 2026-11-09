@@ -36,13 +36,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: test ${{ matrix.gem }} (ruby ${{ matrix.ruby }})
+    # A hung test fails the job in minutes rather than holding it for hours.
+    timeout-minutes: 10
     # head is an early warning of the next Ruby's breakages, not a gate.
     continue-on-error: ${{ matrix.ruby == 'head' }}
 
     strategy:
       fail-fast: false
       matrix:
-        gem: [skyward-core, skyward-api, skyward-orm, skyward, examples/todos]
+        gem: [skyward-core, skyward-api, skyward, examples/todos]
         # Every Ruby that isn't end-of-life.
         ruby: ["3.3", "3.4", "4.0", head]
 
@@ -60,3 +62,56 @@ jobs:
           bundler-cache: true
           working-directory: ${{ matrix.gem }}
       - run: bundle exec rake test
+
+  # The ORM's suite runs on each database it supports, one after the other in
+  # one job, so the job keeps the name main's required checks give it. Both
+  # runs have PostgreSQL, because the PostgreSQL adapter's own tests always use
+  # it, as the SQLite adapter's always use SQLite, so neither skips a test.
+  test-orm:
+    runs-on: ubuntu-latest
+    name: test skyward-orm (ruby ${{ matrix.ruby }})
+    timeout-minutes: 10
+    continue-on-error: ${{ matrix.ruby == 'head' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.3", "3.4", "4.0", head]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    defaults:
+      run:
+        working-directory: skyward-orm
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: skyward-orm
+      - name: test on SQLite
+        run: bundle exec rake test
+        env:
+          TEST_DATABASE: sqlite
+      # Runs even when SQLite failed, so one push shows both.
+      - name: test on PostgreSQL
+        if: ${{ !cancelled() }}
+        run: bundle exec rake test
+        env:
+          TEST_DATABASE: postgresql

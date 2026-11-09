@@ -15,6 +15,32 @@ describe Skyward::ORM::Migrations::Runner do
   )
   create_c = runner.parse("20261003000000_create_c.sql", "CREATE TABLE c (id INTEGER);\n")
 
+  on_sqlite = proc do
+    let(:empty) { TestDatabase.empty("sqlite") }
+    let(:adapter) { Skyward::ORM::Adapters::SQLite }
+
+    def idle? = !connection.transaction_active?
+  end
+
+  on_postgresql = proc do
+    let(:empty) { TestDatabase.empty("postgresql") }
+    let(:adapter) { Skyward::ORM::Adapters::PostgreSQL }
+
+    # As another session sees it, which tells an open transaction from none.
+    def idle?
+      pid = connection.execute("SELECT pg_backend_pid()").dig(0, 0)
+      empty.connect.execute("SELECT state FROM pg_stat_activity WHERE pid = $1", [pid]) == [["idle"]]
+    end
+  end
+
+  let(:connection) { empty.connect }
+
+  def migrate(*migrations, adapter: self.adapter)
+    Skyward::ORM::Migrations::Runner.run(adapter, connection, migrations)
+  end
+
+  def tables = adapter.tables(connection).map { |table| table.name.name }.sort
+
   describe ".read" do
     it "reads each .sql file in the directory, in filename order" do
       Dir.mktmpdir do |directory|
@@ -75,202 +101,139 @@ describe Skyward::ORM::Migrations::Runner do
   end
 
   describe ".run" do
-    let(:connection) { sqlite.connect(":memory:") }
+    # What running migrations does on every database, so each runs these.
+    running = proc do
+      # Runs create_a for the other migrator, after this one has read
+      # schema_migrations: the first lock it takes is for making that table.
+      let(:racing) do
+        racing_on = adapter
+        locks = 0
+        Module.new do
+          extend racing_on
 
-    def migrate(*migrations, adapter: Skyward::ORM::Adapters::SQLite)
-      Skyward::ORM::Migrations::Runner.run(adapter, connection, migrations)
-    end
+          define_singleton_method(:begin_migration) do
+            locks += 1
+            next super() if locks == 1
 
-    def tables = connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name").flatten
-
-    it "records each version with its checksum and when it ran" do
-      migrate(create_a)
-      rows = connection.execute("SELECT version, checksum, ran_at FROM schema_migrations")
-      ran = rows.map { |version, checksum, ran_at| [version, checksum, sqlite.decode(:time, ran_at).class] }
-
-      assert_equal [["20261001000000", create_a.checksum, Time]], ran
-    end
-
-    it "refuses to run anything when migrations changed after they ran, naming each" do
-      migrate(create_a, create_b)
-      edited = [create_a, create_b].map { |migration| runner.parse(migration.file, "SELECT 1;\n") }
-
-      assert_equal [runner::Edited.new(files: [create_a.file, create_b.file]), %w[a b schema_migrations]],
-                   [migrate(*edited, create_c), tables]
-    end
-
-    it "skips a migration that has run" do
-      migrate(create_a)
-
-      assert_equal ["20261002000000"], migrate(create_a, create_b)
-    end
-
-    it "runs the rest when a migration that ran has no file anymore" do
-      migrate(create_a, create_b)
-
-      assert_equal ["20261003000000"], migrate(create_b, create_c)
-    end
-
-    it "runs each migration in order and returns their versions" do
-      assert_equal %w[20261001000000 20261002000000], migrate(create_a, create_b)
-    end
-
-    it "runs nothing when it can't take the migration lock, naming the file and the database's message" do
-      Dir.mktmpdir do |directory|
-        path = File.join(directory, "todos.db")
-        holder = sqlite.connect(path)
-        waiter = sqlite.connect(path)
-        runner.run(sqlite, waiter, [])
-        holder.execute("BEGIN IMMEDIATE")
-        waiter.busy_handler_timeout = 10
-        locked = runner.run(sqlite, waiter, [create_a, create_b])
-
-        assert_equal [runner::Locked.new(file: create_a.file, message: "database is locked"), false, [[1]]],
-                     [locked, waiter.transaction_active?, waiter.execute("PRAGMA foreign_keys")]
-      end
-    end
-
-    it "turns foreign keys back on after a migration, and after one that fails" do
-      broken = runner.parse("20261002000000_broken.sql", "INSERT INTO nowhere VALUES (1);\n")
-      after = [create_a, broken].map do |migration|
-        migrate(migration)
-        connection.execute("PRAGMA foreign_keys")
-      end
-
-      assert_equal [[[1]], [[1]]], after
-    end
-
-    it "skips a migration another migrator ran after this one read what had run" do
-      # Runs create_a for the other migrator, after this one has read schema_migrations.
-      racing = Module.new do
-        extend Skyward::ORM::Adapters::SQLite
-
-        def self.begin_migration
-          "INSERT OR IGNORE INTO schema_migrations (version, checksum) VALUES ('20261001000000', 'theirs'); " \
-            "BEGIN IMMEDIATE"
+            "INSERT INTO schema_migrations (version, checksum) VALUES ('20261001000000', 'theirs') " \
+              "ON CONFLICT DO NOTHING; #{super()}"
+          end
         end
       end
 
-      assert_equal [["20261002000000"], %w[b schema_migrations]], [migrate(create_a, create_b, adapter: racing), tables]
-    end
+      it "records each version with its checksum and when it ran" do
+        migrate(create_a)
+        rows = connection.execute("SELECT version, checksum, ran_at FROM schema_migrations")
+        ran = rows.map { |version, checksum, ran_at| [version, checksum, adapter.decode(:time, ran_at).class] }
 
-    it "runs every statement in a migration" do
-      migrate(create_b)
+        assert_equal [["20261001000000", create_a.checksum, Time]], ran
+      end
 
-      assert_equal [[1], [2]], connection.execute("SELECT id FROM b ORDER BY id")
-    end
+      it "refuses to run anything when migrations changed after they ran, naming each" do
+        migrate(create_a, create_b)
+        edited = [create_a, create_b].map { |migration| runner.parse(migration.file, "SELECT 1;\n") }
 
-    it "rolls back a migration that fails, runs nothing after it, and returns the file and the database's message" do
-      broken = runner.parse(
-        "20261002000000_broken.sql",
-        "CREATE TABLE d (id INTEGER);\nINSERT INTO nowhere VALUES (1);\n"
-      )
-      failed = runner::Failed.new(
-        file: broken.file,
-        message: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);"
-      )
+        assert_equal [runner::Edited.new(files: [create_a.file, create_b.file]), %w[a b schema_migrations]],
+                     [migrate(*edited, create_c), tables]
+      end
 
-      assert_equal [failed, %w[a schema_migrations], [["20261001000000"]]],
-                   [
-                     migrate(create_a, broken, create_c),
-                     tables,
-                     connection.execute("SELECT version FROM schema_migrations")
-                   ]
-    end
+      it "skips a migration that has run" do
+        migrate(create_a)
 
-    it "rolls back a migration that leaves a row referring to a missing one, naming each such row" do
-      connection.execute_batch(<<~SQL)
-        CREATE TABLE lists (id INTEGER PRIMARY KEY);
-        CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists);
-      SQL
-      dangling = runner.parse("20261001000000_add_todo.sql", "INSERT INTO todos (list_id) VALUES (9);\n")
-      failed = runner::Failed.new(
-        file: dangling.file,
-        message: "foreign key check failed: todos row 1 refers to a missing lists row (foreign key 0)"
-      )
+        assert_equal ["20261002000000"], migrate(create_a, create_b)
+      end
 
-      assert_equal [failed, [], []],
-                   [
-                     migrate(dangling),
-                     connection.execute("SELECT id FROM todos"),
-                     connection.execute("SELECT version FROM schema_migrations")
-                   ]
-    end
+      it "runs the rest when a migration that ran has no file anymore" do
+        migrate(create_a, create_b)
 
-    it "rolls back a migration whose version can't be recorded, as when it drops schema_migrations" do
-      dropping = runner.parse(
-        "20261002000000_drop.sql",
-        "CREATE TABLE d (id INTEGER);\nDROP TABLE schema_migrations;\n"
-      )
-      migrate(create_a)
-      failed = runner::Failed.new(
-        file: dropping.file,
-        message: "no such table: schema_migrations:\nINSERT INTO schema_migrations (version, checksum) VALUES (?, ?)"
-      )
+        assert_equal ["20261003000000"], migrate(create_b, create_c)
+      end
 
-      assert_equal [failed, %w[a schema_migrations], false], [migrate(dropping), tables, connection.transaction_active?]
-    end
+      it "raises when it can't make schema_migrations, and leaves no transaction open" do
+        broken_on = adapter
+        broken = Module.new do
+          extend broken_on
 
-    it "rolls back a migration that can't commit, as when another connection is reading" do
-      Dir.mktmpdir do |directory|
-        path = File.join(directory, "todos.db")
-        waiter = sqlite.connect(path)
-        runner.run(sqlite, waiter, [])
-        reader = sqlite.connect(path)
-        reader.execute("BEGIN")
-        reader.execute("SELECT version FROM schema_migrations")
-        waiter.busy_handler_timeout = 10
-        failed = runner::Failed.new(file: create_a.file, message: "database is locked")
+          def self.sql_type(_type) = "("
+        end
 
-        assert_equal [failed, false, [["schema_migrations"]]],
+        assert_raises(StandardError) { runner.run(broken, connection, [create_a]) }
+        assert_equal [true, []], [idle?, tables]
+      end
+
+      it "runs each migration in order and returns their versions" do
+        assert_equal %w[20261001000000 20261002000000], migrate(create_a, create_b)
+      end
+
+      it "skips a migration another migrator ran after this one read what had run" do
+        assert_equal [["20261002000000"], %w[b schema_migrations]],
+                     [migrate(create_a, create_b, adapter: racing), tables]
+      end
+
+      it "runs every statement in a migration" do
+        migrate(create_b)
+
+        assert_equal(
+          [1, 2],
+          connection.execute("SELECT id FROM b ORDER BY id").map do |(id)|
+            adapter.decode(:integer, id)
+          end
+        )
+      end
+
+      it "rolls back a migration that fails, runs nothing after it, and returns the file and the database's message" do
+        broken = runner.parse(
+          "20261002000000_broken.sql",
+          "CREATE TABLE d (id INTEGER);\nINSERT INTO nowhere VALUES (1);\n"
+        )
+        failed = runner::Failed.new(file: broken.file, message: messages.fetch(:nowhere))
+
+        assert_equal [failed, %w[a schema_migrations], [["20261001000000"]]],
                      [
-                       runner.run(sqlite, waiter, [create_a]),
-                       waiter.transaction_active?,
-                       waiter.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")
+                       migrate(create_a, broken, create_c),
+                       tables,
+                       connection.execute("SELECT version FROM schema_migrations")
                      ]
       end
-    end
 
-    it "rolls back, then turns foreign keys back on, when a migration is left by throw or a killed thread" do
-      leaving = Module.new do
-        extend Skyward::ORM::Adapters::SQLite
+      it "rolls back a migration whose version can't be recorded, as when it drops schema_migrations" do
+        dropping = runner.parse(
+          "20261002000000_drop.sql",
+          "CREATE TABLE d (id INTEGER);\nDROP TABLE schema_migrations;\n"
+        )
+        migrate(create_a)
+        failed = runner::Failed.new(file: dropping.file, message: messages.fetch(:recording))
 
-        define_singleton_method(:foreign_key_violations) { |_connection| throw :left }
+        assert_equal [failed, %w[a schema_migrations], true], [migrate(dropping), tables, idle?]
       end
-      catch(:left) { migrate(create_a, adapter: leaving) }
 
-      assert_equal [false, [[1]], %w[schema_migrations]],
-                   [connection.transaction_active?, connection.execute("PRAGMA foreign_keys"), tables]
-    end
-
-    it "returns the failure of a migration SQLite rolled back itself, as ON CONFLICT ROLLBACK does" do
-      connection.execute("CREATE TABLE d (id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK)")
-      conflicting = runner.parse("20261001000000_conflict.sql", "INSERT INTO d VALUES (1);\n" * 2)
-      failed = runner::Failed.new(file: conflicting.file, message: "UNIQUE constraint failed: d.id")
-
-      assert_equal [failed, false, []],
-                   [migrate(conflicting), connection.transaction_active?, connection.execute("SELECT id FROM d")]
-    end
-
-    it "runs each migration once when two migrators start together on one database" do
-      Dir.mktmpdir do |directory|
-        path = File.join(directory, "todos.db")
-        sqlite.connect(path).execute("CREATE TABLE runs (version TEXT NOT NULL)")
+      it "runs each migration once when two migrators start together on one database" do
+        empty.connect.execute("CREATE TABLE runs (version TEXT NOT NULL)")
         counted = (10..19).map do |number|
           runner.parse("#{number}_count.sql", "INSERT INTO runs (version) VALUES ('#{number}');\n")
         end
-        # Neither takes the lock until both have read that nothing has run, so
-        # both try every migration. The driver holds Ruby's lock while SQLite
-        # works, so the one migrating sleeps where it asks for a placeholder,
-        # inside its transaction, for the other to try to take the lock then.
-        arrived = Queue.new
-        together = Thread.new { 2.times { arrived.pop } }
-        adapter = Module.new do
-          extend Skyward::ORM::Adapters::SQLite
+        # Both make schema_migrations at once, and neither takes the lock for a
+        # migration until both have read that nothing has run, so both try every
+        # migration. A round gives up waiting for a migrator that never comes, as
+        # when it failed, so the test fails rather than hangs. The one migrating
+        # sleeps where it asks for a placeholder, inside its transaction, for the
+        # other to try to take the lock then: SQLite's driver holds Ruby's lock
+        # while SQLite works.
+        rounds = Array.new(2) do
+          arrived = Queue.new
+          [arrived, Thread.new { 2.times { arrived.pop(timeout: 5) } }]
+        end
+        migrating_on = adapter
+        both = Module.new do
+          extend migrating_on
 
           define_singleton_method(:begin_migration) do
-            arrived << true
-            together.join
+            round = Thread.current[:migration_round] = Thread.current[:migration_round].to_i + 1
+            arrived, together = rounds[round - 1]
+            if together
+              arrived << true
+              together.join
+            end
             super()
           end
 
@@ -280,13 +243,161 @@ describe Skyward::ORM::Migrations::Runner do
           end
         end
         migrators = Array.new(2) do
-          connection = sqlite.connect(path)
-          Thread.new { runner.run(adapter, connection, counted) }
+          migrating = empty.connect
+          Thread.new { runner.run(both, migrating, counted) }
         end
         ran = migrators.flat_map(&:value).sort
-        runs = sqlite.connect(path).execute("SELECT version FROM runs ORDER BY version").flatten
+        runs = empty.connect.execute("SELECT version FROM runs ORDER BY version").flatten
 
         assert_equal [counted.map(&:version), counted.map(&:version)], [ran, runs]
+      end
+    end
+
+    describe "on SQLite" do
+      class_exec(&on_sqlite)
+
+      let(:messages) do
+        {
+          nowhere: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);",
+          recording: "no such table: schema_migrations:\n" \
+                     "INSERT INTO schema_migrations (version, checksum) VALUES (?, ?)"
+        }
+      end
+
+      class_exec(&running)
+
+      it "runs nothing when it can't take the migration lock to make schema_migrations" do
+        holder = empty.connect
+        holder.execute("BEGIN IMMEDIATE")
+        connection.busy_handler_timeout = 10
+        locked = runner::Locked.new(file: create_a.file, message: "database is locked")
+
+        assert_equal [[], locked, true, []],
+                     [runner.run(sqlite, connection, []), runner.run(sqlite, connection, [create_a]), idle?, tables]
+      end
+
+      it "runs nothing when it can't take the migration lock, naming the file and the database's message" do
+        holder = empty.connect
+        runner.run(sqlite, connection, [])
+        holder.execute("BEGIN IMMEDIATE")
+        connection.busy_handler_timeout = 10
+        locked = runner.run(sqlite, connection, [create_a, create_b])
+
+        assert_equal [runner::Locked.new(file: create_a.file, message: "database is locked"), true, [[1]]],
+                     [locked, idle?, connection.execute("PRAGMA foreign_keys")]
+      end
+
+      it "turns foreign keys back on after a migration, and after one that fails" do
+        broken = runner.parse("20261002000000_broken.sql", "INSERT INTO nowhere VALUES (1);\n")
+        after = [create_a, broken].map do |migration|
+          migrate(migration)
+          connection.execute("PRAGMA foreign_keys")
+        end
+
+        assert_equal [[[1]], [[1]]], after
+      end
+
+      it "rolls back a migration that leaves a row referring to a missing one, naming each such row" do
+        connection.execute_batch(<<~SQL)
+          CREATE TABLE lists (id INTEGER PRIMARY KEY);
+          CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists);
+        SQL
+        dangling = runner.parse("20261001000000_add_todo.sql", "INSERT INTO todos (list_id) VALUES (9);\n")
+        failed = runner::Failed.new(
+          file: dangling.file,
+          message: "foreign key check failed: todos row 1 refers to a missing lists row (foreign key 0)"
+        )
+
+        assert_equal [failed, [], []],
+                     [
+                       migrate(dangling),
+                       connection.execute("SELECT id FROM todos"),
+                       connection.execute("SELECT version FROM schema_migrations")
+                     ]
+      end
+
+      it "rolls back a migration that can't commit, as when another connection is reading" do
+        runner.run(sqlite, connection, [])
+        reader = empty.connect
+        reader.execute("BEGIN")
+        reader.execute("SELECT version FROM schema_migrations")
+        connection.busy_handler_timeout = 10
+        failed = runner::Failed.new(file: create_a.file, message: "database is locked")
+
+        assert_equal [failed, true, %w[schema_migrations]], [runner.run(sqlite, connection, [create_a]), idle?, tables]
+      end
+
+      it "rolls back, then turns foreign keys back on, when a migration is left by throw or a killed thread" do
+        leaving = Module.new do
+          extend Skyward::ORM::Adapters::SQLite
+
+          define_singleton_method(:foreign_key_violations) { |_connection| throw :left }
+        end
+        catch(:left) { migrate(create_a, adapter: leaving) }
+
+        assert_equal [true, [[1]], %w[schema_migrations]], [idle?, connection.execute("PRAGMA foreign_keys"), tables]
+      end
+
+      it "returns the failure of a migration SQLite rolled back itself, as ON CONFLICT ROLLBACK does" do
+        connection.execute("CREATE TABLE d (id INTEGER PRIMARY KEY ON CONFLICT ROLLBACK)")
+        conflicting = runner.parse("20261001000000_conflict.sql", "INSERT INTO d VALUES (1);\n" * 2)
+        failed = runner::Failed.new(file: conflicting.file, message: "UNIQUE constraint failed: d.id")
+
+        assert_equal [failed, true, []], [migrate(conflicting), idle?, connection.execute("SELECT id FROM d")]
+      end
+    end
+
+    describe "on PostgreSQL" do
+      class_exec(&on_postgresql)
+
+      let(:messages) do
+        {
+          nowhere: "ERROR:  relation \"nowhere\" does not exist\nLINE 2: INSERT INTO nowhere VALUES (1);\n" \
+                   "#{" " * 20}^\n",
+          recording: "ERROR:  relation \"schema_migrations\" does not exist\n" \
+                     "LINE 1: INSERT INTO schema_migrations (version, checksum) VALUES ($1...\n#{" " * 20}^\n"
+        }
+      end
+
+      class_exec(&running)
+
+      it "runs nothing when it can't take the migration lock to make schema_migrations" do
+        holder = empty.connect
+        holder.execute_batch(adapter.begin_migration)
+        connection.execute("SET lock_timeout = '10ms'")
+        locked = runner::Locked.new(file: create_a.file, message: "ERROR:  canceling statement due to lock timeout\n")
+
+        assert_equal [[], locked, true, []],
+                     [runner.run(adapter, connection, []), runner.run(adapter, connection, [create_a]), idle?, tables]
+      end
+
+      it "runs nothing when it can't take the migration lock, and leaves no transaction open" do
+        holder = empty.connect
+        runner.run(adapter, connection, [])
+        holder.execute_batch(adapter.begin_migration)
+        connection.execute("SET lock_timeout = '10ms'")
+        locked = runner.run(adapter, connection, [create_a, create_b])
+        timed_out = runner::Locked.new(
+          file: create_a.file,
+          message: "ERROR:  canceling statement due to lock timeout\n"
+        )
+
+        assert_equal [timed_out, true, %w[schema_migrations]], [locked, idle?, tables]
+      end
+
+      it "fails a migration that leaves a row referring to a missing one, as PostgreSQL checks it as it writes" do
+        connection.execute("CREATE TABLE lists (id bigint PRIMARY KEY)")
+        connection.execute("CREATE TABLE todos (id bigint PRIMARY KEY, list_id bigint NOT NULL REFERENCES lists)")
+        dangling = runner.parse("20261001000000_add_todo.sql", "INSERT INTO todos (id, list_id) VALUES (1, 9);\n")
+        failed = migrate(dangling)
+
+        assert_equal [runner::Failed, dangling.file, [], []],
+                     [
+                       failed.class,
+                       failed.file,
+                       connection.execute("SELECT id FROM todos"),
+                       connection.execute("SELECT version FROM schema_migrations")
+                     ]
       end
     end
   end
@@ -294,113 +405,137 @@ describe Skyward::ORM::Migrations::Runner do
   describe ".rollback" do
     create_d = runner.parse("20261004000000_create_d.sql", "CREATE TABLE d (id INTEGER);\n\n-- down\nDROP TABLE d;\n")
 
-    let(:connection) { sqlite.connect(":memory:") }
-
-    def migrate(*migrations)
-      Skyward::ORM::Migrations::Runner.run(Skyward::ORM::Adapters::SQLite, connection, migrations)
-    end
-
-    def roll_back(*migrations, adapter: Skyward::ORM::Adapters::SQLite)
-      Skyward::ORM::Migrations::Runner.rollback(adapter, connection, migrations)
-    end
-
-    def tables = connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name").flatten
-
-    def versions = connection.execute("SELECT version FROM schema_migrations ORDER BY version").flatten
-
-    it "has nothing to roll back on a database that's never been migrated, and doesn't make schema_migrations" do
-      assert_equal [:nothing, []], [roll_back(create_a), tables]
-    end
-
-    it "has nothing to roll back when no migration has run" do
-      migrate
-
-      assert_equal :nothing, roll_back(create_a)
-    end
-
-    it "refuses when the latest migration's file is gone, naming its version" do
-      migrate(create_a, create_d)
-
-      assert_equal [runner::Missing.new(version: create_d.version), %w[a d schema_migrations]],
-                   [roll_back(create_a), tables]
-    end
-
-    it "refuses a migration whose down section is blank, naming the file" do
-      blank = runner.parse("20261004000000_create_e.sql", "CREATE TABLE e (id INTEGER);\n-- down\n  \n\n")
-      migrate(blank)
-
-      assert_equal [runner::Irreversible.new(file: blank.file), [blank.version]], [roll_back(blank), versions]
-    end
-
-    it "runs the latest migration's down section, deletes its version, and returns it" do
-      migrate(create_a, create_d)
-
-      assert_equal [create_d.version, %w[a schema_migrations], [create_a.version]],
-                   [roll_back(create_a, create_d), tables, versions]
-    end
-
-    it "rolls back the greatest version, which sorts last, though another ran after it" do
-      migrate(create_d)
-      migrate(create_a, create_d)
-
-      assert_equal [create_d.version, [create_a.version]], [roll_back(create_a, create_d), versions]
-    end
-
-    it "rolls back nothing when it can't take the migration lock, naming the file and the database's message" do
-      Dir.mktmpdir do |directory|
-        path = File.join(directory, "todos.db")
-        holder = sqlite.connect(path)
-        waiter = sqlite.connect(path)
-        runner.run(sqlite, waiter, [create_d])
-        holder.execute("BEGIN IMMEDIATE")
-        waiter.busy_handler_timeout = 10
-
-        assert_equal [runner::Locked.new(file: create_d.file, message: "database is locked"), false],
-                     [runner.rollback(sqlite, waiter, [create_d]), waiter.transaction_active?]
-      end
-    end
-
-    it "rolls back nothing when another migrator rolled back the latest after this one read it" do
-      migrate(create_a, create_d)
+    # What rolling back does on every database, so each runs these.
+    rolling_back = proc do
       # Rolls create_d back for the other migrator, after this one has read the latest version.
-      racing = Module.new do
-        extend Skyward::ORM::Adapters::SQLite
+      let(:racing) do
+        racing_on = adapter
+        Module.new do
+          extend racing_on
 
-        def self.begin_migration
-          "DELETE FROM schema_migrations WHERE version = '20261004000000'; BEGIN IMMEDIATE"
+          def self.begin_migration = "DELETE FROM schema_migrations WHERE version = '20261004000000'; #{super}"
         end
       end
 
-      assert_equal [runner::Raced.new(file: create_d.file), %w[a d schema_migrations]],
-                   [roll_back(create_a, create_d, adapter: racing), tables]
+      def roll_back(*migrations, adapter: self.adapter)
+        Skyward::ORM::Migrations::Runner.rollback(adapter, connection, migrations)
+      end
+
+      def versions = connection.execute("SELECT version FROM schema_migrations ORDER BY version").flatten
+
+      it "has nothing to roll back on a database that's never been migrated, and doesn't make schema_migrations" do
+        assert_equal [:nothing, []], [roll_back(create_a), tables]
+      end
+
+      it "has nothing to roll back when no migration has run" do
+        migrate
+
+        assert_equal :nothing, roll_back(create_a)
+      end
+
+      it "refuses when the latest migration's file is gone, naming its version" do
+        migrate(create_a, create_d)
+
+        assert_equal [runner::Missing.new(version: create_d.version), %w[a d schema_migrations]],
+                     [roll_back(create_a), tables]
+      end
+
+      it "refuses a migration whose down section is blank, naming the file" do
+        blank = runner.parse("20261004000000_create_e.sql", "CREATE TABLE e (id INTEGER);\n-- down\n  \n\n")
+        migrate(blank)
+
+        assert_equal [runner::Irreversible.new(file: blank.file), [blank.version]], [roll_back(blank), versions]
+      end
+
+      it "runs the latest migration's down section, deletes its version, and returns it" do
+        migrate(create_a, create_d)
+
+        assert_equal [create_d.version, %w[a schema_migrations], [create_a.version]],
+                     [roll_back(create_a, create_d), tables, versions]
+      end
+
+      it "rolls back the greatest version, which sorts last, though another ran after it" do
+        migrate(create_d)
+        migrate(create_a, create_d)
+
+        assert_equal [create_d.version, [create_a.version]], [roll_back(create_a, create_d), versions]
+      end
+
+      it "rolls back nothing when another migrator rolled back the latest after this one read it" do
+        migrate(create_a, create_d)
+
+        assert_equal [runner::Raced.new(file: create_d.file), %w[a d schema_migrations]],
+                     [roll_back(create_a, create_d, adapter: racing), tables]
+      end
+
+      it "undoes a down section that fails, keeping its version, and returns the file and the database's message" do
+        failing = runner.parse(
+          "20261004000000_create_e.sql",
+          "CREATE TABLE e (id INTEGER);\n-- down\nDROP TABLE e;\nDROP TABLE nowhere;\n"
+        )
+        migrate(failing)
+        failed = runner::Failed.new(file: failing.file, message: dropped_nowhere)
+
+        assert_equal [failed, %w[e schema_migrations], [failing.version], true],
+                     [roll_back(failing), tables, versions, idle?]
+      end
     end
 
-    it "undoes a down section that fails, keeping its version, and returns the file and the database's message" do
-      failing = runner.parse(
-        "20261004000000_create_e.sql",
-        "CREATE TABLE e (id INTEGER);\n-- down\nDROP TABLE e;\nDROP TABLE nowhere;\n"
-      )
-      migrate(failing)
-      failed = runner::Failed.new(file: failing.file, message: "no such table: nowhere:\nDROP TABLE nowhere;")
+    describe "on SQLite" do
+      class_exec(&on_sqlite)
 
-      assert_equal [failed, %w[e schema_migrations], [failing.version]], [roll_back(failing), tables, versions]
+      let(:dropped_nowhere) { "no such table: nowhere:\nDROP TABLE nowhere;" }
+
+      class_exec(&rolling_back)
+
+      it "rolls back nothing when it can't take the migration lock, naming the file and the database's message" do
+        migrate(create_d)
+        holder = empty.connect
+        holder.execute("BEGIN IMMEDIATE")
+        connection.busy_handler_timeout = 10
+
+        assert_equal [runner::Locked.new(file: create_d.file, message: "database is locked"), true],
+                     [roll_back(create_d), idle?]
+      end
+
+      it "undoes a down section that leaves a row referring to a missing one, naming each such row" do
+        parent = runner.parse(
+          "20261004000000_create_lists.sql",
+          "CREATE TABLE lists (id INTEGER PRIMARY KEY);\n" \
+          "CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists);\n" \
+          "INSERT INTO lists (id) VALUES (1);\nINSERT INTO todos (list_id) VALUES (1);\n" \
+          "-- down\nDROP TABLE lists;\n"
+        )
+        migrate(parent)
+        failed = runner::Failed.new(
+          file: parent.file,
+          message: "foreign key check failed: todos row 1 refers to a missing lists row (foreign key 0)"
+        )
+
+        assert_equal [failed, %w[lists schema_migrations todos], [parent.version]],
+                     [roll_back(parent), tables, versions]
+      end
     end
 
-    it "undoes a down section that leaves a row referring to a missing one, naming each such row" do
-      parent = runner.parse(
-        "20261004000000_create_lists.sql",
-        "CREATE TABLE lists (id INTEGER PRIMARY KEY);\n" \
-        "CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists);\n" \
-        "INSERT INTO lists (id) VALUES (1);\nINSERT INTO todos (list_id) VALUES (1);\n" \
-        "-- down\nDROP TABLE lists;\n"
-      )
-      migrate(parent)
-      failed = runner::Failed.new(
-        file: parent.file,
-        message: "foreign key check failed: todos row 1 refers to a missing lists row (foreign key 0)"
-      )
+    describe "on PostgreSQL" do
+      class_exec(&on_postgresql)
 
-      assert_equal [failed, %w[lists schema_migrations todos], [parent.version]], [roll_back(parent), tables, versions]
+      let(:dropped_nowhere) { "ERROR:  table \"nowhere\" does not exist\n" }
+
+      class_exec(&rolling_back)
+
+      it "rolls back nothing when it can't take the migration lock, and leaves no transaction open" do
+        migrate(create_d)
+        holder = empty.connect
+        holder.execute_batch(adapter.begin_migration)
+        connection.execute("SET lock_timeout = '10ms'")
+        timed_out = runner::Locked.new(
+          file: create_d.file,
+          message: "ERROR:  canceling statement due to lock timeout\n"
+        )
+
+        assert_equal [timed_out, true, [create_d.version]], [roll_back(create_d), idle?, versions]
+      end
     end
   end
 

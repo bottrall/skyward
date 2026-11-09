@@ -3,7 +3,6 @@
 require "test_helper"
 require "sqlite3"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/migrations/postgres"
 require_relative "../../../fixtures/tables/tables_fixtures"
 require_relative "../../../fixtures/changes/changes_fixtures"
 
@@ -13,7 +12,7 @@ describe Skyward::ORM::Migrations::Script do
   migrations = Skyward::ORM::Migrations
   catalog = Skyward::ORM::Catalog
   sqlite = Skyward::ORM::Adapters::SQLite
-  postgres = MigrationsFixtures::Postgres
+  postgres = Skyward::ORM::Adapters::PostgreSQL
   readers = %w[migrations tables changes].to_h do |name|
     signatures = File.expand_path("../../../fixtures/#{name}/sig", __dir__)
     [name, Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))]
@@ -243,32 +242,16 @@ describe Skyward::ORM::Migrations::Script do
       end
     end
 
-    describe "on SQLite" do
-      let(:connection) { sqlite.connect(":memory:") }
-
-      # As `skyward migrate` runs a migration on SQLite: with foreign keys off,
-      # since SQLite can't turn them off inside a transaction, and checked before
-      # it commits.
-      def migrate(sql)
-        connection.execute("PRAGMA foreign_keys = OFF")
-        connection.transaction do
-          connection.execute_batch(sql)
-          problems = connection.execute("PRAGMA foreign_key_check")
-          raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
-        end
-      ensure
-        connection.execute("PRAGMA foreign_keys = ON")
-      end
-
-      def section(changes, part) = write(changes).split("-- down\n").fetch(part == :up ? 0 : 1)
+    # What running a migration does on every database, so each runs these.
+    running = proc do
+      def section(changes, part) = write(changes, adapter).split("-- down\n").fetch(part == :up ? 0 : 1)
 
       def diff(classes)
-        tables = Skyward::ORM::Adapters::SQLite.tables(connection)
         Skyward::ORM::Migrations::Diff.changes(
           classes,
           changes_types,
-          tables,
-          Skyward::ORM::Adapters::SQLite,
+          adapter.tables(connection),
+          adapter,
           lambda { |*|
             true
           }
@@ -277,7 +260,7 @@ describe Skyward::ORM::Migrations::Script do
 
       # Columns come back in another order once one is dropped and added back.
       def schema
-        Skyward::ORM::Adapters::SQLite.tables(connection).map do |table|
+        adapter.tables(connection).map do |table|
           table.with(
             columns: table.columns.sort_by(&:name),
             constraints: table.constraints.sort_by { |constraint| [constraint.name.to_s, constraint.definition] },
@@ -294,23 +277,23 @@ describe Skyward::ORM::Migrations::Script do
         connection.execute("INSERT INTO items (owner_id, title, code, note, rank) VALUES (1, 'Milk', 'milk', 'two', 2)")
       end
 
+      def violation(sql)
+        connection.execute(sql)
+      rescue StandardError => e
+        adapter.violation(e, adapter.tables(connection), :todos)
+      end
+
       it "runs up, to match each class, and down, to undo it" do
         created = [fixtures::List, fixtures::Todo, fixtures::Attachment, fixtures::Member].map { |klass| create(klass) }
         added = [add(fixtures::NotedTodo, :notes, :rank)]
         migrate(section(created, :up))
         migrate(section(added, :up))
-        todos = sqlite.tables(connection).find { |table| table.name == :todos }
+        todos = adapter.tables(connection).find { |table| table.name == :todos }
         notes = todos&.columns.to_a.map(&:name).last(2)
         migrate(section(added, :down))
         migrate(section(created, :down))
 
-        assert_equal [%i[notes rank], []], [notes, sqlite.tables(connection)]
-      end
-
-      def violation(sql)
-        connection.execute(sql)
-      rescue SQLite3::ConstraintException => e
-        Skyward::ORM::Adapters::SQLite.violation(e, Skyward::ORM::Adapters::SQLite.tables(connection), :todos)
+        assert_equal [%i[notes rank], []], [notes, adapter.tables(connection)]
       end
 
       it "names a check, so its violation names it" do
@@ -328,13 +311,14 @@ describe Skyward::ORM::Migrations::Script do
         it "round-trips a class that's #{name}: the table matches it after up, and the table it had after down" do
           items
           had = schema
+          kept = rows
           variant = changed.const_get(name)
           changes = diff([changed::Owner, variant])
           migrate(section(changes, :up))
           matched = [diff([changed::Owner, variant]), rows]
           migrate(section(changes, :down))
 
-          assert_equal [[[], [[1, "Milk", "milk"]]], had, []], [matched, schema, diff([changed::Owner, changed::Item])]
+          assert_equal [[[], kept], had, []], [matched, schema, diff([changed::Owner, changed::Item])]
         end
       end
 
@@ -344,6 +328,41 @@ describe Skyward::ORM::Migrations::Script do
 
         assert_equal [["two"]], connection.execute("SELECT remark FROM items")
       end
+    end
+
+    describe "on PostgreSQL" do
+      let(:adapter) { postgres }
+      let(:connection) { TestDatabase.empty("postgresql").connect }
+
+      # Every statement in one transaction, as `skyward migrate` runs it.
+      def migrate(sql)
+        connection.execute("BEGIN")
+        connection.execute_batch(sql)
+        connection.execute("COMMIT")
+      end
+
+      class_exec(&running)
+    end
+
+    describe "on SQLite" do
+      let(:adapter) { sqlite }
+      let(:connection) { sqlite.connect(":memory:") }
+
+      # As `skyward migrate` runs a migration on SQLite: with foreign keys off,
+      # since SQLite can't turn them off inside a transaction, and checked before
+      # it commits.
+      def migrate(sql)
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.transaction do
+          connection.execute_batch(sql)
+          problems = connection.execute("PRAGMA foreign_key_check")
+          raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
+        end
+      ensure
+        connection.execute("PRAGMA foreign_keys = ON")
+      end
+
+      class_exec(&running)
 
       it "keeps the rows that reference a table it rebuilds, whatever they do ON DELETE" do
         items

@@ -3,13 +3,11 @@
 require "fileutils"
 require "stringio"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 
 describe Skyward::ORM::CLI::Status do
   runner = Skyward::ORM::Migrations::Runner
-  sqlite = Skyward::ORM::Adapters::SQLite
   signatures = File.expand_path("../../../fixtures/migrations/sig", __dir__)
   noop = { "20261001000000_noop.sql" => "SELECT 1;\n" }
 
@@ -23,18 +21,18 @@ describe Skyward::ORM::CLI::Status do
     end.new
   end
   let(:out) { StringIO.new }
+  let(:empty) { TestDatabase.empty }
 
   define_method(:app) do |migrations = {}, &block|
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
-      database = File.join(directory, "app.sqlite3")
       File.write(
         File.join(directory, "boot.rb"),
-        "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect})\n"
+        "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect})\n"
       )
       FileUtils.mkdir_p(File.join(directory, "db/migrate"))
       migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
-      block.call(directory, sqlite.connect(database))
+      block.call(directory, empty.connect)
     ensure
       $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
     end
@@ -53,7 +51,7 @@ describe Skyward::ORM::CLI::Status do
   describe ".run" do
     it "says everything's up to date, and doesn't exit 1, once every migration has run and every class matches" do
       app(noop) do |directory, connection|
-        runner.run(sqlite, connection, runner.read(File.join(directory, "db/migrate")))
+        runner.run(empty.adapter, connection, runner.read(File.join(directory, "db/migrate")))
         run_in(directory)
 
         assert_equal ["Migrations:\n  20261001000000_noop.sql  ran\n#{Skyward::ORM::Migrations::Status::CLEAN}", nil],
@@ -74,18 +72,18 @@ describe Skyward::ORM::CLI::Status do
             legacy
         TEXT
 
-        assert_equal [expected, 1, [["legacy"]]],
-                     [out.string, kernel.exited,
-                      connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")]
+        assert_equal [expected, 1, [:legacy]], [out.string, kernel.exited, empty.adapter.tables(connection).map(&:name)]
       end
     end
 
     it "shows a column that may have been renamed as one dropped and one added, since it doesn't ask" do
       app do |directory, connection|
-        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, title TEXT NOT NULL)")
+        text = empty.adapter.sql_type(:string)
+        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, title #{text} NOT NULL)")
         run_in(directory, classes: [MigrationsFixtures::List])
 
-        assert_equal ["  - title  TEXT NOT NULL", "  + name   TEXT NOT NULL"], out.string.lines.drop(2).map(&:chomp)
+        assert_equal ["  - title  #{text} NOT NULL", "  + name   #{text} NOT NULL"],
+                     out.string.lines.drop(2).map(&:chomp)
       end
     end
   end

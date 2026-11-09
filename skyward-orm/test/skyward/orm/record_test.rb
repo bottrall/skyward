@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 require_relative "../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Record do
@@ -21,31 +20,27 @@ describe Skyward::ORM::Record do
     )
     todo = TablesFixtures::Todo
     columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
+    # The SQL beside each violation breaks it the same way, so the database
+    # gives its message.
     violations = {
-      unique: Skyward::ORM::Violation.new(
-        kind: :unique,
-        constraint: "todos_title_key",
-        columns: [:title],
-        message: "UNIQUE constraint failed: todos.title"
-      ),
-      foreign_key: Skyward::ORM::Violation.new(
-        kind: :foreign_key,
-        constraint: "todos_list_id_fkey",
-        columns: [:list_id],
-        message: "FOREIGN KEY constraint failed"
-      ),
-      not_null: Skyward::ORM::Violation.new(
-        kind: :not_null,
-        constraint: nil,
-        columns: [:body],
-        message: "NOT NULL constraint failed: drafts.body"
-      ),
-      check: Skyward::ORM::Violation.new(
-        kind: :check,
-        constraint: "todos_title_check",
-        columns: [:title],
-        message: "CHECK constraint failed: todos_title_check"
-      )
+      unique: [
+        Skyward::ORM::Violation.new(kind: :unique, constraint: "todos_title_key", columns: [:title], message: nil),
+        "INSERT INTO todos (list_id, title) VALUES (1, 'Buy milk')", :todos
+      ],
+      foreign_key: [
+        Skyward::ORM::Violation.new(
+          kind: :foreign_key, constraint: "todos_list_id_fkey", columns: [:list_id], message: nil
+        ),
+        "INSERT INTO todos (list_id, title) VALUES (9, 'Buy eggs')", :todos
+      ],
+      not_null: [
+        Skyward::ORM::Violation.new(kind: :not_null, constraint: nil, columns: [:body], message: nil),
+        "INSERT INTO drafts (body) VALUES (NULL)", :drafts
+      ],
+      check: [
+        Skyward::ORM::Violation.new(kind: :check, constraint: "todos_title_check", columns: [:title], message: nil),
+        "INSERT INTO todos (list_id, title) VALUES (1, '')", :todos
+      ]
     }
     # A typed column refuses a nil it can't hold before any SQL runs, so only a
     # column with no type reaches the database's NOT NULL.
@@ -75,36 +70,41 @@ describe Skyward::ORM::Record do
       )
     end
 
+    let(:empty) { TestDatabase.empty }
     let(:connection) do
-      Skyward::ORM::Adapters::SQLite.connect(":memory:").tap do |connection|
-        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)")
-        connection.execute("CREATE TABLE drafts (id INTEGER PRIMARY KEY, body TEXT NOT NULL)")
+      types = empty.adapter
+      done, created_at = [false, milk.created_at].map do |value|
+        Skyward::ORM::Migrations::Definitions.literal(types.encode(value))
+      end
+      empty.connect.tap do |connection|
+        connection.execute("CREATE TABLE lists (id #{types.sql_type(:integer)} PRIMARY KEY, name TEXT)")
+        connection.execute("CREATE TABLE drafts (id #{empty.primary_key}, body TEXT NOT NULL)")
         connection.execute(
-          "CREATE TABLE todos (id INTEGER PRIMARY KEY, " \
-          "list_id INTEGER NOT NULL CONSTRAINT todos_list_id_fkey REFERENCES lists, " \
+          "CREATE TABLE todos (id #{empty.primary_key}, " \
+          "list_id #{types.sql_type(:integer)} NOT NULL CONSTRAINT todos_list_id_fkey REFERENCES lists, " \
           "title TEXT NOT NULL CONSTRAINT todos_title_key UNIQUE " \
           "CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200), " \
-          "priority TEXT NOT NULL DEFAULT 'normal', due_on TEXT, done INTEGER NOT NULL DEFAULT 0, " \
-          "created_at TEXT NOT NULL DEFAULT '2026-10-18 09:30:00.000000')"
+          "priority TEXT NOT NULL DEFAULT 'normal', due_on #{types.sql_type(:date)}, " \
+          "done #{types.sql_type(:bool)} NOT NULL DEFAULT #{done}, " \
+          "created_at #{types.sql_type(:time)} NOT NULL DEFAULT #{created_at})"
         )
         connection.execute("INSERT INTO lists VALUES (1, 'Home')")
       end
     end
+    let(:sent) { [] }
 
     def traced
-      statements = []
-      connection.trace { |sql| statements << sql }
       yield
-      statements
+      sent
     end
 
     before do
       session.connect(
         Skyward::ORM::Connection::Database.new(
-          Skyward::ORM::Adapters::SQLite,
-          Skyward::ORM::Connection::Pool.new(1, -> { connection }),
+          empty.adapter,
+          Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Recording.new(connection:, sent:) }),
           Skyward::ORM::Tables::ColumnTypes.new(reader),
-          Skyward::ORM::Adapters::SQLite.tables(connection),
+          empty.adapter.tables(connection),
           check:
         )
       )
@@ -171,7 +171,10 @@ describe Skyward::ORM::Record do
 
       it "runs one INSERT, returning the row" do
         assert_equal(
-          [%(INSERT INTO "todos" ("list_id", "title") VALUES (1, 'Buy milk') RETURNING #{columns})],
+          [empty.shown(
+            %(INSERT INTO "todos" ("list_id", "title") VALUES (?, ?) RETURNING #{columns}),
+            [1, "Buy milk"]
+          )],
           traced { todo.insert(list_id: 1, title: "Buy milk") }
         )
       end
@@ -181,9 +184,11 @@ describe Skyward::ORM::Record do
           table :counters
           attr_reader :id
         end
-        connection.execute("CREATE TABLE counters (id INTEGER PRIMARY KEY)")
+        connection.execute("CREATE TABLE counters (id #{empty.primary_key})")
+        inserted = counter.insert
 
-        assert_equal counter.new(id: 1), counter.insert
+        # Its id is untyped, so it's as the driver returns it.
+        assert_equal counter.new(id: connection.execute("SELECT id FROM counters").dig(0, 0)), inserted
       end
 
       it "refuses a row missing a required column before any SQL runs" do
@@ -194,12 +199,12 @@ describe Skyward::ORM::Record do
         assert_empty(traced { assert_raises(ArgumentError) { todo.insert(list_id: 1, title: ["c"]) } })
       end
 
-      violations.each do |kind, violation|
-        it "returns a #{kind} violation" do
+      violations.each do |kind, (violation, sql, written)|
+        it "returns a #{kind} violation, with the database's message" do
           todo.insert(list_id: 1, title: "Buy milk")
           table, values = breaking.fetch(kind)
 
-          assert_equal violation, table.insert(**values)
+          assert_equal empty.violated(violation, sql, written), table.insert(**values)
         end
       end
 
@@ -222,13 +227,13 @@ describe Skyward::ORM::Record do
         assert_equal milk, todo.insert!(list_id: 1, title: "Buy milk")
       end
 
-      violations.each do |kind, violation|
+      violations.each do |kind, (violation, sql, written)|
         it "raises a #{kind} violation" do
           todo.insert(list_id: 1, title: "Buy milk")
           table, values = breaking.fetch(kind)
           error = assert_raises(Skyward::ORM::ViolationError) { table.insert!(**values) }
 
-          assert_equal violation, error.violation
+          assert_equal empty.violated(violation, sql, written), error.violation
         end
       end
     end

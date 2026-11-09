@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe Skyward::ORM::CLI::BootFile do
@@ -28,11 +27,11 @@ describe Skyward::ORM::CLI::BootFile do
 
     it "requires boot.rb and returns the database it connects to" do
       app(nil) do |directory|
-        database = File.join(directory, "app.sqlite3")
-        Skyward::ORM::Adapters::SQLite.connect(database).execute("CREATE TABLE booted (id INTEGER PRIMARY KEY)")
+        empty = TestDatabase.empty
+        empty.connect.execute("CREATE TABLE booted (id INTEGER PRIMARY KEY)")
         File.write(
           File.join(directory, "boot.rb"),
-          "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect}, check: false)\n"
+          "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect}, check: false)\n"
         )
 
         loaded = Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION)
@@ -61,10 +60,9 @@ describe Skyward::ORM::CLI::BootFile do
       end.new
     end
 
-    define_method(:connecting) do |directory|
-      url = "sqlite://#{File.join(directory, "app.sqlite3")}"
-      "Skyward.connect(#{url.inspect}, signatures: #{signatures.inspect})\n"
-    end
+    let(:empty) { TestDatabase.empty }
+
+    define_method(:connecting) { "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect})\n" }
 
     it "fails with what's wrong when there's no boot.rb, without running the command" do
       app(nil) do |directory|
@@ -79,7 +77,7 @@ describe Skyward::ORM::CLI::BootFile do
     it "boots the app with the schema check off, and runs the command with its database" do
       app(nil) do |directory|
         noted = "File.write(File.join(__dir__, \"check\"), Skyward::ORM::Connection::SESSION.check?.to_s)\n"
-        File.write(File.join(directory, "boot.rb"), connecting(directory) + noted)
+        File.write(File.join(directory, "boot.rb"), connecting + noted)
         session = Skyward::ORM::Connection::SESSION
         booted = nil
         Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) { |database| booted = database }
@@ -99,7 +97,7 @@ describe Skyward::ORM::CLI::BootFile do
 
     it "fails with only the message of a boot error from the command" do
       app(nil) do |directory|
-        File.write(File.join(directory, "boot.rb"), connecting(directory))
+        File.write(File.join(directory, "boot.rb"), connecting)
         Skyward::ORM::CLI::BootFile.boot(directory, Skyward::ORM::Connection::SESSION, kernel) do
           raise Skyward::Core::BootError, "Todo has no column notes."
         end

@@ -39,6 +39,12 @@ module Skyward::ORM::Migrations::Runner
 
   private
 
+  # Made under the migration lock, since two migrators making it at once on
+  # PostgreSQL can collide in its catalog, and IF NOT EXISTS doesn't stop that.
+  # Returns the database's message when the lock can't be taken.
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> String?
+  def create_table: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> String?
+
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
   #   { () -> (bool | Failed) } -> (bool | Locked | Failed)
   def apply: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Locked | Failed)

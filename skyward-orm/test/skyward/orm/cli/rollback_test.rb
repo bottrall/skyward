@@ -3,12 +3,10 @@
 require "fileutils"
 require "stringio"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe Skyward::ORM::CLI::Rollback do
   runner = Skyward::ORM::Migrations::Runner
-  sqlite = Skyward::ORM::Adapters::SQLite
 
   let(:kernel) do
     Class.new do
@@ -18,19 +16,19 @@ describe Skyward::ORM::CLI::Rollback do
     end.new
   end
   let(:out) { StringIO.new }
+  let(:empty) { TestDatabase.empty }
 
   define_method(:app) do |migrations = {}, &block|
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
-      database = File.join(directory, "app.sqlite3")
       File.write(
         File.join(directory, "boot.rb"),
-        "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
+        "Skyward.connect(#{empty.url.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
       )
       FileUtils.mkdir_p(File.join(directory, "db/migrate"))
       migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
-      connection = sqlite.connect(database)
-      runner.run(sqlite, connection, runner.read(File.join(directory, "db/migrate")))
+      connection = empty.connect
+      runner.run(empty.adapter, connection, runner.read(File.join(directory, "db/migrate")))
       block.call(directory, connection)
     ensure
       $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))

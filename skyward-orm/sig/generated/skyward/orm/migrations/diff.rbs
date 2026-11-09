@@ -3,6 +3,8 @@
 module Skyward::ORM::Migrations::Diff
   ON_DELETE: Regexp
 
+  NULL: String
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.

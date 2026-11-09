@@ -3,14 +3,16 @@
 require "fileutils"
 require "open3"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe "skyward/orm/commands.rb" do
   fixture = File.expand_path("../../fixtures/app", __dir__)
 
+  let(:empty) { TestDatabase.empty }
+
   def skyward(*args, chdir:)
-    output, status = Open3.capture2e(Gem.ruby, Gem.bin_path("skyward-core", "skyward"), *args, chdir:)
+    env = { "DATABASE_URL" => empty.url }
+    output, status = Open3.capture2e(env, Gem.ruby, Gem.bin_path("skyward-core", "skyward"), *args, chdir:)
     [output, status.exitstatus]
   end
 
@@ -73,34 +75,29 @@ describe "skyward/orm/commands.rb" do
         FileUtils.mkdir_p(File.join(directory, "db/migrate"))
         File.write(File.join(directory, "db/migrate/20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
 
-        assert_equal [
-          "20261001000000_broken.sql failed, so it was rolled back and no later migration ran: " \
-          "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);\n",
-          1
-        ],
-                     skyward("migrate", chdir: directory)
+        message = "20261001000000_broken.sql failed, so it was rolled back and no later migration ran: " \
+                  "#{empty.error("INSERT INTO nowhere VALUES (1);\n")}"
+
+        # abort ends the line, unless the message already does.
+        assert_equal ["#{message.chomp}\n", 1], skyward("migrate", chdir: directory)
       end
     end
   end
 
   describe "rollback" do
-    def schema(directory)
-      SQLite3::Database.new(File.join(directory, "app.sqlite3")).execute(
-        "SELECT type, name, sql FROM sqlite_schema WHERE tbl_name != 'schema_migrations' ORDER BY name"
-      )
-    end
+    def schema = empty.adapter.tables(empty.connect).reject { |table| table.name == :schema_migrations }
 
     it "undoes the migration skyward migration wrote, so migrating again makes the same schema" do
       app do |directory|
         skyward("migration", "create_todos", chdir: directory)
         skyward("migrate", chdir: directory)
-        migrated = schema(directory)
+        migrated = schema
         output, status = skyward("rollback", chdir: directory)
-        rolled_back = schema(directory)
+        rolled_back = schema
         skyward("migrate", chdir: directory)
 
         assert_equal [["Rolled back TIMESTAMP\n", 0], [], migrated],
-                     [[output.sub(/\d{14}/, "TIMESTAMP"), status], rolled_back, schema(directory)]
+                     [[output.sub(/\d{14}/, "TIMESTAMP"), status], rolled_back, schema]
       end
     end
 

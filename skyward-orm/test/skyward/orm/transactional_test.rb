@@ -5,15 +5,17 @@ require "test_helper"
 describe Skyward::ORM::Transactional do
   signatures = File.expand_path("../../fixtures/tables/sig", __dir__)
   insert = lambda do |name|
-    Skyward::ORM::Connection::SESSION.database.connection do |connection|
-      connection.execute("INSERT INTO lists (name) VALUES (?)", [name])
+    database = Skyward::ORM::Connection::SESSION.database
+    database.connection do |connection|
+      connection.execute("INSERT INTO lists (name) VALUES (#{database.adapter.placeholder(1)})", [name])
     end
   end
   names = -> { Skyward::ORM::Connection::SESSION.database.execute("SELECT name FROM lists ORDER BY id") }
 
-  let(:database) { Skyward.connect("sqlite://:memory:", signatures:, check: false) }
+  let(:empty) { TestDatabase.empty }
+  let(:database) { Skyward.connect(empty.url, signatures:, check: false) }
 
-  before { database.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)") }
+  before { database.execute("CREATE TABLE lists (id #{empty.primary_key}, name TEXT)") }
 
   # Not named test_*, so Minitest never runs it as a test of its own.
   def run_test(&body)

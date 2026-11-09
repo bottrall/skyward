@@ -1,0 +1,27 @@
+# Neither the pg gem nor the collection has signatures, so these declare only
+# what the PostgreSQL adapter uses.
+module PG
+  PG_DIAG_SQLSTATE: Integer
+  PG_DIAG_MESSAGE_PRIMARY: Integer
+  PG_DIAG_TABLE_NAME: Integer
+  PG_DIAG_COLUMN_NAME: Integer
+  PG_DIAG_CONSTRAINT_NAME: Integer
+
+  def self.connect: (String url) -> Connection
+
+  class Connection
+    def exec: (String sql) -> Result
+    def exec_params: [T] (String sql, Array[untyped] params) { (Result result) -> T } -> T
+  end
+
+  class Result
+    def fields: () -> Array[String]
+    def values: () -> Array[Array[String?]]
+    def error_field: (Integer field) -> String?
+    def clear: () -> void
+  end
+
+  class Error < StandardError
+    def result: () -> Result?
+  end
+end
