@@ -101,6 +101,39 @@ describe Skyward do
     end
   end
 
+  describe ".query" do
+    before do
+      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      Skyward.query("CREATE TABLE todos (title TEXT NOT NULL, due_on TEXT, done INTEGER NOT NULL)")
+      Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Milk", Date.new(2026, 10, 1), false)
+      Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Eggs", Date.today + 1, false)
+    end
+
+    it "returns symbol-keyed hashes when the SQL comes first" do
+      assert_equal [{ title: "Milk" }], Skyward.query("SELECT title FROM todos WHERE due_on < ?", Date.today)
+    end
+
+    it "returns the README's Overdue rows, with days_late an Integer" do
+      rows = Skyward.query(TablesFixtures::Overdue, <<~SQL, Date.today)
+        SELECT title, current_date - due_on AS days_late
+        FROM todos
+        WHERE due_on < ? AND NOT done
+        ORDER BY days_late DESC
+      SQL
+
+      assert_equal(
+        [[TablesFixtures::Overdue, "Milk", Integer]],
+        rows.map { |row| [row.class, row.title, row.days_late.class] }
+      )
+    end
+
+    it "refuses anything else first" do
+      error = assert_raises(ArgumentError) { Skyward.query(:todos, "SELECT 1") }
+
+      assert_equal "Skyward.query takes a row class or the SQL as its first argument", error.message
+    end
+  end
+
   describe ".sql" do
     it "wraps an SQL expression" do
       assert_equal Skyward::ORM::Tables::SQL.new(expression: "now()"), Skyward.sql("now()")

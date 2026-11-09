@@ -103,9 +103,22 @@ class Skyward::ORM::Connection::Database
   def prepare: (singleton(Skyward::ORM::Record) table) -> void
 
   # @rbs error: StandardError
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation?
-  def violation: (StandardError error, Symbol table) -> Skyward::ORM::Violation?
+  def violation: (StandardError error, Symbol? table) -> Skyward::ORM::Violation?
+
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[Hash[Symbol, untyped]]
+  def hashes: (String sql, Array[untyped] values) -> Array[Hash[Symbol, untyped]]
+
+  # Raw SQL picks its own columns, in its own order, so they're matched to the
+  # row class's members by name.
+  # @rbs row: Class
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[untyped]
+  def rows: (Class row, String sql, Array[untyped] values) -> Array[untyped]
 
   private
 
@@ -129,4 +142,22 @@ class Skyward::ORM::Connection::Database
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def build: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+
+  # @rbs row: Class
+  # @rbs members: Array[Symbol]
+  # @rbs types: Array[Skyward::ORM::Tables::column_type]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def compile: (Class row, Array[Symbol] members, Array[Skyward::ORM::Tables::column_type] types) -> ^(Array[untyped]) -> untyped
+
+  # Raw SQL returns rows, with no room for a violation, so one raises.
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: [Array[Symbol], Array[Array[untyped]]]
+  def run: (String sql, Array[untyped] values) -> [ Array[Symbol], Array[Array[untyped]] ]
+
+  # @rbs row: Class
+  # @rbs columns: Array[Symbol]
+  # @rbs members: Array[Symbol]
+  # @rbs return: void
+  def unmatched: (Class row, Array[Symbol] columns, Array[Symbol] members) -> void
 end

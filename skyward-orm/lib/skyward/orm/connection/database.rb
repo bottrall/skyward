@@ -125,9 +125,30 @@ class Skyward::ORM::Connection::Database
   end
 
   # @rbs error: StandardError
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation?
   def violation(error, table) = @adapter.violation(error, @tables, table)
+
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[Hash[Symbol, untyped]]
+  def hashes(sql, values)
+    columns, rows = run(sql, values)
+    rows.map { |row| columns.zip(row).to_h }
+  end
+
+  # Raw SQL picks its own columns, in its own order, so they're matched to the
+  # row class's members by name.
+  # @rbs row: Class
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[untyped]
+  def rows(row, sql, values)
+    columns, fetched = run(sql, values)
+    types = @column_types.columns(row).to_h { |member| [member.name, member.type] }
+    unmatched(row, columns, types.keys)
+    fetched.map(&compile(row, columns, types.fetch_values(*columns)))
+  end
 
   private
 
@@ -165,7 +186,14 @@ class Skyward::ORM::Connection::Database
     prepare(table)
     columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }
     members = row.schema.columns
-    types = members.map { |member| columns[member] || :untyped } #: Array[Skyward::ORM::Tables::column_type]
+    compile(row, members, members.map { |member| columns[member] || :untyped })
+  end
+
+  # @rbs row: Class
+  # @rbs members: Array[Symbol]
+  # @rbs types: Array[Skyward::ORM::Tables::column_type]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def compile(row, members, types)
     lambda do |values|
       row.new(
         **members.each_with_index.to_h do |member, index|
@@ -174,5 +202,42 @@ class Skyward::ORM::Connection::Database
         end
       )
     end
+  end
+
+  # Raw SQL returns rows, with no room for a violation, so one raises.
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: [Array[Symbol], Array[Array[untyped]]]
+  def run(sql, values)
+    statement = Skyward::ORM::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
+    binds = values.map { |value| @adapter.encode(value) }
+    # The driver spreads an Array or Hash across several placeholders, or
+    # none, moving every value after it to another `?`.
+    binds.each.with_index(1) do |bind, position|
+      kind = case bind
+             when Array then "an Array"
+             when Hash then "a Hash"
+             end
+      raise ArgumentError, "Skyward.query binds one value to each ?, but value #{position} is #{kind}" if kind
+    end
+    result = connection { |checked_out| checked_out.execute2(statement, *binds) }
+    [result.fetch(0).map(&:to_sym), result.drop(1)]
+  rescue StandardError => e
+    violation = violation(e, nil)
+    raise unless violation
+
+    raise Skyward::ORM::ViolationError, violation
+  end
+
+  # @rbs row: Class
+  # @rbs columns: Array[Symbol]
+  # @rbs members: Array[Symbol]
+  # @rbs return: void
+  def unmatched(row, columns, members)
+    extra = columns - members
+    raise ArgumentError, "#{row} has no member for #{extra.join(", ")}, which the SQL returns" if extra.any?
+
+    missing = members - columns
+    raise ArgumentError, "The SQL returns no #{missing.join(", ")} for #{row}" if missing.any?
   end
 end

@@ -41,6 +41,19 @@ module Skyward
   # @rbs return: bool
   def self.transaction? = ORM::Connection::SESSION.database.transaction?
 
+  # @rbs [T] (ORM::_Row[T] row, String sql, *untyped values) -> Array[T]
+  #    | (String sql, *untyped values) -> Array[Hash[Symbol, untyped]]
+  # Steep checks the body against both overloads at once, as one whose second
+  # parameter is optional, which neither overload's is.
+  def self.query(row, *arguments) # steep:ignore DifferentMethodParameterKind
+    database = ORM::Connection::SESSION.database
+    case row
+    when String then database.hashes(row, arguments)
+    when Class then database.rows(row, arguments.fetch(0), arguments.drop(1))
+    else raise ArgumentError, "Skyward.query takes a row class or the SQL as its first argument"
+    end
+  end
+
   # @rbs expression: String
   # @rbs return: ORM::Tables::SQL
   def self.sql(expression)

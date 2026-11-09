@@ -179,8 +179,9 @@ class Skyward::ORM::Query
   # @rbs return: Array[untyped]
   def rows(orders, limit = "")
     database = @session.database
+    decode = database.decoder(@table, @table)
     sql, binds = statement(database, orders)
-    database.execute("#{sql}#{limit}", binds).map(&database.decoder(@table, @table))
+    database.execute("#{sql}#{limit}", binds).map(&decode)
   end
 
   # Quoted, so a column named order or user is still a column.

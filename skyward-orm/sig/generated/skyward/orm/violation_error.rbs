@@ -1,0 +1,10 @@
+# Generated from lib/skyward/orm/violation_error.rb with RBS::Inline
+
+class Skyward::ORM::ViolationError < StandardError
+  # @dynamic violation
+  attr_reader violation: Skyward::ORM::Violation
+
+  # @rbs violation: Skyward::ORM::Violation
+  # @rbs return: void
+  def initialize: (Skyward::ORM::Violation violation) -> void
+end

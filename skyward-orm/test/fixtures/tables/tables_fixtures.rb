@@ -82,4 +82,10 @@ module TablesFixtures
   class Unsigned < Skyward::ORM::Record
     attr_reader :id
   end
+
+  # The README's Overdue, from Raw SQL.
+  Overdue = Data.define(:title, :days_late)
+
+  # Due's note is untyped.
+  Due = Data.define(:title, :due_on, :note)
 end

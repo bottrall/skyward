@@ -67,6 +67,12 @@ describe Skyward::ORM::Record do
     end
   end
 
+  describe ".members" do
+    it "is the columns, in order" do
+      assert_equal %i[id name], TablesFixtures::List.members
+    end
+  end
+
   describe "#initialize" do
     it "sets the columns" do
       assert_equal({ id: 1, name: "Home" }, list.to_h)
