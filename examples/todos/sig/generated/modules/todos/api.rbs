@@ -1,0 +1,49 @@
+# Generated from modules/todos/api.rb with RBS::Inline
+
+use Skyward::API::*
+
+class Todos::API < Skyward::API
+  class NewTodo < Data
+    attr_reader title(): String
+
+    attr_reader priority(): Todos::Record::priority
+
+    attr_reader due_on(): Date?
+
+    attr_reader list_id(): Integer?
+
+    def self.new: (String title, Todos::Record::priority priority, Date? due_on, Integer? list_id) -> instance
+                | (title: String, priority: Todos::Record::priority, due_on: Date?, list_id: Integer?) -> instance
+
+    def self.members: () -> [ :title, :priority, :due_on, :list_id ]
+
+    def members: () -> [ :title, :priority, :due_on, :list_id ]
+  end
+
+  @todos: singleton(Todos::Service)
+
+  # @rbs todos: singleton(Todos::Service)
+  # @rbs return: void
+  def initialize: (todos: singleton(Todos::Service)) -> void
+
+  # @rbs done: bool?
+  # @rbs limit: Integer
+  # @rbs return: Array[Todos::Record]
+  def index: (?done: bool?, ?limit: Integer) -> Array[Todos::Record]
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record | Responses::NotFound
+  def show: (id: Integer) -> (Todos::Record | Responses::NotFound)
+
+  # @rbs body: NewTodo
+  # @rbs return: Responses::Created[Todos::Record] | Responses::NotFound | Responses::Unprocessable
+  def create: (body: NewTodo) -> (Responses::Created[Todos::Record] | Responses::NotFound | Responses::Unprocessable)
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record | Responses::NotFound
+  def complete: (id: Integer) -> (Todos::Record | Responses::NotFound)
+
+  # @rbs id: Integer
+  # @rbs return: Responses::NoContent | Responses::NotFound
+  def destroy: (id: Integer) -> (Responses::NoContent | Responses::NotFound)
+end

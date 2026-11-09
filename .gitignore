@@ -1,6 +1,7 @@
 /.bundle/
 /*/.bundle/
 /examples/*/.bundle/
+/examples/*/db/*.sqlite3
 /coverage/
 /pkg/
 /tmp/

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# rbs_inline: enabled
+
 class HealthAPI < Skyward::API
   description "Whether the app is up, for load balancers and uptime checks."
 

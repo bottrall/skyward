@@ -34,11 +34,13 @@ target :todos do
 
   signature "examples/todos/sig"
 
-  check "examples/todos/*.rb"
+  check "examples/todos/*.rb", "examples/todos/lib", "examples/todos/modules"
 
-  # api's signatures belong to the api target, which no other target sees, so
-  # the example loads them as the skyward-api gem's library instead.
-  library "skyward-api"
+  # api's and orm's signatures belong to their own targets, which no other
+  # target sees, so the example loads them as the gems' libraries instead.
+  # orm's subclass core's, and a library resolves its superclasses among the
+  # libraries alone, so core comes as one too.
+  library "skyward-core", "skyward-api", "skyward-orm"
   collection_config "rbs_collection.yaml"
 
   configure_code_diagnostics(D::Ruby.all_error)

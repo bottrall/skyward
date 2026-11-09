@@ -61,7 +61,7 @@ Local/NoInheritance:
     - Skyward::ORM::Record
   Include:
     - "*/lib/**/*.rb"
-    - "examples/*/*.rb"
+    - "examples/*/**/*.rb"
     - "**/test/**/*.rb"
 
 Local/NoMocking:
@@ -81,7 +81,7 @@ Local/TypedConstantAlias:
   Enabled: true
   Include:
     - "*/lib/**/*.rb"
-    - "examples/*/*.rb"
+    - "examples/*/**/*.rb"
 
 Style/ClassAndModuleChildren:
   EnforcedStyle: compact

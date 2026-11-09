@@ -44,12 +44,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gem: [skyward-core, skyward-api, examples/todos]
+        gem: [skyward-core, skyward-api]
         # Every Ruby that isn't end-of-life.
         ruby: ["3.3", "3.4", "4.0", head]
 
     # Each gem's tests run in its own bundle, which holds only the gem and the
-    # Skyward gems it depends on, and so does each example's.
+    # Skyward gems it depends on.
     defaults:
       run:
         working-directory: ${{ matrix.gem }}
@@ -117,3 +117,79 @@ jobs:
         run: bundle exec rake test
         env:
           TEST_DATABASE: postgresql
+
+  # The example's tests run on each database Skyward ORM supports,
+  # which proves the API and the ORM work together in a real app. Its
+  # committed migration is SQLite's, because skyward migration writes SQL for
+  # the database it connects to, so the PostgreSQL run first generates the
+  # migration against PostgreSQL, as its README says to.
+  test-todos:
+    runs-on: ubuntu-latest
+    name: test examples/todos (ruby ${{ matrix.ruby }})
+    timeout-minutes: 10
+    continue-on-error: ${{ matrix.ruby == 'head' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.3", "3.4", "4.0", head]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    defaults:
+      run:
+        working-directory: examples/todos
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: examples/todos
+      - name: test on SQLite
+        run: bundle exec rake test
+      # Runs even when SQLite failed, so one push shows both.
+      - name: test on PostgreSQL
+        if: ${{ !cancelled() }}
+        run: |
+          rm db/migrate/*.sql
+          bundle exec skyward migration create_lists_and_todos
+          bundle exec rake test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+  # Every Skyward app runs skyward check in CI, this one included. Its Steep
+  # reads the repository's RBS collection, and its strict boot connects, so it
+  # needs the default SQLite database migrated.
+  check-todos:
+    runs-on: ubuntu-latest
+    name: skyward check examples/todos
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: examples/todos
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          working-directory: examples/todos
+      - run: bundle exec rbs collection install --frozen
+      - run: bundle exec skyward migrate
+      - run: bundle exec skyward check
