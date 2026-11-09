@@ -237,12 +237,104 @@ describe Skyward::ORM::Connection::Database do
       assert(database.transaction { database.transaction? })
     end
 
+    it "is false in a held transaction" do
+      database.hold
+
+      refute_predicate database, :transaction?
+    ensure
+      database.release
+    end
+
+    it "is true inside a transaction in a held one, and false again after it" do
+      database.hold
+
+      assert_equal [true, false], [database.transaction { database.transaction? }, database.transaction?]
+    ensure
+      database.release
+    end
+
     it "is false in a child fiber that inherited it" do
       refute(database.transaction { Fiber.new { database.transaction? }.resume })
     end
 
     it "is false in a thread that inherited it" do
       refute(database.transaction { Thread.new { database.transaction? }.value })
+    end
+  end
+
+  describe "#hold" do
+    it "runs its fiber's queries on the connection it holds" do
+      database = two_connections
+      database.hold
+      outer, inner = database.connection { |first| database.connection { |second| [first, second] } }
+
+      assert_same outer, inner
+    ensure
+      database.release
+    end
+
+    it "refuses a child fiber the connection it holds" do
+      database.hold
+      error = assert_raises(FiberError) { Fiber.new { database.connection { nil } }.resume }
+
+      assert_equal foreign, error.message
+    ensure
+      database.release
+    end
+
+    it "refuses a thread the connection it holds" do
+      database.hold
+      error = Thread.new do
+        database.connection { nil }
+      rescue FiberError => e
+        e
+      end.value
+
+      assert_equal foreign, error.message
+    ensure
+      database.release
+    end
+
+    it "nests a transaction as a savepoint, which rolls back only its own writes" do
+      database.hold
+      insert(database, "Work")
+      database.transaction do
+        insert(database, "Garden")
+        refused
+      end
+
+      assert_equal [["Home"], ["Work"]], names
+    ensure
+      database.release
+    end
+  end
+
+  describe "#release" do
+    it "does nothing when nothing is held" do
+      assert_nil database.release
+    end
+
+    it "rolls back what was written while held" do
+      database.hold
+      insert(database, "Work")
+      database.release
+
+      assert_equal [["Home"]], names
+    end
+
+    it "returns the connection to the pool, and leaves the fiber holding nothing" do
+      database.hold
+      database.release
+
+      assert_same(connection, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
+    end
+
+    it "returns the connection even when the rollback fails" do
+      database.hold
+      database.execute("COMMIT")
+      assert_raises(SQLite3::SQLException) { database.release }
+
+      assert_same(connection, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
     end
   end
 
