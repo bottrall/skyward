@@ -13,6 +13,22 @@ class Skyward::ORM::Record
 
   def hash: () -> Integer
 
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.all: () -> Skyward::ORM::Query[instance]
+
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.where: (**untyped conditions) -> Skyward::ORM::Query[instance]
+
+  # @rbs *columns: Symbol
+  # @rbs **directions: Skyward::ORM::Query::direction
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.order: (*Symbol columns, **Skyward::ORM::Query::direction directions) -> Skyward::ORM::Query[instance]
+
+  # @rbs **conditions: untyped
+  # @rbs return: instance?
+  def self.find_by: (**untyped conditions) -> instance?
+
   # Ruby warns whenever initialize is removed, so a table class redefines
   # initialize_columns instead, each time it gains a column.
   # @rbs **columns: untyped

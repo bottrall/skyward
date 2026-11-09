@@ -1,0 +1,112 @@
+# Generated from lib/skyward/orm/query.rb with RBS::Inline
+
+# @rbs generic R < Skyward::ORM::Record
+class Skyward::ORM::Query[R < Skyward::ORM::Record]
+  include Enumerable[R]
+
+  type direction = :asc | :desc
+
+  DIRECTIONS: Array[direction]
+
+  @groups: Array[Symbol]
+
+  @orders: Array[[ Symbol, direction ]]
+
+  @conditions: Array[[ Symbol, untyped ]]
+
+  @session: Skyward::ORM::Connection::Session
+
+  @table: singleton(Skyward::ORM::Record)
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs conditions: Array[[Symbol, untyped]]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs groups: Array[Symbol]
+  # @rbs return: void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol]) -> void
+
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[R]
+  def where: (**untyped conditions) -> Skyward::ORM::Query[R]
+
+  # @rbs *columns: Symbol
+  # @rbs **directions: direction
+  # @rbs return: Skyward::ORM::Query[R]
+  def order: (*Symbol columns, **direction directions) -> Skyward::ORM::Query[R]
+
+  # @rbs *columns: Symbol
+  # @rbs return: Skyward::ORM::Query[R]
+  def group: (*Symbol columns) -> Skyward::ORM::Query[R]
+
+  # Ordered by the primary key when nothing else orders it, so both databases
+  # return the same row.
+  # @rbs () -> R?
+  #    | (Integer count) -> Array[R]
+  def first: () -> R?
+           | (Integer count) -> Array[R]
+
+  # @rbs **conditions: untyped
+  # @rbs return: R?
+  def find_by: (**untyped conditions) -> R?
+
+  # PostgreSQL refuses an ORDER BY beside COUNT(*), so the count leaves it out.
+  # @rbs (*untyped args) ?{ (R) -> boolish } -> Integer
+  def count: (*untyped args) ?{ (R) -> boolish } -> Integer
+
+  # @rbs () { (R) -> void } -> self
+  #    | () -> Enumerator[R, self]
+  def each: () { (R) -> void } -> self
+          | () -> Enumerator[R, self]
+
+  # @rbs return: [String, Array[untyped]]
+  def to_sql: () -> [ String, Array[untyped] ]
+
+  private
+
+  # @rbs conditions: Array[[Symbol, untyped]]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs groups: Array[Symbol]
+  # @rbs return: Skyward::ORM::Query[R]
+  def with: (?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol]) -> Skyward::ORM::Query[R]
+
+  # @rbs columns: Array[Symbol]
+  # @rbs return: void
+  def require_columns: (Array[Symbol] columns) -> void
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs return: [String, Array[untyped]]
+  def statement: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: [String, Array[untyped]]
+  def from: (Skyward::ORM::Connection::Database database) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs name: String
+  # @rbs value: untyped
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def condition: (Skyward::ORM::Connection::Database database, String name, untyped value, Integer position) -> [ String, Array[untyped] ]
+
+  # PostgreSQL refuses an empty IN (), and IN never matches NULL.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs name: String
+  # @rbs values: Array[untyped]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def within: (Skyward::ORM::Connection::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
+
+  # Steep can't tie a table class to R, so the rows are untyped here and each
+  # public method types them.
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: String
+  # @rbs return: Array[untyped]
+  def rows: (Array[[ Symbol, direction ]] orders, ?String limit) -> Array[untyped]
+
+  # Quoted, so a column named order or user is still a column.
+  # @rbs name: Symbol
+  # @rbs return: String
+  def quote: (Symbol name) -> String
+end

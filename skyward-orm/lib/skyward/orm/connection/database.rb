@@ -90,8 +90,9 @@ class Skyward::ORM::Connection::Database
   attr_reader :tables #: Array[Skyward::ORM::Catalog::Table]
 
   # @rbs sql: String
+  # @rbs binds: Array[untyped]
   # @rbs return: Array[Array[untyped]]
-  def execute(sql) = connection { |checked_out| checked_out.execute(sql) }
+  def execute(sql, binds = []) = connection { |checked_out| checked_out.execute(sql, binds) }
 
   # @rbs tables: Array[singleton(Skyward::ORM::Record)]
   # @rbs return: void
@@ -114,6 +115,14 @@ class Skyward::ORM::Connection::Database
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def decoder(table, row) = @decoders[[table, row]] ||= build(table, row)
+
+  # Every query and write calls this before it touches its table, so a table
+  # class loaded after connect is checked before its first use.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: void
+  def prepare(table)
+    check([table]) if @check
+  end
 
   # @rbs error: StandardError
   # @rbs table: Symbol
@@ -149,13 +158,11 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Array[String]
   def ending(statements, result) = result.is_a?(Skyward::ORM::Violation) ? statements.rollback : statements.commit
 
-  # Every query and write decodes through here, so a table class loaded after
-  # connect is checked before its first use.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def build(table, row)
-    check([table]) if @check
+    prepare(table)
     columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }
     members = row.schema.columns
     types = members.map { |member| columns[member] || :untyped } #: Array[Skyward::ORM::Tables::column_type]

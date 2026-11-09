@@ -301,6 +301,10 @@ describe Skyward::ORM::Connection::Database do
     it "runs SQL on its connection and returns the rows" do
       assert_equal [["Home"]], database.execute("SELECT name FROM lists")
     end
+
+    it "binds its values to the SQL's placeholders" do
+      assert_equal [["Home"]], database.execute("SELECT name FROM lists WHERE id = ?", [1])
+    end
   end
 
   describe "#check" do
@@ -359,14 +363,6 @@ describe Skyward::ORM::Connection::Database do
       assert_equal mismatch(list), error.message
     end
 
-    describe "with the check off" do
-      let(:check) { false }
-
-      it "doesn't check its table class" do
-        assert_equal list.new(id: 1, name: "Home"), database.decoder(list, list).call([1, "Home"])
-      end
-    end
-
     it "reads each value by its table's column type, into a row" do
       expected = todo.new(
         id: 1,
@@ -401,6 +397,22 @@ describe Skyward::ORM::Connection::Database do
       late = Class.new(Skyward::ORM::Record) { attr_reader :days_late }
 
       assert_equal late.new(days_late: 3), database.decoder(todo, late).call([3])
+    end
+  end
+
+  describe "#prepare" do
+    it "checks the table class" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.prepare(list) }
+
+      assert_equal mismatch(list), error.message
+    end
+
+    describe "with the check off" do
+      let(:check) { false }
+
+      it "doesn't check it" do
+        assert_silent { database.prepare(list) }
+      end
     end
   end
 
