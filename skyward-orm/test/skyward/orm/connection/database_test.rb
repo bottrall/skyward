@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "delegate"
 require "test_helper"
 require "sqlite3"
 require_relative "../../../fixtures/tables/tables_fixtures"
@@ -9,24 +10,106 @@ describe Skyward::ORM::Connection::Database do
   signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
   reader = Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
 
-  let(:connection) do
-    sqlite.connect(":memory:").tap do |connection|
-      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
-      connection.execute("INSERT INTO lists (name) VALUES ('Home')")
+  counting_adapter = Class.new(SimpleDelegator) do
+    attr_reader :comparisons
+
+    def compatible?(type, sql_type)
+      @comparisons = comparisons.to_i + 1
+      super
     end
   end
+
+  let(:connection) do
+    sqlite.connect(":memory:").tap do |connection|
+      # lists.name allows NULL, which TablesFixtures::List#name doesn't.
+      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
+      connection.execute("INSERT INTO lists (name) VALUES ('Home')")
+      connection.execute(<<~SQL)
+        CREATE TABLE todos (
+          id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL, title TEXT NOT NULL, priority TEXT NOT NULL,
+          due_on TEXT, done INTEGER NOT NULL, created_at TEXT NOT NULL
+        )
+      SQL
+    end
+  end
+  let(:adapter) { sqlite }
+  let(:check) { true }
+  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
   let(:database) do
-    Skyward::ORM::Connection::Database.new(
-      sqlite,
-      connection,
-      Skyward::ORM::Tables::ColumnTypes.new(reader),
-      sqlite.tables(connection)
-    )
+    Skyward::ORM::Connection::Database.new(adapter, connection, column_types, sqlite.tables(connection), check:)
   end
   let(:todo) { TablesFixtures::Todo }
+  let(:list) { TablesFixtures::List }
+
+  def mismatch(table)
+    Skyward::ORM::Connection::Database::SchemaCheck.mismatch(
+      table, column_types.columns(table), adapter.tables(connection), adapter
+    )
+  end
+
+  describe "#check" do
+    it "passes table classes that match the schema" do
+      assert_silent { database.check([todo]) }
+    end
+
+    it "validates each class's declarations before comparing it" do
+      invalid = Class.new(Skyward::ORM::Record) do
+        index :done
+        attr_reader :id
+      end
+      error = assert_raises(Skyward::Core::BootError) { database.check([invalid]) }
+
+      assert_equal "#{invalid} has no column done, which its index names. Add `attr_reader :done`, or fix the name.",
+                   error.message
+    end
+
+    it "raises SchemaMismatch with a block for each class that doesn't match" do
+      missing = Class.new(Skyward::ORM::Record) do
+        table :notes
+        attr_reader :id
+      end
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.check([todo, list, missing]) }
+
+      assert_equal "#{mismatch(list)}\n\n#{mismatch(missing)}", error.message
+    end
+
+    describe "with an adapter that counts comparisons" do
+      let(:adapter) { counting_adapter.new(sqlite) }
+
+      it "checks a class that matches once" do
+        database.check([todo])
+        comparisons = adapter.comparisons
+        database.check([todo])
+
+        assert_equal comparisons, adapter.comparisons
+      end
+
+      it "checks a class that doesn't match again" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+        comparisons = adapter.comparisons
+        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+
+        assert_equal comparisons * 2, adapter.comparisons
+      end
+    end
+  end
 
   describe "#decoder" do
     let(:values) { [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"] }
+
+    it "checks its table class first" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list) }
+
+      assert_equal mismatch(list), error.message
+    end
+
+    describe "with the check off" do
+      let(:check) { false }
+
+      it "doesn't check its table class" do
+        assert_equal list.new(id: 1, name: "Home"), database.decoder(list, list).call([1, "Home"])
+      end
+    end
 
     it "reads each value by its table's column type, into a row" do
       expected = todo.new(

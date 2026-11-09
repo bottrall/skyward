@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/tables/loaded.rb with RBS::Inline
+
+module Skyward::ORM::Tables::Loaded
+  # A subclass with no table is a shared base class or a row class, not a table.
+  # @rbs root: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def table_classes: (singleton(Skyward::ORM::Record) root) -> Array[singleton(Skyward::ORM::Record)]
+
+  private
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def descendants: (singleton(Skyward::ORM::Record) klass) -> Array[singleton(Skyward::ORM::Record)]
+end

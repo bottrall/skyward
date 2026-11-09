@@ -13,7 +13,8 @@ describe Skyward::ORM::Connection::Session do
       sqlite,
       sqlite.connect(":memory:"),
       Skyward::ORM::Tables::ColumnTypes.new(reader),
-      []
+      [],
+      check: true
     )
   end
 

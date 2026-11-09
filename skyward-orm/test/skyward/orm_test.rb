@@ -25,21 +25,39 @@ describe Skyward do
     values = [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"]
 
     it "keeps the database it connects to, for every query" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       assert_same database, Skyward::ORM::Connection::SESSION.database
     end
 
     it "reads column types from the signatures given" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
 
       assert_equal :normal, database.decoder(todo, todo).call(values).priority
     end
 
     it "reads them from sig/ in the current directory by default" do
-      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:") }
+      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:", check: false) }
 
       assert_equal :normal, database.decoder(todo, todo).call(values).priority
+    end
+
+    # Other tests' table classes are loaded too, so this looks only for one of its own.
+    it "checks every loaded table class against the schema" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_includes error.message, "TablesFixtures::Todo doesn't match the todos table"
+    end
+
+    it "doesn't keep a database that doesn't match" do
+      kept = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      assert_raises(Skyward::ORM::SchemaMismatch) do
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+      end
+
+      assert_same kept, Skyward::ORM::Connection::SESSION.database
     end
   end
 

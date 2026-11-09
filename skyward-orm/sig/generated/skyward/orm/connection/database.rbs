@@ -9,11 +9,21 @@ class Skyward::ORM::Connection::Database
 
   @tables: Array[Skyward::ORM::Catalog::Table]
 
+  @check: bool
+
+  @checked: Set[singleton(Skyward::ORM::Record)]
+
+  @lock: Thread::Mutex
+
   @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection,
-  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
-  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+
+  # @rbs tables: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: void
+  def check: (Array[singleton(Skyward::ORM::Record)] tables) -> void
 
   # A query selects its row class's columns in order, so the decoder reads
   # each value by position, as its table's column type says.
@@ -29,6 +39,8 @@ class Skyward::ORM::Connection::Database
 
   private
 
+  # Every query and write decodes through here, so a table class loaded after
+  # connect is checked before its first use.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
