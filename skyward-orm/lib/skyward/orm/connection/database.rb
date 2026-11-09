@@ -23,6 +23,19 @@ class Skyward::ORM::Connection::Database
     @decoders = {}
   end
 
+  # @dynamic adapter
+  attr_reader :adapter #: Skyward::ORM::_Adapter
+
+  # @dynamic column_types
+  attr_reader :column_types #: Skyward::ORM::Tables::ColumnTypes
+
+  # @dynamic tables
+  attr_reader :tables #: Array[Skyward::ORM::Catalog::Table]
+
+  # @rbs sql: String
+  # @rbs return: Array[Array[untyped]]
+  def execute(sql) = @connection.execute(sql)
+
   # @rbs tables: Array[singleton(Skyward::ORM::Record)]
   # @rbs return: void
   def check(tables)

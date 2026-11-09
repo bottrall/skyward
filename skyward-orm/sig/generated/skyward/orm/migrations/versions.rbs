@@ -1,0 +1,11 @@
+# Generated from lib/skyward/orm/migrations/versions.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Versions
+  # Running a migration records its version here, and a database that's
+  # never been migrated doesn't have the table yet.
+  TABLE: Symbol
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: Array[String]
+  def ran: (Skyward::ORM::Connection::Database database) -> Array[String]
+end

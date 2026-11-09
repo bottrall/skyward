@@ -1,0 +1,34 @@
+# Generated from lib/skyward/orm/migrations/diff.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Diff
+  # New tables come first, each after the tables it references, so a new
+  # column can reference a new table too.
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: Array[Skyward::ORM::Migrations::change]
+  def changes: (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> Array[Skyward::ORM::Migrations::change]
+
+  private
+
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: void
+  def refuse_shared: (Array[singleton(Skyward::ORM::Record)] classes) -> void
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs table: Skyward::ORM::Catalog::Table
+  # @rbs return: Skyward::ORM::Migrations::AddColumns?
+  def added: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table) -> Skyward::ORM::Migrations::AddColumns?
+
+  # Tables that reference each other can't all come after their parents, so
+  # the first left goes next.
+  # @rbs pending: Array[Skyward::ORM::Migrations::CreateTable]
+  # @rbs placed: Array[Skyward::ORM::Migrations::CreateTable]
+  # @rbs return: Array[Skyward::ORM::Migrations::CreateTable]
+  def parents_first: (Array[Skyward::ORM::Migrations::CreateTable] pending, ?Array[Skyward::ORM::Migrations::CreateTable] placed) -> Array[Skyward::ORM::Migrations::CreateTable]
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[Symbol]
+  def parents: (singleton(Skyward::ORM::Record) klass) -> Array[Symbol]
+end

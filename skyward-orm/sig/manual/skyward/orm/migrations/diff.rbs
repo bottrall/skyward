@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Diff
+  extend ::Skyward::ORM::Migrations::Diff
+end

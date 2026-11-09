@@ -1,25 +1,38 @@
 # Generated from lib/skyward/orm/connection/database.rb with RBS::Inline
 
 class Skyward::ORM::Connection::Database
-  @adapter: Skyward::ORM::_Adapter
-
-  @connection: Skyward::ORM::_Connection
-
-  @column_types: Skyward::ORM::Tables::ColumnTypes
-
-  @tables: Array[Skyward::ORM::Catalog::Table]
-
-  @check: bool
-
-  @checked: Set[singleton(Skyward::ORM::Record)]
+  @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
 
   @lock: Thread::Mutex
 
-  @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
+  @checked: Set[singleton(Skyward::ORM::Record)]
+
+  @check: bool
+
+  @tables: Array[Skyward::ORM::Catalog::Table]
+
+  @column_types: Skyward::ORM::Tables::ColumnTypes
+
+  @connection: Skyward::ORM::_Connection
+
+  @adapter: Skyward::ORM::_Adapter
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection,
   #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
   def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+
+  # @dynamic adapter
+  attr_reader adapter: Skyward::ORM::_Adapter
+
+  # @dynamic column_types
+  attr_reader column_types: Skyward::ORM::Tables::ColumnTypes
+
+  # @dynamic tables
+  attr_reader tables: Array[Skyward::ORM::Catalog::Table]
+
+  # @rbs sql: String
+  # @rbs return: Array[Array[untyped]]
+  def execute: (String sql) -> Array[Array[untyped]]
 
   # @rbs tables: Array[singleton(Skyward::ORM::Record)]
   # @rbs return: void

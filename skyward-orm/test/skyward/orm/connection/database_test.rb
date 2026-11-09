@@ -94,6 +94,30 @@ describe Skyward::ORM::Connection::Database do
     end
   end
 
+  describe "#adapter" do
+    it "is the adapter it connected with" do
+      assert_same sqlite, database.adapter
+    end
+  end
+
+  describe "#column_types" do
+    it "reads the column types of the signatures it was given" do
+      assert_equal :enum, database.column_types.columns(todo).fetch(3).type
+    end
+  end
+
+  describe "#tables" do
+    it "is the schema it was given" do
+      assert_equal [:lists], database.tables.map(&:name)
+    end
+  end
+
+  describe "#execute" do
+    it "runs SQL on its connection and returns the rows" do
+      assert_equal [["Home"]], database.execute("SELECT name FROM lists")
+    end
+  end
+
   describe "#decoder" do
     let(:values) { [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"] }
 

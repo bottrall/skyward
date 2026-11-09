@@ -1,0 +1,15 @@
+# Generated from lib/skyward/orm/migrations/discovery.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Discovery
+  # Subclasses lists only loaded classes, so an app that autoloads would
+  # otherwise hide every table class nothing has used yet.
+  # @rbs loader: singleton(Zeitwerk::Loader)
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def table_classes: (singleton(Zeitwerk::Loader) loader) -> Array[singleton(Skyward::ORM::Record)]
+
+  private
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def descendants: (singleton(Skyward::ORM::Record) klass) -> Array[singleton(Skyward::ORM::Record)]
+end

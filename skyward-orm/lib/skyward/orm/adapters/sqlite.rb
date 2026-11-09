@@ -82,6 +82,15 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String?
   def sql_type(type) = SQL_TYPES[type]
 
+  # An INTEGER PRIMARY KEY is SQLite's rowid, which numbers rows on its own.
+  # @rbs return: String?
+  def identity = nil
+
+  # SQLite takes only a literal as a default, unless the expression is in parentheses.
+  # @rbs expression: String
+  # @rbs return: String
+  def default_expression(expression) = "(#{expression})"
+
   # SQLite stores a value by its column's affinity, which it reads from the
   # declared type, so any declared type with the same affinity is compatible.
   # @rbs type: Skyward::ORM::Tables::column_type
