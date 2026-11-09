@@ -61,25 +61,23 @@ describe Skyward do
 
     # Its own process: other tests' table classes include ones whose declarations are invalid on purpose.
     it "checks every loaded table class against the schema" do
-      Dir.mktmpdir do |directory|
-        script = <<~RUBY
-          require "skyward/orm"
+      script = <<~RUBY
+        require "skyward/orm"
 
-          class Note < Skyward::ORM::Record
-            table :notes
-            attr_reader :id
-          end
+        class Note < Skyward::ORM::Record
+          table :notes
+          attr_reader :id
+        end
 
-          begin
-            Skyward.connect("sqlite://:memory:", signatures: #{directory.inspect})
-          rescue Skyward::ORM::SchemaMismatch => e
-            puts e.message.lines.first
-          end
-        RUBY
-        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+        begin
+          Skyward.connect("sqlite://:memory:", signatures: #{File.expand_path("missing", __dir__).inspect})
+        rescue Skyward::ORM::SchemaMismatch => e
+          puts e.message.lines.first
+        end
+      RUBY
+      output, status = Open3.capture2e(Gem.ruby, "-e", script)
 
-        assert_equal ["Note doesn't match the notes table\n", 0], [output, status.exitstatus]
-      end
+      assert_equal ["Note doesn't match the notes table\n", 0], [output, status.exitstatus]
     end
 
     it "connects with the check off inside the session's without_check" do
@@ -92,26 +90,25 @@ describe Skyward do
 
     # Its own process too, for the same reason.
     it "doesn't keep a database that doesn't match" do
-      Dir.mktmpdir do |directory|
-        script = <<~RUBY
-          require "skyward/orm"
+      signatures = File.expand_path("missing", __dir__).inspect
+      script = <<~RUBY
+        require "skyward/orm"
 
-          class Note < Skyward::ORM::Record
-            table :notes
-            attr_reader :id
-          end
+        class Note < Skyward::ORM::Record
+          table :notes
+          attr_reader :id
+        end
 
-          kept = Skyward.connect("sqlite://:memory:", signatures: #{directory.inspect}, check: false)
-          begin
-            Skyward.connect("sqlite://:memory:", signatures: #{directory.inspect})
-          rescue Skyward::ORM::SchemaMismatch
-            p Skyward::ORM::Connection::SESSION.database.equal?(kept)
-          end
-        RUBY
-        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+        kept = Skyward.connect("sqlite://:memory:", signatures: #{signatures}, check: false)
+        begin
+          Skyward.connect("sqlite://:memory:", signatures: #{signatures})
+        rescue Skyward::ORM::SchemaMismatch
+          p Skyward::ORM::Connection::SESSION.database.equal?(kept)
+        end
+      RUBY
+      output, status = Open3.capture2e(Gem.ruby, "-e", script)
 
-        assert_equal ["true\n", 0], [output, status.exitstatus]
-      end
+      assert_equal ["true\n", 0], [output, status.exitstatus]
     end
   end
 
