@@ -62,6 +62,21 @@ class Skyward::ORM::Query[R]
     def members: () -> [ :left, :right ]
   end
 
+  class Join < Data
+    attr_reader keyword(): String
+
+    attr_reader table(): singleton(Skyward::ORM::Record)
+
+    attr_reader on(): Hash[Symbol, Symbol]
+
+    def self.new: (String keyword, singleton(Skyward::ORM::Record) table, Hash[Symbol, Symbol] on) -> instance
+                | (keyword: String, table: singleton(Skyward::ORM::Record), on: Hash[Symbol, Symbol]) -> instance
+
+    def self.members: () -> [ :keyword, :table, :on ]
+
+    def members: () -> [ :keyword, :table, :on ]
+  end
+
   @offset: Integer?
 
   @limit: Integer?
@@ -76,12 +91,15 @@ class Skyward::ORM::Query[R]
 
   @row: Class
 
+  @joins: Array[Join]
+
   @session: Skyward::ORM::Connection::Session
 
   @table: singleton(Skyward::ORM::Record)
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[condition]
@@ -90,7 +108,17 @@ class Skyward::ORM::Query[R]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: void
-  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[R]
+  def join: (singleton(Skyward::ORM::Record) table, **Symbol on) -> Skyward::ORM::Query[R]
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[R]
+  def left_join: (singleton(Skyward::ORM::Record) table, **Symbol on) -> Skyward::ORM::Query[R]
 
   # @rbs sql: String?
   # @rbs *values: untyped
@@ -164,6 +192,7 @@ class Skyward::ORM::Query[R]
 
   private
 
+  # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[condition]
@@ -172,7 +201,13 @@ class Skyward::ORM::Query[R]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[untyped]
-  def with: (?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[untyped]
+  def with: (?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[untyped]
+
+  # @rbs keyword: String
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs on: Hash[Symbol, Symbol]
+  # @rbs return: Skyward::ORM::Query[R]
+  def joined: (String keyword, singleton(Skyward::ORM::Record) table, Hash[Symbol, Symbol] on) -> Skyward::ORM::Query[R]
 
   # @rbs sql: String?
   # @rbs values: Array[untyped]
@@ -186,8 +221,9 @@ class Skyward::ORM::Query[R]
   def comparisons: (Symbol column, untyped value) -> Array[Comparison]
 
   # @rbs columns: Array[Symbol]
+  # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs return: void
-  def require_columns: (Array[Symbol] columns) -> void
+  def require_columns: (Array[Symbol] columns, ?singleton(Skyward::ORM::Record) table) -> void
 
   # @rbs conditions: Hash[Symbol, untyped]
   # @rbs return: void
@@ -214,6 +250,10 @@ class Skyward::ORM::Query[R]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
   def from: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+
+  # @rbs join: Join
+  # @rbs return: String
+  def joining: (Join join) -> String
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs conditions: Array[condition]
@@ -268,6 +308,20 @@ class Skyward::ORM::Query[R]
   # @rbs limit: Integer?
   # @rbs return: Array[untyped]
   def rows: (Array[[ Symbol, direction ]] orders, Integer? limit) -> Array[untyped]
+
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def tables: () -> Array[singleton(Skyward::ORM::Record)]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: void
+  def prepare: (Skyward::ORM::Connection::Database database) -> void
+
+  # Once a query has a join, a column's name could be in more than one table,
+  # so each is qualified with its own.
+  # @rbs name: Symbol
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: String
+  def qualified: (Symbol name, ?singleton(Skyward::ORM::Record) table) -> String
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol

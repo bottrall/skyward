@@ -10,7 +10,10 @@ describe Skyward::ORM::Query do
     Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
   )
   todo = TablesFixtures::Todo
+  list = TablesFixtures::List
   select = %(SELECT "id", "list_id", "title", "priority", "due_on", "done", "created_at" FROM "todos")
+  joined = %(SELECT "todos"."id", "todos"."list_id", "todos"."title", "todos"."priority", "todos"."due_on", ) +
+           %("todos"."done", "todos"."created_at" FROM "todos" JOIN "lists" ON "todos"."list_id" = "lists"."id")
 
   # PostgreSQL numbers its placeholders, so this shows each one's position.
   numbered = Module.new do
@@ -34,6 +37,7 @@ describe Skyward::ORM::Query do
         "CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER, title TEXT, priority TEXT, due_on TEXT, " \
         "done INTEGER, created_at TEXT)"
       )
+      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
     end
   end
   let(:session) do
@@ -68,6 +72,7 @@ describe Skyward::ORM::Query do
     )
   end
   let(:eggs) { milk.with(id: 2, title: "Buy eggs", priority: :normal, due_on: Date.new(2026, 10, 20), done: true) }
+  let(:home) { list.new(id: 1, name: "Home") }
 
   def insert(*rows)
     rows.each do |row|
@@ -97,6 +102,155 @@ describe Skyward::ORM::Query do
       Skyward::ORM::Query.new(todo, session, conditions:)
 
       refute_predicate conditions, :frozen?
+    end
+  end
+
+  describe "#join" do
+    with_list = TablesFixtures::TodoWithList
+
+    it "returns a new frozen query, leaving the one it started from as it was" do
+      assert_equal [true, [select, []]], [query.join(list, list_id: :id).frozen?, query.to_sql]
+    end
+
+    it "joins on the starting table's column equalling the joined table's, qualifying every column" do
+      assert_equal [joined, []], query.join(list, list_id: :id).to_sql
+    end
+
+    it "joins on each pair, with AND" do
+      assert_equal [%(#{joined} AND "todos"."title" = "lists"."name"), []],
+                   query.join(list, list_id: :id, title: :name).to_sql
+    end
+
+    it "selects the README's TodoWithList, reading the joined table's column through its expression" do
+      insert(home, milk.with(list_id: 1), eggs)
+      rows = query.join(list, list_id: :id).into(with_list, list_name: "lists.name")
+      expected = [
+        [%(SELECT "todos"."id", "todos"."title", lists.name AS "list_name" FROM "todos" ) +
+          %(JOIN "lists" ON "todos"."list_id" = "lists"."id"), []],
+        [with_list.new(id: 1, title: "Buy milk", list_name: "Home")]
+      ]
+
+      assert_equal expected, [rows.to_sql, rows.to_a]
+    end
+
+    it "returns rows of the starting table, one for each row it matches" do
+      insert(list.new(id: 1, name: "Buy milk"), list.new(id: 2, name: "Buy milk"), milk, eggs)
+
+      assert_equal [milk, milk], query.join(list, title: :name).to_a
+    end
+
+    it "qualifies where's columns with the starting table" do
+      assert_equal [%(#{joined} WHERE "todos"."done" = ? AND ("todos"."due_on" IN (?) OR "todos"."due_on" IS NULL)),
+                    [0, "2026-10-20"]],
+                   query.join(list, list_id: :id).where(done: false, due_on: [nil, eggs.due_on]).to_sql
+    end
+
+    it "qualifies the column whose NULL rows exclude keeps" do
+      assert_equal [%(#{joined} WHERE (NOT ("todos"."due_on" = ?) OR "todos"."due_on" IS NULL)), ["2026-10-20"]],
+                   query.join(list, list_id: :id).exclude(due_on: eggs.due_on).to_sql
+    end
+
+    it "qualifies the columns or groups" do
+      assert_equal [%(#{joined} WHERE ("todos"."done" = ? AND "todos"."list_id" = ?) OR "todos"."priority" = ?),
+                    [0, 3, "high"]],
+                   query.join(list, list_id: :id).where(done: false, list_id: 3).or(priority: :high).to_sql
+    end
+
+    it "qualifies group's and order's columns" do
+      assert_equal [%(#{joined} GROUP BY "todos"."list_id" ORDER BY "todos"."title" ASC), []],
+                   query.join(list, list_id: :id).group(:list_id).order(:title).to_sql
+    end
+
+    it "matches the joined table's columns with SQL" do
+      work = eggs.with(list_id: 2)
+      insert(home, list.new(id: 2, name: "Work"), milk.with(list_id: 1), work)
+
+      assert_equal [work], query.join(list, list_id: :id).where("lists.name = ?", "Work").to_a
+    end
+
+    it "gives first the starting table's primary key to order by, which the joined table has too" do
+      first = milk.with(list_id: 1)
+      insert(home, eggs.with(list_id: 1), first)
+
+      assert_equal first, query.join(list, list_id: :id).first
+    end
+
+    it "counts the rows it matches, through a subquery when they're limited" do
+      insert(home, milk.with(list_id: 1), eggs)
+      joining = query.join(list, list_id: :id)
+
+      assert_equal [1, 1], [joining.count, joining.limit(5).count]
+    end
+
+    it "has no row when nothing matches" do
+      insert(home, milk)
+
+      refute_predicate query.join(list, list_id: :id), :exists?
+    end
+
+    it "refuses a class that isn't a Record" do
+      error = assert_raises(ArgumentError) { query.join(String, id: :id) }
+
+      assert_equal "TablesFixtures::Todo can't join String, which isn't a table class", error.message
+    end
+
+    it "refuses a Record with no table" do
+      error = assert_raises(ArgumentError) { query.join(TablesFixtures::Typed, id: :integer) }
+
+      assert_equal "TablesFixtures::Todo can't join TablesFixtures::Typed, which isn't a table class", error.message
+    end
+
+    it "refuses the table it started from" do
+      error = assert_raises(ArgumentError) { query.join(todo, id: :id) }
+
+      assert_equal "TablesFixtures::Todo can't join TablesFixtures::Todo, since todos is already in the query",
+                   error.message
+    end
+
+    it "refuses a table it already joins" do
+      error = assert_raises(ArgumentError) { query.join(list, list_id: :id).left_join(list, list_id: :id) }
+
+      assert_equal "TablesFixtures::Todo can't join TablesFixtures::List, since lists is already in the query",
+                   error.message
+    end
+
+    it "refuses nothing to join on" do
+      error = assert_raises(ArgumentError) { query.join(list) }
+
+      assert_equal "TablesFixtures::Todo can't join TablesFixtures::List on nothing. Give it columns, such as " \
+                   "list_id: :id",
+                   error.message
+    end
+
+    it "refuses a column the starting table doesn't have" do
+      error = assert_raises(ArgumentError) { query.join(list, lsit_id: :id) }
+
+      assert_equal "TablesFixtures::Todo has no column lsit_id. Did you mean list_id?", error.message
+    end
+
+    it "refuses a column the joined table doesn't have" do
+      error = assert_raises(ArgumentError) { query.join(list, list_id: :nmae) }
+
+      assert_equal "TablesFixtures::List has no column nmae. Did you mean name?", error.message
+    end
+  end
+
+  describe "#left_join" do
+    with_list = TablesFixtures::TodoWithList
+
+    it "joins with LEFT JOIN" do
+      assert_equal [joined.sub("JOIN", "LEFT JOIN"), []], query.left_join(list, list_id: :id).to_sql
+    end
+
+    it "fills a member from the joined table with nil when no row matches" do
+      insert(home, milk.with(list_id: 1), eggs)
+      expected = [
+        with_list.new(id: 1, title: "Buy milk", list_name: "Home"),
+        with_list.new(id: 2, title: "Buy eggs", list_name: nil)
+      ]
+
+      assert_equal expected,
+                   query.left_join(list, list_id: :id).order(:id).into(with_list, list_name: "lists.name").to_a
     end
   end
 
@@ -706,6 +860,14 @@ describe Skyward::ORM::Query do
       it "checks its table class before counting" do
         assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).count }
       end
+
+      it "checks each table class it joins before counting" do
+        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+          Skyward::ORM::Query.new(list, session).join(notes, id: :id).count
+        end
+
+        assert_includes error.message, "The database has no table notes."
+      end
     end
   end
 
@@ -747,6 +909,14 @@ describe Skyward::ORM::Query do
       it "checks its table class before running the query" do
         assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).exists? }
       end
+
+      it "checks each table class it joins before running the query" do
+        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+          Skyward::ORM::Query.new(list, session).join(notes, id: :id).exists?
+        end
+
+        assert_includes error.message, "The database has no table notes."
+      end
     end
   end
 
@@ -786,6 +956,14 @@ describe Skyward::ORM::Query do
 
       it "checks its table class before running the query" do
         assert_raises(Skyward::ORM::SchemaMismatch) { Skyward::ORM::Query.new(notes, session).to_a }
+      end
+
+      it "checks each table class it joins before running the query" do
+        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+          Skyward::ORM::Query.new(list, session).join(notes, id: :id).to_a
+        end
+
+        assert_includes error.message, "The database has no table notes."
       end
     end
   end
