@@ -1,0 +1,36 @@
+# Generated from lib/skyward/orm/connection/pool.rb with RBS::Inline
+
+class Skyward::ORM::Connection::Pool
+  @size: Integer
+
+  @opener: ^() -> Skyward::ORM::_Connection
+
+  @timeout: Integer | Float
+
+  @idle: Thread::Queue[Skyward::ORM::_Connection]
+
+  @opened: Integer
+
+  @mutex: Thread::Mutex
+
+  # @rbs size: Integer
+  # @rbs opener: ^() -> Skyward::ORM::_Connection
+  # @rbs timeout: Integer | Float
+  # @rbs return: void
+  def initialize: (Integer size, ^() -> Skyward::ORM::_Connection opener, ?timeout: Integer | Float) -> void
+
+  # @rbs [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+  def with: [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+
+  private
+
+  # Thread::Queue and Thread::Mutex block only the waiting fiber under a fiber
+  # scheduler, so under Falcon a fiber waiting for a connection lets others run.
+  # @rbs return: Skyward::ORM::_Connection
+  def checkout: () -> Skyward::ORM::_Connection
+
+  # The place is taken under the lock but the connection opened outside it, so a
+  # slow connect holds up no other checkout.
+  # @rbs return: Skyward::ORM::_Connection?
+  def open: () -> Skyward::ORM::_Connection?
+end

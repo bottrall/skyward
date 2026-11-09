@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "sqlite3"
+require "tmpdir"
 
 describe Skyward::ORM::Adapters::SQLite do
   sqlite = Skyward::ORM::Adapters::SQLite
@@ -47,8 +48,33 @@ describe Skyward::ORM::Adapters::SQLite do
   end
 
   describe ".connect" do
+    it "waits on another connection's lock rather than failing at once" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "todos.db")
+        holder = sqlite.connect(path)
+        holder.execute("CREATE TABLE todos (title TEXT)")
+        holder.execute("BEGIN IMMEDIATE")
+        writer = Thread.new { sqlite.connect(path).execute("INSERT INTO todos VALUES ('Milk')") }
+        Thread.pass while writer.status == "run"
+        holder.execute("COMMIT")
+        writer.join
+
+        assert_equal [["Milk"]], holder.execute("SELECT title FROM todos")
+      end
+    end
+
     it "turns foreign keys on" do
       assert_equal [[1]], sqlite.connect(":memory:").execute("PRAGMA foreign_keys")
+    end
+  end
+
+  describe ".pool_size" do
+    it "keeps the size asked for" do
+      assert_equal 5, sqlite.pool_size("todos.db", 5)
+    end
+
+    it "is one for :memory:, where each connection opens its own database" do
+      assert_equal 1, sqlite.pool_size(":memory:", 5)
     end
   end
 

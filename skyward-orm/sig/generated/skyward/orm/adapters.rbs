@@ -4,8 +4,8 @@ module Skyward::ORM::Adapters
   SCHEMES: Hash[String, Skyward::ORM::_Adapter]
 
   # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
-  #   -> [Skyward::ORM::_Adapter, Skyward::ORM::_Connection]
-  def connect: (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void) -> [ Skyward::ORM::_Adapter, Skyward::ORM::_Connection ]
+  #   -> [Skyward::ORM::_Adapter, String]
+  def resolve: (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void) -> [ Skyward::ORM::_Adapter, String ]
 
   private
 

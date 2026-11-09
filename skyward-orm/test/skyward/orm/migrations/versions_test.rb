@@ -12,7 +12,14 @@ describe Skyward::ORM::Migrations::Versions do
 
   let(:connection) { sqlite.connect(":memory:") }
   # Lazy, so it reads the schema a test has made.
-  let(:database) { Skyward::ORM::Connection::Database.new(sqlite, connection, column_types, sqlite.tables(connection)) }
+  let(:database) do
+    Skyward::ORM::Connection::Database.new(
+      sqlite,
+      Skyward::ORM::Connection::Pool.new(1, -> { connection }),
+      column_types,
+      sqlite.tables(connection)
+    )
+  end
 
   describe ".ran" do
     it "has none on a database that's never been migrated" do
