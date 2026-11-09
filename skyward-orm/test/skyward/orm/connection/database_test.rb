@@ -336,4 +336,97 @@ describe Skyward::ORM::Connection::Database do
       assert_nil violation("SELECT * FROM missing")
     end
   end
+
+  describe "#hashes" do
+    it "returns each row as its columns" do
+      assert_equal [{ id: 1, name: "Home" }], database.hashes("SELECT id, name FROM lists", [])
+    end
+
+    it "binds each value as a parameter, as the adapter stores it, and returns values as the driver does" do
+      assert_equal [{ done: 1, due_on: "2026-10-01" }],
+                   database.hashes("SELECT ? AS done, ? AS due_on", [true, Date.new(2026, 10, 1)])
+    end
+
+    it "refuses an Array, which the driver would spread across several ?, naming its position" do
+      error = assert_raises(ArgumentError) { database.hashes("SELECT ?", [[1, 2]]) }
+
+      assert_equal "Skyward.query binds one value to each ?, but value 1 is an Array", error.message
+    end
+
+    it "refuses an empty Array, which the driver would bind to no ?" do
+      assert_raises(ArgumentError) { database.hashes("SELECT ?", [[]]) }
+    end
+
+    it "refuses a Hash, naming its position" do
+      error = assert_raises(ArgumentError) { database.hashes("SELECT ?, ?", [1, {}]) }
+
+      assert_equal "Skyward.query binds one value to each ?, but value 2 is a Hash", error.message
+    end
+
+    it "refuses values that would move the ones after them to other ?" do
+      assert_raises(ArgumentError) do
+        database.hashes("SELECT name FROM lists WHERE name = ? AND id = ? LIMIT ?", [["Home", 1], 2, {}])
+      end
+    end
+
+    it "runs in the fiber's transaction, seeing a write it hasn't committed" do
+      in_file do |database|
+        seen = database.transaction do
+          insert(database, "Work")
+          database.hashes("SELECT name FROM lists", [])
+        end
+
+        assert_equal [{ name: "Work" }], seen
+      end
+    end
+
+    it "raises a violation the SQL causes" do
+      error = assert_raises(Skyward::ORM::ViolationError) do
+        database.hashes("INSERT INTO lists (name) VALUES (?)", ["Home"])
+      end
+
+      assert_equal [:unique, "lists_name_key"], [error.violation.kind, error.violation.constraint]
+    end
+
+    it "raises any other error as it is" do
+      assert_raises(SQLite3::SQLException) { database.hashes("SELECT * FROM missing", []) }
+    end
+  end
+
+  describe "#rows" do
+    let(:overdue) { TablesFixtures::Overdue }
+    let(:due) { TablesFixtures::Due }
+
+    it "builds the row class from the SQL's columns, by name" do
+      assert_equal [overdue.new(title: "Home", days_late: 3)],
+                   database.rows(overdue, "SELECT ? AS days_late, name AS title FROM lists", [3])
+    end
+
+    it "reads each member by its type, and passes an untyped one through, frozen" do
+      row = database.rows(due, "SELECT 'Milk' AS title, '2026-10-01' AS due_on, 'cold' AS note", []).fetch(0)
+
+      assert_equal [due.new(title: "Milk", due_on: Date.new(2026, 10, 1), note: "cold"), true], [row, row.note.frozen?]
+    end
+
+    it "reads NULL as nil" do
+      assert_equal [due.new(title: "Milk", due_on: nil, note: nil)],
+                   database.rows(due, "SELECT 'Milk' AS title, NULL AS due_on, NULL AS note", [])
+    end
+
+    it "refuses a column the row class has no member for, naming it" do
+      error = assert_raises(ArgumentError) do
+        database.rows(overdue, "SELECT name AS title, 3 AS days_late, id, 1 AS done FROM lists", [])
+      end
+
+      assert_equal "TablesFixtures::Overdue has no member for id, done, which the SQL returns", error.message
+    end
+
+    it "refuses a member the SQL returns no column for, naming it, even with no rows" do
+      error = assert_raises(ArgumentError) do
+        database.rows(overdue, "SELECT name AS title FROM lists WHERE id = 0", [])
+      end
+
+      assert_equal "The SQL returns no days_late for TablesFixtures::Overdue", error.message
+    end
+  end
 end

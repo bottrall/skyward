@@ -2,7 +2,7 @@
 
 class Skyward::ORM::Tables::ColumnTypes
   # @rbs @reader: Skyward::Core::Types::Reader
-  # @rbs @resolved: Hash[singleton(Skyward::ORM::Record), Array[Skyward::ORM::Tables::Column]]
+  # @rbs @resolved: Hash[Class, Array[Skyward::ORM::Tables::Column]]
 
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
@@ -18,17 +18,17 @@ class Skyward::ORM::Tables::ColumnTypes
 
   # A class's types are resolved once for the signatures the reader loaded, so
   # no query reads RBS.
-  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs klass: Class
   # @rbs return: Array[Skyward::ORM::Tables::Column]
   def columns(klass) = @resolved[klass] ||= resolve(klass)
 
   private
 
-  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs klass: Class
   # @rbs return: Array[Skyward::ORM::Tables::Column]
   def resolve(klass)
     type_name = @reader.type_name(klass)
-    klass.schema.columns.map do |name|
+    Skyward::ORM::Members.of(klass).map do |name|
       returned = @reader.method_type(type_name, name)&.type&.return_type if type_name
       written = returned.to_s.gsub(/(?<!\w)::/, "")
       column = returned ? read(name, returned, written) : column(name, UNTYPED, written)

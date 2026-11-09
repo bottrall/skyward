@@ -77,4 +77,15 @@ module TablesFixtures
   class Literal < ::Skyward::ORM::Record
     attr_reader kind: "todo"
   end
+
+  class Overdue < ::Data
+    attr_reader title: String
+    attr_reader days_late: Integer
+  end
+
+  # note has no reader here.
+  class Due < ::Data
+    attr_reader title: String
+    attr_reader due_on: Date
+  end
 end

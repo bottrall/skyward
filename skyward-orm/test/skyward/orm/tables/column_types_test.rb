@@ -78,6 +78,12 @@ describe Skyward::ORM::Tables::ColumnTypes do
       assert_equal expected, types.columns(TablesFixtures::Typed)
     end
 
+    it "resolves a row class's members, untyped where its signature has no reader" do
+      expected = [column(:title, :string), column(:due_on, :date), column(:note, :untyped)]
+
+      assert_equal expected, types.columns(TablesFixtures::Due)
+    end
+
     it "leaves every column of a class with no signature untyped" do
       assert_equal [column(:id, :untyped)], types.columns(TablesFixtures::Unsigned)
     end
