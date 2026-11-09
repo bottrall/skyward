@@ -27,19 +27,19 @@ Run `bin/ci` before you push.
 
 ## PostgreSQL
 
-Skyward ORM's tests run on SQLite unless `TEST_DATABASE=postgresql` says to run them on PostgreSQL. Either way, the PostgreSQL adapter's own tests need a PostgreSQL, at `TEST_POSTGRES_URL`, so `bin/test` and `bin/ci` do too. Before each test that uses it, the suite drops that database's `public` schema and closes its other connections, so give it a database of its own, such as one in a container:
+Skyward ORM's tests, and the `skyward` gem's tests that check Skyward API and Skyward ORM read types the same way, run on SQLite unless `TEST_DATABASE=postgresql` says to run them on PostgreSQL. Either way, the PostgreSQL adapter's own tests need a PostgreSQL, at `TEST_POSTGRES_URL`, so `bin/test` and `bin/ci` do too. Before each test that uses it, the suite drops that database's `public` schema and closes its other connections, so give it a database of its own, such as one in a container:
 
 ```sh
 docker run -d --rm --name skyward-postgres -e POSTGRES_PASSWORD=postgres -p 54320:5432 postgres:17
 export TEST_POSTGRES_URL=postgres://postgres:postgres@localhost:54320/postgres
 
-bin/test                            # the ORM's suite on SQLite
+bin/test                            # the suites on SQLite
 TEST_DATABASE=postgresql bin/test   # and on PostgreSQL
 
 docker stop skyward-postgres
 ```
 
-CI runs the ORM's suite both ways, on every supported Ruby.
+CI runs both suites both ways, on every supported Ruby.
 
 ## Pull requests
 
