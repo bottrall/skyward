@@ -11,6 +11,7 @@ describe Skyward::ORM::Query do
   )
   todo = TablesFixtures::Todo
   list = TablesFixtures::List
+  with_list = TablesFixtures::TodoWithList
   select = %(SELECT "id", "list_id", "title", "priority", "due_on", "done", "created_at" FROM "todos")
   joined = %(SELECT "todos"."id", "todos"."list_id", "todos"."title", "todos"."priority", "todos"."due_on", ) +
            %("todos"."done", "todos"."created_at" FROM "todos" JOIN "lists" ON "todos"."list_id" = "lists"."id")
@@ -106,8 +107,6 @@ describe Skyward::ORM::Query do
   end
 
   describe "#join" do
-    with_list = TablesFixtures::TodoWithList
-
     it "returns a new frozen query, leaving the one it started from as it was" do
       assert_equal [true, [select, []]], [query.join(list, list_id: :id).frozen?, query.to_sql]
     end
@@ -188,6 +187,12 @@ describe Skyward::ORM::Query do
       refute_predicate query.join(list, list_id: :id), :exists?
     end
 
+    it "refuses something that isn't a class" do
+      error = assert_raises(ArgumentError) { query.join(:lists, list_id: :id) }
+
+      assert_equal "TablesFixtures::Todo can't join :lists, which isn't a table class", error.message
+    end
+
     it "refuses a class that isn't a Record" do
       error = assert_raises(ArgumentError) { query.join(String, id: :id) }
 
@@ -236,8 +241,6 @@ describe Skyward::ORM::Query do
   end
 
   describe "#left_join" do
-    with_list = TablesFixtures::TodoWithList
-
     it "joins with LEFT JOIN" do
       assert_equal [joined.sub("JOIN", "LEFT JOIN"), []], query.left_join(list, list_id: :id).to_sql
     end
