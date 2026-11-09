@@ -1,0 +1,15 @@
+# Generated from lib/skyward/orm/adapters.rb with RBS::Inline
+
+module Skyward::ORM::Adapters
+  SCHEMES: Hash[String, Skyward::ORM::_Adapter]
+
+  # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
+  #   -> [Skyward::ORM::_Adapter, Skyward::ORM::_Connection]
+  def connect: (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void) -> [ Skyward::ORM::_Adapter, Skyward::ORM::_Connection ]
+
+  private
+
+  # The URL can hold a password, so only its scheme is shown.
+  # @rbs (String? scheme, Hash[String, Skyward::ORM::_Adapter] schemes) -> String
+  def unsupported: (String? scheme, Hash[String, Skyward::ORM::_Adapter] schemes) -> String
+end

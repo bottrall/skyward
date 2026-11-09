@@ -1,6 +1,11 @@
 # Generated from lib/skyward/orm.rb with RBS::Inline
 
 module Skyward
+  # @rbs url: String
+  # @rbs signatures: String
+  # @rbs return: ORM::Connection::Database
+  def self.connect: (String url, ?signatures: String) -> ORM::Connection::Database
+
   # @rbs expression: String
   # @rbs return: ORM::Tables::SQL
   def self.sql: (String expression) -> ORM::Tables::SQL

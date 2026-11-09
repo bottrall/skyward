@@ -1,0 +1,12 @@
+# Generated from lib/skyward/orm/connection/session.rb with RBS::Inline
+
+class Skyward::ORM::Connection::Session
+  @database: Skyward::ORM::Connection::Database?
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: Skyward::ORM::Connection::Database
+  def connect: (Skyward::ORM::Connection::Database database) -> Skyward::ORM::Connection::Database
+
+  # @rbs return: Skyward::ORM::Connection::Database
+  def database: () -> Skyward::ORM::Connection::Database
+end

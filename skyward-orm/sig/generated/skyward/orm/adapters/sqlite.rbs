@@ -1,0 +1,114 @@
+# Generated from lib/skyward/orm/adapters/sqlite.rb with RBS::Inline
+
+module Skyward::ORM::Adapters::SQLite
+  # The first SQLite with RETURNING, which every write uses.
+  MINIMUM_VERSION: Gem::Version
+
+  SQL_TYPES: Hash[Skyward::ORM::Tables::column_type, String]
+
+  # Fixed width and UTC, so text order is time order, and to the microsecond,
+  # as PostgreSQL keeps it. It's the format of SQLite's own CURRENT_TIMESTAMP,
+  # with the fraction added, so the two compare.
+  TIME_FORMAT: String
+
+  # SQLite's extended result codes: SQLITE_CONSTRAINT_CHECK, _FOREIGNKEY,
+  # _NOTNULL, _PRIMARYKEY and _UNIQUE.
+  VIOLATIONS: Hash[Integer, Skyward::ORM::violation_kind]
+
+  # SQLite enforces a RESTRICT foreign key as a trigger would, so it reports
+  # SQLITE_CONSTRAINT_TRIGGER, and only the message tells it from a trigger's RAISE.
+  TRIGGER: Integer
+
+  RESTRICTED: String
+
+  UNIQUE_KINDS: Array[Skyward::ORM::Catalog::constraint_kind]
+
+  COLUMNS: String
+
+  INDEXES: String
+
+  # @rbs return: String
+  def driver: () -> String
+
+  # @rbs location: String
+  # @rbs return: Skyward::ORM::_Connection
+  def connect: (String location) -> Skyward::ORM::_Connection
+
+  # @rbs version: String
+  # @rbs return: void
+  def require_version: (String version) -> void
+
+  # @rbs (Integer _position) -> String
+  def placeholder: (Integer _position) -> String
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs return: String?
+  def sql_type: (Skyward::ORM::Tables::column_type type) -> String?
+
+  # SQLite stores a value by its column's affinity, which it reads from the
+  # declared type, so any declared type with the same affinity is compatible.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs sql_type: String
+  # @rbs return: bool
+  def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
+
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def encode: (untyped value) -> untyped
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def decode: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+
+  # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
+  def tables: (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
+
+  # The code says which kind of constraint failed. The message names the
+  # columns of a unique or not-null one, and the name of a check, and the rest
+  # comes from the schema.
+  # @rbs error: StandardError
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs table: Symbol
+  # @rbs return: Skyward::ORM::Violation?
+  def violation: (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation?
+
+  private
+
+  # @rbs sql_type: String
+  # @rbs return: Symbol
+  def affinity: (String sql_type) -> Symbol
+
+  # @rbs rows: Array[Array[untyped]]
+  # @rbs return: Array[Skyward::ORM::Catalog::Index]
+  def indexes: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Index]
+
+  # SQLite names a unique index on expressions rather than its columns.
+  # @rbs message: String
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: Skyward::ORM::Violation
+  def unique: (String message, Array[Skyward::ORM::Catalog::Table] tables) -> Skyward::ORM::Violation
+
+  # @rbs message: String
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs table: Symbol
+  # @rbs return: Skyward::ORM::Violation
+  def check: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation
+
+  # SQLite's message names no key at all, so it's the one key the table has
+  # or that refers to it. With more than one, it can't say which.
+  # @rbs message: String
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs table: Symbol
+  # @rbs return: Skyward::ORM::Violation
+  def foreign_key: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation
+
+  # SQLite names them as table.column: "UNIQUE constraint failed: todos.list_id, todos.title".
+  # @rbs message: String
+  # @rbs return: [Symbol, Array[Symbol]]
+  def failed_columns: (String message) -> [ Symbol, Array[Symbol] ]
+
+  # @rbs message: String
+  # @rbs return: String
+  def detail: (String message) -> String
+end

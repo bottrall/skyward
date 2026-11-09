@@ -39,6 +39,9 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | api | `Skyward::API::Assembly` | the parts `Skyward.app` builds the Rack app from, and the app it returns |
 | api | `Skyward::API::CLI` | what the `skyward` commands run; `commands.rb` only registers them |
 | orm | `Skyward::ORM::Tables` | what a table class declares and the rows it builds: its schema, its column types and its rows' methods |
+| orm | `Skyward::ORM::Catalog` | the database's schema as an adapter reads it: its tables, columns, indexes and constraints |
+| orm | `Skyward::ORM::Adapters` | what differs between databases: each adapter's connection, SQL types, codec, schema reads and violations |
+| orm | `Skyward::ORM::Connection` | the database `Skyward.connect` opens, and the session that holds it for every query |
 
 ## Ruby
 

@@ -10,3 +10,7 @@ gem "skyward-core", path: "../skyward-core"
 
 gem "minitest", "~> 6.0"
 gem "rake", "~> 13.4"
+
+# Test-only: the SQLite adapter requires the driver when it connects, so an app
+# adds it to its own Gemfile and the gemspec never depends on it.
+gem "sqlite3", "~> 2.10"

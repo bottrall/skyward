@@ -1,0 +1,57 @@
+# Generated from lib/skyward/orm/adapters/sqlite/constraints.rb with RBS::Inline
+
+# SQLite keeps no catalog of constraints, only each table's CREATE TABLE
+# statement, so their names, kinds and columns are read from that.
+module Skyward::ORM::Adapters::SQLite::Constraints
+  type token = [ Symbol, String ]
+
+  TOKEN: Regexp
+
+  DEPTH: Hash[Symbol, Integer]
+
+  NAMES: Array[Symbol]
+
+  TABLE_CONSTRAINTS: Array[String]
+
+  KINDS: Hash[String, Skyward::ORM::Catalog::constraint_kind]
+
+  # @rbs sql: String
+  # @rbs columns: Array[Symbol]
+  # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
+  def read: (String sql, Array[Symbol] columns) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  private
+
+  # @rbs sql: String
+  # @rbs return: Array[Array[[token, Integer]]]
+  def definitions: (String sql) -> Array[Array[[ token, Integer ]]]
+
+  # @rbs text: String
+  # @rbs return: token?
+  def token: (String text) -> token?
+
+  # A column's own constraints are on that column. A table constraint names
+  # its columns in parentheses, and a check is on the columns its expression
+  # mentions.
+  # @rbs definition: Array[[token, Integer]]
+  # @rbs columns: Array[Symbol]
+  # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
+  def constraints: (Array[[ token, Integer ]] definition, Array[Symbol] columns) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  # @rbs token: token
+  # @rbs return: String?
+  def word: (token token) -> String?
+
+  # @rbs rest: Array[[token, Integer]]
+  # @rbs return: Array[token]
+  def first_parenthesized: (Array[[ token, Integer ]] rest) -> Array[token]
+
+  # @rbs tokens: Array[token]
+  # @rbs columns: Array[Symbol]
+  # @rbs return: Array[Symbol]
+  def mentioned: (Array[token] tokens, Array[Symbol] columns) -> Array[Symbol]
+
+  # @rbs tokens: Array[token]
+  # @rbs return: Symbol
+  def referenced: (Array[token] tokens) -> Symbol
+end

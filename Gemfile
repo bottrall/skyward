@@ -18,6 +18,10 @@ group :development, :test do
   gem "rubocop-performance", "~> 1.27", require: false
   gem "rubocop-rake", "~> 0.7", require: false
 
+  # Steep takes the SQLite adapter's driver signatures from the collection,
+  # which skips a gem marked `require: false`.
+  gem "sqlite3", "~> 2.10"
+
   gem "rbs", "~> 4.2", require: false
   gem "rbs-inline", "~> 0.14", require: false
   gem "steep", "~> 2.1", require: false

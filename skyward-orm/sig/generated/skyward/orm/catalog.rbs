@@ -1,0 +1,5 @@
+# Generated from lib/skyward/orm/catalog.rb with RBS::Inline
+
+module Skyward::ORM::Catalog
+  type constraint_kind = :primary_key | :unique | :foreign_key | :check
+end

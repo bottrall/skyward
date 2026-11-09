@@ -1,0 +1,20 @@
+# Generated from lib/skyward/orm/catalog/constraint.rb with RBS::Inline
+
+module Skyward::ORM::Catalog
+  class Constraint < Data
+    attr_reader name(): String?
+
+    attr_reader kind(): constraint_kind
+
+    attr_reader columns(): Array[Symbol]
+
+    attr_reader references(): Symbol?
+
+    def self.new: (String? name, constraint_kind kind, Array[Symbol] columns, Symbol? references) -> instance
+                | (name: String?, kind: constraint_kind, columns: Array[Symbol], references: Symbol?) -> instance
+
+    def self.members: () -> [ :name, :kind, :columns, :references ]
+
+    def members: () -> [ :name, :kind, :columns, :references ]
+  end
+end

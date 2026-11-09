@@ -1,0 +1,18 @@
+# Generated from lib/skyward/orm/catalog/index.rb with RBS::Inline
+
+module Skyward::ORM::Catalog
+  class Index < Data
+    attr_reader name(): String
+
+    attr_reader columns(): Array[Symbol]
+
+    attr_reader unique(): bool
+
+    def self.new: (String name, Array[Symbol] columns, bool unique) -> instance
+                | (name: String, columns: Array[Symbol], unique: bool) -> instance
+
+    def self.members: () -> [ :name, :columns, :unique ]
+
+    def members: () -> [ :name, :columns, :unique ]
+  end
+end
