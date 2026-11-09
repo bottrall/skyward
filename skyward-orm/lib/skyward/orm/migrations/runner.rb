@@ -80,6 +80,8 @@ module Skyward::ORM::Migrations::Runner
   def apply(adapter, connection, migration)
     connection.execute_batch(adapter.begin_migration)
   rescue StandardError => e
+    # PostgreSQL leaves the transaction open when the lock is what failed.
+    rollback(connection)
     Locked.new(file: migration.file, message: e.message)
   else
     run_locked(adapter, connection, migration)

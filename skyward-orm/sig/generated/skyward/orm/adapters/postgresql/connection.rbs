@@ -1,0 +1,27 @@
+# Generated from lib/skyward/orm/adapters/postgresql/connection.rb with RBS::Inline
+
+# PG::Connection runs SQL with exec_params, which returns a PG::Result, so this
+# gives it the execute every adapter's connection has.
+class Skyward::ORM::Adapters::PostgreSQL::Connection
+  @connection: PG::Connection
+
+  # @rbs connection: PG::Connection
+  # @rbs return: void
+  def initialize: (PG::Connection connection) -> void
+
+  # The block form clears each result as soon as its rows are read.
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs return: Array[Array[String?]]
+  def execute: (String sql, ?Array[untyped] binds) -> Array[Array[String?]]
+
+  # @rbs sql: String
+  # @rbs *binds: untyped
+  # @rbs return: Array[Array[String?]]
+  def execute2: (String sql, *untyped binds) -> Array[Array[String?]]
+
+  # exec, unlike exec_params, runs every statement in the SQL.
+  # @rbs sql: String
+  # @rbs return: void
+  def execute_batch: (String sql) -> void
+end

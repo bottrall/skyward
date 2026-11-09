@@ -1,5 +1,5 @@
 module Skyward::ORM
-  # Each adapter's driver connection: SQLite3::Database, and PostgreSQL's.
+  # Each adapter's connection: SQLite3::Database, and Adapters::PostgreSQL::Connection.
   interface _Connection
     def execute: (String sql, ?Array[untyped] binds) -> Array[Array[untyped]]
     # Its first row is the result's column names, even when it has no rows.
@@ -7,7 +7,7 @@ module Skyward::ORM
     def execute_batch: (String sql) -> void
   end
 
-  # Everything that differs between databases. Adapters::SQLite, and PostgreSQL's.
+  # Everything that differs between databases: Adapters::SQLite and Adapters::PostgreSQL.
   interface _Adapter
     def driver: () -> String
     def connect: (String location) -> _Connection

@@ -3,7 +3,6 @@
 require "fileutils"
 require "stringio"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe Skyward::ORM::CLI::Migrate do
@@ -24,12 +23,13 @@ describe Skyward::ORM::CLI::Migrate do
   end
   let(:out) { StringIO.new }
 
-  # An app whose boot.rb connects to its own SQLite database, with these files in db/migrate.
+  let(:empty) { TestDatabase.empty }
+
+  # An app whose boot.rb connects to an empty database, with these files in db/migrate.
   def app(migrations = {}, boot_rb: nil)
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
-      database = "sqlite://#{File.join(directory, "app.sqlite3")}"
-      boot_rb ||= "Skyward.connect(#{database.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
+      boot_rb ||= "Skyward.connect(#{empty.url.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
       File.write(File.join(directory, "boot.rb"), boot_rb)
       FileUtils.mkdir_p(File.join(directory, "db/migrate"))
       migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
@@ -104,7 +104,7 @@ describe Skyward::ORM::CLI::Migrate do
         run_in(directory)
         failed = Skyward::ORM::Migrations::Runner::Failed.new(
           file: "20261001000000_broken.sql",
-          message: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);"
+          message: empty.error("INSERT INTO nowhere VALUES (1);\n")
         )
 
         assert_equal [Skyward::ORM::Migrations::Runner.message(failed), ""], [kernel.aborted, out.string]

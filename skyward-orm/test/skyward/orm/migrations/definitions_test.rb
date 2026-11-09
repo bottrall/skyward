@@ -2,7 +2,6 @@
 
 require "test_helper"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/migrations/postgres"
 
 describe Skyward::ORM::Migrations::Definitions do
   fixtures = MigrationsFixtures
@@ -72,7 +71,7 @@ describe Skyward::ORM::Migrations::Definitions do
       found = [
         definitions.default(fixtures::Todo, :done, Skyward::ORM::Adapters::SQLite),
         definitions.default(fixtures::Todo, :created_at, Skyward::ORM::Adapters::SQLite),
-        definitions.default(fixtures::Todo, :created_at, MigrationsFixtures::Postgres),
+        definitions.default(fixtures::Todo, :created_at, Skyward::ORM::Adapters::PostgreSQL),
         definitions.default(fixtures::Todo, :title, Skyward::ORM::Adapters::SQLite)
       ]
 

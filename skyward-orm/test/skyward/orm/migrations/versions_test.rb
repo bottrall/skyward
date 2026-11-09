@@ -1,23 +1,22 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 
 describe Skyward::ORM::Migrations::Versions do
-  sqlite = Skyward::ORM::Adapters::SQLite
   signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
   column_types = Skyward::ORM::Tables::ColumnTypes.new(
     Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
   )
 
-  let(:connection) { sqlite.connect(":memory:") }
+  let(:empty) { TestDatabase.empty }
+  let(:connection) { empty.connect }
   # Lazy, so it reads the schema a test has made.
   let(:database) do
     Skyward::ORM::Connection::Database.new(
-      sqlite,
+      empty.adapter,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,
-      sqlite.tables(connection),
+      empty.adapter.tables(connection),
       check: false
     )
   end
@@ -28,7 +27,7 @@ describe Skyward::ORM::Migrations::Versions do
     end
 
     it "reads each version that's run, as text" do
-      connection.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY)")
+      connection.execute("CREATE TABLE schema_migrations (version #{empty.adapter.sql_type(:integer)} PRIMARY KEY)")
       connection.execute("INSERT INTO schema_migrations (version) VALUES (20261018093000)")
 
       assert_equal ["20261018093000"], Skyward::ORM::Migrations::Versions.ran(database)

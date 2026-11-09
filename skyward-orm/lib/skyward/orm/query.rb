@@ -182,7 +182,8 @@ class Skyward::ORM::Query
     prepare(database)
     sql, binds = from(database, [], @limit)
     counted = @groups.empty? && @limit.nil? && @offset.nil? ? sql : %(FROM (SELECT 1 #{sql}) AS "counted")
-    database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0)
+    # PostgreSQL's driver returns every value as text, so the adapter reads it.
+    database.adapter.decode(:integer, database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0))
   end
 
   # Order can't change whether the query has a row, so it's left out, and a

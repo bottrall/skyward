@@ -1,11 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 require_relative "../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Query do
-  sqlite = Skyward::ORM::Adapters::SQLite
   reader = Skyward::Core::Types::Reader.new(
     Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
   )
@@ -16,39 +14,55 @@ describe Skyward::ORM::Query do
   joined = %(SELECT "todos"."id", "todos"."list_id", "todos"."title", "todos"."priority", "todos"."due_on", ) +
            %("todos"."done", "todos"."created_at" FROM "todos" JOIN "lists" ON "todos"."list_id" = "lists"."id")
 
-  # PostgreSQL numbers its placeholders, so this shows each one's position.
-  numbered = Module.new do
-    extend Skyward::ORM::Adapters::SQLite
-
-    def self.placeholder(position) = "$#{position}"
-  end
-
-  # PostgreSQL takes an OFFSET with no LIMIT before it.
-  offset_alone = Module.new do
-    extend Skyward::ORM::Adapters::SQLite
-
-    def self.unlimited = nil
-  end
-
-  let(:adapter) { sqlite }
-  let(:check) { false }
-  let(:connection) do
-    sqlite.connect(":memory:").tap do |connection|
-      connection.execute(
-        "CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER, title TEXT, priority TEXT, due_on TEXT, " \
-        "done INTEGER, created_at TEXT)"
-      )
-      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+  recording = Data.define(:connection, :sent) do
+    def execute(sql, binds = [])
+      sent << [sql, binds]
+      connection.execute(sql, binds)
     end
   end
+
+  let(:empty) { TestDatabase.empty }
+  let(:adapter) { empty.adapter }
+  # Numbered as PostgreSQL's are, so each one's position shows on every database.
+  let(:numbered) do
+    numbering = empty.adapter
+    Module.new do
+      extend numbering
+
+      def self.placeholder(position) = "$#{position}"
+    end
+  end
+  # Taking an OFFSET with no LIMIT before it, as PostgreSQL does, on every database.
+  let(:offset_alone) do
+    offsetting = empty.adapter
+    Module.new do
+      extend offsetting
+
+      def self.unlimited = nil
+    end
+  end
+  let(:check) { false }
+  let(:connection) do
+    types = empty.adapter
+    columns = Skyward::ORM::Tables::ColumnTypes.new(reader).columns(todo).map do |column|
+      "#{column.name} #{types.sql_type(column.type)}"
+    end
+    empty.connect.tap do |connection|
+      connection.execute("CREATE TABLE todos (#{columns.join(", ")}, PRIMARY KEY (id))")
+      connection.execute(
+        "CREATE TABLE lists (id #{types.sql_type(:integer)} PRIMARY KEY, name #{types.sql_type(:string)} NOT NULL)"
+      )
+    end
+  end
+  let(:sent) { [] }
   let(:session) do
     Skyward::ORM::Connection::Session.new.tap do |session|
       session.connect(
         Skyward::ORM::Connection::Database.new(
           adapter,
-          Skyward::ORM::Connection::Pool.new(1, -> { connection }),
+          Skyward::ORM::Connection::Pool.new(1, -> { recording.new(connection:, sent:) }),
           Skyward::ORM::Tables::ColumnTypes.new(reader),
-          sqlite.tables(connection),
+          empty.adapter.tables(connection),
           check:
         )
       )
@@ -77,20 +91,24 @@ describe Skyward::ORM::Query do
 
   def insert(*rows)
     rows.each do |row|
+      placeholders = Array.new(row.to_h.size) { |index| adapter.placeholder(index + 1) }
       connection.execute(
-        %(INSERT INTO "#{row.class.table_name}" VALUES (#{Array.new(row.to_h.size, "?").join(", ")})),
-        row.to_h.values.map { |value| Skyward::ORM::Adapters::SQLite.encode(value) }
+        %(INSERT INTO "#{row.class.table_name}" VALUES (#{placeholders.join(", ")})),
+        row.to_h.values.map { |value| adapter.encode(value) }
       )
     end
   end
 
+  # The SQL and binds a query shows on this database: each ? as the adapter's
+  # placeholder, and each value as the adapter encodes it.
+  def shown(sql, values)
+    numbered = sql.gsub("?").with_index(1) { |_, position| adapter.placeholder(position) }
+    [numbered, values.map { |value| adapter.encode(value) }]
+  end
+
   def traced
-    # Connecting reads the schema, so that's done before tracing starts.
-    session
-    statements = []
-    connection.trace { |sql| statements << sql }
     yield
-    statements
+    sent
   end
 
   describe "#initialize" do
@@ -139,19 +157,21 @@ describe Skyward::ORM::Query do
     end
 
     it "qualifies where's columns with the starting table" do
-      assert_equal [%(#{joined} WHERE "todos"."done" = ? AND ("todos"."due_on" IN (?) OR "todos"."due_on" IS NULL)),
-                    [0, "2026-10-20"]],
+      sql = %(#{joined} WHERE "todos"."done" = ? AND ("todos"."due_on" IN (?) OR "todos"."due_on" IS NULL))
+
+      assert_equal shown(sql, [false, eggs.due_on]),
                    query.join(list, list_id: :id).where(done: false, due_on: [nil, eggs.due_on]).to_sql
     end
 
     it "qualifies the column whose NULL rows exclude keeps" do
-      assert_equal [%(#{joined} WHERE (NOT ("todos"."due_on" = ?) OR "todos"."due_on" IS NULL)), ["2026-10-20"]],
+      assert_equal shown(%(#{joined} WHERE (NOT ("todos"."due_on" = ?) OR "todos"."due_on" IS NULL)), [eggs.due_on]),
                    query.join(list, list_id: :id).exclude(due_on: eggs.due_on).to_sql
     end
 
     it "qualifies the columns or groups" do
-      assert_equal [%(#{joined} WHERE ("todos"."done" = ? AND "todos"."list_id" = ?) OR "todos"."priority" = ?),
-                    [0, 3, "high"]],
+      sql = %(#{joined} WHERE ("todos"."done" = ? AND "todos"."list_id" = ?) OR "todos"."priority" = ?)
+
+      assert_equal shown(sql, [false, 3, "high"]),
                    query.join(list, list_id: :id).where(done: false, list_id: 3).or(priority: :high).to_sql
     end
 
@@ -269,7 +289,7 @@ describe Skyward::ORM::Query do
     end
 
     it "matches a value with =, bound as the adapter encodes it" do
-      assert_equal [%(#{select} WHERE "done" = ?), [0]], query.where(done: false).to_sql
+      assert_equal shown(%(#{select} WHERE "done" = ?), [false]), query.where(done: false).to_sql
     end
 
     it "matches nil with IS NULL" do
@@ -277,7 +297,7 @@ describe Skyward::ORM::Query do
     end
 
     it "matches an array with IN" do
-      assert_equal [%(#{select} WHERE "priority" IN (?, ?)), %w[high normal]],
+      assert_equal shown(%(#{select} WHERE "priority" IN (?, ?)), %w[high normal]),
                    query.where(priority: %i[high normal]).to_sql
     end
 
@@ -296,7 +316,7 @@ describe Skyward::ORM::Query do
     end
 
     it "matches an array holding nil with IN or IS NULL" do
-      assert_equal [%(#{select} WHERE ("due_on" IN (?) OR "due_on" IS NULL)), ["2026-10-20"]],
+      assert_equal shown(%(#{select} WHERE ("due_on" IN (?) OR "due_on" IS NULL)), [eggs.due_on]),
                    query.where(due_on: [nil, eggs.due_on]).to_sql
     end
 
@@ -311,25 +331,25 @@ describe Skyward::ORM::Query do
       later = Date.new(2026, 10, 25)
 
       it "matches a..b with >= and <=" do
-        assert_equal [%(#{select} WHERE "due_on" >= ? AND "due_on" <= ?), %w[2026-10-18 2026-10-25]],
+        assert_equal shown(%(#{select} WHERE "due_on" >= ? AND "due_on" <= ?), [today, later]),
                      query.where(due_on: today..later).to_sql
       end
 
       it "matches a...b with >= and <" do
-        assert_equal [%(#{select} WHERE "due_on" >= ? AND "due_on" < ?), %w[2026-10-18 2026-10-25]],
+        assert_equal shown(%(#{select} WHERE "due_on" >= ? AND "due_on" < ?), [today, later]),
                      query.where(due_on: today...later).to_sql
       end
 
       it "matches ..b with <=" do
-        assert_equal [%(#{select} WHERE "due_on" <= ?), ["2026-10-18"]], query.where(due_on: ..today).to_sql
+        assert_equal shown(%(#{select} WHERE "due_on" <= ?), [today]), query.where(due_on: ..today).to_sql
       end
 
       it "matches ...b with <" do
-        assert_equal [%(#{select} WHERE "due_on" < ?), ["2026-10-18"]], query.where(due_on: ...today).to_sql
+        assert_equal shown(%(#{select} WHERE "due_on" < ?), [today]), query.where(due_on: ...today).to_sql
       end
 
       it "matches a.. with >=" do
-        assert_equal [%(#{select} WHERE "due_on" >= ?), ["2026-10-18"]], query.where(due_on: today..).to_sql
+        assert_equal shown(%(#{select} WHERE "due_on" >= ?), [today]), query.where(due_on: today..).to_sql
       end
 
       it "returns the rows in the range" do
@@ -353,7 +373,7 @@ describe Skyward::ORM::Query do
 
     describe "with SQL" do
       it "adds the SQL in parentheses, binding its values as the adapter encodes them" do
-        assert_equal [%(#{select} WHERE (title LIKE ? AND done = ?)), ["%milk%", 0]],
+        assert_equal shown(%(#{select} WHERE (title LIKE ? AND done = ?)), ["%milk%", false]),
                      query.where("title LIKE ? AND done = ?", "%milk%", false).to_sql
       end
 
@@ -364,7 +384,7 @@ describe Skyward::ORM::Query do
       end
 
       it "leaves a ? in a string as it is" do
-        assert_equal [%(#{select} WHERE (title <> 'why?' AND id = ?)), [1]],
+        assert_equal [%(#{select} WHERE (title <> 'why?' AND id = #{adapter.placeholder(1)})), [1]],
                      query.where("title <> 'why?' AND id = ?", 1).to_sql
       end
 
@@ -386,13 +406,14 @@ describe Skyward::ORM::Query do
 
       it "joins repeated wheres with AND, numbering placeholders across them" do
         expected = [%(#{select} WHERE "done" = $1 AND "priority" IN ($2, $3) AND "title" = $4),
-                    [0, "high", "normal", "Buy milk"]]
+                    [adapter.encode(false), "high", "normal", "Buy milk"]]
 
         assert_equal expected, query.where(done: false, priority: %i[high normal]).where(title: "Buy milk").to_sql
       end
 
       it "numbers an SQL string's placeholders on from the query's other binds" do
-        assert_equal [%(#{select} WHERE "done" = $1 AND (title = $2 OR title = $3)), [0, "Buy milk", "Buy eggs"]],
+        assert_equal [%(#{select} WHERE "done" = $1 AND (title = $2 OR title = $3)),
+                      [adapter.encode(false), "Buy milk", "Buy eggs"]],
                      query.where(done: false).where("title = ? OR title = ?", "Buy milk", "Buy eggs").to_sql
       end
     end
@@ -418,7 +439,7 @@ describe Skyward::ORM::Query do
 
   describe "#exclude" do
     it "negates the conditions with NOT" do
-      assert_equal [%(#{select} WHERE NOT ("done" = ?)), [1]], query.exclude(done: true).to_sql
+      assert_equal shown(%(#{select} WHERE NOT ("done" = ?)), [true]), query.exclude(done: true).to_sql
     end
 
     it "negates IS NULL, leaving out only the NULL rows" do
@@ -426,23 +447,25 @@ describe Skyward::ORM::Query do
     end
 
     it "negates several conditions together, joined with AND to the conditions before it" do
-      assert_equal [%(#{select} WHERE "list_id" = ? AND NOT ("done" = ? AND "priority" = ?)), [3, 1, "high"]],
+      assert_equal shown(%(#{select} WHERE "list_id" = ? AND NOT ("done" = ? AND "priority" = ?)), [3, true, "high"]),
                    query.where(list_id: 3).exclude(done: true, priority: :high).to_sql
     end
 
     it "keeps the NULL rows of a nullable column" do
-      assert_equal [%(#{select} WHERE (NOT ("due_on" = ?) OR "due_on" IS NULL)), ["2026-10-20"]],
+      assert_equal shown(%(#{select} WHERE (NOT ("due_on" = ?) OR "due_on" IS NULL)), [eggs.due_on]),
                    query.exclude(due_on: eggs.due_on).to_sql
     end
 
     it "keeps the NULL rows of a nullable column matched with an array" do
-      assert_equal [%(#{select} WHERE (NOT ("due_on" IN (?)) OR "due_on" IS NULL)), ["2026-10-20"]],
+      assert_equal shown(%(#{select} WHERE (NOT ("due_on" IN (?)) OR "due_on" IS NULL)), [eggs.due_on]),
                    query.exclude(due_on: [eggs.due_on]).to_sql
     end
 
     it "keeps the NULL rows of a nullable column matched with a range, once" do
-      assert_equal [%(#{select} WHERE (NOT ("due_on" >= ? AND "due_on" < ?) OR "due_on" IS NULL)),
-                    %w[2026-10-20 2026-10-25]],
+      assert_equal shown(
+        %(#{select} WHERE (NOT ("due_on" >= ? AND "due_on" < ?) OR "due_on" IS NULL)),
+        [eggs.due_on, Date.new(2026, 10, 25)]
+      ),
                    query.exclude(due_on: eggs.due_on...Date.new(2026, 10, 25)).to_sql
     end
 
@@ -452,7 +475,7 @@ describe Skyward::ORM::Query do
         attr_reader :id, :body
       end
 
-      assert_equal [%(SELECT "id", "body" FROM "memos" WHERE (NOT ("body" = ?) OR "body" IS NULL)), ["a"]],
+      assert_equal shown(%(SELECT "id", "body" FROM "memos" WHERE (NOT ("body" = ?) OR "body" IS NULL)), ["a"]),
                    Skyward::ORM::Query.new(memos, session).exclude(body: "a").to_sql
     end
 
@@ -471,11 +494,12 @@ describe Skyward::ORM::Query do
     end
 
     it "negates SQL as it is, since its columns can't be known" do
-      assert_equal [%(#{select} WHERE NOT ((title LIKE ?))), ["%milk%"]], query.exclude("title LIKE ?", "%milk%").to_sql
+      assert_equal shown(%(#{select} WHERE NOT ((title LIKE ?))), ["%milk%"]),
+                   query.exclude("title LIKE ?", "%milk%").to_sql
     end
 
     it "returns the query as it is when there is nothing to exclude" do
-      assert_equal [%(#{select} WHERE "done" = ?), [1]], query.where(done: true).exclude.to_sql
+      assert_equal shown(%(#{select} WHERE "done" = ?), [true]), query.where(done: true).exclude.to_sql
     end
 
     it "refuses a column the table doesn't have" do
@@ -493,31 +517,35 @@ describe Skyward::ORM::Query do
 
   describe "#or" do
     it "matches the conditions before it, or the ones it's given" do
-      assert_equal [%(#{select} WHERE "done" = ? OR "priority" = ?), [0, "high"]],
+      assert_equal shown(%(#{select} WHERE "done" = ? OR "priority" = ?), [false, "high"]),
                    query.where(done: false).or(priority: :high).to_sql
     end
 
     it "groups several conditions on either side in parentheses" do
       due = Date.new(2026, 10, 18)..Date.new(2026, 10, 25)
 
-      assert_equal [%(#{select} WHERE ("done" = ? AND "list_id" = ?) OR ("due_on" >= ? AND "due_on" <= ?)),
-                    [0, 3, "2026-10-18", "2026-10-25"]],
+      assert_equal shown(
+        %(#{select} WHERE ("done" = ? AND "list_id" = ?) OR ("due_on" >= ? AND "due_on" <= ?)),
+        [false, 3, Date.new(2026, 10, 18), Date.new(2026, 10, 25)]
+      ),
                    query.where(done: false, list_id: 3).or(due_on: due).to_sql
     end
 
     it "is grouped in parentheses by a later where" do
-      assert_equal [%(#{select} WHERE (("done" = ? AND "list_id" = ?) OR "priority" = ?) AND "title" = ?),
-                    [0, 3, "high", "Buy milk"]],
+      assert_equal shown(
+        %(#{select} WHERE (("done" = ? AND "list_id" = ?) OR "priority" = ?) AND "title" = ?),
+        [false, 3, "high", "Buy milk"]
+      ),
                    query.where(done: false).where(list_id: 3).or(priority: :high).where(title: "Buy milk").to_sql
     end
 
     it "chains without parentheses" do
-      assert_equal [%(#{select} WHERE "done" = ? OR "priority" = ? OR "list_id" = ?), [0, "high", 3]],
+      assert_equal shown(%(#{select} WHERE "done" = ? OR "priority" = ? OR "list_id" = ?), [false, "high", 3]),
                    query.where(done: false).or(priority: :high).or(list_id: 3).to_sql
     end
 
     it "takes SQL" do
-      assert_equal [%(#{select} WHERE "done" = ? OR (title LIKE ?)), [0, "%milk%"]],
+      assert_equal shown(%(#{select} WHERE "done" = ? OR (title LIKE ?)), [false, "%milk%"]),
                    query.where(done: false).or("title LIKE ?", "%milk%").to_sql
     end
 
@@ -531,7 +559,8 @@ describe Skyward::ORM::Query do
       let(:adapter) { numbered }
 
       it "numbers placeholders across both sides" do
-        assert_equal [%(#{select} WHERE ("done" = $1 OR (title = $2)) AND "list_id" = $3), [0, "Buy milk", 3]],
+        assert_equal [%(#{select} WHERE ("done" = $1 OR (title = $2)) AND "list_id" = $3),
+                      [adapter.encode(false), "Buy milk", 3]],
                      query.where(done: false).or("title = ?", "Buy milk").where(list_id: 3).to_sql
       end
     end
@@ -592,7 +621,7 @@ describe Skyward::ORM::Query do
 
   describe "#limit" do
     it "limits the rows with LIMIT, bound as a parameter" do
-      assert_equal [%(#{select} LIMIT ?), [20]], query.limit(20).to_sql
+      assert_equal shown(%(#{select} LIMIT ?), [20]), query.limit(20).to_sql
     end
 
     it "returns at most that many rows" do
@@ -602,7 +631,7 @@ describe Skyward::ORM::Query do
     end
 
     it "replaces an earlier limit" do
-      assert_equal [%(#{select} LIMIT ?), [20]], query.limit(5).limit(20).to_sql
+      assert_equal shown(%(#{select} LIMIT ?), [20]), query.limit(5).limit(20).to_sql
     end
 
     it "refuses a negative count" do
@@ -619,8 +648,8 @@ describe Skyward::ORM::Query do
   end
 
   describe "#offset" do
-    it "skips rows with OFFSET, bound as a parameter after SQLite's LIMIT -1" do
-      assert_equal [%(#{select} LIMIT -1 OFFSET ?), [40]], query.offset(40).to_sql
+    it "skips rows with OFFSET, bound as a parameter after the adapter's clause for no limit" do
+      assert_equal shown([select, adapter.unlimited, "OFFSET ?"].compact.join(" "), [40]), query.offset(40).to_sql
     end
 
     it "returns the rows after those it skips" do
@@ -633,7 +662,7 @@ describe Skyward::ORM::Query do
       let(:adapter) { offset_alone }
 
       it "has no LIMIT before it" do
-        assert_equal [%(#{select} OFFSET ?), [40]], query.offset(40).to_sql
+        assert_equal shown(%(#{select} OFFSET ?), [40]), query.offset(40).to_sql
       end
     end
 
@@ -641,7 +670,8 @@ describe Skyward::ORM::Query do
       let(:adapter) { numbered }
 
       it "follows the limit, numbering both after the conditions" do
-        assert_equal [%(#{select} WHERE "done" = $1 ORDER BY "id" ASC LIMIT $2 OFFSET $3), [0, 20, 40]],
+        assert_equal [%(#{select} WHERE "done" = $1 ORDER BY "id" ASC LIMIT $2 OFFSET $3),
+                      [adapter.encode(false), 20, 40]],
                      query.where(done: false).order(:id).limit(20).offset(40).to_sql
       end
     end
@@ -659,7 +689,8 @@ describe Skyward::ORM::Query do
     end
 
     it "replaces an earlier offset" do
-      assert_equal [%(#{select} LIMIT -1 OFFSET ?), [40]], query.offset(20).offset(40).to_sql
+      assert_equal shown([select, adapter.unlimited, "OFFSET ?"].compact.join(" "), [40]),
+                   query.offset(20).offset(40).to_sql
     end
 
     it "refuses a negative count" do
@@ -680,7 +711,8 @@ describe Skyward::ORM::Query do
     it "selects the README's TodoTitle from the same-named columns" do
       insert(milk, eggs)
       titles = query.where(done: false).into(title)
-      expected = [[%(SELECT "id", "title" FROM "todos" WHERE "done" = ?), [0]], [title.new(id: 1, title: "Buy milk")]]
+      expected = [shown(%(SELECT "id", "title" FROM "todos" WHERE "done" = ?), [false]),
+                  [title.new(id: 1, title: "Buy milk")]]
 
       assert_equal expected, [titles.to_sql, titles.to_a]
     end
@@ -688,9 +720,11 @@ describe Skyward::ORM::Query do
     it "selects the README's OpenCount, with an expression AS its member" do
       insert(milk.with(list_id: 1), eggs.with(list_id: 1), milk.with(id: 3, list_id: 2), milk.with(id: 4, list_id: 2))
       counts = query.where(done: false).group(:list_id).into(open_count, open: "count(*)")
+      # OpenCount is untyped, so each count is as the driver returns it.
+      one, two = connection.execute("SELECT 1, 2").fetch(0)
       expected = [
-        [%(SELECT "list_id", count(*) AS "open" FROM "todos" WHERE "done" = ? GROUP BY "list_id"), [0]],
-        [open_count.new(list_id: 1, open: 1), open_count.new(list_id: 2, open: 2)]
+        shown(%(SELECT "list_id", count(*) AS "open" FROM "todos" WHERE "done" = ? GROUP BY "list_id"), [false]),
+        [open_count.new(list_id: 1, open: one), open_count.new(list_id: 2, open: two)]
       ]
 
       assert_equal expected, [counts.to_sql, counts.sort_by(&:list_id)]
@@ -699,11 +733,11 @@ describe Skyward::ORM::Query do
     it "keeps the clauses before it, and takes more after it" do
       projected = query.where(done: false).order(:id).limit(20).offset(40).into(title)
                        .where(title: "Buy milk").order(created_at: :desc)
-      expected = [
+      expected = shown(
         %(SELECT "id", "title" FROM "todos" WHERE "done" = ? AND "title" = ? ORDER BY "id" ASC, "created_at" DESC ) \
         "LIMIT ? OFFSET ?",
-        [0, "Buy milk", 20, 40]
-      ]
+        [false, "Buy milk", 20, 40]
+      )
 
       assert_equal expected, projected.to_sql
     end
@@ -731,8 +765,10 @@ describe Skyward::ORM::Query do
     it "decodes an expressed member as the expression, not as the column it's named like" do
       insert(milk.with(list_id: 1), milk.with(id: 3, list_id: 1))
       summary = Data.define(:done)
+      count = connection.execute("SELECT count(*) FROM todos").dig(0, 0)
 
-      assert_equal [summary.new(done: 2)], query.where(done: false).group(:list_id).into(summary, done: "count(*)").to_a
+      assert_equal [summary.new(done: count)],
+                   query.where(done: false).group(:list_id).into(summary, done: "count(*)").to_a
     end
 
     it "refuses an expression for a name that isn't a member" do
@@ -759,7 +795,7 @@ describe Skyward::ORM::Query do
     it "runs with LIMIT 1" do
       insert(milk)
 
-      assert_equal([%(#{select} ORDER BY "title" ASC LIMIT 1)], traced { query.order(:title).first })
+      assert_equal([shown(%(#{select} ORDER BY "title" ASC LIMIT ?), [1])], traced { query.order(:title).first })
     end
 
     it "orders by the primary key when nothing orders it" do
@@ -776,7 +812,7 @@ describe Skyward::ORM::Query do
 
     it "keeps the offset, with a limit of 1 in place of the query's" do
       assert_equal(
-        [%(#{select} ORDER BY "id" ASC LIMIT 1 OFFSET 1)],
+        [shown(%(#{select} ORDER BY "id" ASC LIMIT ? OFFSET ?), [1, 1])],
         traced { query.order(:id).limit(5).offset(1).first }
       )
     end
@@ -815,7 +851,7 @@ describe Skyward::ORM::Query do
 
     it "leaves out the order, which PostgreSQL refuses beside COUNT(*)" do
       assert_equal(
-        [%(SELECT COUNT(*) FROM "todos" WHERE "done" = 0)],
+        [shown(%(SELECT COUNT(*) FROM "todos" WHERE "done" = ?), [false])],
         traced { query.where(done: false).order(:title).count }
       )
     end
@@ -828,7 +864,7 @@ describe Skyward::ORM::Query do
 
     it "counts a page through a subquery, without the order" do
       assert_equal(
-        [%(SELECT COUNT(*) FROM (SELECT 1 FROM "todos" LIMIT 2 OFFSET 1) AS "counted")],
+        [shown(%(SELECT COUNT(*) FROM (SELECT 1 FROM "todos" LIMIT ? OFFSET ?) AS "counted"), [2, 1])],
         traced { query.order(:title).limit(2).offset(1).count }
       )
     end
@@ -889,7 +925,7 @@ describe Skyward::ORM::Query do
 
     it "selects 1 with LIMIT 1, keeping the offset but not the order" do
       assert_equal(
-        [%(SELECT 1 FROM "todos" WHERE "done" = 0 LIMIT 1 OFFSET 1)],
+        [shown(%(SELECT 1 FROM "todos" WHERE "done" = ? LIMIT ? OFFSET ?), [false, 1, 1])],
         traced { query.where(done: false).order(:title).limit(5).offset(1).exists? }
       )
     end
@@ -981,12 +1017,13 @@ describe Skyward::ORM::Query do
         table :user
         attr_reader :order, :group, :user
       end
-      connection.execute(%(CREATE TABLE "user" ("order" INTEGER, "group" TEXT, "user" TEXT)))
-      row = reserved.new(order: 1, group: "staff", user: "jake")
-      insert(row, row.with(order: 2, user: "sam"))
+      connection.execute(%(CREATE TABLE "user" ("order" TEXT, "group" TEXT, "user" TEXT)))
+      row = reserved.new(order: "1", group: "staff", user: "jake")
+      insert(row, row.with(order: "2", user: "sam"))
 
       assert_equal [row],
-                   Skyward::ORM::Query.new(reserved, session).where(user: "jake").order(:order).group(:group).to_a
+                   Skyward::ORM::Query.new(reserved, session).where(user: "jake").order(:order)
+                                      .group(:order, :group, :user).to_a
     end
 
     it "escapes a double quote in a name by doubling it" do

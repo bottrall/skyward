@@ -9,4 +9,5 @@ loader = Zeitwerk::Loader.new
 loader.push_dir(File.join(__dir__, "app"))
 loader.setup
 
-Skyward.connect("sqlite://#{File.join(__dir__, "app.sqlite3")}")
+# The test that runs it says which database.
+Skyward.connect(ENV.fetch("DATABASE_URL"))

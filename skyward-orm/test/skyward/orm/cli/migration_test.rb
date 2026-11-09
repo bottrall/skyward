@@ -2,7 +2,6 @@
 
 require "stringio"
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 
@@ -20,14 +19,14 @@ describe Skyward::ORM::CLI::Migration do
   end
   let(:out) { StringIO.new }
 
-  # An app whose boot.rb connects to its own SQLite database, which the block can set up first.
+  # An app whose boot.rb connects to an empty database, which the block can set up first.
   def app(boot_rb = nil)
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
-      database = File.join(directory, "app.sqlite3")
-      boot_rb ||= "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect})\n"
+      empty = TestDatabase.empty
+      boot_rb ||= "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect})\n"
       File.write(File.join(directory, "boot.rb"), boot_rb)
-      yield directory, Skyward::ORM::Adapters::SQLite.connect(database)
+      yield directory, empty.connect
     ensure
       $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
     end

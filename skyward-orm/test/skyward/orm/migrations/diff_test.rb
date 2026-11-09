@@ -4,6 +4,7 @@ require "test_helper"
 require "sqlite3"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 require_relative "../../../fixtures/changes/changes_fixtures"
+require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Migrations::Diff do
   fixtures = MigrationsFixtures
@@ -257,6 +258,15 @@ describe Skyward::ORM::Migrations::Diff do
                    edits(changed::Redefaulted, tables)
     end
 
+    it "takes a DEFAULT NULL as no default, since PostgreSQL keeps none for it" do
+      nulled = changed.item do
+        default note: nil
+        attr_reader(*changed::COLUMNS)
+      end
+
+      assert_empty edits(nulled).grep(migrations::ChangeDefault)
+    end
+
     it "drops a constraint its class doesn't declare, and adds one it does" do
       title_check = item_table.constraints.find { |had| had.name == "items_title_check" }
       note_check = catalog::Constraint.new(
@@ -351,6 +361,34 @@ describe Skyward::ORM::Migrations::Diff do
         migrations::ChangeNullable, migrations::ChangeDefault, migrations::AddConstraint, migrations::AddIndex
       ],
                    edits(changed::Renamed, tables).map(&:class)
+    end
+
+    it "finds nothing to change once PostgreSQL has run the README's create_todos, and add_notes_to_todos undone" do
+      readme = File.read(File.expand_path("../../../../README.md", __dir__))
+      create_todos, add_notes = %w[create_todos add_notes_to_todos].map do |name|
+        readme[%r{^-- db/migrate/\d+_#{name}\.sql\n(.*?)^```}m, 1].to_s.split("-- down\n")
+      end
+      types = Skyward::ORM::Tables::ColumnTypes.new(
+        Skyward::Core::Types::Reader.new(
+          Skyward::Core::Signatures.load(File.expand_path("../../../fixtures/tables/sig", __dir__))
+        )
+      )
+      postgresql = Skyward::ORM::Adapters::PostgreSQL
+      connection = TestDatabase.empty("postgresql").connect
+      matches = lambda do
+        Skyward::ORM::Migrations::Diff.changes(
+          [TablesFixtures::Todo], types, postgresql.tables(connection), postgresql, ->(*) { true }
+        )
+      end
+      connection.execute("CREATE TABLE lists (id bigint PRIMARY KEY)")
+      connection.execute_batch(create_todos.fetch(0))
+      created = matches.call
+      connection.execute_batch(add_notes.fetch(0))
+      notes = postgresql.tables(connection).find { |table| table.name == :todos }&.columns&.last
+      connection.execute_batch(add_notes.fetch(1))
+
+      assert_equal [[], catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil), []],
+                   [created, notes, matches.call]
     end
   end
 end

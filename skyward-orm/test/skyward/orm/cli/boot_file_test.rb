@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 require "tmpdir"
 
 describe Skyward::ORM::CLI::BootFile do
@@ -28,11 +27,11 @@ describe Skyward::ORM::CLI::BootFile do
 
     it "requires boot.rb and returns the database it connects to" do
       app(nil) do |directory|
-        database = File.join(directory, "app.sqlite3")
-        Skyward::ORM::Adapters::SQLite.connect(database).execute("CREATE TABLE booted (id INTEGER PRIMARY KEY)")
+        empty = TestDatabase.empty
+        empty.connect.execute("CREATE TABLE booted (id INTEGER PRIMARY KEY)")
         File.write(
           File.join(directory, "boot.rb"),
-          "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect}, check: false)\n"
+          "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect}, check: false)\n"
         )
 
         loaded = Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION)

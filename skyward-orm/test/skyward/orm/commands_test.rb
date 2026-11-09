@@ -8,8 +8,11 @@ require "tmpdir"
 describe "skyward/orm/commands.rb" do
   fixture = File.expand_path("../../fixtures/app", __dir__)
 
+  let(:empty) { TestDatabase.empty }
+
   def skyward(*args, chdir:)
-    output, status = Open3.capture2e(Gem.ruby, Gem.bin_path("skyward-core", "skyward"), *args, chdir:)
+    env = { "DATABASE_URL" => empty.url }
+    output, status = Open3.capture2e(env, Gem.ruby, Gem.bin_path("skyward-core", "skyward"), *args, chdir:)
     [output, status.exitstatus]
   end
 
@@ -72,12 +75,11 @@ describe "skyward/orm/commands.rb" do
         FileUtils.mkdir_p(File.join(directory, "db/migrate"))
         File.write(File.join(directory, "db/migrate/20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
 
-        assert_equal [
-          "20261001000000_broken.sql failed, so it was rolled back and no later migration ran: " \
-          "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);\n",
-          1
-        ],
-                     skyward("migrate", chdir: directory)
+        message = "20261001000000_broken.sql failed, so it was rolled back and no later migration ran: " \
+                  "#{empty.error("INSERT INTO nowhere VALUES (1);\n")}"
+
+        # abort ends the line, unless the message already does.
+        assert_equal ["#{message.chomp}\n", 1], skyward("migrate", chdir: directory)
       end
     end
   end

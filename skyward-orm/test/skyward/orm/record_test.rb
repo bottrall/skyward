@@ -18,23 +18,22 @@ describe Skyward::ORM::Record do
     let(:session) { Skyward::ORM::Connection::SESSION }
     let(:all) { Skyward::ORM::Query.new(TablesFixtures::List, session) }
 
+    let(:empty) { TestDatabase.empty }
     let(:connection) do
-      Skyward::ORM::Adapters::SQLite.connect(":memory:").tap do |connection|
-        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)")
-      end
+      empty.connect.tap { |connection| connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)") }
     end
 
     before do
       session.connect(
         Skyward::ORM::Connection::Database.new(
-          Skyward::ORM::Adapters::SQLite,
+          empty.adapter,
           Skyward::ORM::Connection::Pool.new(1, -> { connection }),
           Skyward::ORM::Tables::ColumnTypes.new(
             Skyward::Core::Types::Reader.new(
               Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
             )
           ),
-          Skyward::ORM::Adapters::SQLite.tables(connection),
+          empty.adapter.tables(connection),
           check: false
         )
       )
