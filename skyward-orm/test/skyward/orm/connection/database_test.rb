@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "delegate"
 require "test_helper"
 require "sqlite3"
 require "tmpdir"
@@ -13,13 +12,19 @@ describe Skyward::ORM::Connection::Database do
   refused = Skyward::ORM::Violation.new(kind: :check, constraint: nil, columns: [], message: "refused")
   foreign = "this transaction belongs to another fiber; start your own, or return the result to the block"
 
-  counting_adapter = Class.new(SimpleDelegator) do
+  counting_adapter = Class.new do
     attr_reader :comparisons
+
+    def initialize(adapter)
+      @adapter = adapter
+    end
 
     def compatible?(type, sql_type)
       @comparisons = comparisons.to_i + 1
-      super
+      @adapter.compatible?(type, sql_type)
     end
+
+    def sql_type(type) = @adapter.sql_type(type)
   end
 
   let(:connection) do
