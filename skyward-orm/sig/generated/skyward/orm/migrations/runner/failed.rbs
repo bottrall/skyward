@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/migrations/runner/failed.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  class Failed < Data
+    attr_reader file(): String
+
+    attr_reader message(): String
+
+    def self.new: (String file, String message) -> instance
+                | (file: String, message: String) -> instance
+
+    def self.members: () -> [ :file, :message ]
+
+    def members: () -> [ :file, :message ]
+  end
+end
