@@ -2,8 +2,6 @@
 
 require "test_helper"
 
-# Every test shares App, and so its todos, so each one checks only the todos
-# it creates.
 describe "App" do
   let(:client) { Skyward::API::Test.client(App) }
 
@@ -69,7 +67,21 @@ describe "App" do
     it "answers the new todo" do
       todo = create("Buy milk", priority: "high", due_on: "2026-12-01").json
 
-      assert_equal({ title: "Buy milk", priority: "high", due_on: "2026-12-01", done: false }, todo.except(:id))
+      assert_equal(
+        { title: "Buy milk", priority: "high", due_on: "2026-12-01", done: false, list_id: nil },
+        todo.except(:id)
+      )
+    end
+
+    it "adds the todo to its list" do
+      list = Lists::Record.insert!(name: "Home")
+      todo = client.post("/todos", json: { title: "Ship it", priority: "normal", list_id: list.id }).json
+
+      assert_equal list.id, todo[:list_id]
+    end
+
+    it "answers 404 for a list that doesn't exist" do
+      assert_equal 404, client.post("/todos", json: { title: "Ship it", priority: "normal", list_id: 0 }).status
     end
 
     it "rejects a priority that doesn't exist" do

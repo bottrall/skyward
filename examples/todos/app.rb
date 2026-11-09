@@ -1,13 +1,10 @@
 # frozen_string_literal: true
 
-require "skyward/api"
-require_relative "health_api"
-require_relative "todo_store"
-require_relative "todos_api"
+# rbs_inline: enabled
+
+require_relative "boot"
 
 App = Skyward.app(docs: true, title: "Todos") do |app|
-  todos = TodoStore.new
-
   app.mount HealthAPI.new
-  app.mount TodosAPI.new(todos:), at: "/todos"
+  app.mount Todos::API.new(todos: Todos::Service), at: "/todos"
 end #: Skyward::API::_RackApp

@@ -33,8 +33,8 @@ def requested_in(dir)
                  .map { |path| path.delete_prefix(prefix) }
 end
 
-# A gem's Ruby is under lib/; an example's sits beside its app.rb, where the API README puts an app's.
-def ruby_sources(dir) = Dir.glob(%w[lib/**/*.rb *.rb], base: dir)
+# A gem's Ruby is under lib/; an example's is also in modules/ and beside its app.rb, where its boot.rb loads it from.
+def ruby_sources(dir) = Dir.glob(%w[lib/**/*.rb modules/**/*.rb *.rb], base: dir)
 
 def write_signatures(dir, output)
   sources = ruby_sources(dir)
