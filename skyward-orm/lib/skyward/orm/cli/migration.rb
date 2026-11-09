@@ -5,19 +5,27 @@ module Skyward::ORM::CLI::Migration
 
   NAME = /\A[A-Za-z0-9_]+\z/ #: Regexp
 
-  USAGE = "Usage: skyward migration NAME\n" \
-          "NAME is letters, digits and _, such as add_notes_to_todos." #: String
+  EMPTY = "--empty" #: String
+
+  USAGE = "Usage: skyward migration [--empty] NAME\n" \
+          "NAME is letters, digits and _, such as add_notes_to_todos.\n" \
+          "--empty writes an empty migration for SQL you write yourself." #: String
 
   NOTHING = "Every table matches its class. Nothing to write.\n" #: String
 
   # @rbs (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel),
   #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
   def run(args, directory:, time:, out:, kernel:, session:, discover:)
-    name = args.fetch(0) if args.one?
-    return kernel.abort(USAGE) unless name&.match?(NAME)
+    flags, names = args.partition { |arg| arg.start_with?("-") }
+    name = names.fetch(0) if names.one?
+    empty = flags == [EMPTY]
+    return kernel.abort(USAGE) unless name&.match?(NAME) && (empty || flags.empty?)
 
     taken = Skyward::ORM::Migrations::Directory.named(directory, name)
     return kernel.abort("skyward: #{taken} is already named #{name}. Choose another name.") if taken
+    # An empty migration compares nothing, so it skips booting and works before
+    # the app can connect.
+    return write_empty(name, directory:, time:, out:) if empty
 
     database = Skyward::ORM::CLI::BootFile.load(directory, session)
     case database
@@ -30,6 +38,12 @@ module Skyward::ORM::CLI::Migration
   end
 
   private
+
+  # @rbs (String name, directory: String, time: Time, out: _Writer) -> void
+  def write_empty(name, directory:, time:, out:)
+    file = Skyward::ORM::Migrations::Directory.write(directory, time, name, "\n-- down\n")
+    out.write("Wrote #{file}. Add your SQL, then run `skyward migrate`.\n")
+  end
 
   # Writing a second migration before the first has run would write the same
   # change twice, so a pending one stops it.
