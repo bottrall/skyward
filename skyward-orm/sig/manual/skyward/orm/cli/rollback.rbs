@@ -1,0 +1,3 @@
+module Skyward::ORM::CLI::Rollback
+  extend ::Skyward::ORM::CLI::Rollback
+end

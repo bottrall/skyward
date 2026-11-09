@@ -8,13 +8,15 @@ module Skyward::ORM::Migrations::Runner
 
     attr_reader up(): String
 
+    attr_reader down(): String
+
     attr_reader checksum(): String
 
-    def self.new: (String file, String version, String up, String checksum) -> instance
-                | (file: String, version: String, up: String, checksum: String) -> instance
+    def self.new: (String file, String version, String up, String down, String checksum) -> instance
+                | (file: String, version: String, up: String, down: String, checksum: String) -> instance
 
-    def self.members: () -> [ :file, :version, :up, :checksum ]
+    def self.members: () -> [ :file, :version, :up, :down, :checksum ]
 
-    def members: () -> [ :file, :version, :up, :checksum ]
+    def members: () -> [ :file, :version, :up, :down, :checksum ]
   end
 end

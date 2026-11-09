@@ -22,16 +22,16 @@ describe Skyward::ORM::Migrations::Versions do
     )
   end
 
-  describe ".ran" do
-    it "has none on a database that's never been migrated" do
-      assert_empty Skyward::ORM::Migrations::Versions.ran(database)
+  describe ".checksums" do
+    it "has none on a database that's never been migrated, without making schema_migrations" do
+      assert_equal [{}, []], [Skyward::ORM::Migrations::Versions.checksums(database), sqlite.tables(connection)]
     end
 
-    it "reads each version that's run, as text" do
-      connection.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY)")
-      connection.execute("INSERT INTO schema_migrations (version) VALUES (20261018093000)")
+    it "reads each version that's run with its checksum, as text" do
+      connection.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, checksum TEXT NOT NULL)")
+      connection.execute("INSERT INTO schema_migrations (version, checksum) VALUES (20261018093000, 'abc')")
 
-      assert_equal ["20261018093000"], Skyward::ORM::Migrations::Versions.ran(database)
+      assert_equal({ "20261018093000" => "abc" }, Skyward::ORM::Migrations::Versions.checksums(database))
     end
   end
 end

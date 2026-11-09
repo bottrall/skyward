@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/runner/missing.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  class Missing < Data
+    attr_reader version(): String
+
+    def self.new: (String version) -> instance
+                | (version: String) -> instance
+
+    def self.members: () -> [ :version ]
+
+    def members: () -> [ :version ]
+  end
+end

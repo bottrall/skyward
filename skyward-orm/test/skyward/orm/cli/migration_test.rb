@@ -21,12 +21,14 @@ describe Skyward::ORM::CLI::Migration do
   let(:out) { StringIO.new }
 
   # An app whose boot.rb connects to its own SQLite database, which the block can set up first.
-  def app(boot_rb = nil)
+  def app
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
       database = File.join(directory, "app.sqlite3")
-      boot_rb ||= "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect})\n"
-      File.write(File.join(directory, "boot.rb"), boot_rb)
+      File.write(
+        File.join(directory, "boot.rb"),
+        "Skyward.connect(#{"sqlite://#{database}".inspect}, signatures: #{signatures.inspect})\n"
+      )
       yield directory, Skyward::ORM::Adapters::SQLite.connect(database)
     ensure
       $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
@@ -154,32 +156,6 @@ describe Skyward::ORM::CLI::Migration do
       end
     end
 
-    it "fails with what's wrong when there's no boot.rb" do
-      Dir.mktmpdir do |tmp|
-        directory = File.realpath(tmp)
-        run_in(directory, "create_todos")
-
-        assert_equal Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION), kernel.aborted
-      end
-    end
-
-    it "fails with only the message of an app that doesn't boot" do
-      app("raise Skyward::Core::BootError, \"Todo#tags is untyped.\"\n") do |directory|
-        run_in(directory, "create_todos")
-
-        assert_equal "Todo#tags is untyped.", kernel.aborted
-      end
-    end
-
-    # boot.rb connects with the default, and the fixtures' tables are loaded, so a check would refuse it.
-    it "boots the app with the schema check off, because the migration is what makes the schema match" do
-      app do |directory|
-        run_in(directory, "create_todos")
-
-        assert_equal [nil, 1], [kernel.aborted, written(directory).size]
-      end
-    end
-
     it "refuses while a migration hasn't run, so it can't write the same change twice" do
       app do |directory|
         migration_file(directory, "20261001000000_create_lists.sql")
@@ -207,8 +183,8 @@ describe Skyward::ORM::CLI::Migration do
     it "goes on once every migration has run" do
       app do |directory, connection|
         migration_file(directory, "20261001000000_create_lists.sql")
-        connection.execute("CREATE TABLE schema_migrations (version TEXT PRIMARY KEY)")
-        connection.execute("INSERT INTO schema_migrations (version) VALUES ('20261001000000')")
+        connection.execute("CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, checksum TEXT NOT NULL)")
+        connection.execute("INSERT INTO schema_migrations (version, checksum) VALUES ('20261001000000', '')")
         run_in(directory, "create_todos")
 
         assert_equal [nil, 2], [kernel.aborted, written(directory).size]

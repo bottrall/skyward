@@ -8,15 +8,9 @@ module Skyward::ORM::CLI::Migrate
   # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
   #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
   def run(directory:, out:, kernel:, session:, discover:)
-    database = session.without_check { Skyward::ORM::CLI::BootFile.load(directory, session) }
-    case database
-    when String then kernel.abort(database)
-    else migrate(database, directory:, out:, kernel:, discover:)
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+      migrate(database, directory:, out:, kernel:, discover:)
     end
-  # Booting the app raises it, and so does a table class that doesn't match
-  # the schema once it's migrated.
-  rescue Skyward::Core::BootError => e
-    kernel.abort(e.message)
   end
 
   private

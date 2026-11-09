@@ -1,0 +1,49 @@
+# Generated from lib/skyward/orm/migrations/status.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Status
+  type state = :ran | :pending | :edited | :gone
+
+  STATES: Hash[state, String]
+
+  NONE: String
+
+  CLEAN: String
+
+  # A migration whose file is gone is named by its version, which is all the
+  # database keeps of its name, and sorts among the files as it did.
+  # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
+  # @rbs ran: Hash[String, String]
+  # @rbs return: Array[[String, state]]
+  def migrations: (Array[Skyward::ORM::Migrations::Runner::Migration] migrations, Hash[String, String] ran) -> Array[[ String, state ]]
+
+  # schema_migrations is Skyward ORM's own, so it never needs a class.
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: Array[Symbol]
+  def unowned: (Array[Skyward::ORM::Catalog::Table] tables, Array[singleton(Skyward::ORM::Record)] classes) -> Array[Symbol]
+
+  # @rbs migrations: Array[[String, state]]
+  # @rbs changes: Array[Skyward::ORM::Migrations::change]
+  # @rbs unowned: Array[Symbol]
+  # @rbs return: bool
+  def clean?: (Array[[ String, state ]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned) -> bool
+
+  # @rbs (Array[[String, state]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned,
+  #   Skyward::ORM::_Adapter adapter) -> String
+  def text: (Array[[ String, state ]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned, Skyward::ORM::_Adapter adapter) -> String
+
+  private
+
+  # @rbs migration: Skyward::ORM::Migrations::Runner::Migration
+  # @rbs checksum: String?
+  # @rbs return: state
+  def state: (Skyward::ORM::Migrations::Runner::Migration migration, String? checksum) -> state
+
+  # @rbs migrations: Array[[String, state]]
+  # @rbs return: String
+  def listing: (Array[[ String, state ]] migrations) -> String
+
+  # @rbs unowned: Array[Symbol]
+  # @rbs return: String
+  def unowned_text: (Array[Symbol] unowned) -> String
+end
