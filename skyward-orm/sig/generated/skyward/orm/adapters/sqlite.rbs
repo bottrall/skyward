@@ -29,6 +29,10 @@ module Skyward::ORM::Adapters::SQLite
 
   INDEXES: String
 
+  # What SQLite takes as a default without parentheses: a string, blob or
+  # number, NULL, TRUE or FALSE.
+  LITERAL: Regexp
+
   # @rbs return: String
   def driver: () -> String
 
@@ -61,6 +65,11 @@ module Skyward::ORM::Adapters::SQLite
   # An INTEGER PRIMARY KEY is SQLite's rowid, which numbers rows on its own.
   # @rbs return: String?
   def identity: () -> String?
+
+  # SQLite's ALTER TABLE can't change a column or a constraint, so a migration
+  # rebuilds the table instead.
+  # @rbs return: bool
+  def alters_in_place?: () -> bool
 
   # SQLite takes only a literal as a default, unless the expression is in parentheses.
   # @rbs expression: String
@@ -105,6 +114,12 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs rows: Array[Array[untyped]]
   # @rbs return: Array[Skyward::ORM::Catalog::Index]
   def indexes: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Index]
+
+  # SQLite reads a default back without the parentheses an expression was
+  # written in, so they go back on, as a migration writes them.
+  # @rbs default: String?
+  # @rbs return: String?
+  def default: (String? default) -> String?
 
   # SQLite names a unique index on expressions rather than its columns.
   # @rbs message: String

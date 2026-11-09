@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/migrations/rename_column.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class RenameColumn < Data
+    attr_reader from(): Symbol
+
+    attr_reader to(): Symbol
+
+    def self.new: (Symbol from, Symbol to) -> instance
+                | (from: Symbol, to: Symbol) -> instance
+
+    def self.members: () -> [ :from, :to ]
+
+    def members: () -> [ :from, :to ]
+  end
+end

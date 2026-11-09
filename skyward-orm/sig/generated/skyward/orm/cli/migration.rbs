@@ -9,9 +9,11 @@ module Skyward::ORM::CLI::Migration
 
   NOTHING: String
 
-  # @rbs (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel),
+  YES: Regexp
+
+  # @rbs (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel),
   #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run: (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def run: (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
 
   private
 
@@ -19,10 +21,22 @@ module Skyward::ORM::CLI::Migration
   def write_empty: (String name, directory: String, time: Time, out: _Writer) -> void
 
   # Writing a second migration before the first has run would write the same
-  # change twice, so a pending one stops it.
-  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, out: _Writer,
-  #   kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def write: (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  # change twice, so a pending one stops it. With no terminal to ask whether a
+  # column was renamed, it stops rather than guess, since a guess of no drops
+  # the column's data.
+  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, input: IO,
+  #   out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def write: (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+
+  # @rbs input: IO
+  # @rbs out: _Writer
+  # @rbs question: String
+  # @rbs return: bool
+  def renamed?: (IO input, untyped out, String question) -> bool
+
+  # @rbs renames: Array[String]
+  # @rbs return: String
+  def unasked: (Array[String] renames) -> String
 
   # @rbs files: Array[String]
   # @rbs return: String

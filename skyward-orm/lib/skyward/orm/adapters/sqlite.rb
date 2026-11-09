@@ -41,18 +41,23 @@ module Skyward::ORM::Adapters::SQLite
   BUSY_TIMEOUT_MS = 5000 #: Integer
 
   COLUMNS = <<~SQL #: String
-    SELECT m.name, m.sql, c.name, c.type, c."notnull", c.pk
+    SELECT m.name, m.sql, c.name, c.type, c."notnull", c.pk, c.dflt_value
     FROM sqlite_schema AS m JOIN pragma_table_info(m.name) AS c
     WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
     ORDER BY m.name, c.cid
   SQL
 
   INDEXES = <<~SQL #: String
-    SELECT m.name, i.name, i."unique", c.name
+    SELECT m.name, i.name, i."unique", c.name, s.sql
     FROM sqlite_schema AS m JOIN pragma_index_list(m.name) AS i JOIN pragma_index_info(i.name) AS c
+      JOIN sqlite_schema AS s ON s.type = 'index' AND s.name = i.name
     WHERE m.type = 'table' AND i.origin = 'c'
     ORDER BY m.name, i.name, c.seqno
   SQL
+
+  # What SQLite takes as a default without parentheses: a string, blob or
+  # number, NULL, TRUE or FALSE.
+  LITERAL = /\A(?:'(?:[^']|'')*'|x'\h*'|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?|0x\h+|null|true|false)\z/i #: Regexp
 
   # @rbs return: String
   def driver = "sqlite3"
@@ -102,6 +107,11 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String?
   def identity = nil
 
+  # SQLite's ALTER TABLE can't change a column or a constraint, so a migration
+  # rebuilds the table instead.
+  # @rbs return: bool
+  def alters_in_place? = false
+
   # SQLite takes only a literal as a default, unless the expression is in parentheses.
   # @rbs expression: String
   # @rbs return: String
@@ -148,10 +158,15 @@ module Skyward::ORM::Adapters::SQLite
   def tables(connection)
     index_rows = connection.execute(INDEXES).group_by(&:first)
     connection.execute(COLUMNS).group_by(&:first).map do |name, rows|
-      columns = rows.map do |_, _, column, type, not_null, primary_key|
-        # A primary key column can't hold NULL in practice, though SQLite only
-        # enforces it for an INTEGER PRIMARY KEY or a NOT NULL column.
-        Skyward::ORM::Catalog::Column.new(name: column.to_sym, type:, nullable: not_null.zero? && primary_key.zero?)
+      columns = rows.map do |_, _, column, type, not_null, primary_key, default|
+        Skyward::ORM::Catalog::Column.new(
+          name: column.to_sym,
+          type:,
+          # A primary key column can't hold NULL in practice, though SQLite only
+          # enforces it for an INTEGER PRIMARY KEY or a NOT NULL column.
+          nullable: not_null.zero? && primary_key.zero?,
+          default: default(default)
+        )
       end
       Skyward::ORM::Catalog::Table.new(
         name: name.to_sym,
@@ -209,10 +224,17 @@ module Skyward::ORM::Adapters::SQLite
         name:,
         # An index on an expression has no column there.
         columns: columns.filter_map { |row| row.fetch(3)&.to_sym },
-        unique: columns.fetch(0).fetch(2) == 1
+        unique: columns.fetch(0).fetch(2) == 1,
+        definition: columns.fetch(0).fetch(4)
       )
     end
   end
+
+  # SQLite reads a default back without the parentheses an expression was
+  # written in, so they go back on, as a migration writes them.
+  # @rbs default: String?
+  # @rbs return: String?
+  def default(default) = default.nil? || default.match?(LITERAL) ? default : "(#{default})"
 
   # SQLite names a unique index on expressions rather than its columns.
   # @rbs message: String

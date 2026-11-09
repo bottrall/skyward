@@ -5,24 +5,36 @@ require "sqlite3"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 require_relative "../../../fixtures/migrations/postgres"
 require_relative "../../../fixtures/tables/tables_fixtures"
+require_relative "../../../fixtures/changes/changes_fixtures"
 
 describe Skyward::ORM::Migrations::Script do
   fixtures = MigrationsFixtures
+  changed = ChangesFixtures
   migrations = Skyward::ORM::Migrations
+  catalog = Skyward::ORM::Catalog
   sqlite = Skyward::ORM::Adapters::SQLite
   postgres = MigrationsFixtures::Postgres
-  readers = %w[migrations tables].to_h do |name|
+  readers = %w[migrations tables changes].to_h do |name|
     signatures = File.expand_path("../../../fixtures/#{name}/sig", __dir__)
     [name, Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))]
   end
 
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
+  let(:changes_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("changes")) }
 
   def create(klass) = Skyward::ORM::Migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
 
+  def alter(klass, edits, table: catalog_table(klass.table_name), types: column_types)
+    Skyward::ORM::Migrations::AlterTable.new(klass:, columns: types.columns(klass), table:, edits:)
+  end
+
   def add(klass, *names)
     columns = column_types.columns(klass).select { |column| names.include?(column.name) }
-    Skyward::ORM::Migrations::AddColumns.new(klass:, columns:)
+    alter(klass, columns.map { |column| Skyward::ORM::Migrations::AddColumn.new(column:) })
+  end
+
+  def catalog_table(name, columns = [], constraints: [], indexes: [])
+    Skyward::ORM::Catalog::Table.new(name:, columns:, indexes:, constraints:)
   end
 
   def write(changes, adapter = Skyward::ORM::Adapters::SQLite)
@@ -134,22 +146,163 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write([create(fixtures::List), add(fixtures::NotedTodo, :notes)])
     end
 
+    it "writes the README's rework_todos for PostgreSQL" do
+      readme = File.read(File.expand_path("../../../../README.md", __dir__))
+      example = readme[%r{^-- db/migrate/\d+_rework_todos\.sql\n(.*?)^```}m, 1]
+
+      assert_equal example, write([alter(fixtures::Todo, MigrationsFixtures.rework_todos)], postgres)
+    end
+
+    describe "where a database alters a table in place, as PostgreSQL does" do
+      note = catalog::Column.new(name: :note, type: "text", nullable: false, default: "'none'")
+      check = catalog::Constraint.new(
+        name: "todos_title_check", kind: :check, columns: [:title], references: nil, definition: "CHECK (title <> '')"
+      )
+      index = catalog::Index.new(
+        name: "todos_done_index",
+        columns: [:done],
+        unique: false,
+        definition: "CREATE INDEX todos_done_index ON todos (done)"
+      )
+
+      it "makes each change with ALTER TABLE, undoing them in reverse" do
+        edits = [
+          migrations::DropIndex.new(index:),
+          migrations::DropConstraint.new(constraint: check),
+          migrations::DropColumn.new(column: note),
+          migrations::RenameColumn.new(from: :due, to: :due_on),
+          migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
+          migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
+          migrations::ChangeNullable.new(column: :title, nullable: false),
+          migrations::AddConstraint.new(constraint: check.with(name: "todos_title_check1")),
+          migrations::AddIndex.new(index: index.with(name: "todos_done_index1"))
+        ]
+        expected = <<~SQL
+          DROP INDEX todos_done_index;
+          ALTER TABLE todos DROP CONSTRAINT todos_title_check;
+          ALTER TABLE todos DROP COLUMN note;
+          ALTER TABLE todos RENAME COLUMN due TO due_on;
+          ALTER TABLE todos ALTER COLUMN rank TYPE text USING rank::text;
+          ALTER TABLE todos ALTER COLUMN done SET DEFAULT false;
+          -- TODO: backfill the NULLs in todos.title before it becomes NOT NULL
+          ALTER TABLE todos ALTER COLUMN title SET NOT NULL;
+          ALTER TABLE todos ADD CONSTRAINT todos_title_check1 CHECK (title <> '');
+          CREATE INDEX todos_done_index ON todos (done);
+
+          -- down
+          DROP INDEX todos_done_index1;
+          ALTER TABLE todos DROP CONSTRAINT todos_title_check1;
+          ALTER TABLE todos ALTER COLUMN title DROP NOT NULL;
+          ALTER TABLE todos ALTER COLUMN done DROP DEFAULT;
+          ALTER TABLE todos ALTER COLUMN rank TYPE integer USING rank::integer;
+          ALTER TABLE todos RENAME COLUMN due_on TO due;
+          -- todos.note comes back empty: dropping it lost its data
+          ALTER TABLE todos ADD COLUMN note text NOT NULL DEFAULT 'none';
+          ALTER TABLE todos ADD CONSTRAINT todos_title_check CHECK (title <> '');
+          CREATE INDEX todos_done_index ON todos (done);
+        SQL
+
+        assert_equal expected, write([alter(fixtures::Todo, edits)], postgres)
+      end
+
+      it "undoes making a column nullable by asking for its NULLs to be backfilled" do
+        down = write(
+          [alter(fixtures::Todo, [migrations::ChangeNullable.new(column: :title, nullable: true)])],
+          postgres
+        )
+
+        assert_equal "ALTER TABLE todos ALTER COLUMN title DROP NOT NULL;\n\n-- down\n" \
+                     "-- TODO: backfill the NULLs in todos.title before it becomes NOT NULL\n" \
+                     "ALTER TABLE todos ALTER COLUMN title SET NOT NULL;\n",
+                     down
+      end
+
+      it "asks for a default before it adds back a required column that had none" do
+        dropped = migrations::DropColumn.new(column: note.with(default: nil))
+
+        assert_equal "ALTER TABLE todos DROP COLUMN note;\n\n-- down\n" \
+                     "-- todos.note comes back empty: dropping it lost its data\n" \
+                     "-- TODO: todos.note needs a DEFAULT for the rows todos already has\n" \
+                     "ALTER TABLE todos ADD COLUMN note text NOT NULL;\n",
+                     write([alter(fixtures::Todo, [dropped])], postgres)
+      end
+
+      it "drops a default, and adds back one with no type and no name" do
+        unnamed = check.with(name: nil)
+        edits = [
+          migrations::ChangeDefault.new(column: :done, from: "false", to: nil),
+          migrations::DropColumn.new(column: note.with(type: "", nullable: true, default: nil)),
+          migrations::DropConstraint.new(constraint: unnamed)
+        ]
+
+        assert_equal "ALTER TABLE todos ADD CHECK (title <> '');\n" \
+                     "-- todos.note comes back empty: dropping it lost its data\n" \
+                     "ALTER TABLE todos ADD COLUMN note;\n" \
+                     "ALTER TABLE todos ALTER COLUMN done SET DEFAULT false;\n",
+                     write([alter(fixtures::Todo, edits)], postgres).split("-- down\n").fetch(1)
+      end
+    end
+
     describe "on SQLite" do
       let(:connection) { sqlite.connect(":memory:") }
 
-      def migrate(changes, section)
-        connection.execute_batch(write(changes).split("-- down\n").fetch(section == :up ? 0 : 1))
+      # As `skyward migrate` runs a migration on SQLite: with foreign keys off,
+      # since SQLite can't turn them off inside a transaction, and checked before
+      # it commits.
+      def migrate(sql)
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.transaction do
+          connection.execute_batch(sql)
+          problems = connection.execute("PRAGMA foreign_key_check")
+          raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
+        end
+      ensure
+        connection.execute("PRAGMA foreign_keys = ON")
+      end
+
+      def section(changes, part) = write(changes).split("-- down\n").fetch(part == :up ? 0 : 1)
+
+      def diff(classes)
+        tables = Skyward::ORM::Adapters::SQLite.tables(connection)
+        Skyward::ORM::Migrations::Diff.changes(
+          classes,
+          changes_types,
+          tables,
+          Skyward::ORM::Adapters::SQLite,
+          lambda { |*|
+            true
+          }
+        )
+      end
+
+      # Columns come back in another order once one is dropped and added back.
+      def schema
+        Skyward::ORM::Adapters::SQLite.tables(connection).map do |table|
+          table.with(
+            columns: table.columns.sort_by(&:name),
+            constraints: table.constraints.sort_by { |constraint| [constraint.name.to_s, constraint.definition] },
+            indexes: table.indexes.sort_by(&:name)
+          )
+        end
+      end
+
+      def rows = connection.execute("SELECT owner_id, title, code FROM items")
+
+      def items
+        migrate(section(diff([ChangesFixtures::Owner, ChangesFixtures::Item]), :up))
+        connection.execute("INSERT INTO owners (name) VALUES ('Ann')")
+        connection.execute("INSERT INTO items (owner_id, title, code, note, rank) VALUES (1, 'Milk', 'milk', 'two', 2)")
       end
 
       it "runs up, to match each class, and down, to undo it" do
         created = [fixtures::List, fixtures::Todo, fixtures::Attachment, fixtures::Member].map { |klass| create(klass) }
         added = [add(fixtures::NotedTodo, :notes, :rank)]
-        migrate(created, :up)
-        migrate(added, :up)
+        migrate(section(created, :up))
+        migrate(section(added, :up))
         todos = sqlite.tables(connection).find { |table| table.name == :todos }
         notes = todos&.columns.to_a.map(&:name).last(2)
-        migrate(added, :down)
-        migrate(created, :down)
+        migrate(section(added, :down))
+        migrate(section(created, :down))
 
         assert_equal [%i[notes rank], []], [notes, sqlite.tables(connection)]
       end
@@ -161,11 +314,151 @@ describe Skyward::ORM::Migrations::Script do
       end
 
       it "names a check, so its violation names it" do
-        migrate([create(fixtures::List), create(fixtures::Todo)], :up)
+        migrate(section([create(fixtures::List), create(fixtures::Todo)], :up))
         connection.execute("INSERT INTO lists (name) VALUES ('Home')")
         found = violation("INSERT INTO todos (list_id, title) VALUES (1, '')")
 
         assert_equal ["todos_title_check", [:title]], [found&.constraint, found&.columns]
+      end
+
+      %i[
+        Dropped Renamed Added Serialed Stamped Retyped Required Redefaulted
+        Unchecked Checked Paired Reindexed Restricted
+      ].each do |name|
+        it "round-trips a class that's #{name}: the table matches it after up, and the table it had after down" do
+          items
+          had = schema
+          variant = changed.const_get(name)
+          changes = diff([changed::Owner, variant])
+          migrate(section(changes, :up))
+          matched = [diff([changed::Owner, variant]), rows]
+          migrate(section(changes, :down))
+
+          assert_equal [[[], [[1, "Milk", "milk"]]], had, []], [matched, schema, diff([changed::Owner, changed::Item])]
+        end
+      end
+
+      it "keeps a renamed column's data" do
+        items
+        migrate(section(diff([changed::Owner, changed::Renamed]), :up))
+
+        assert_equal [["two"]], connection.execute("SELECT remark FROM items")
+      end
+
+      it "keeps the rows that reference a table it rebuilds, whatever they do ON DELETE" do
+        items
+        changes = diff([changed::CheckedOwner, changed::Item])
+        migrate(section(changes, :up))
+        kept = rows
+        migrate(section(changes, :down))
+
+        assert_equal [[[1, "Milk", "milk"]], [[1, "Milk", "milk"]]], [kept, rows]
+      end
+
+      it "alters in place what SQLite's ALTER TABLE can, without rebuilding" do
+        items
+        sql = write(diff([changed::Owner, changed::Renamed]) + diff([changed::Owner, changed::Reindexed]))
+
+        assert_equal <<~SQL, sql
+          ALTER TABLE items RENAME COLUMN note TO remark;
+
+          DROP INDEX items_owner_id_index;
+          CREATE INDEX items_owner_id_status_index ON items (owner_id, status);
+
+          -- down
+          DROP INDEX items_owner_id_status_index;
+          CREATE INDEX items_owner_id_index ON items (owner_id);
+          ALTER TABLE items RENAME COLUMN remark TO note;
+        SQL
+      end
+
+      it "rebuilds a table to change a column, and rebuilds it as it was to undo it" do
+        items
+        sql = write(diff([changed::Owner, changed::Required]))
+
+        assert_equal <<~SQL, sql
+          -- TODO: backfill the NULLs in items.note before it becomes NOT NULL
+          CREATE TABLE items_new (
+            id        INTEGER CONSTRAINT items_pkey PRIMARY KEY,
+            owner_id  INTEGER NOT NULL CONSTRAINT items_owner_id_fkey REFERENCES owners ON DELETE CASCADE,
+            title     TEXT    NOT NULL CONSTRAINT items_title_check CHECK (length(title) BETWEEN 1 AND 100),
+            code      TEXT    NOT NULL CONSTRAINT items_code_key UNIQUE,
+            status    TEXT    NOT NULL DEFAULT 'open' CONSTRAINT items_status_check CHECK (status IN ('open', 'closed')),
+            note      TEXT    NOT NULL,
+            rank      INTEGER
+          );
+          INSERT INTO items_new (id, owner_id, title, code, status, note, rank) SELECT id, owner_id, title, code, status, note, rank FROM items;
+          DROP TABLE items;
+          ALTER TABLE items_new RENAME TO items;
+          CREATE INDEX items_owner_id_index ON items (owner_id);
+
+          -- down
+          CREATE TABLE items_new (
+            id        INTEGER NOT NULL,
+            owner_id  INTEGER NOT NULL,
+            title     TEXT    NOT NULL,
+            code      TEXT    NOT NULL,
+            status    TEXT    NOT NULL DEFAULT 'open',
+            note      TEXT,
+            rank      INTEGER,
+            CONSTRAINT items_pkey PRIMARY KEY (id),
+            CONSTRAINT items_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES owners ON DELETE CASCADE,
+            CONSTRAINT items_title_check CHECK (length(title) BETWEEN 1 AND 100),
+            CONSTRAINT items_code_key UNIQUE (code),
+            CONSTRAINT items_status_check CHECK (status IN ('open', 'closed'))
+          );
+          INSERT INTO items_new (id, owner_id, title, code, status, note, rank) SELECT id, owner_id, title, code, status, note, rank FROM items;
+          DROP TABLE items;
+          ALTER TABLE items_new RENAME TO items;
+          CREATE INDEX items_owner_id_index ON items (owner_id);
+        SQL
+      end
+
+      it "rebuilds to add a unique column, or one whose default is an expression, which ALTER TABLE can't" do
+        items
+        rebuilt = [changed::Added, changed::Serialed, changed::Stamped].map do |variant|
+          write(diff([changed::Owner, variant])).start_with?("CREATE TABLE items_new")
+        end
+
+        assert_equal [false, true, true], rebuilt
+      end
+
+      it "keeps the type an untyped column has when it rebuilds, and drops a column the class no longer has" do
+        connection.execute("CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT NOT NULL)")
+        scraps = sqlite.tables(connection).fetch(0)
+        scrap = fixtures::Scrap
+        edits = [
+          migrations::DropColumn.new(column: scraps.columns.fetch(2)),
+          migrations::AddConstraint.new(
+            constraint: catalog::Constraint.new(
+              name: "scraps_pkey", kind: :primary_key, columns: [:id], references: nil, definition: "PRIMARY KEY (id)"
+            )
+          )
+        ]
+        sql = write([alter(scrap, edits, table: scraps)])
+
+        assert_equal <<~SQL, sql
+          CREATE TABLE scraps_new (
+            id       INTEGER CONSTRAINT scraps_pkey PRIMARY KEY,
+            payload  BLOB    NOT NULL
+          );
+          INSERT INTO scraps_new (id, payload) SELECT id, payload FROM scraps;
+          DROP TABLE scraps;
+          ALTER TABLE scraps_new RENAME TO scraps;
+
+          -- down
+          -- scraps.old comes back empty: dropping it lost its data
+          -- TODO: scraps.old needs a DEFAULT for the rows scraps already has
+          CREATE TABLE scraps_new (
+            id       INTEGER NOT NULL,
+            payload  BLOB    NOT NULL,
+            old      TEXT    NOT NULL,
+            PRIMARY KEY (id)
+          );
+          INSERT INTO scraps_new (id, payload) SELECT id, payload FROM scraps;
+          DROP TABLE scraps;
+          ALTER TABLE scraps_new RENAME TO scraps;
+        SQL
       end
     end
   end

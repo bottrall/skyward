@@ -10,6 +10,7 @@ Skyward::Core::CLI.register(
     args,
     directory: Dir.pwd,
     time: Time.now,
+    input: $stdin,
     out: $stdout,
     kernel: Kernel,
     session: Skyward::ORM::Connection::SESSION,

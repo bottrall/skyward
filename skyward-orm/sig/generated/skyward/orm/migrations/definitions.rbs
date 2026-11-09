@@ -1,0 +1,81 @@
+# Generated from lib/skyward/orm/migrations/definitions.rb with RBS::Inline
+
+# What a class's declarations make of its table, written as the catalog reads
+# a table back, so a migration can write it and compare it with the database.
+#
+# Every constraint and index is named, so a violation names the same
+# constraint on every database: SQLite reports an unnamed check by its
+# expression, where PostgreSQL would make up these names.
+module Skyward::ORM::Migrations::Definitions
+  ON_DELETE: Hash[Skyward::ORM::Tables::on_delete, String]
+
+  # Each column's constraints, in the order a column lists them, then each
+  # unique on more than one column.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
+  def constraints: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[Skyward::ORM::Catalog::Index]
+  def indexes: (singleton(Skyward::ORM::Record) klass) -> Array[Skyward::ORM::Catalog::Index]
+
+  # The SQL that follows the column's DEFAULT, or nil when it has none.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs column: Symbol
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String?
+  def default: (singleton(Skyward::ORM::Record) klass, Symbol column, Skyward::ORM::_Adapter adapter) -> String?
+
+  # The constraint as a column's own, in a column's definition.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def inline: (Skyward::ORM::Catalog::Constraint constraint) -> String
+
+  # @rbs value: untyped
+  # @rbs return: String
+  def literal: (untyped value) -> String
+
+  private
+
+  # @rbs name: String
+  # @rbs kind: Skyward::ORM::Catalog::constraint_kind
+  # @rbs columns: Array[Symbol]
+  # @rbs definition: String
+  # @rbs references: Symbol?
+  # @rbs return: Skyward::ORM::Catalog::Constraint
+  def constraint: (String name, Skyward::ORM::Catalog::constraint_kind kind, Array[Symbol] columns, String definition, ?Symbol? references) -> Skyward::ORM::Catalog::Constraint
+
+  # @rbs table: Symbol
+  # @rbs columns: Array[Symbol]
+  # @rbs return: Skyward::ORM::Catalog::Constraint
+  def unique: (Symbol table, Array[Symbol] columns) -> Skyward::ORM::Catalog::Constraint
+
+  # A symbol union's check comes first, as part of the column's type.
+  # @rbs table: Symbol
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs checks: Array[Skyward::ORM::Tables::Check]
+  # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
+  def checks: (Symbol table, Skyward::ORM::Tables::Column column, Array[Skyward::ORM::Tables::Check] checks) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  # @rbs column: Symbol
+  # @rbs rule: Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length
+  # @rbs return: String
+  def rule: (Symbol column, Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length rule) -> String
+
+  # @rbs column: Symbol
+  # @rbs length: Skyward::ORM::Tables::Length
+  # @rbs return: String
+  def length: (Symbol column, Skyward::ORM::Tables::Length length) -> String
+
+  # @rbs table: Symbol
+  # @rbs reference: Skyward::ORM::Tables::Reference
+  # @rbs return: Skyward::ORM::Catalog::Constraint
+  def reference: (Symbol table, Skyward::ORM::Tables::Reference reference) -> Skyward::ORM::Catalog::Constraint
+
+  # @rbs table: Symbol
+  # @rbs columns: Array[Symbol]
+  # @rbs suffix: String
+  # @rbs return: String
+  def name: (Symbol table, Array[Symbol] columns, String suffix) -> String
+end

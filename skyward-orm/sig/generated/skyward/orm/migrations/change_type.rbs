@@ -1,0 +1,18 @@
+# Generated from lib/skyward/orm/migrations/change_type.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class ChangeType < Data
+    attr_reader column(): Symbol
+
+    attr_reader from(): String
+
+    attr_reader to(): String
+
+    def self.new: (Symbol column, String from, String to) -> instance
+                | (column: Symbol, from: String, to: String) -> instance
+
+    def self.members: () -> [ :column, :from, :to ]
+
+    def members: () -> [ :column, :from, :to ]
+  end
+end

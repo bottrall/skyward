@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/add_constraint.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class AddConstraint < Data
+    attr_reader constraint(): Skyward::ORM::Catalog::Constraint
+
+    def self.new: (Skyward::ORM::Catalog::Constraint constraint) -> instance
+                | (constraint: Skyward::ORM::Catalog::Constraint) -> instance
+
+    def self.members: () -> [ :constraint ]
+
+    def members: () -> [ :constraint ]
+  end
+end

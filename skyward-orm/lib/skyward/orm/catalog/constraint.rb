@@ -5,6 +5,9 @@ module Skyward::ORM::Catalog
     :name, #: String?
     :kind, #: constraint_kind
     :columns, #: Array[Symbol]
-    :references #: Symbol?
+    :references, #: Symbol?
+    # What follows its name as a table constraint, such as
+    # "FOREIGN KEY (list_id) REFERENCES lists", so a migration can put it back.
+    :definition #: String
   )
 end

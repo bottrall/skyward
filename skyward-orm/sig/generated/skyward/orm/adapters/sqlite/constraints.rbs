@@ -1,9 +1,9 @@
 # Generated from lib/skyward/orm/adapters/sqlite/constraints.rb with RBS::Inline
 
 # SQLite keeps no catalog of constraints, only each table's CREATE TABLE
-# statement, so their names, kinds and columns are read from that.
+# statement, so their names, kinds, columns and definitions are read from that.
 module Skyward::ORM::Adapters::SQLite::Constraints
-  type token = [ Symbol, String ]
+  type token = [ Symbol, String, Integer, Integer ]
 
   TOKEN: Regexp
 
@@ -15,6 +15,12 @@ module Skyward::ORM::Adapters::SQLite::Constraints
 
   KINDS: Hash[String, Skyward::ORM::Catalog::constraint_kind]
 
+  # The words that start a column's next constraint, or its default or collation.
+  COLUMN_CLAUSES: Array[String]
+
+  # A reference's ON DELETE SET NULL and SET DEFAULT end in these.
+  SET_TO: Array[String]
+
   # @rbs sql: String
   # @rbs columns: Array[Symbol]
   # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
@@ -22,21 +28,45 @@ module Skyward::ORM::Adapters::SQLite::Constraints
 
   private
 
+  # The scan covers every character, since its last alternative matches any
+  # one, so each token starts where the one before it ends.
   # @rbs sql: String
   # @rbs return: Array[Array[[token, Integer]]]
   def definitions: (String sql) -> Array[Array[[ token, Integer ]]]
 
   # @rbs text: String
+  # @rbs start: Integer
   # @rbs return: token?
-  def token: (String text) -> token?
+  def token: (String text, Integer start) -> token?
 
   # A column's own constraints are on that column. A table constraint names
   # its columns in parentheses, and a check is on the columns its expression
   # mentions.
+  # @rbs sql: String
   # @rbs definition: Array[[token, Integer]]
   # @rbs columns: Array[Symbol]
   # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
-  def constraints: (Array[[ token, Integer ]] definition, Array[Symbol] columns) -> Array[Skyward::ORM::Catalog::Constraint]
+  def constraints: (String sql, Array[[ token, Integer ]] definition, Array[Symbol] columns) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  # A column's constraint, written as the table constraint it's the same as.
+  # @rbs sql: String
+  # @rbs kind: Skyward::ORM::Catalog::constraint_kind
+  # @rbs column: Symbol
+  # @rbs rest: Array[[token, Integer]]
+  # @rbs return: String
+  def on_column: (String sql, Skyward::ORM::Catalog::constraint_kind kind, Symbol column, Array[[ token, Integer ]] rest) -> String
+
+  # A column constraint runs until the column's next clause. ON DELETE SET
+  # NULL and NOT DEFERRABLE are inside a reference, though, not clauses of
+  # their own.
+  # @rbs rest: Array[[token, Integer]]
+  # @rbs return: Array[token]
+  def own: (Array[[ token, Integer ]] rest) -> Array[token]
+
+  # @rbs sql: String
+  # @rbs tokens: Array[token]
+  # @rbs return: String
+  def text: (String sql, Array[token] tokens) -> String
 
   # @rbs token: token
   # @rbs return: String?

@@ -8,11 +8,13 @@ module Skyward::ORM::Catalog
 
     attr_reader nullable(): bool
 
-    def self.new: (Symbol name, String type, bool nullable) -> instance
-                | (name: Symbol, type: String, nullable: bool) -> instance
+    attr_reader default(): String?
 
-    def self.members: () -> [ :name, :type, :nullable ]
+    def self.new: (Symbol name, String type, bool nullable, String? default) -> instance
+                | (name: Symbol, type: String, nullable: bool, default: String?) -> instance
 
-    def members: () -> [ :name, :type, :nullable ]
+    def self.members: () -> [ :name, :type, :nullable, :default ]
+
+    def members: () -> [ :name, :type, :nullable, :default ]
   end
 end
