@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+require_relative "boot"
+
+App = Skyward.app(docs: true, title: "{{title}}") do |app|
+  app.mount Notes::API.new(notes: Notes::Record), at: "/notes"
+end #: Skyward::API::_RackApp

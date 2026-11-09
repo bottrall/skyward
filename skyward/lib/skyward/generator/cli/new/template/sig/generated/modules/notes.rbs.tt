@@ -1,0 +1,4 @@
+# Generated from modules/notes.rb with RBS::Inline
+
+module Notes
+end

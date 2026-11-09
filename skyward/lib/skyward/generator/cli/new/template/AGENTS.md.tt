@@ -1,0 +1,52 @@
+# {{title}}
+
+A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward/blob/main/skyward-api/README.md) serves it and [Skyward ORM](https://github.com/bottrall/skyward/blob/main/skyward-orm/README.md) stores it. It has no frontend: consumers generate their clients from its OpenAPI document, at `/openapi.json`, and `/docs` is its API reference.
+
+## Workflow
+
+- Run `bin/setup` once, and again after pulling: it installs the gems and the gem signatures Steep reads, and migrates the development database.
+- `bin/test` runs the tests. `bin/ci` runs everything CI runs; run it before pushing.
+- `bundle exec skyward serve` serves the app on `PORT` (default 9292) and reloads it on every change. `bundle exec skyward routes` lists the endpoints.
+- The app connects to `DATABASE_URL`, or to SQLite at `db/{{name}}.sqlite3` without it.
+
+## Layout
+
+- `boot.rb` loads `modules/` with Zeitwerk, eager loads it and calls `Skyward.connect`. The ORM's commands load it.
+- `app.rb` requires `boot.rb` and assigns `App`, mounting each API. The API's commands load it, and `config.ru` runs it.
+- `modules/` groups the code by domain, one directory per resource, and file paths match constant names: `modules/notes/record.rb` is `Notes::Record`, the table class, and `modules/notes/api.rb` is `Notes::API`, its endpoints.
+- `test/` mirrors the code it tests.
+
+## Endpoints
+
+- An endpoint is a public method on a class that subclasses `Skyward::API`, routed at the top of the class with `get`, `post`, `put`, `patch` or `delete`. Its keywords are its inputs (path parameters, the query string and `body:`), and what it returns is the response.
+- Each API object is created once, at boot, and shared by every request, so per-request data arrives as arguments, never as instance state.
+- A response other than 200 comes from a helper, such as `created`, `not_found` or `unprocessable`, and the method's return type names it (`Responses::NotFound`).
+- An expected outcome is a value, never an exception: a query returns the row or `nil`, and a write returns the row or a `Skyward::ORM::Violation`. Match it with `case`/`when` and turn it into a response. Steep can't type-check `case`/`in`, so don't use it.
+
+## Wiring
+
+- An API takes its collaborators as keywords to `initialize`, typed with the smallest type it uses. `app.rb` is the one place that wires them: `Notes::API.new(notes: Notes::Record)`.
+- A test passes its own in through the same front door, so tests need no mocks.
+
+## Types
+
+- Every method is typed with rbs-inline comments: one `# @rbs name: Type` per parameter and a `# @rbs return: Type`. Constants, `Data.define` members and `attr_reader`s take a trailing `#: Type`, and an `attr_reader` also needs a `# @dynamic name` line above it. Each Ruby file outside `test/` starts with `# rbs_inline: enabled`.
+- A file that names Skyward API's types starts with `# @rbs use Skyward::API::*` and writes them relative to it (`Responses::NotFound`).
+- `sig/generated` is generated from those comments, so never edit it: `bin/ci` regenerates it, and fails when that changed it, for you to commit. Hand-written signatures, such as interfaces, go in `sig/manual`.
+- The types are the contract: Skyward API coerces and validates every request against them, the OpenAPI document is built from them, and Steep checks the code against them, with every diagnostic an error.
+
+## Database
+
+- A table class subclasses `Skyward::ORM::Record`, and its typed `attr_reader`s are its columns. Its rows are frozen values, so compare them with `==`.
+- Never write a migration by hand. Change the table class, run `bundle exec skyward migration NAME`, review the SQL it writes to `db/migrate/`, run `bundle exec skyward migrate`, and commit the migration with the class.
+- The database enforces the rules, such as a title's length, and a write it refuses returns a `Skyward::ORM::Violation` to match.
+
+## Tests
+
+- Tests are Minitest, in spec style (`describe`/`it`). The fastest test calls an endpoint's method directly; `Skyward::API::Test.client(App)` drives the whole stack.
+- Every test runs in a transaction that's rolled back after it, the HTTP tests included, so each starts from an empty database.
+- The tests use their own database, migrated from empty each run: in-memory SQLite, or `TEST_DATABASE_URL`. They never touch `DATABASE_URL`.
+
+## CI
+
+`bin/ci` regenerates the signatures and fails if they changed, runs the tests, then runs `skyward check`, which boots the app in strict mode, so an untyped endpoint fails it, and runs Steep.

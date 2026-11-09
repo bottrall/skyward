@@ -1,0 +1,23 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "skyward", "= {{version}}"
+gem "sqlite3", "~> 2.10"
+
+group :development do
+  # skyward serve runs the app under Falcon. The app's code never requires it,
+  # which keeps its signatures out of the RBS collection.
+  gem "falcon", "~> 0.57", require: false
+end
+
+group :development, :test do
+  # skyward check runs both.
+  gem "rbs-inline", "~> 0.14", require: false
+  gem "steep", "~> 2.1", require: false
+end
+
+group :test do
+  gem "minitest", "~> 6.0"
+  gem "rake", "~> 13.4"
+end

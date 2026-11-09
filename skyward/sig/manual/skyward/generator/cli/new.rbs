@@ -1,0 +1,3 @@
+module Skyward::Generator::CLI::New
+  extend ::Skyward::Generator::CLI::New
+end

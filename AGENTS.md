@@ -1,6 +1,6 @@
 # Skyward
 
-Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading), `skyward-api/` (a web framework), `skyward-orm/` (an ORM) and `skyward/` (installs both). Each gem's `README.md` is its spec; read it before changing that gem.
+Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading), `skyward-api/` (a web framework), `skyward-orm/` (an ORM) and `skyward/` (installs both, and adds `skyward new`). Each gem's `README.md` is its spec; read it before changing that gem.
 
 ## Workflow
 
@@ -17,7 +17,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 
 ## Where a module goes
 
-- **Public names.** `Skyward` holds no constant but the gems' namespaces (`Skyward::Core`, `Skyward::API`, `Skyward::ORM`) and the `skyward` gem's `VERSION`. A constant the gem's README tells apps to write is public. It lives directly in its gem's namespace (`Skyward::API::Request`), or in a public namespace there when it belongs to a family (`Skyward::API::Responses::NotFound`).
+- **Public names.** `Skyward` holds no constant but the gems' namespaces (`Skyward::Core`, `Skyward::API`, `Skyward::ORM`, and `Skyward::Generator`, the `skyward` gem's) and the `skyward` gem's `VERSION`. A constant the gem's README tells apps to write is public. It lives directly in its gem's namespace (`Skyward::API::Request`), or in a public namespace there when it belongs to a family (`Skyward::API::Responses::NotFound`).
 - **The `@rbs use` convention.** An app's file that names a gem's types in RBS starts with `# @rbs use Skyward::API::*` (one line per gem) and writes them relative to it (`Responses::NotFound`, `Request`), because RBS doesn't resolve names through the superclass. Docs and examples do the same. Their Ruby code outside RBS annotations writes public names in full, and so does a `#:` after an expression, which Steep reads as Ruby.
 - **Gem roots.** Each gem's root namespace (`Skyward::API`, `Skyward::Core`), its `VERSION`, its `commands.rb` and an error its README names (`Skyward::Core::BootError`, `Skyward::API::ReturnTypeError`) stay at the gem's root.
 - **Groups.** Everything else lives in one of its gem's groups, in the table below. A new module goes in the first group whose description fits it. A shared helper that no description fits goes in the first group, in table order, that uses it. When neither places it, add a group and its row in the same PR.
@@ -43,6 +43,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | orm | `Skyward::ORM::Adapters` | what differs between databases: each adapter's connection, SQL types, codec, schema reads and violations |
 | orm | `Skyward::ORM::Connection` | the database `Skyward.connect` opens, and the session that holds it for every query |
 | orm | `Skyward::ORM::Statements` | the SQL that queries and writes share: quoted names, columns checked against a table class, and the `INSERT` a table class writes |
+| skyward | `Skyward::Generator::CLI` | what `skyward new` runs, and the app it writes; `commands.rb` only registers it |
 
 ## Ruby
 

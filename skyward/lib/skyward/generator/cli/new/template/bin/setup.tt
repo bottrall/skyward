@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")/.."
+
+bundle install
+bundle exec rbs collection install
+bundle exec skyward migrate

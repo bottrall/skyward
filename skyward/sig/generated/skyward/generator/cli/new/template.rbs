@@ -1,0 +1,24 @@
+# Generated from lib/skyward/generator/cli/new/template.rb with RBS::Inline
+
+module Skyward::Generator::CLI::New::Template
+  DIRECTORY: String
+
+  # Every file there ends in it, so none of the tools that read the gem's own
+  # Ruby, signatures and Steepfile takes the app's for the gem's.
+  SUFFIX: String
+
+  PLACEHOLDER: Regexp
+
+  # FNM_DOTMATCH, so the app gets its .gitignore.
+  FILES: Hash[String, String]
+
+  # @rbs name: String
+  # @rbs return: Hash[String, String]
+  def files: (String name) -> Hash[String, String]
+
+  private
+
+  # @rbs name: String
+  # @rbs return: String
+  def title: (String name) -> String
+end

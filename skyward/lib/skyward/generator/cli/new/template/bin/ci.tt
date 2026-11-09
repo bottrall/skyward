@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")/.."
+
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+
+bundle exec rbs collection install
+
+# Regenerating the signatures is how they're kept current, so a stale one
+# fails here, already fixed, for you to review and commit.
+mkdir -p sig/generated
+mv sig/generated "$scratch/committed"
+bundle exec rbs-inline --output=sig/generated *.rb modules
+if ! diff -r "$scratch/committed" sig/generated; then
+  echo "sig/generated was out of date, and bin/ci has regenerated it. Review and commit it." >&2
+  exit 1
+fi
+
+bin/test
+
+# skyward check boots the app, which connects with the schema check on, so it
+# runs on a database of its own, migrated from empty.
+export DATABASE_URL="sqlite://$scratch/check.sqlite3"
+bundle exec skyward migrate
+bundle exec skyward check

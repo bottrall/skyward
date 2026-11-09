@@ -20,10 +20,13 @@ Gem::Specification.new do |spec|
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir["lib/**/*.rb", "sig/**/*.rbs", "README.md"]
+  # The .tt files are the app skyward new writes, and FNM_DOTMATCH keeps its .gitignore.
+  spec.files = Dir.glob(["lib/**/*.{rb,tt}", "sig/**/*.rbs", "README.md"], File::FNM_DOTMATCH)
   spec.require_paths = ["lib"]
 
   # The Skyward gems release in lockstep, so each pins the others exactly.
   spec.add_dependency "skyward-api", "= #{Skyward::VERSION}"
+  spec.add_dependency "skyward-core", "= #{Skyward::VERSION}"
   spec.add_dependency "skyward-orm", "= #{Skyward::VERSION}"
+  spec.add_dependency "zeitwerk", "~> 2.8"
 end
