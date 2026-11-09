@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Definitions
+  extend ::Skyward::ORM::Migrations::Definitions
+end

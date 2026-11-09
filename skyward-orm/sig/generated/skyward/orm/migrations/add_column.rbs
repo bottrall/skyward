@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/add_column.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class AddColumn < Data
+    attr_reader column(): Skyward::ORM::Tables::Column
+
+    def self.new: (Skyward::ORM::Tables::Column column) -> instance
+                | (column: Skyward::ORM::Tables::Column) -> instance
+
+    def self.members: () -> [ :column ]
+
+    def members: () -> [ :column ]
+  end
+end

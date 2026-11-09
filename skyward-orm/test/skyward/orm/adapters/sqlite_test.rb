@@ -120,6 +120,12 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".alters_in_place?" do
+    it "is false, since SQLite can't change a column or a constraint, so a migration rebuilds the table" do
+      refute_predicate sqlite, :alters_in_place?
+    end
+  end
+
   describe ".default_expression" do
     it "puts the expression in parentheses, which SQLite needs for anything but a literal" do
       connection = sqlite.connect(":memory:")
@@ -239,42 +245,93 @@ describe Skyward::ORM::Adapters::SQLite do
   describe ".tables" do
     def table(name) = tables.find { |table| table.name == name }
 
-    it "reads each column's declared type and nullability, with a primary key never null" do
+    it "reads each column's declared type, nullability and default, with a primary key never null" do
       expected = [
-        catalog::Column.new(name: :id, type: "INTEGER", nullable: false),
-        catalog::Column.new(name: :list_id, type: "INTEGER", nullable: false),
-        catalog::Column.new(name: :title, type: "varchar(200)", nullable: false),
-        catalog::Column.new(name: :done, type: "INTEGER", nullable: false),
-        catalog::Column.new(name: :code, type: "TEXT", nullable: true)
+        catalog::Column.new(name: :id, type: "INTEGER", nullable: false, default: nil),
+        catalog::Column.new(name: :list_id, type: "INTEGER", nullable: false, default: nil),
+        catalog::Column.new(name: :title, type: "varchar(200)", nullable: false, default: nil),
+        catalog::Column.new(name: :done, type: "INTEGER", nullable: false, default: "0"),
+        catalog::Column.new(name: :code, type: "TEXT", nullable: true, default: nil)
       ]
 
       assert_equal expected, table(:todos).columns
     end
 
-    it "reads each index, but not those its constraints make" do
+    it "reads a default as a migration writes it, with an expression back in its parentheses" do
+      connection = sqlite.connect(":memory:")
+      connection.execute(<<~SQL)
+        CREATE TABLE defaults (
+          a TEXT DEFAULT 'it''s', b INTEGER DEFAULT -1, c REAL DEFAULT 1.5e3, d BLOB DEFAULT x'00',
+          e TEXT DEFAULT NULL, f INTEGER DEFAULT true, g TEXT DEFAULT CURRENT_TIMESTAMP,
+          h TEXT DEFAULT (lower('A')), i INTEGER DEFAULT 0x1F
+        )
+      SQL
+      defaults = sqlite.tables(connection).fetch(0).columns.map(&:default)
+
+      assert_equal ["'it''s'", "-1", "1.5e3", "x'00'", "NULL", "true", "(CURRENT_TIMESTAMP)", "(lower('A'))", "0x1F"],
+                   defaults
+    end
+
+    it "reads each index, with its statement, but not those its constraints make" do
       expected = [
-        catalog::Index.new(name: "todos_code_index", columns: [:code], unique: true),
-        catalog::Index.new(name: "todos_list_id_done_index", columns: %i[list_id done], unique: false)
+        catalog::Index.new(
+          name: "todos_code_index",
+          columns: [:code],
+          unique: true,
+          definition: "CREATE UNIQUE INDEX todos_code_index ON todos (code)"
+        ),
+        catalog::Index.new(
+          name: "todos_list_id_done_index",
+          columns: %i[list_id done],
+          unique: false,
+          definition: "CREATE INDEX todos_list_id_done_index ON todos (list_id, done)"
+        )
       ]
 
       assert_equal expected, table(:todos).indexes
     end
 
     it "reads an index on an expression as having no columns" do
-      assert_equal [catalog::Index.new(name: "lists_slug_index", columns: [], unique: true)], table(:lists).indexes
+      expected = catalog::Index.new(
+        name: "lists_slug_index",
+        columns: [],
+        unique: true,
+        definition: "CREATE UNIQUE INDEX lists_slug_index ON lists (lower(slug))"
+      )
+
+      assert_equal [expected], table(:lists).indexes
     end
 
     it "reads each constraint from the CREATE TABLE" do
       expected = [
-        catalog::Constraint.new(name: nil, kind: :primary_key, columns: [:id], references: nil),
+        catalog::Constraint.new(
+          name: nil,
+          kind: :primary_key,
+          columns: [:id],
+          references: nil,
+          definition: "PRIMARY KEY (id)"
+        ),
         catalog::Constraint.new(
           name: "todos_list_id_fkey",
           kind: :foreign_key,
           columns: [:list_id],
-          references: :lists
+          references: :lists,
+          definition: "FOREIGN KEY (list_id) REFERENCES lists ON DELETE RESTRICT"
         ),
-        catalog::Constraint.new(name: "todos_title_check", kind: :check, columns: [:title], references: nil),
-        catalog::Constraint.new(name: nil, kind: :check, columns: [:done], references: nil)
+        catalog::Constraint.new(
+          name: "todos_title_check",
+          kind: :check,
+          columns: [:title],
+          references: nil,
+          definition: "CHECK (length(title) > 0)"
+        ),
+        catalog::Constraint.new(
+          name: nil,
+          kind: :check,
+          columns: [:done],
+          references: nil,
+          definition: "CHECK (done IN (0, 1))"
+        )
       ]
 
       assert_equal expected, table(:todos).constraints

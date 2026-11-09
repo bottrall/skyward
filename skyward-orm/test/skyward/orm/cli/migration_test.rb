@@ -38,11 +38,25 @@ describe Skyward::ORM::CLI::Migration do
     File.write(File.join(directory, "db/migrate", name), "")
   end
 
-  def run_in(directory, *args, classes: [MigrationsFixtures::List, MigrationsFixtures::Todo])
+  # A terminal that answers each question in turn, or input that isn't one.
+  def terminal(*answers, tty: true)
+    Class.new do
+      define_method(:tty?) { tty }
+      define_method(:gets) { answers.shift }
+    end.new
+  end
+
+  def run_in(
+    directory,
+    *args,
+    classes: [MigrationsFixtures::List, MigrationsFixtures::Todo],
+    input: terminal(tty: false)
+  )
     Skyward::ORM::CLI::Migration.run(
       args,
       directory:,
       time: Time.utc(2026, 10, 18, 9, 30),
+      input:,
       out:,
       kernel:,
       session: Skyward::ORM::Connection::SESSION,
@@ -220,17 +234,57 @@ describe Skyward::ORM::CLI::Migration do
         changes = Skyward::ORM::Migrations::Diff.changes(
           [fixtures::List, fixtures::Todo],
           database.column_types,
-          database.tables
+          database.tables,
+          database.adapter,
+          ->(*) { false }
         )
         file = "db/migrate/20261018093000_create_todos.sql"
         expected = [
           "#{Skyward::ORM::Migrations::Summary.text(changes, database.adapter)}" \
           "Wrote #{file}. Review it, then run `skyward migrate`.\n",
           Skyward::ORM::Migrations::Script.write(changes, database.adapter),
-          [Skyward::ORM::Migrations::CreateTable, Skyward::ORM::Migrations::AddColumns]
+          [Skyward::ORM::Migrations::CreateTable, Skyward::ORM::Migrations::AlterTable]
         ]
 
         assert_equal expected, [out.string, File.read(File.join(directory, file)), changes.map(&:class)]
+      end
+    end
+
+    describe "when a column went and another came" do
+      # lists has title where List has name. The migration's first line, or
+      # nil when it wrote none.
+      def renaming(input)
+        app do |directory, connection|
+          connection.execute("CREATE TABLE lists (id INTEGER CONSTRAINT lists_pkey PRIMARY KEY, title TEXT NOT NULL)")
+          run_in(directory, "rename_title", classes: [MigrationsFixtures::List], input:)
+          written(directory).map { |file| File.read(File.join(directory, file)).lines.first }.first
+        end
+      end
+
+      it "asks whether it was renamed, and renames it on yes, in any case" do
+        found = ["y\n", " YES \n"].map { |answer| renaming(terminal(answer)) }
+        renamed = "ALTER TABLE lists RENAME COLUMN title TO name;\n"
+
+        assert_equal [[renamed] * 2, "Did you rename lists.title to lists.name? [y/N] "],
+                     [found, out.string.lines.first.to_s[/\A.*\] /]]
+      end
+
+      it "drops the column and adds the other on anything else, or at the end of input" do
+        found = ["n\n", nil].map { |answer| renaming(terminal(answer)) }
+
+        assert_equal ["ALTER TABLE lists DROP COLUMN title;\n"] * 2, found
+      end
+
+      it "writes nothing without a terminal to ask, and names the columns to answer for" do
+        found = renaming(terminal(tty: false))
+
+        assert_equal [
+          nil,
+          "skyward: did you rename lists.title to lists.name? There's no terminal to ask, so nothing was written. " \
+          "Run `skyward migration` in a terminal to answer.",
+          ""
+        ],
+                     [found, kernel.aborted, out.string]
       end
     end
   end

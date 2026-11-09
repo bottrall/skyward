@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/add_index.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class AddIndex < Data
+    attr_reader index(): Skyward::ORM::Catalog::Index
+
+    def self.new: (Skyward::ORM::Catalog::Index index) -> instance
+                | (index: Skyward::ORM::Catalog::Index) -> instance
+
+    def self.members: () -> [ :index ]
+
+    def members: () -> [ :index ]
+  end
+end

@@ -1,13 +1,15 @@
 # Generated from lib/skyward/orm/migrations/diff.rb with RBS::Inline
 
 module Skyward::ORM::Migrations::Diff
-  # New tables come first, each after the tables it references, so a new
-  # column can reference a new table too.
-  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
-  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs return: Array[Skyward::ORM::Migrations::change]
-  def changes: (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> Array[Skyward::ORM::Migrations::change]
+  ON_DELETE: Regexp
+
+  # New tables come first, each after the tables it references, so a changed
+  # table can reference a new table too. A table with no class is left alone:
+  # a class that isn't loaded looks the same.
+  # @rbs (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types,
+  #   Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter,
+  #   ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Array[Skyward::ORM::Migrations::change]
+  def changes: (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Array[Skyward::ORM::Migrations::change]
 
   private
 
@@ -15,11 +17,72 @@ module Skyward::ORM::Migrations::Diff
   # @rbs return: void
   def refuse_shared: (Array[singleton(Skyward::ORM::Record)] classes) -> void
 
+  # Indexes and constraints go before the columns they're on, and come back
+  # after the columns they need.
+  # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
+  #   Skyward::ORM::Catalog::Table table, Skyward::ORM::_Adapter adapter,
+  #   ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
+  def altered: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
+
+  # The indexes to drop and to add. One is compared by the columns it will
+  # have after any rename, and dropped as the database has it.
   # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs columns: Array[Skyward::ORM::Tables::Column]
   # @rbs table: Skyward::ORM::Catalog::Table
-  # @rbs return: Skyward::ORM::Migrations::AddColumns?
-  def added: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table) -> Skyward::ORM::Migrations::AddColumns?
+  # @rbs renamed: Hash[Symbol, Symbol]
+  # @rbs return: [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit]]
+  def indexes: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed) -> [ Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit] ]
+
+  # The constraints to drop and to add, compared as indexes are. A new
+  # column's own constraints are part of its definition.
+  # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
+  #   Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns)
+  #   -> [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit]]
+  def constraints: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns) -> [ Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit] ]
+
+  # Each column that went is asked about each new one of a compatible type, in
+  # order, until one is a rename. A column it renames to isn't asked about again.
+  # @rbs (Symbol table, Array[Skyward::ORM::Catalog::Column] removed, Array[Skyward::ORM::Tables::Column] added,
+  #   Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Hash[Symbol, Symbol]
+  def renames: (Symbol table, Array[Skyward::ORM::Catalog::Column] removed, Array[Skyward::ORM::Tables::Column] added, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Hash[Symbol, Symbol]
+
+  # An untyped column has no type or nullability to compare.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs had: Skyward::ORM::Catalog::Column
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: Array[Skyward::ORM::Migrations::edit]
+  def changed: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::Catalog::Column had, Skyward::ORM::_Adapter adapter) -> Array[Skyward::ORM::Migrations::edit]
+
+  # Constraints are matched by name. SQLite can hold one with no name, which
+  # matches the one its class declares on the same columns. PostgreSQL rewrites
+  # a check's expression, and puts it on every column it mentions, so a check
+  # is matched by its name alone. A reference is also matched by what it does
+  # ON DELETE.
+  # @rbs had: Skyward::ORM::Catalog::Constraint
+  # @rbs wanted: Skyward::ORM::Catalog::Constraint
+  # @rbs return: bool
+  def same?: (Skyward::ORM::Catalog::Constraint had, Skyward::ORM::Catalog::Constraint wanted) -> bool
+
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def on_delete: (Skyward::ORM::Catalog::Constraint constraint) -> String
+
+  # An index is matched by its columns, so one a database already has under
+  # another name is kept.
+  # @rbs had: Skyward::ORM::Catalog::Index
+  # @rbs wanted: Skyward::ORM::Catalog::Index
+  # @rbs return: bool
+  def same_index?: (Skyward::ORM::Catalog::Index had, Skyward::ORM::Catalog::Index wanted) -> bool
+
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs added: Array[Skyward::ORM::Tables::Column]
+  # @rbs return: bool
+  def inline?: (Skyward::ORM::Catalog::Constraint constraint, Array[Skyward::ORM::Tables::Column] added) -> bool
+
+  # @rbs columns: Array[Symbol]
+  # @rbs renamed: Hash[Symbol, Symbol]
+  # @rbs return: Array[Symbol]
+  def moved: (Array[Symbol] columns, Hash[Symbol, Symbol] renamed) -> Array[Symbol]
 
   # Tables that reference each other can't all come after their parents, so
   # the first left goes next.

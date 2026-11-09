@@ -58,4 +58,21 @@ module MigrationsFixtures
 
     attr_reader :id, :payload
   end
+
+  # The README's rework_todos: notes renamed to details, due_on required, and
+  # an index on it.
+  def self.rework_todos
+    [
+      Skyward::ORM::Migrations::RenameColumn.new(from: :notes, to: :details),
+      Skyward::ORM::Migrations::ChangeNullable.new(column: :due_on, nullable: false),
+      Skyward::ORM::Migrations::AddIndex.new(
+        index: Skyward::ORM::Catalog::Index.new(
+          name: "todos_due_on_index",
+          columns: [:due_on],
+          unique: false,
+          definition: "CREATE INDEX todos_due_on_index ON todos (due_on)"
+        )
+      )
+    ]
+  end
 end

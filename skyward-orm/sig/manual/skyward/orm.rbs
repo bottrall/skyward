@@ -14,6 +14,7 @@ module Skyward::ORM
     def placeholder: (Integer position) -> String
     def sql_type: (Tables::column_type type) -> String?
     def identity: () -> String?
+    def alters_in_place?: () -> bool
     def default_expression: (String expression) -> String
     def compatible?: (Tables::column_type type, String sql_type) -> bool
     def encode: (untyped value) -> untyped

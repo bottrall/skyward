@@ -13,9 +13,11 @@ module Skyward::ORM::CLI::Migration
 
   NOTHING = "Every table matches its class. Nothing to write.\n" #: String
 
-  # @rbs (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel),
+  YES = /\Ay(?:es)?\z/i #: Regexp
+
+  # @rbs (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel),
   #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run(args, directory:, time:, out:, kernel:, session:, discover:)
+  def run(args, directory:, time:, input:, out:, kernel:, session:, discover:)
     flags, names = args.partition { |arg| arg.start_with?("-") }
     name = names.fetch(0) if names.one?
     empty = flags == [EMPTY]
@@ -30,7 +32,7 @@ module Skyward::ORM::CLI::Migration
     database = Skyward::ORM::CLI::BootFile.load(directory, session)
     case database
     when String then kernel.abort(database)
-    else write(name, database, directory:, time:, out:, kernel:, discover:)
+    else write(name, database, directory:, time:, input:, out:, kernel:, discover:)
     end
   # Booting the app raises it, and so does a table class that can't be migrated.
   rescue Skyward::Core::BootError => e
@@ -46,18 +48,36 @@ module Skyward::ORM::CLI::Migration
   end
 
   # Writing a second migration before the first has run would write the same
-  # change twice, so a pending one stops it.
-  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, out: _Writer,
-  #   kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def write(name, database, directory:, time:, out:, kernel:, discover:)
+  # change twice, so a pending one stops it. With no terminal to ask whether a
+  # column was renamed, it stops rather than guess, since a guess of no drops
+  # the column's data.
+  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, input: IO,
+  #   out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def write(name, database, directory:, time:, input:, out:, kernel:, discover:)
     ran = Skyward::ORM::Migrations::Versions.ran(database)
     pending = Skyward::ORM::Migrations::Directory.pending(directory, ran)
     return kernel.abort(pending(pending)) unless pending.empty?
 
-    changes = Skyward::ORM::Migrations::Diff.changes(discover.call, database.column_types, database.tables)
+    adapter = database.adapter
+    unasked = [] #: Array[String]
+    rename = if input.tty?
+               ->(table, from, to) { renamed?(input, out, "Did you rename #{table}.#{from} to #{table}.#{to}? [y/N] ") }
+             else
+               lambda do |table, from, to|
+                 unasked.push("#{table}.#{from} to #{table}.#{to}")
+                 false
+               end
+             end
+    changes = Skyward::ORM::Migrations::Diff.changes(
+      discover.call,
+      database.column_types,
+      database.tables,
+      adapter,
+      rename
+    )
+    return kernel.abort(unasked(unasked)) unless unasked.empty?
     return out.write(NOTHING) if changes.empty?
 
-    adapter = database.adapter
     file = Skyward::ORM::Migrations::Directory.write(
       directory,
       time,
@@ -68,6 +88,22 @@ module Skyward::ORM::CLI::Migration
       Skyward::ORM::Migrations::Summary.text(changes, adapter),
       "Wrote #{file}. Review it, then run `skyward migrate`.\n"
     )
+  end
+
+  # @rbs input: IO
+  # @rbs out: _Writer
+  # @rbs question: String
+  # @rbs return: bool
+  def renamed?(input, out, question)
+    out.write(question)
+    input.gets.to_s.strip.match?(YES)
+  end
+
+  # @rbs renames: Array[String]
+  # @rbs return: String
+  def unasked(renames)
+    "skyward: did you rename #{renames.join(", or ")}? There's no terminal to ask, so nothing was written. " \
+      "Run `skyward migration` in a terminal to answer."
   end
 
   # @rbs files: Array[String]

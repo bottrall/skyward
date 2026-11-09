@@ -8,11 +8,13 @@ module Skyward::ORM::Catalog
 
     attr_reader unique(): bool
 
-    def self.new: (String name, Array[Symbol] columns, bool unique) -> instance
-                | (name: String, columns: Array[Symbol], unique: bool) -> instance
+    attr_reader definition(): String
 
-    def self.members: () -> [ :name, :columns, :unique ]
+    def self.new: (String name, Array[Symbol] columns, bool unique, String definition) -> instance
+                | (name: String, columns: Array[Symbol], unique: bool, definition: String) -> instance
 
-    def members: () -> [ :name, :columns, :unique ]
+    def self.members: () -> [ :name, :columns, :unique, :definition ]
+
+    def members: () -> [ :name, :columns, :unique, :definition ]
   end
 end

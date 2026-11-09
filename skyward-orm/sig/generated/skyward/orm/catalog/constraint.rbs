@@ -10,11 +10,13 @@ module Skyward::ORM::Catalog
 
     attr_reader references(): Symbol?
 
-    def self.new: (String? name, constraint_kind kind, Array[Symbol] columns, Symbol? references) -> instance
-                | (name: String?, kind: constraint_kind, columns: Array[Symbol], references: Symbol?) -> instance
+    attr_reader definition(): String
 
-    def self.members: () -> [ :name, :kind, :columns, :references ]
+    def self.new: (String? name, constraint_kind kind, Array[Symbol] columns, Symbol? references, String definition) -> instance
+                | (name: String?, kind: constraint_kind, columns: Array[Symbol], references: Symbol?, definition: String) -> instance
 
-    def members: () -> [ :name, :kind, :columns, :references ]
+    def self.members: () -> [ :name, :kind, :columns, :references, :definition ]
+
+    def members: () -> [ :name, :kind, :columns, :references, :definition ]
   end
 end

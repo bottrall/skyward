@@ -1,0 +1,155 @@
+module ChangesFixtures
+  class Owner < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader name: String
+  end
+
+  class CheckedOwner < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader name: String
+  end
+
+  class Item < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Dropped < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader rank: Integer?
+  end
+
+  class Renamed < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader remark: String?
+    attr_reader rank: Integer?
+  end
+
+  class Added < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+    attr_reader pinned: String?
+  end
+
+  class Serialed < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+    attr_reader serial: String?
+  end
+
+  class Stamped < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+    attr_reader added_at: Time
+  end
+
+  # rank is text now.
+  class Retyped < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: String?
+  end
+
+  # note is required now.
+  class Required < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String
+    attr_reader rank: Integer?
+  end
+
+  class Redefaulted < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Unchecked < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Checked < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Paired < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Reindexed < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+
+  class Restricted < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader owner_id: Integer
+    attr_reader title: String
+    attr_reader code: String
+    attr_reader status: :open | :closed
+    attr_reader note: String?
+    attr_reader rank: Integer?
+  end
+end

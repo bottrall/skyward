@@ -8,7 +8,10 @@ require_relative "../../../fixtures/tables/tables_fixtures"
 describe Skyward::ORM::Migrations::Summary do
   fixtures = MigrationsFixtures
   migrations = Skyward::ORM::Migrations
+  catalog = Skyward::ORM::Catalog
   sqlite = Skyward::ORM::Adapters::SQLite
+  postgres = MigrationsFixtures::Postgres
+  rework_todos = MigrationsFixtures.rework_todos
   readme = File.read(File.expand_path("../../../../README.md", __dir__))
   readers = %w[migrations tables].to_h do |name|
     signatures = File.expand_path("../../../fixtures/#{name}/sig", __dir__)
@@ -18,6 +21,12 @@ describe Skyward::ORM::Migrations::Summary do
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
 
   def create(klass) = Skyward::ORM::Migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
+
+  # A summary needs only the class and its edits.
+  def alter(klass, edits)
+    table = Skyward::ORM::Catalog::Table.new(name: klass.table_name, columns: [], indexes: [], constraints: [])
+    Skyward::ORM::Migrations::AlterTable.new(klass:, columns: [], table:, edits:)
+  end
 
   def text(changes, adapter = Skyward::ORM::Adapters::SQLite) = Skyward::ORM::Migrations::Summary.text(changes, adapter)
 
@@ -52,7 +61,7 @@ describe Skyward::ORM::Migrations::Summary do
 
     it "lists each column a table needs, as the README's add_notes_to_todos does" do
       notes = column_types.columns(fixtures::NotedTodo).select { |column| column.name == :notes }
-      summary = text([migrations::AddColumns.new(klass: fixtures::NotedTodo, columns: notes)], MigrationsFixtures::Postgres)
+      summary = text([alter(fixtures::NotedTodo, notes.map { |column| migrations::AddColumn.new(column:) })], postgres)
 
       assert_equal example(readme, "add_notes_to_todos"), summary.sub("MigrationsFixtures::Noted", "")
     end
@@ -67,7 +76,72 @@ describe Skyward::ORM::Migrations::Summary do
           + extra  needs a type
       TEXT
 
-      assert_equal expected, text([migrations::AddColumns.new(klass: fixtures::NotedTodo, columns: added)], sqlite)
+      assert_equal expected,
+                   text(
+                     [alter(
+                       fixtures::NotedTodo,
+                       added.map do |column|
+                         migrations::AddColumn.new(column:)
+                       end
+                     )],
+                     sqlite
+                   )
+    end
+
+    it "marks what changes in a table, as the README's rework_todos does, after the question it asked" do
+      summary = text([alter(TablesFixtures::Todo, rework_todos)], postgres)
+      asked = example(readme, "rework_todos").sub(/\ADid you rename .*\n/, "")
+
+      assert_equal asked, summary.sub("TablesFixtures::", "")
+    end
+
+    it "marks each kind of change, + for added, - for dropped and ~ for changed" do
+      note = catalog::Column.new(name: :note, type: "text", nullable: true, default: nil)
+      check = catalog::Constraint.new(
+        name: "todos_title_check",
+        kind: :check,
+        columns: [:title],
+        references: nil,
+        definition: ""
+      )
+      edits = [
+        migrations::DropIndex.new(
+          index: catalog::Index.new(name: "todos_slug_index", columns: [], unique: true, definition: "")
+        ),
+        migrations::DropConstraint.new(constraint: check.with(name: nil, kind: :unique, columns: %i[list_id title])),
+        migrations::DropConstraint.new(constraint: check.with(name: "todos_pkey", kind: :primary_key, columns: [:id])),
+        migrations::DropColumn.new(column: note),
+        migrations::DropColumn.new(column: note.with(name: :raw, type: "", nullable: false)),
+        migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
+        migrations::ChangeNullable.new(column: :title, nullable: true),
+        migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
+        migrations::ChangeDefault.new(column: :priority, from: "'low'", to: nil),
+        migrations::AddConstraint.new(constraint: check),
+        migrations::AddConstraint.new(
+          constraint: check.with(
+            name: "todos_list_id_fkey",
+            kind: :foreign_key,
+            columns: [:list_id],
+            references: :lists
+          )
+        )
+      ]
+      expected = <<~TEXT
+        TablesFixtures::Todo differs from the todos table:
+          - todos_slug_index    unique index on an expression
+          - unnamed             unique (list_id, title)
+          - todos_pkey          primary key (id)
+          - note                text NULL
+          - raw                 NOT NULL
+          ~ rank                text, was integer
+          ~ title               NULL, was NOT NULL
+          ~ done                DEFAULT false, was no default
+          ~ priority            no default, was DEFAULT 'low'
+          + todos_title_check   check (title)
+          + todos_list_id_fkey  reference (list_id) to lists
+      TEXT
+
+      assert_equal expected, text([alter(TablesFixtures::Todo, edits)], postgres)
     end
   end
 end

@@ -1,11 +1,6 @@
 # Generated from lib/skyward/orm/migrations/script.rb with RBS::Inline
 
-# Every constraint and index is named, so a violation names the same
-# constraint on every database: SQLite reports an unnamed check by its
-# expression, where PostgreSQL would make up these names.
 module Skyward::ORM::Migrations::Script
-  ON_DELETE: Hash[Skyward::ORM::Tables::on_delete, String]
-
   # @rbs changes: Array[Skyward::ORM::Migrations::change]
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
@@ -19,79 +14,148 @@ module Skyward::ORM::Migrations::Script
   def up: (Skyward::ORM::Migrations::change change, Skyward::ORM::_Adapter adapter) -> String
 
   # @rbs change: Skyward::ORM::Migrations::change
-  # @rbs return: Array[String]
-  def down: (Skyward::ORM::Migrations::change change) -> Array[String]
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def down: (Skyward::ORM::Migrations::change change, Skyward::ORM::_Adapter adapter) -> String
+
+  # SQLite can't alter a column or a constraint, so only what ALTER TABLE does
+  # on every database is done in place: adding, dropping and renaming a
+  # column, and indexes. It can't add a key column, or one whose default is an
+  # expression, either.
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: bool
+  def in_place?: (Skyward::ORM::Migrations::AlterTable change, Skyward::ORM::_Adapter adapter) -> bool
+
+  # PostgreSQL changes a column's type with USING, which casts each value it has.
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs edit: Skyward::ORM::Migrations::edit
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def forward: (Skyward::ORM::Migrations::AlterTable change, Skyward::ORM::Migrations::edit edit, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs edit: Skyward::ORM::Migrations::edit
+  # @rbs return: String
+  def backward: (Skyward::ORM::Migrations::AlterTable change, Skyward::ORM::Migrations::edit edit) -> String
+
+  # SQLite rebuilds the table as its class has it: create the new one, copy
+  # the rows of each column it keeps, drop the old one, rename the new one and
+  # recreate its indexes. Dropping a table another one references would run
+  # that one's ON DELETE, so `skyward migrate` turns SQLite's foreign keys off
+  # around each migration, and checks them before it commits.
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: String
+  def rebuild: (Skyward::ORM::Migrations::AlterTable change, Skyward::ORM::_Adapter adapter) -> String
+
+  # The table goes back as the database had it, from what was read of it.
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs return: String
+  def unbuild: (Skyward::ORM::Migrations::AlterTable change) -> String
+
+  # @rbs change: Skyward::ORM::Migrations::AlterTable
+  # @rbs return: Hash[Symbol, Symbol]
+  def renames: (Skyward::ORM::Migrations::AlterTable change) -> Hash[Symbol, Symbol]
+
+  # @rbs table: Symbol
+  # @rbs into: Array[Symbol]
+  # @rbs from: Array[Symbol]
+  # @rbs return: String
+  def copy: (Symbol table, Array[Symbol] into, Array[Symbol] from) -> String
 
   # Columns line up as a person would write them. A generated key's type runs
-  # on into its identity clause, so it doesn't set the width.
-  # @rbs change: Skyward::ORM::Migrations::CreateTable
-  # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs return: String
-  def create: (Skyward::ORM::Migrations::CreateTable change, Skyward::ORM::_Adapter adapter) -> String
+  # on into its identity clause, so it doesn't set the width. A rebuild keeps
+  # the type an untyped column has.
+  # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
+  #   Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept) -> String
+  def create_table: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept) -> String
 
-  # @rbs change: Skyward::ORM::Migrations::AddColumns
-  # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs return: String
-  def add: (Skyward::ORM::Migrations::AddColumns change, Skyward::ORM::_Adapter adapter) -> String
-
-  # The rows a table already has need a value for a new required column.
   # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
-  def add_column: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+  def indexes: (singleton(Skyward::ORM::Record) klass) -> String
 
-  # A column's type, and the clauses that follow it, or nil when it has no type.
-  # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs return: [String, String]?
-  def definition: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> [ String, String ]?
+  # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
+  #   Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+  def add_column: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+
+  # A column's type, and the clauses that follow it, or nil when it has no
+  # type. One with no type keeps the one the table has, if it has one.
+  # @rbs (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter,
+  #   Array[Skyward::ORM::Catalog::Constraint] constraints, Skyward::ORM::Catalog::Column? kept) -> [String, String]?
+  def definition: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter, Array[Skyward::ORM::Catalog::Constraint] constraints, Skyward::ORM::Catalog::Column? kept) -> [ String, String ]?
 
   # @rbs schema: Skyward::ORM::Tables::Schema
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: bool
   def generated?: (Skyward::ORM::Tables::Schema schema, Skyward::ORM::Tables::Column column) -> bool
 
-  # @rbs value: untyped
-  # @rbs adapter: Skyward::ORM::_Adapter
+  # A column as the database has it.
+  # @rbs column: Skyward::ORM::Catalog::Column
   # @rbs return: String
-  def default: (untyped value, Skyward::ORM::_Adapter adapter) -> String
+  def column: (Skyward::ORM::Catalog::Column column) -> String
 
-  # A symbol union's check comes first, as part of the column's type.
+  # @rbs column: Skyward::ORM::Catalog::Column
+  # @rbs return: String
+  def clauses: (Skyward::ORM::Catalog::Column column) -> String
+
   # @rbs table: Symbol
+  # @rbs from: Symbol
+  # @rbs to: Symbol
+  # @rbs return: String
+  def rename: (Symbol table, Symbol from, Symbol to) -> String
+
+  # @rbs table: Symbol
+  # @rbs column: Symbol
+  # @rbs type: String
+  # @rbs return: String
+  def retype: (Symbol table, Symbol column, String type) -> String
+
+  # @rbs table: Symbol
+  # @rbs column: Symbol
+  # @rbs nullable: bool
+  # @rbs return: String
+  def nullable: (Symbol table, Symbol column, bool nullable) -> String
+
+  # @rbs table: Symbol
+  # @rbs column: Symbol
+  # @rbs value: String?
+  # @rbs return: String
+  def default: (Symbol table, Symbol column, String? value) -> String
+
+  # @rbs table: Symbol
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def add_constraint: (Symbol table, Skyward::ORM::Catalog::Constraint constraint) -> String
+
+  # @rbs table: Symbol
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def drop_constraint: (Symbol table, Skyward::ORM::Catalog::Constraint constraint) -> String
+
+  # The rows a table already has need a value for a new required column.
+  # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs checks: Array[Skyward::ORM::Tables::Check]
-  # @rbs return: Array[String]
-  def checks: (Symbol table, Skyward::ORM::Tables::Column column, Array[Skyward::ORM::Tables::Check] checks) -> Array[String]
-
-  # @rbs column: Symbol
-  # @rbs rule: Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length
-  # @rbs return: String
-  def rule: (Symbol column, Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length rule) -> String
-
-  # @rbs column: Symbol
-  # @rbs length: Skyward::ORM::Tables::Length
-  # @rbs return: String
-  def length: (Symbol column, Skyward::ORM::Tables::Length length) -> String
+  # @rbs return: String?
+  def needs_default: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column) -> String?
 
   # @rbs table: Symbol
-  # @rbs reference: Skyward::ORM::Tables::Reference
+  # @rbs column: Skyward::ORM::Catalog::Column
   # @rbs return: String
-  def reference: (Symbol table, Skyward::ORM::Tables::Reference reference) -> String
+  def restored: (Symbol table, Skyward::ORM::Catalog::Column column) -> String
 
   # @rbs table: Symbol
-  # @rbs columns: Array[Symbol]
-  # @rbs suffix: String
+  # @rbs column: Symbol
   # @rbs return: String
-  def name: (Symbol table, Array[Symbol] columns, String suffix) -> String
+  def todo_default: (Symbol table, Symbol column) -> String
+
+  # @rbs table: Symbol
+  # @rbs column: Symbol
+  # @rbs return: String
+  def backfill: (Symbol table, Symbol column) -> String
 
   # @rbs table: Symbol
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String
   def todo_type: (Symbol table, Skyward::ORM::Tables::Column column) -> String
-
-  # @rbs value: untyped
-  # @rbs return: String
-  def literal: (untyped value) -> String
 end

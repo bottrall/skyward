@@ -8,10 +8,17 @@ module Skyward::ORM::Migrations::Summary
 
   private
 
+  # Each change is a line, marked + for what's added, - for what's dropped,
+  # and ~ for what's changed, and the lines line up after what each names.
   # @rbs change: Skyward::ORM::Migrations::change
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
   def section: (Skyward::ORM::Migrations::change change, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs edit: Skyward::ORM::Migrations::edit
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: [String, String, String]
+  def line: (Skyward::ORM::Migrations::edit edit, Skyward::ORM::_Adapter adapter) -> [ String, String, String ]
 
   # @rbs change: Skyward::ORM::Migrations::CreateTable
   # @rbs return: String
@@ -27,4 +34,17 @@ module Skyward::ORM::Migrations::Summary
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
   def column: (Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs default: String?
+  # @rbs return: String
+  def default: (String? default) -> String
+
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def constraint: (Skyward::ORM::Catalog::Constraint constraint) -> String
+
+  # An index on an expression has no columns to name.
+  # @rbs index: Skyward::ORM::Catalog::Index
+  # @rbs return: String
+  def index: (Skyward::ORM::Catalog::Index index) -> String
 end
