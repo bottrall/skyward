@@ -8,6 +8,12 @@ require "tmpdir"
 
 describe Skyward::ORM::CLI::Migrate do
   session = Skyward::ORM::Connection::SESSION
+  # Loaded, so boot.rb's Skyward.connect would refuse it with the check on.
+  note = Class.new(Skyward::ORM::Record) do
+    table :notes
+    attr_reader :id
+  end
+  create_notes = { "20261001000000_create_notes.sql" => "CREATE TABLE notes (id INTEGER);\n" }
 
   let(:kernel) do
     Class.new do
@@ -33,8 +39,8 @@ describe Skyward::ORM::CLI::Migrate do
     end
   end
 
-  def run_in(directory)
-    Skyward::ORM::CLI::Migrate.run(directory:, out:, kernel:, session: Skyward::ORM::Connection::SESSION)
+  def run_in(directory, discover: -> { [] })
+    Skyward::ORM::CLI::Migrate.run(directory:, out:, kernel:, session: Skyward::ORM::Connection::SESSION, discover:)
   end
 
   describe ".run" do
@@ -56,6 +62,14 @@ describe Skyward::ORM::CLI::Migrate do
       end
     end
 
+    it "boots with the schema check off, then checks the classes it finds against the tables it made" do
+      app(create_notes) do |directory|
+        run_in(directory, discover: -> { [note] })
+
+        assert_equal ["Migrated 20261001000000\n", nil], [out.string, kernel.aborted]
+      end
+    end
+
     it "says when no migration is pending" do
       app do |directory|
         run_in(directory)
@@ -73,6 +87,15 @@ describe Skyward::ORM::CLI::Migrate do
         run_in(directory)
 
         assert_equal "Migrated 20261001000000\nMigrated 20261002000000\n", out.string
+      end
+    end
+
+    it "prints what it migrated, then fails with only the mismatch of a class that still doesn't match" do
+      app({ "20261001000000_create_a.sql" => "CREATE TABLE a (id INTEGER);\n" }) do |directory|
+        run_in(directory, discover: -> { [note] })
+
+        assert_equal ["Migrated 20261001000000\n", "#{note} doesn't match the notes table"],
+                     [out.string, kernel.aborted.lines.first.chomp]
       end
     end
 

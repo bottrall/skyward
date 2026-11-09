@@ -23,6 +23,7 @@ Skyward::Core::CLI.register("migrate", "Run the pending migrations in db/migrate
     directory: Dir.pwd,
     out: $stdout,
     kernel: Kernel,
-    session: Skyward::ORM::Connection::SESSION
+    session: Skyward::ORM::Connection::SESSION,
+    discover: -> { Skyward::ORM::Migrations::Discovery.table_classes(Zeitwerk::Loader) }
   )
 end

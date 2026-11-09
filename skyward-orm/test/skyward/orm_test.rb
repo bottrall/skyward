@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require "test_helper"
 require "tmpdir"
 require_relative "../fixtures/tables/tables_fixtures"
@@ -135,19 +136,41 @@ describe Skyward do
   end
 
   describe ".migrate" do
-    it "runs the directory's pending migrations on the database connected, returning their versions" do
+    # Its own process, so the only table class loaded is the one the migration makes a table for.
+    it "runs the directory's pending migrations, then checks the loaded table classes against them" do
       Dir.mktmpdir do |directory|
-        File.write(File.join(directory, "20261001000000_create_todos.sql"), "CREATE TABLE todos (id INTEGER);\n")
-        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__))
+        File.write(File.join(directory, "20261001000000_create_notes.sql"), "CREATE TABLE notes (id INTEGER);\n")
+        script = <<~RUBY
+          require "skyward/orm"
 
-        assert_equal [["20261001000000"], []], [Skyward.migrate(directory), Skyward.migrate(directory)]
+          class Note < Skyward::ORM::Record
+            table :notes
+            attr_reader :id
+          end
+
+          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          p Skyward.migrate(#{directory.inspect}), Skyward.migrate(#{directory.inspect})
+        RUBY
+        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+        assert_equal [%(["20261001000000"]\n[]\n), 0], [output, status.exitstatus]
+      end
+    end
+
+    # Other tests' table classes are loaded too, so this looks only for one of its own.
+    it "raises SchemaMismatch for a table class that doesn't match once it has migrated, even with nothing pending" do
+      Dir.mktmpdir do |directory|
+        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+        error = assert_raises(Skyward::ORM::SchemaMismatch) { Skyward.migrate(directory) }
+
+        assert_includes error.message, "TablesFixtures::Todo doesn't match the todos table"
       end
     end
 
     it "raises what went wrong when it can't migrate" do
       Dir.mktmpdir do |directory|
         File.write(File.join(directory, "20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
-        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__))
+        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__), check: false)
         error = assert_raises(Skyward::ORM::MigrationError) { Skyward.migrate(directory) }
 
         assert_equal Skyward::ORM::Migrations::Runner.message(

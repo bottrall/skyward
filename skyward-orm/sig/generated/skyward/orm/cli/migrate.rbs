@@ -3,13 +3,13 @@
 module Skyward::ORM::CLI::Migrate
   NOTHING: String
 
-  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session)
-  #   -> void
-  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session) -> void
+  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
 
   private
 
-  # @rbs (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel))
-  #   -> void
-  def migrate: (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
+  # @rbs (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel),
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  def migrate: (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
 end
