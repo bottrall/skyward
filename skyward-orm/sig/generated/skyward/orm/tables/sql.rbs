@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/tables/sql.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class SQL < Data
+    attr_reader expression(): String
+
+    def self.new: (String expression) -> instance
+                | (expression: String) -> instance
+
+    def self.members: () -> [ :expression ]
+
+    def members: () -> [ :expression ]
+  end
+end

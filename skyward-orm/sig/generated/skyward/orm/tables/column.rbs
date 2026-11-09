@@ -1,0 +1,20 @@
+# Generated from lib/skyward/orm/tables/column.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class Column < Data
+    attr_reader name(): Symbol
+
+    attr_reader type(): column_type
+
+    attr_reader nullable(): bool
+
+    attr_reader symbols(): Array[Symbol]
+
+    def self.new: (Symbol name, column_type type, bool nullable, Array[Symbol] symbols) -> instance
+                | (name: Symbol, type: column_type, nullable: bool, symbols: Array[Symbol]) -> instance
+
+    def self.members: () -> [ :name, :type, :nullable, :symbols ]
+
+    def members: () -> [ :name, :type, :nullable, :symbols ]
+  end
+end

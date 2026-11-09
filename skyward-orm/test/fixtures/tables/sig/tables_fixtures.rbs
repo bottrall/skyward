@@ -1,0 +1,80 @@
+module TablesFixtures
+  type priority = :low | :normal | :high
+
+  class List < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader name: String
+  end
+
+  class Todo < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader list_id: Integer
+    attr_reader title: String
+    attr_reader priority: :low | :normal | :high
+    attr_reader due_on: Date?
+    attr_reader done: bool
+    attr_reader created_at: Time
+
+    def overdue?: (?Date today) -> bool
+  end
+
+  # unannotated has no reader here.
+  class Typed < ::Skyward::ORM::Record
+    attr_reader integer: Integer
+    attr_reader float: Float
+    attr_reader string: String
+    attr_reader bool: bool
+    attr_reader date: Date
+    attr_reader time: Time
+    attr_reader enum: :low | :high
+    attr_reader optional: Integer?
+    attr_reader or_nil: String | nil
+    attr_reader aliased: priority
+    attr_reader nullable_enum: priority?
+    attr_reader untyped: untyped
+  end
+
+  class Tuple < ::Skyward::ORM::Record
+    attr_reader tags: [String, Integer]
+  end
+
+  class Pair
+    attr_reader both: [String, Integer]
+  end
+
+  class Holder < ::Skyward::ORM::Record
+    attr_reader pair: Pair
+  end
+
+  class Node
+    attr_reader parent: Node
+  end
+
+  class Nested < ::Skyward::ORM::Record
+    attr_reader node: Node
+  end
+
+  class Listed < ::Skyward::ORM::Record
+    attr_reader tags: Array[String]?
+  end
+
+  class Recorded < ::Skyward::ORM::Record
+    attr_reader point: { x: Integer, y: Integer }
+  end
+
+  class Classed < ::Skyward::ORM::Record
+    attr_reader list: List
+  end
+
+  class Hashed < ::Skyward::ORM::Record
+    attr_reader settings: Hash[String, String]
+  end
+
+  class Mixed < ::Skyward::ORM::Record
+    attr_reader value: String | Integer
+  end
+
+  class Literal < ::Skyward::ORM::Record
+    attr_reader kind: "todo"
+  end
+end

@@ -1,0 +1,9 @@
+# Generated from lib/skyward/orm/tables/validation.rb with RBS::Inline
+
+module Skyward::ORM::Tables::Validation
+  # A declaration can come before the attr_reader that defines its column, so
+  # the columns it names are checked once the class has loaded.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: void
+  def validate: (singleton(Skyward::ORM::Record) klass) -> void
+end

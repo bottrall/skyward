@@ -21,7 +21,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 - **The `@rbs use` convention.** An app's file that names a gem's types in RBS starts with `# @rbs use Skyward::API::*` (one line per gem) and writes them relative to it (`Responses::NotFound`, `Request`), because RBS doesn't resolve names through the superclass. Docs and examples do the same. Their Ruby code outside RBS annotations writes public names in full, and so does a `#:` after an expression, which Steep reads as Ruby.
 - **Gem roots.** Each gem's root namespace (`Skyward::API`, `Skyward::Core`), its `VERSION`, its `commands.rb` and an error its README names (`Skyward::Core::BootError`, `Skyward::API::ReturnTypeError`) stay at the gem's root.
 - **Groups.** Everything else lives in one of its gem's groups, in the table below. A new module goes in the first group whose description fits it. A shared helper that no description fits goes in the first group, in table order, that uses it. When neither places it, add a group and its row in the same PR.
-- **Helpers nest.** A module that only one other module uses nests under it (`Skyward::Core::Signatures::Loader`, `Skyward::API::CLI::Serve::Reloader`), unless that user is a gem root: what only `Skyward.app` uses goes in a group.
+- **Helpers nest.** A module that only one other module uses nests under it (`Skyward::Core::Signatures::Loader`, `Skyward::API::CLI::Serve::Reloader`), unless that user is a gem root or a class apps subclass (`Skyward::ORM::Record`): what only `Skyward.app` or `Record` uses goes in a group.
 - **Group names.** Never a top-level constant of Ruby, its default gems or Rack (`JSON`, `Rack`), a name the README tells apps to define (`App`), or a public name in the same gem's namespace (`Request`, `Responses`). An API class subclasses `Skyward::API`, so inside it every constant under `Skyward::API`, or under a module it includes, shadows the app's own constant of that name. A public name is there for the app to write, so its shadowing is accepted; a group's name would only shadow the names an app is likeliest to write there.
 - A group whose root file isn't already a module or class gets a file that only declares it (`lib/skyward/api/cli.rb`), so rbs-inline types it.
 
@@ -38,6 +38,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | api | `Skyward::API::Middleware` | the Rack middleware `Skyward.app` wraps every app in, and the logger they write to |
 | api | `Skyward::API::Assembly` | the parts `Skyward.app` builds the Rack app from, and the app it returns |
 | api | `Skyward::API::CLI` | what the `skyward` commands run; `commands.rb` only registers them |
+| orm | `Skyward::ORM::Tables` | what a table class declares and the rows it builds: its schema, its column types and its rows' methods |
 
 ## Ruby
 

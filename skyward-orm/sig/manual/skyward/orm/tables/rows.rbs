@@ -1,0 +1,3 @@
+module Skyward::ORM::Tables::Rows
+  extend ::Skyward::ORM::Tables::Rows
+end

@@ -1,0 +1,39 @@
+# Generated from lib/skyward/orm/tables/column_types.rb with RBS::Inline
+
+class Skyward::ORM::Tables::ColumnTypes
+  @reader: Skyward::Core::Types::Reader
+
+  @resolved: Hash[singleton(Skyward::ORM::Record), Array[Skyward::ORM::Tables::Column]]
+
+  UNTYPED: Skyward::Core::Types::Scalar
+
+  COLUMN_TYPES: String
+
+  # @rbs reader: Skyward::Core::Types::Reader
+  # @rbs return: void
+  def initialize: (Skyward::Core::Types::Reader reader) -> void
+
+  # A class's types are resolved once for the signatures the reader loaded, so
+  # no query reads RBS.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[Skyward::ORM::Tables::Column]
+  def columns: (singleton(Skyward::ORM::Record) klass) -> Array[Skyward::ORM::Tables::Column]
+
+  private
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[Skyward::ORM::Tables::Column]
+  def resolve: (singleton(Skyward::ORM::Record) klass) -> Array[Skyward::ORM::Tables::Column]
+
+  # @rbs name: Symbol
+  # @rbs returned: RBS::Types::t
+  # @rbs written: String
+  # @rbs return: Skyward::ORM::Tables::Column | String
+  def read: (Symbol name, RBS::Types::t returned, String written) -> (Skyward::ORM::Tables::Column | String)
+
+  # @rbs name: Symbol
+  # @rbs read: Skyward::Core::Types::result
+  # @rbs written: String
+  # @rbs return: Skyward::ORM::Tables::Column | String
+  def column: (Symbol name, Skyward::Core::Types::result read, String written) -> (Skyward::ORM::Tables::Column | String)
+end

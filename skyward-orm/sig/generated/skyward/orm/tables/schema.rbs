@@ -1,0 +1,28 @@
+# Generated from lib/skyward/orm/tables/schema.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class Schema < Data
+    attr_reader table(): Symbol?
+
+    attr_reader primary_key(): Symbol
+
+    attr_reader columns(): Array[Symbol]
+
+    attr_reader references(): Array[Reference]
+
+    attr_reader defaults(): Hash[Symbol, untyped]
+
+    attr_reader checks(): Array[Check]
+
+    attr_reader uniques(): Array[Array[Symbol]]
+
+    attr_reader indexes(): Array[Array[Symbol]]
+
+    def self.new: (Symbol? table, Symbol primary_key, Array[Symbol] columns, Array[Reference] references, Hash[Symbol, untyped] defaults, Array[Check] checks, Array[Array[Symbol]] uniques, Array[Array[Symbol]] indexes) -> instance
+                | (table: Symbol?, primary_key: Symbol, columns: Array[Symbol], references: Array[Reference], defaults: Hash[Symbol, untyped], checks: Array[Check], uniques: Array[Array[Symbol]], indexes: Array[Array[Symbol]]) -> instance
+
+    def self.members: () -> [ :table, :primary_key, :columns, :references, :defaults, :checks, :uniques, :indexes ]
+
+    def members: () -> [ :table, :primary_key, :columns, :references, :defaults, :checks, :uniques, :indexes ]
+  end
+end

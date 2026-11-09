@@ -1,2 +1,7 @@
 # Generated from lib/skyward/orm.rb with RBS::Inline
 
+module Skyward
+  # @rbs expression: String
+  # @rbs return: ORM::Tables::SQL
+  def self.sql: (String expression) -> ORM::Tables::SQL
+end

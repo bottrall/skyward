@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/tables/length.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class Length < Data
+    attr_reader min(): Integer?
+
+    attr_reader max(): Integer?
+
+    def self.new: (Integer? min, Integer? max) -> instance
+                | (min: Integer?, max: Integer?) -> instance
+
+    def self.members: () -> [ :min, :max ]
+
+    def members: () -> [ :min, :max ]
+  end
+end

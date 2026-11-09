@@ -1,0 +1,7 @@
+# Generated from lib/skyward/orm/tables.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  type on_delete = :cascade | :restrict | :set_null | :set_default | :no_action
+
+  type column_type = Skyward::Core::Types::scalar | :enum
+end

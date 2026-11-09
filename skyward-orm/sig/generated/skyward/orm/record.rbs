@@ -1,0 +1,32 @@
+# Generated from lib/skyward/orm/record.rb with RBS::Inline
+
+class Skyward::ORM::Record
+  extend Skyward::ORM::Tables::Declarations
+
+  private def initialize_columns: (Hash[Symbol, untyped] columns) -> void
+
+  def to_h: () -> Hash[Symbol, untyped]
+
+  def ==: (untyped other) -> bool
+
+  def eql?: (untyped other) -> bool
+
+  def hash: () -> Integer
+
+  # Ruby warns whenever initialize is removed, so a table class redefines
+  # initialize_columns instead, each time it gains a column.
+  # @rbs **columns: untyped
+  # @rbs return: void
+  def initialize: (**untyped columns) -> void
+
+  # @rbs **changes: untyped
+  # @rbs return: self
+  def with: (**untyped changes) -> self
+
+  # @rbs keys: Array[Symbol]?
+  # @rbs return: Hash[Symbol, untyped]
+  def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
+
+  # @rbs return: String
+  def inspect: () -> String
+end
