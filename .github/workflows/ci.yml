@@ -61,18 +61,18 @@ jobs:
           working-directory: ${{ matrix.gem }}
       - run: bundle exec rake test
 
-  # The ORM's suite runs on each database it supports. Both runs have
-  # PostgreSQL, because the PostgreSQL adapter's own tests always use it, as
-  # the SQLite adapter's always use SQLite, so neither skips a test.
+  # The ORM's suite runs on each database it supports, one after the other in
+  # one job, so the job keeps the name main's required checks give it. Both
+  # runs have PostgreSQL, because the PostgreSQL adapter's own tests always use
+  # it, as the SQLite adapter's always use SQLite, so neither skips a test.
   test-orm:
     runs-on: ubuntu-latest
-    name: test skyward-orm on ${{ matrix.database }} (ruby ${{ matrix.ruby }})
+    name: test skyward-orm (ruby ${{ matrix.ruby }})
     continue-on-error: ${{ matrix.ruby == 'head' }}
 
     strategy:
       fail-fast: false
       matrix:
-        database: [sqlite, postgresql]
         ruby: ["3.3", "3.4", "4.0", head]
 
     services:
@@ -89,7 +89,6 @@ jobs:
           --health-retries 15
 
     env:
-      TEST_DATABASE: ${{ matrix.database }}
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
     defaults:
@@ -103,4 +102,13 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           working-directory: skyward-orm
-      - run: bundle exec rake test
+      - name: test on SQLite
+        run: bundle exec rake test
+        env:
+          TEST_DATABASE: sqlite
+      # Runs even when SQLite failed, so one push shows both.
+      - name: test on PostgreSQL
+        if: ${{ !cancelled() }}
+        run: bundle exec rake test
+        env:
+          TEST_DATABASE: postgresql
