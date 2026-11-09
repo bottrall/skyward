@@ -50,6 +50,16 @@ describe Skyward::ORM::Record do
       it "starts from every row" do
         assert_equal all.where(name: "Work").to_sql, TablesFixtures::List.where(name: "Work").to_sql
       end
+
+      it "passes SQL on" do
+        assert_equal all.where("name = ?", "Work").to_sql, TablesFixtures::List.where("name = ?", "Work").to_sql
+      end
+    end
+
+    describe ".exclude" do
+      it "starts from every row" do
+        assert_equal all.exclude(name: "Work").to_sql, TablesFixtures::List.exclude(name: "Work").to_sql
+      end
     end
 
     describe ".order" do

@@ -11,4 +11,11 @@ module Skyward::ORM::Placeholders
   # @rbs &: (Integer position) -> String
   # @rbs return: String
   def replace: (String sql, Integer count) { (Integer position) -> String } -> String
+
+  # The driver spreads an Array or Hash across several placeholders, or none,
+  # moving every value after it to another `?`.
+  # @rbs binds: Array[untyped]
+  # @rbs subject: String
+  # @rbs return: void
+  def require_scalars: (Array[untyped] binds, String subject) -> void
 end
