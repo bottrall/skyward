@@ -1,6 +1,7 @@
 # The collection's signatures leave out the errors, whose extended result codes
-# classify a violation, extended_result_codes=, which turns those codes on, and
-# busy_handler_timeout=, which waits on a lock without holding the GVL.
+# classify a violation, extended_result_codes=, which turns those codes on,
+# busy_handler_timeout=, which waits on a lock without holding the GVL, and
+# execute2, which returns a result's column names.
 module SQLite3
   class Exception < ::StandardError
     def code: () -> Integer
@@ -12,5 +13,6 @@ module SQLite3
   class Database[ResultType]
     def extended_result_codes=: (bool enabled) -> void
     def busy_handler_timeout=: (Integer milliseconds) -> void
+    def execute2: (String sql, *untyped bind_vars) -> Array[Array[untyped]]
   end
 end

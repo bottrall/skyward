@@ -1,0 +1,9 @@
+# Generated from lib/skyward/orm/members.rb with RBS::Inline
+
+module Skyward::ORM::Members
+  KEYWORDS: Array[Symbol]
+
+  # @rbs row: Class
+  # @rbs return: Array[Symbol]
+  def of: (Class row) -> Array[Symbol]
+end
