@@ -11,7 +11,7 @@ describe Skyward::ORM::Connection::Database::SchemaCheck do
   end
 
   def stored(name, type, nullable: false)
-    Skyward::ORM::Catalog::Column.new(name:, type:, nullable:)
+    Skyward::ORM::Catalog::Column.new(name:, type:, nullable:, default: nil)
   end
 
   def todos(*columns)
