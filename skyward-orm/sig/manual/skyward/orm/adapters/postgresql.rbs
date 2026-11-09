@@ -1,0 +1,3 @@
+module Skyward::ORM::Adapters::PostgreSQL
+  extend ::Skyward::ORM::Adapters::PostgreSQL
+end

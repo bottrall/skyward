@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
-require "tmpdir"
 require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Connection::Database do
-  sqlite = Skyward::ORM::Adapters::SQLite
   signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
   reader = Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
   refused = Skyward::ORM::Violation.new(kind: :check, constraint: nil, columns: [], message: "refused")
@@ -27,20 +24,20 @@ describe Skyward::ORM::Connection::Database do
     def sql_type(type) = @adapter.sql_type(type)
   end
 
+  let(:empty) { TestDatabase.empty }
   let(:connection) do
-    sqlite.connect(":memory:").tap do |connection|
+    empty.connect.tap do |connection|
       # lists.name allows NULL, which TablesFixtures::List#name doesn't.
-      connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
+      create_lists(connection)
       connection.execute("INSERT INTO lists (name) VALUES ('Home')")
-      connection.execute(<<~SQL)
-        CREATE TABLE todos (
-          id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL, title TEXT NOT NULL, priority TEXT NOT NULL,
-          due_on TEXT, done INTEGER NOT NULL, created_at TEXT NOT NULL
-        )
-      SQL
+      # Todo's own types, so todos matches it.
+      columns = column_types.columns(todo).map do |column|
+        "#{column.name} #{empty.adapter.sql_type(column.type)}#{" NOT NULL" unless column.nullable}"
+      end
+      connection.execute("CREATE TABLE todos (#{columns.join(", ")}, PRIMARY KEY (id))")
     end
   end
-  let(:adapter) { sqlite }
+  let(:adapter) { empty.adapter }
   let(:check) { true }
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
   let(:database) do
@@ -48,15 +45,17 @@ describe Skyward::ORM::Connection::Database do
       adapter,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,
-      sqlite.tables(connection),
+      empty.adapter.tables(connection),
       check:
     )
   end
-  # Each connection to :memory: is a database of its own, so these are told
-  # apart only by identity.
-  let(:two_connections) { pooled(-> { sqlite.connect(":memory:") }) }
+  let(:two_connections) { pooled(-> { empty.connect }) }
   let(:todo) { TablesFixtures::Todo }
   let(:list) { TablesFixtures::List }
+
+  def create_lists(connection)
+    connection.execute("CREATE TABLE lists (id #{empty.primary_key}, name TEXT CONSTRAINT lists_name_key UNIQUE)")
+  end
 
   def mismatch(table)
     Skyward::ORM::Connection::Database::SchemaCheck.mismatch(
@@ -66,7 +65,7 @@ describe Skyward::ORM::Connection::Database do
 
   def pooled(opener)
     Skyward::ORM::Connection::Database.new(
-      Skyward::ORM::Adapters::SQLite,
+      adapter,
       Skyward::ORM::Connection::Pool.new(2, opener),
       column_types,
       [],
@@ -75,21 +74,17 @@ describe Skyward::ORM::Connection::Database do
   end
 
   def insert(database, name)
-    database.connection { |connection| connection.execute("INSERT INTO lists (name) VALUES (?)", [name]) }
+    database.connection do |connection|
+      connection.execute("INSERT INTO lists (name) VALUES (#{adapter.placeholder(1)})", [name])
+    end
   end
 
   def names(database = self.database)
     database.connection { |connection| connection.execute("SELECT name FROM lists ORDER BY id") }
   end
 
-  # A file, so every connection in the pool opens the same database.
-  def in_file
-    Dir.mktmpdir do |dir|
-      path = File.join(dir, "todos.db")
-      database = pooled(-> { Skyward::ORM::Adapters::SQLite.connect(path) })
-      database.connection { |connection| connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)") }
-      yield database
-    end
+  def shared
+    two_connections.tap { |database| database.connection { |connection| create_lists(connection) } }
   end
 
   describe "#connection" do
@@ -199,7 +194,7 @@ describe Skyward::ORM::Connection::Database do
       database.connection do |connection|
         connection.execute("CREATE TABLE shares (list_id INTEGER REFERENCES lists DEFERRABLE INITIALLY DEFERRED)")
       end
-      assert_raises(SQLite3::ConstraintException) do
+      error = assert_raises(StandardError) do
         database.transaction do
           database.connection do |connection|
             connection.execute("INSERT INTO shares VALUES (9)")
@@ -207,7 +202,7 @@ describe Skyward::ORM::Connection::Database do
         end
       end
 
-      assert_equal(:begun, database.transaction { :begun })
+      assert_equal %i[foreign_key begun], [database.violation(error, :shares)&.kind, database.transaction { :begun }]
     end
 
     it "leaves the fiber outside a transaction afterwards, even when the block raises" do
@@ -223,41 +218,39 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "leaves another thread's write in place when it rolls back" do
-      in_file do |database|
-        begun = Thread::Queue.new
-        written = Thread::Queue.new
-        rolled_back = Thread.new do
-          database.transaction do
-            begun << true
-            written.pop
-            insert(database, "Work")
-            refused
-          end
+      database = shared
+      begun = Thread::Queue.new
+      written = Thread::Queue.new
+      rolled_back = Thread.new do
+        database.transaction do
+          begun << true
+          written.pop
+          insert(database, "Work")
+          refused
         end
-        begun.pop
-        insert(database, "Home")
-        written << true
-        rolled_back.join
-
-        assert_equal [["Home"]], names(database)
       end
+      begun.pop
+      insert(database, "Home")
+      written << true
+      rolled_back.join
+
+      assert_equal [["Home"]], names(database)
     end
 
     it "leaves another fiber's write in place when it rolls back, after being suspended mid-block" do
-      in_file do |database|
-        rolled_back = Fiber.new do
-          database.transaction do
-            Fiber.yield
-            insert(database, "Work")
-            refused
-          end
+      database = shared
+      rolled_back = Fiber.new do
+        database.transaction do
+          Fiber.yield
+          insert(database, "Work")
+          refused
         end
-        rolled_back.resume
-        Fiber.new { insert(database, "Home") }.resume
-        rolled_back.resume
-
-        assert_equal [["Home"]], names(database)
       end
+      rolled_back.resume
+      Fiber.new { insert(database, "Home") }.resume
+      rolled_back.resume
+
+      assert_equal [["Home"]], names(database)
     end
   end
 
@@ -363,17 +356,26 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "returns the connection even when the rollback fails" do
-      database.hold
-      database.execute("COMMIT")
-      assert_raises(SQLite3::SQLException) { database.release }
+      lost = Data.define(:connection) do
+        def execute(sql, binds = [])
+          raise IOError, "connection lost" if sql == "ROLLBACK"
 
-      assert_same(connection, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
+          connection.execute(sql, binds)
+        end
+      end.new(connection:)
+      database = Skyward::ORM::Connection::Database.new(
+        adapter, Skyward::ORM::Connection::Pool.new(1, -> { lost }), column_types, [], check: false
+      )
+      database.hold
+      assert_raises(IOError) { database.release }
+
+      assert_same(lost, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
     end
   end
 
   describe "#adapter" do
     it "is the adapter it connected with" do
-      assert_same sqlite, database.adapter
+      assert_same adapter, database.adapter
     end
   end
 
@@ -395,7 +397,7 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "binds its values to the SQL's placeholders" do
-      assert_equal [["Home"]], database.execute("SELECT name FROM lists WHERE id = ?", [1])
+      assert_equal [["Home"]], database.execute("SELECT name FROM lists WHERE id = #{adapter.placeholder(1)}", [1])
     end
   end
 
@@ -426,7 +428,7 @@ describe Skyward::ORM::Connection::Database do
     end
 
     describe "with an adapter that counts comparisons" do
-      let(:adapter) { counting_adapter.new(sqlite) }
+      let(:adapter) { counting_adapter.new(empty.adapter) }
 
       it "checks a class that matches once" do
         database.check([todo])
@@ -447,16 +449,8 @@ describe Skyward::ORM::Connection::Database do
   end
 
   describe "#decoder" do
-    let(:values) { [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"] }
-
-    it "checks its table class first" do
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list, []) }
-
-      assert_equal mismatch(list), error.message
-    end
-
-    it "reads each value by its table's column type, into a row" do
-      expected = todo.new(
+    let(:milk) do
+      todo.new(
         id: 1,
         list_id: 1,
         title: "Buy milk",
@@ -465,8 +459,25 @@ describe Skyward::ORM::Connection::Database do
         done: false,
         created_at: Time.utc(2026, 10, 18, 9, 30)
       )
+    end
+    # Milk's values as the driver returns them.
+    let(:values) do
+      placeholders = Array.new(milk.to_h.size) { |index| adapter.placeholder(index + 1) }
+      connection.execute(
+        "INSERT INTO todos VALUES (#{placeholders.join(", ")})",
+        milk.to_h.values.map { |value| adapter.encode(value) }
+      )
+      connection.execute("SELECT * FROM todos").fetch(0)
+    end
 
-      assert_equal expected, database.decoder(todo, todo, []).call(values)
+    it "checks its table class first" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list, []) }
+
+      assert_equal mismatch(list), error.message
+    end
+
+    it "reads each value by its table's column type, into a row" do
+      assert_equal milk, database.decoder(todo, todo, []).call(values)
     end
 
     it "builds a table's decoder once" do
@@ -491,14 +502,15 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "reads an expressed member by the row class's own type" do
-      assert_equal TablesFixtures::Progress.new(list_id: 1, finished: true),
-                   database.decoder(todo, TablesFixtures::Progress, [:finished]).call([1, 1])
+      assert_equal TablesFixtures::Progress.new(list_id: 1, finished: false),
+                   database.decoder(todo, TablesFixtures::Progress, [:finished]).call(values.values_at(1, 5))
     end
 
     it "reads a member the row class doesn't type by its table's column of that name" do
       summary = Data.define(:title, :done)
 
-      assert_equal summary.new(title: "Buy milk", done: true), database.decoder(todo, summary, []).call(["Buy milk", 1])
+      assert_equal summary.new(title: "Buy milk", done: false),
+                   database.decoder(todo, summary, []).call(values.values_at(2, 5))
     end
 
     it "passes through an expressed member the row class doesn't type, even one named like a column" do
@@ -538,14 +550,9 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "fills the violation from the schema it was given" do
-      expected = Skyward::ORM::Violation.new(
-        kind: :unique,
-        constraint: "lists_name_key",
-        columns: [:name],
-        message: "UNIQUE constraint failed: lists.name"
-      )
+      found = violation("INSERT INTO lists (name) VALUES ('Home')")
 
-      assert_equal expected, violation("INSERT INTO lists (name) VALUES ('Home')")
+      assert_equal [:unique, "lists_name_key", [:name]], [found&.kind, found&.constraint, found&.columns]
     end
 
     it "is nil for an error that isn't a violation" do
@@ -555,11 +562,16 @@ describe Skyward::ORM::Connection::Database do
 
   describe "#hashes" do
     it "returns each row as its columns" do
-      assert_equal [{ id: 1, name: "Home" }], database.hashes("SELECT id, name FROM lists", [])
+      assert_equal [{ name: "Home", title: "Home" }], database.hashes("SELECT name, name AS title FROM lists", [])
     end
 
     it "binds each value as a parameter, as the adapter stores it, and returns values as the driver does" do
-      assert_equal [{ done: 1, due_on: "2026-10-01" }],
+      returned = {
+        Skyward::ORM::Adapters::SQLite => { done: 1, due_on: "2026-10-01" },
+        Skyward::ORM::Adapters::PostgreSQL => { done: "true", due_on: "2026-10-01" }
+      }
+
+      assert_equal [returned.fetch(adapter)],
                    database.hashes("SELECT ? AS done, ? AS due_on", [true, Date.new(2026, 10, 1)])
     end
 
@@ -586,14 +598,13 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "runs in the fiber's transaction, seeing a write it hasn't committed" do
-      in_file do |database|
-        seen = database.transaction do
-          insert(database, "Work")
-          database.hashes("SELECT name FROM lists", [])
-        end
-
-        assert_equal [{ name: "Work" }], seen
+      database = shared
+      seen = database.transaction do
+        insert(database, "Work")
+        database.hashes("SELECT name FROM lists", [])
       end
+
+      assert_equal [{ name: "Work" }], seen
     end
 
     it "raises a violation the SQL causes" do
@@ -605,7 +616,9 @@ describe Skyward::ORM::Connection::Database do
     end
 
     it "raises any other error as it is" do
-      assert_raises(SQLite3::SQLException) { database.hashes("SELECT * FROM missing", []) }
+      error = assert_raises(StandardError) { database.hashes("SELECT * FROM missing", []) }
+
+      refute_kind_of Skyward::ORM::ViolationError, error
     end
   end
 
@@ -657,8 +670,8 @@ describe Skyward::ORM::Connection::Database do
     it "runs the migrations on a connection it checks out, through its adapter" do
       ran = database.migrate([create_notes])
 
-      assert_equal [["20261001000000"], [["notes"]]],
-                   [ran, connection.execute("SELECT name FROM sqlite_schema WHERE name = 'notes'")]
+      assert_equal [["20261001000000"], %i[lists notes schema_migrations todos]],
+                   [ran, empty.adapter.tables(connection).map(&:name).sort]
     end
 
     it "reads the schema again, so a class is checked against the tables the migrations made" do
@@ -690,11 +703,8 @@ describe Skyward::ORM::Connection::Database do
     it "rolls back on a connection it checks out, through its adapter" do
       database.migrate([create_notes])
 
-      assert_equal [create_notes.version, []],
-                   [
-                     database.rollback([create_notes]),
-                     connection.execute("SELECT name FROM sqlite_schema WHERE name = 'notes'")
-                   ]
+      assert_equal [create_notes.version, %i[lists schema_migrations todos]],
+                   [database.rollback([create_notes]), empty.adapter.tables(connection).map(&:name).sort]
     end
 
     it "reads the schema again, so a class is checked against the tables it rolled back to" do
@@ -716,25 +726,30 @@ describe Skyward::ORM::Connection::Database do
     describe "with the check off" do
       let(:check) { false }
 
+      let(:inserting) { "INSERT INTO lists (name) VALUES (#{adapter.placeholder(1)}) RETURNING id, name" }
+
       it "returns the rows the write returns, as the table's rows" do
-        assert_equal [list.new(id: 2, name: "Work")],
-                     database.write(list, list, "INSERT INTO lists (name) VALUES (?) RETURNING id, name", ["Work"])
+        assert_equal [list.new(id: 2, name: "Work")], database.write(list, list, inserting, ["Work"])
       end
 
-      it "returns a violation the write causes, filled in for the table written" do
+      it "returns a violation the write causes, filled in for the table written, with the database's message" do
+        written = database.write(list, list, inserting, ["Home"])
         expected = Skyward::ORM::Violation.new(
           kind: :unique,
           constraint: "lists_name_key",
           columns: [:name],
-          message: "UNIQUE constraint failed: lists.name"
+          message: empty.violation("INSERT INTO lists (name) VALUES ('Home')", :lists)&.message
         )
 
-        assert_equal expected,
-                     database.write(list, list, "INSERT INTO lists (name) VALUES (?) RETURNING id, name", ["Home"])
+        assert_equal expected, written
       end
 
       it "raises any other error as it is" do
-        assert_raises(SQLite3::SQLException) { database.write(list, list, "DELETE FROM missing RETURNING id, name", []) }
+        error = assert_raises(StandardError) do
+          database.write(list, list, "DELETE FROM missing RETURNING id, name", [])
+        end
+
+        refute_kind_of Skyward::ORM::ViolationError, error
       end
     end
   end

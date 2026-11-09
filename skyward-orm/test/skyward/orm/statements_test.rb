@@ -1,31 +1,26 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "sqlite3"
 require_relative "../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Statements do
-  sqlite = Skyward::ORM::Adapters::SQLite
   reader = Skyward::Core::Types::Reader.new(
     Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
   )
   todo = TablesFixtures::Todo
   columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
 
-  # PostgreSQL numbers its placeholders, so this shows each one's position.
-  numbered = Module.new do
-    extend Skyward::ORM::Adapters::SQLite
-
-    def self.placeholder(position) = "$#{position}"
-  end
-
-  let(:adapter) { sqlite }
+  let(:empty) { TestDatabase.empty }
+  let(:adapter) { empty.adapter }
+  let(:numbered) { empty.numbered }
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
 
   describe ".insert" do
     it "inserts the values given, bound as the adapter encodes them, leaving out the key, defaults and nullables" do
-      expected = [%(INSERT INTO "todos" ("list_id", "title", "done") VALUES (?, ?, ?) RETURNING #{columns}),
-                  [1, "Buy milk", 0]]
+      expected = empty.shown(
+        %(INSERT INTO "todos" ("list_id", "title", "done") VALUES (?, ?, ?) RETURNING #{columns}),
+        [1, "Buy milk", false]
+      )
       values = { list_id: 1, title: "Buy milk", done: false }
 
       assert_equal expected, Skyward::ORM::Statements.insert(adapter, column_types, todo, values)

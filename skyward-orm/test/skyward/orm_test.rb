@@ -2,7 +2,6 @@
 
 require "open3"
 require "test_helper"
-require "tmpdir"
 require_relative "../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM do
@@ -23,40 +22,35 @@ end
 describe Skyward do
   fixtures = File.expand_path("../fixtures/tables", __dir__)
 
+  let(:empty) { TestDatabase.empty }
+
   describe ".connect" do
     todo = TablesFixtures::Todo
-    values = [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"]
+    priority = Class.new(Skyward::ORM::Record) { attr_reader :priority }
 
     it "keeps the database it connects to, for every query" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
 
       assert_same database, Skyward::ORM::Connection::SESSION.database
     end
 
     it "reads column types from the signatures given" do
-      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
 
-      assert_equal :normal, database.decoder(todo, todo, []).call(values).priority
+      assert_equal :normal, database.decoder(todo, priority, []).call(["normal"]).priority
     end
 
     it "reads them from sig/ in the current directory by default" do
-      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:", check: false) }
+      database = Dir.chdir(fixtures) { Skyward.connect(empty.url, check: false) }
 
-      assert_equal :normal, database.decoder(todo, todo, []).call(values).priority
+      assert_equal :normal, database.decoder(todo, priority, []).call(["normal"]).priority
     end
 
     it "opens up to pool: connections" do
-      Dir.mktmpdir do |dir|
-        database = Skyward.connect(
-          "sqlite://#{File.join(dir, "todos.db")}",
-          signatures: File.join(fixtures, "sig"),
-          pool: 2,
-          check: false
-        )
-        outer, inner = database.connection { |first| database.connection { |second| [first, second] } }
+      database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), pool: 2, check: false)
+      outer, inner = database.connection { |first| database.connection { |second| [first, second] } }
 
-        refute_same outer, inner
-      end
+      refute_same outer, inner
     end
 
     # Its own process: other tests' table classes include ones whose declarations are invalid on purpose.
@@ -70,7 +64,7 @@ describe Skyward do
         end
 
         begin
-          Skyward.connect("sqlite://:memory:", signatures: #{File.expand_path("missing", __dir__).inspect})
+          Skyward.connect(#{empty.url.inspect}, signatures: #{File.expand_path("missing", __dir__).inspect})
         rescue Skyward::ORM::SchemaMismatch => e
           puts e.message.lines.first
         end
@@ -82,7 +76,7 @@ describe Skyward do
 
     it "connects with the check off inside the session's without_check" do
       database = Skyward::ORM::Connection::SESSION.without_check do
-        Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+        Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"))
       end
 
       assert_same database, Skyward::ORM::Connection::SESSION.database
@@ -99,9 +93,9 @@ describe Skyward do
           attr_reader :id
         end
 
-        kept = Skyward.connect("sqlite://:memory:", signatures: #{signatures}, check: false)
+        kept = Skyward.connect(#{empty.url.inspect}, signatures: #{signatures}, check: false)
         begin
-          Skyward.connect("sqlite://:memory:", signatures: #{signatures})
+          Skyward.connect(#{empty.url.inspect}, signatures: #{signatures})
         rescue Skyward::ORM::SchemaMismatch
           p Skyward::ORM::Connection::SESSION.database.equal?(kept)
         end
@@ -114,7 +108,7 @@ describe Skyward do
 
   describe ".transaction" do
     it "runs the block in a transaction on the connected database" do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
 
       assert(Skyward.transaction { Skyward.transaction? })
     end
@@ -122,7 +116,7 @@ describe Skyward do
 
   describe ".transaction?" do
     it "is false outside a transaction on the connected database" do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
+      Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
 
       refute_predicate Skyward, :transaction?
     end
@@ -130,8 +124,9 @@ describe Skyward do
 
   describe ".query" do
     before do
-      Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"), check: false)
-      Skyward.query("CREATE TABLE todos (title TEXT NOT NULL, due_on TEXT, done INTEGER NOT NULL)")
+      Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
+      due_on, done = %i[date bool].map { |type| empty.adapter.sql_type(type) }
+      Skyward.query("CREATE TABLE todos (title TEXT NOT NULL, due_on #{due_on}, done #{done} NOT NULL)")
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Milk", Date.new(2026, 10, 1), false)
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Eggs", Date.today + 1, false)
     end
@@ -174,7 +169,7 @@ describe Skyward do
             attr_reader :id
           end
 
-          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          Skyward.connect(#{empty.url.inspect}, signatures: #{directory.inspect}, check: false)
           p Skyward.migrate(#{directory.inspect}), Skyward.migrate(#{directory.inspect})
         RUBY
         output, status = Open3.capture2e(Gem.ruby, "-e", script)
@@ -194,7 +189,7 @@ describe Skyward do
             attr_reader :id
           end
 
-          Skyward.connect(#{"sqlite://#{directory}/app.db".inspect}, signatures: #{directory.inspect}, check: false)
+          Skyward.connect(#{empty.url.inspect}, signatures: #{directory.inspect}, check: false)
           begin
             Skyward.migrate(#{directory.inspect})
           rescue Skyward::ORM::SchemaMismatch => e
@@ -210,13 +205,13 @@ describe Skyward do
     it "raises what went wrong when it can't migrate" do
       Dir.mktmpdir do |directory|
         File.write(File.join(directory, "20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
-        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__), check: false)
+        Skyward.connect(empty.url, signatures: File.expand_path("missing", __dir__), check: false)
         error = assert_raises(Skyward::ORM::MigrationError) { Skyward.migrate(directory) }
 
         assert_equal Skyward::ORM::Migrations::Runner.message(
           Skyward::ORM::Migrations::Runner::Failed.new(
             file: "20261001000000_broken.sql",
-            message: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);"
+            message: empty.error("INSERT INTO nowhere VALUES (1);\n")
           )
         ),
                      error.message

@@ -2,7 +2,6 @@
 
 require "test_helper"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/migrations/postgres"
 require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Migrations::Summary do
@@ -10,7 +9,7 @@ describe Skyward::ORM::Migrations::Summary do
   migrations = Skyward::ORM::Migrations
   catalog = Skyward::ORM::Catalog
   sqlite = Skyward::ORM::Adapters::SQLite
-  postgres = MigrationsFixtures::Postgres
+  postgres = Skyward::ORM::Adapters::PostgreSQL
   rework_todos = MigrationsFixtures.rework_todos
   readme = File.read(File.expand_path("../../../../README.md", __dir__))
   readers = %w[migrations tables].to_h do |name|
@@ -37,7 +36,7 @@ describe Skyward::ORM::Migrations::Summary do
     it "counts what a new table has, as the README's create_todos does" do
       todo = TablesFixtures::Todo
       columns = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("tables")).columns(todo)
-      summary = text([migrations::CreateTable.new(klass: todo, columns:)], MigrationsFixtures::Postgres)
+      summary = text([migrations::CreateTable.new(klass: todo, columns:)], postgres)
 
       assert_equal example(readme, "create_todos"), summary.sub("TablesFixtures::", "")
     end

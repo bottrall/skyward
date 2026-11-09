@@ -1,0 +1,138 @@
+# Generated from lib/skyward/orm/adapters/postgresql.rb with RBS::Inline
+
+module Skyward::ORM::Adapters::PostgreSQL
+  SQL_TYPES: Hash[Skyward::ORM::Tables::column_type, String]
+
+  # As the catalog spells each type, which compatible? is given.
+  COMPATIBLE: Hash[Skyward::ORM::Tables::column_type, Array[String]]
+
+  # The catalog puts a length or precision in parentheses.
+  MODIFIER: Regexp
+
+  # UTC, so a timestamp column, which has no zone, holds the same instant as a
+  # timestamptz, and to the microsecond, as PostgreSQL keeps it. Its trailing
+  # zeros go, as PostgreSQL writes a time back, so a default compares as text.
+  TIME_FORMAT: String
+
+  TRAILING_ZEROS: Regexp
+
+  # PostgreSQL reads a literal default back cast to its type, as 'normal'::text,
+  # and quotes a number that isn't a plain integer or decimal, as '-1'::integer.
+  CAST: Regexp
+
+  NUMERIC: Regexp
+
+  # Float() refuses the special values PostgreSQL writes out.
+  SPECIAL_FLOATS: Hash[String, Float]
+
+  MIGRATION_LOCK: Integer
+
+  # Each value comes back as text, and a boolean as t or f.
+  TRUE_TEXT: String
+
+  VIOLATIONS: Hash[String, Skyward::ORM::violation_kind]
+
+  CONSTRAINT_KINDS: Hash[String, Skyward::ORM::Catalog::constraint_kind]
+
+  # The tables an unqualified name finds, as every query names them.
+  TABLES: String
+
+  COLUMNS: String
+
+  # Leaves out the indexes primary keys and unique constraints make, as SQLite's does.
+  INDEXES: String
+
+  # A check on no column has no conkey, so the join keeps it with no columns.
+  CONSTRAINTS: String
+
+  # @rbs return: String
+  def driver: () -> String
+
+  # Values are decoded from PostgreSQL's ISO text, whatever the server's
+  # defaults, and times read and written in UTC. libpq prints each notice the
+  # server sends, so only warnings and worse are sent, or `skyward migrate`
+  # would print that schema_migrations already exists.
+  # @rbs location: String
+  # @rbs return: Skyward::ORM::_Connection
+  def connect: (String location) -> Skyward::ORM::_Connection
+
+  # @rbs (String _location, Integer size) -> Integer
+  def pool_size: (String _location, Integer size) -> Integer
+
+  # @rbs position: Integer
+  # @rbs return: String
+  def placeholder: (Integer position) -> String
+
+  # PostgreSQL takes an OFFSET with no LIMIT before it.
+  # @rbs return: String?
+  def unlimited: () -> String?
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs return: String?
+  def sql_type: (Skyward::ORM::Tables::column_type type) -> String?
+
+  # @rbs return: String?
+  def identity: () -> String?
+
+  # @rbs return: bool
+  def alters_in_place?: () -> bool
+
+  # A second migrator waits at the lock until the first commits, and then sees
+  # what it ran. Any fixed key will do: the lock is the database's own.
+  # @rbs return: String
+  def begin_migration: () -> String
+
+  # PostgreSQL checks each foreign key as the migration writes.
+  # @rbs (Skyward::ORM::_Connection _connection) -> Array[String]
+  def foreign_key_violations: (Skyward::ORM::_Connection _connection) -> Array[String]
+
+  # Ending the transaction released the lock, and nothing else was set.
+  # @rbs return: String
+  def end_migration: () -> String
+
+  # @rbs expression: String
+  # @rbs return: String
+  def default_expression: (String expression) -> String
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs sql_type: String
+  # @rbs return: bool
+  def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
+
+  # The driver sends every other value as its to_s, which PostgreSQL reads.
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def encode: (untyped value) -> untyped
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def decode: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+
+  # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
+  def tables: (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
+
+  # @rbs (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol? _table)
+  #   -> Skyward::ORM::Violation?
+  def violation: (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol? _table) -> Skyward::ORM::Violation?
+
+  private
+
+  # @rbs rows: Array[Array[untyped]]
+  # @rbs return: Array[Skyward::ORM::Catalog::Index]
+  def indexes: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Index]
+
+  # @rbs rows: Array[Array[untyped]]
+  # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
+  def constraints: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Constraint]
+
+  # @rbs expression: String?
+  # @rbs return: String?
+  def default: (String? expression) -> String?
+
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs table: String?
+  # @rbs name: String?
+  # @rbs return: Array[Symbol]
+  def constrained: (Array[Skyward::ORM::Catalog::Table] tables, String? table, String? name) -> Array[Symbol]
+end
