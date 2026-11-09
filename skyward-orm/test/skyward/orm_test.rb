@@ -134,6 +134,33 @@ describe Skyward do
     end
   end
 
+  describe ".migrate" do
+    it "runs the directory's pending migrations on the database connected, returning their versions" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "20261001000000_create_todos.sql"), "CREATE TABLE todos (id INTEGER);\n")
+        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__))
+
+        assert_equal [["20261001000000"], []], [Skyward.migrate(directory), Skyward.migrate(directory)]
+      end
+    end
+
+    it "raises what went wrong when it can't migrate" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "20261001000000_broken.sql"), "INSERT INTO nowhere VALUES (1);\n")
+        Skyward.connect("sqlite://:memory:", signatures: File.expand_path("missing", __dir__))
+        error = assert_raises(Skyward::ORM::MigrationError) { Skyward.migrate(directory) }
+
+        assert_equal Skyward::ORM::Migrations::Runner.message(
+          Skyward::ORM::Migrations::Runner::Failed.new(
+            file: "20261001000000_broken.sql",
+            message: "no such table: nowhere:\nINSERT INTO nowhere VALUES (1);"
+          )
+        ),
+                     error.message
+      end
+    end
+  end
+
   describe ".sql" do
     it "wraps an SQL expression" do
       assert_equal Skyward::ORM::Tables::SQL.new(expression: "now()"), Skyward.sql("now()")

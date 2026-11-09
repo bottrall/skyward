@@ -1,0 +1,15 @@
+# Generated from lib/skyward/orm/cli/migrate.rb with RBS::Inline
+
+module Skyward::ORM::CLI::Migrate
+  NOTHING: String
+
+  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session)
+  #   -> void
+  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session) -> void
+
+  private
+
+  # @rbs (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel))
+  #   -> void
+  def migrate: (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
+end

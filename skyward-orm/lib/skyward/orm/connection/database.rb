@@ -170,6 +170,12 @@ class Skyward::ORM::Connection::Database
     fetched.map(&compile(row, columns, types.fetch_values(*columns)))
   end
 
+  # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
+  # @rbs return: Skyward::ORM::Migrations::Runner::outcome
+  def migrate(migrations)
+    connection { |checked_out| Skyward::ORM::Migrations::Runner.run(@adapter, checked_out, migrations) }
+  end
+
   private
 
   # @rbs held: Held

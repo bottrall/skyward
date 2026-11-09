@@ -21,13 +21,17 @@ module Skyward::ORM::Migrations::Directory
   # @rbs return: String
   def write: (String directory, Time time, String name, String sql) -> String
 
+  # @rbs path: String
+  # @rbs return: Array[String]
+  def sql_files: (String path) -> Array[String]
+
+  # @rbs file: String
+  # @rbs return: String
+  def version: (String file) -> String
+
   private
 
   # @rbs directory: String
   # @rbs return: Array[String]
   def files: (String directory) -> Array[String]
-
-  # @rbs file: String
-  # @rbs return: String
-  def version: (String file) -> String
 end

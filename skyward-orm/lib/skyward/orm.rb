@@ -54,6 +54,16 @@ module Skyward
     end
   end
 
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def self.migrate(directory)
+    migrated = ORM::Connection::SESSION.database.migrate(ORM::Migrations::Runner.read(directory))
+    case migrated
+    when Array then migrated
+    else raise ORM::MigrationError, ORM::Migrations::Runner.message(migrated)
+    end
+  end
+
   # @rbs expression: String
   # @rbs return: ORM::Tables::SQL
   def self.sql(expression)

@@ -623,4 +623,17 @@ describe Skyward::ORM::Connection::Database do
       assert_equal "The SQL returns no days_late for TablesFixtures::Overdue", error.message
     end
   end
+
+  describe "#migrate" do
+    it "runs the migrations on a connection it checks out, through its adapter" do
+      migration = Skyward::ORM::Migrations::Runner.parse(
+        "20261001000000_todos.sql",
+        "CREATE TABLE todos (id INTEGER);\n"
+      )
+      ran = database.migrate([migration])
+
+      assert_equal [["20261001000000"], [["todos"]]],
+                   [ran, connection.execute("SELECT name FROM sqlite_schema WHERE name = 'todos'")]
+    end
+  end
 end

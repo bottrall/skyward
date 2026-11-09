@@ -177,6 +177,24 @@ module Skyward::ORM::Adapters::SQLite
     end
   end
 
+  # Foreign keys go off first, as SQLite's procedure for changing a table says,
+  # so dropping a table the migration rebuilds doesn't cascade to the rows that
+  # refer to it, and inside a transaction the PRAGMA does nothing. BEGIN
+  # IMMEDIATE takes the write lock as the transaction begins rather than at its
+  # first write, so a second migrator waits there, and then sees what the first ran.
+  # @rbs return: String
+  def begin_migration = "PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE"
+
+  # @rbs (Skyward::ORM::_Connection connection) -> Array[String]
+  def foreign_key_violations(connection)
+    connection.execute("PRAGMA foreign_key_check").map do |table, rowid, parent, key|
+      "#{table} row #{rowid} refers to a missing #{parent} row (foreign key #{key})"
+    end
+  end
+
+  # @rbs return: String
+  def end_migration = "PRAGMA foreign_keys = ON"
+
   # The code says which kind of constraint failed. The message names the
   # columns of a unique or not-null one, and the name of a check, and the rest
   # comes from the schema, from the table written, or from every table when

@@ -32,13 +32,17 @@ module Skyward::ORM::Migrations::Directory
     file
   end
 
-  private
-
-  # @rbs directory: String
+  # @rbs path: String
   # @rbs return: Array[String]
-  def files(directory) = Dir.glob("#{PATH}/*.sql", base: directory).sort
+  def sql_files(path) = Dir.glob("*.sql", base: path).sort
 
   # @rbs file: String
   # @rbs return: String
   def version(file) = File.basename(file).split("_", 2).fetch(0)
+
+  private
+
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def files(directory) = sql_files(File.join(directory, PATH)).map { |file| File.join(PATH, file) }
 end

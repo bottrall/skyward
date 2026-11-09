@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Runner
+  extend ::Skyward::ORM::Migrations::Runner
+end

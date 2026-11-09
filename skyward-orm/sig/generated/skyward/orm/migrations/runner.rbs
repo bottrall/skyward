@@ -1,0 +1,46 @@
+# Generated from lib/skyward/orm/migrations/runner.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  type outcome = Array[String] | Edited | Locked | Failed
+
+  TABLE: Symbol
+
+  DOWN: Regexp
+
+  # @rbs path: String
+  # @rbs return: Array[Migration]
+  def read: (String path) -> Array[Migration]
+
+  # Line endings are normalised first, so a checkout that converts them
+  # doesn't read as an edit.
+  # @rbs file: String
+  # @rbs source: String
+  # @rbs return: Migration
+  def parse: (String file, String source) -> Migration
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> outcome
+  def run: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations) -> outcome
+
+  # @rbs failure: Edited | Locked | Failed
+  # @rbs return: String
+  def message: (Edited | Locked | Failed failure) -> String
+
+  private
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
+  #   -> (bool | Locked | Failed)
+  def apply: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Locked | Failed)
+
+  # Rolled back in ensure rather than rescue, so a migration left by throw or a
+  # killed thread rolls back too, before foreign keys go back on.
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Failed)
+  def run_locked: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Failed)
+
+  # SQLite ends the transaction itself on some failures, such as ON CONFLICT
+  # ROLLBACK, and then ROLLBACK raises, though the outcome is already decided.
+  # @rbs (Skyward::ORM::_Connection connection) -> void
+  def rollback: (Skyward::ORM::_Connection connection) -> void
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (true | Failed)
+  def up: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (true | Failed)
+end
