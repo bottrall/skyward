@@ -30,8 +30,15 @@ class Skyward::ORM::Query
     :right #: Array[condition]
   )
 
+  Join = Data.define(
+    :keyword, #: String
+    :table, #: singleton(Skyward::ORM::Record)
+    :on #: Hash[Symbol, Symbol]
+  )
+
   # @rbs @table: singleton(Skyward::ORM::Record)
   # @rbs @session: Skyward::ORM::Connection::Session
+  # @rbs @joins: Array[Join]
   # @rbs @row: Class
   # @rbs @expressions: Hash[Symbol, String]
   # @rbs @conditions: Array[condition]
@@ -42,6 +49,7 @@ class Skyward::ORM::Query
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[condition]
@@ -53,6 +61,7 @@ class Skyward::ORM::Query
   def initialize(
     table,
     session,
+    joins: [],
     row: table,
     expressions: {},
     conditions: [],
@@ -63,6 +72,7 @@ class Skyward::ORM::Query
   )
     @table = table
     @session = session
+    @joins = [*joins].freeze
     @row = row
     @expressions = expressions.dup.freeze
     @conditions = [*conditions].freeze
@@ -72,6 +82,16 @@ class Skyward::ORM::Query
     @offset = offset
     freeze
   end
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[R]
+  def join(table, **on) = joined("JOIN", table, on)
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: Skyward::ORM::Query[R]
+  def left_join(table, **on) = joined("LEFT JOIN", table, on)
 
   # @rbs sql: String?
   # @rbs *values: untyped
@@ -159,7 +179,7 @@ class Skyward::ORM::Query
     return super if block || !args.empty?
 
     database = @session.database
-    database.prepare(@table)
+    prepare(database)
     sql, binds = from(database, [], @limit)
     counted = @groups.empty? && @limit.nil? && @offset.nil? ? sql : %(FROM (SELECT 1 #{sql}) AS "counted")
     database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0)
@@ -170,7 +190,7 @@ class Skyward::ORM::Query
   # @rbs return: bool
   def exists?
     database = @session.database
-    database.prepare(@table)
+    prepare(database)
     sql, binds = from(database, [], [@limit, 1].compact.min)
     !database.execute("SELECT 1 #{sql}", binds).empty?
   end
@@ -189,6 +209,7 @@ class Skyward::ORM::Query
 
   private
 
+  # @rbs joins: Array[Join]
   # @rbs row: Class
   # @rbs expressions: Hash[Symbol, String]
   # @rbs conditions: Array[condition]
@@ -198,6 +219,7 @@ class Skyward::ORM::Query
   # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[untyped]
   def with(
+    joins: @joins,
     row: @row,
     expressions: @expressions,
     conditions: @conditions,
@@ -206,7 +228,29 @@ class Skyward::ORM::Query
     limit: @limit,
     offset: @offset
   )
-    Skyward::ORM::Query.new(@table, @session, row:, expressions:, conditions:, orders:, groups:, limit:, offset:)
+    Skyward::ORM::Query.new(
+      @table, @session, joins:, row:, expressions:, conditions:, orders:, groups:, limit:, offset:
+    )
+  end
+
+  # @rbs keyword: String
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs on: Hash[Symbol, Symbol]
+  # @rbs return: Skyward::ORM::Query[R]
+  def joined(keyword, table, on)
+    unless table.is_a?(Class) && table < Skyward::ORM::Record && table.schema.table
+      raise ArgumentError, "#{@table} can't join #{table.inspect}, which isn't a table class"
+    end
+    # A table that's in a query twice needs an alias to tell the two apart,
+    # which a query can't give it.
+    if tables.any? { |present| present.table_name == table.table_name }
+      raise ArgumentError, "#{@table} can't join #{table}, since #{table.table_name} is already in the query"
+    end
+    raise ArgumentError, "#{@table} can't join #{table} on nothing. Give it columns, such as list_id: :id" if on.empty?
+
+    require_columns(on.keys)
+    require_columns(on.values, table)
+    with(joins: [*@joins, Join.new(keyword:, table:, on:)])
   end
 
   # @rbs sql: String?
@@ -235,14 +279,15 @@ class Skyward::ORM::Query
   end
 
   # @rbs columns: Array[Symbol]
+  # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs return: void
-  def require_columns(columns)
-    known = @table.schema.columns
+  def require_columns(columns, table = @table)
+    known = table.schema.columns
     unknown = (columns - known).first #: Symbol?
     return unless unknown
 
     suggestion = DidYouMean::SpellChecker.new(dictionary: known).correct(unknown).first
-    raise ArgumentError, "#{@table} has no column #{unknown}.#{" Did you mean #{suggestion}?" if suggestion}"
+    raise ArgumentError, "#{table} has no column #{unknown}.#{" Did you mean #{suggestion}?" if suggestion}"
   end
 
   # @rbs conditions: Hash[Symbol, untyped]
@@ -286,7 +331,7 @@ class Skyward::ORM::Query
     sql, binds = from(database, orders, limit)
     columns = Skyward::ORM::Members.of(@row).map do |member|
       expression = @expressions.fetch(member, nil)
-      expression ? "#{expression} AS #{quote(member)}" : quote(member)
+      expression ? "#{expression} AS #{quote(member)}" : qualified(member)
     end.join(", ")
     ["SELECT #{columns} #{sql}", binds]
   end
@@ -298,19 +343,27 @@ class Skyward::ORM::Query
   def from(database, orders, limit)
     adapter = database.adapter
     clauses, binds = conjunction(database, @conditions, 1)
-    ordered = orders.map { |column, direction| "#{quote(column)} #{direction.upcase}" }.join(", ")
+    ordered = orders.map { |column, direction| "#{qualified(column)} #{direction.upcase}" }.join(", ")
     # The limit and offset are bound rather than written in, so every page of a
     # query shares one SQL string.
     paging = [limit, @offset].compact
     sql = [
       "FROM #{quote(@table.table_name)}",
+      *@joins.map { |join| joining(join) },
       ("WHERE #{clauses}" unless @conditions.empty?),
-      ("GROUP BY #{@groups.map { |column| quote(column) }.join(", ")}" unless @groups.empty?),
+      ("GROUP BY #{@groups.map { |column| qualified(column) }.join(", ")}" unless @groups.empty?),
       ("ORDER BY #{ordered}" unless orders.empty?),
       limit ? "LIMIT #{adapter.placeholder(binds.size + 1)}" : (adapter.unlimited if @offset),
       ("OFFSET #{adapter.placeholder(binds.size + paging.size)}" if @offset)
     ].compact.join(" ")
     [sql, [*binds, *paging]]
+  end
+
+  # @rbs join: Join
+  # @rbs return: String
+  def joining(join)
+    on = join.on.map { |column, joined| "#{qualified(column)} = #{qualified(joined, join.table)}" }.join(" AND ")
+    "#{join.keyword} #{quote(join.table.table_name)} ON #{on}"
   end
 
   # @rbs database: Skyward::ORM::Connection::Database
@@ -347,7 +400,7 @@ class Skyward::ORM::Query
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
   def comparison(database, comparison, position)
-    name = quote(comparison.column)
+    name = qualified(comparison.column)
     value = comparison.value
     case value
     when nil then ["#{name} IS NULL", []]
@@ -389,7 +442,7 @@ class Skyward::ORM::Query
       value = condition.value
       condition.column unless value.nil? || (value.is_a?(Array) && value.include?(nil))
     end
-    kept = unknowable.uniq.map { |column| " OR #{quote(column)} IS NULL" }.join
+    kept = unknowable.uniq.map { |column| " OR #{qualified(column)} IS NULL" }.join
     [kept.empty? ? "NOT (#{sql})" : "(NOT (#{sql})#{kept})", binds]
   end
 
@@ -427,10 +480,26 @@ class Skyward::ORM::Query
   # @rbs return: Array[untyped]
   def rows(orders, limit)
     database = @session.database
+    # Building the decoder prepares the starting table, once.
+    @joins.each { |join| database.prepare(join.table) }
     decode = database.decoder(@table, @row, @expressions.keys)
     sql, binds = statement(database, orders, limit)
     database.execute(sql, binds).map(&decode)
   end
+
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def tables = [@table, *@joins.map(&:table)]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: void
+  def prepare(database) = tables.each { |table| database.prepare(table) }
+
+  # Once a query has a join, a column's name could be in more than one table,
+  # so each is qualified with its own.
+  # @rbs name: Symbol
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: String
+  def qualified(name, table = @table) = @joins.empty? ? quote(name) : "#{quote(table.table_name)}.#{quote(name)}"
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol

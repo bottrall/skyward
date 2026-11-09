@@ -46,6 +46,20 @@ describe Skyward::ORM::Record do
       end
     end
 
+    describe ".join" do
+      it "starts from every row" do
+        assert_equal all.join(TablesFixtures::Todo, id: :list_id).to_sql,
+                     TablesFixtures::List.join(TablesFixtures::Todo, id: :list_id).to_sql
+      end
+    end
+
+    describe ".left_join" do
+      it "starts from every row" do
+        assert_equal all.left_join(TablesFixtures::Todo, id: :list_id).to_sql,
+                     TablesFixtures::List.left_join(TablesFixtures::Todo, id: :list_id).to_sql
+      end
+    end
+
     describe ".where" do
       it "starts from every row" do
         assert_equal all.where(name: "Work").to_sql, TablesFixtures::List.where(name: "Work").to_sql
