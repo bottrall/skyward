@@ -31,6 +31,9 @@ gems:
   - name: date
     source:
       type: stdlib
+  - name: did_you_mean
+    source:
+      type: stdlib
   - name: json
     source:
       type: stdlib

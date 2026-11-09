@@ -268,6 +268,10 @@ describe Skyward::ORM::Connection::Database do
     it "runs SQL on its connection and returns the rows" do
       assert_equal [["Home"]], database.execute("SELECT name FROM lists")
     end
+
+    it "binds its values to the SQL's placeholders" do
+      assert_equal [["Home"]], database.execute("SELECT name FROM lists WHERE id = ?", [1])
+    end
   end
 
   describe "#decoder" do
