@@ -6,12 +6,14 @@ class Skyward::ORM::Connection::Database
 
     attr_reader fiber(): Fiber
 
-    def self.new: (Skyward::ORM::_Connection connection, Fiber fiber) -> instance
-                | (connection: Skyward::ORM::_Connection, fiber: Fiber) -> instance
+    attr_reader transaction(): bool
 
-    def self.members: () -> [ :connection, :fiber ]
+    def self.new: (Skyward::ORM::_Connection connection, Fiber fiber, bool transaction) -> instance
+                | (connection: Skyward::ORM::_Connection, fiber: Fiber, transaction: bool) -> instance
 
-    def members: () -> [ :connection, :fiber ]
+    def self.members: () -> [ :connection, :fiber, :transaction ]
+
+    def members: () -> [ :connection, :fiber, :transaction ]
   end
 
   class Statements < Data
@@ -65,6 +67,16 @@ class Skyward::ORM::Connection::Database
   # @rbs return: bool
   def transaction?: () -> bool
 
+  # A transaction for code that can't wrap itself in one block, such as a
+  # test's setup and teardown, until #release rolls it back. transaction?
+  # doesn't report it, so code that branches on it behaves as it would untested.
+  # @rbs return: void
+  def hold: () -> void
+
+  # Nothing is held when #hold raised before it could take a connection.
+  # @rbs return: void
+  def release: () -> void
+
   # @dynamic adapter
   attr_reader adapter: Skyward::ORM::_Adapter
 
@@ -87,15 +99,31 @@ class Skyward::ORM::Connection::Database
   def decoder: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
 
   # @rbs error: StandardError
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation?
-  def violation: (StandardError error, Symbol table) -> Skyward::ORM::Violation?
+  def violation: (StandardError error, Symbol? table) -> Skyward::ORM::Violation?
+
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[Hash[Symbol, untyped]]
+  def hashes: (String sql, Array[untyped] values) -> Array[Hash[Symbol, untyped]]
+
+  # Raw SQL picks its own columns, in its own order, so they're matched to the
+  # row class's members by name.
+  # @rbs row: Class
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: Array[untyped]
+  def rows: (Class row, String sql, Array[untyped] values) -> Array[untyped]
 
   private
 
   # @rbs held: Held
   # @rbs return: bool
   def owned?: (Held held) -> bool
+
+  # @rbs [T] (Held held) { () -> T } -> T
+  def within: [T] (Held held) { () -> T } -> T
 
   # Rolled back in ensure rather than rescue, so a block left by throw or a
   # killed thread rolls back too, and so does a commit that fails.
@@ -113,4 +141,22 @@ class Skyward::ORM::Connection::Database
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def build: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+
+  # @rbs row: Class
+  # @rbs members: Array[Symbol]
+  # @rbs types: Array[Skyward::ORM::Tables::column_type]
+  # @rbs return: ^(Array[untyped]) -> untyped
+  def compile: (Class row, Array[Symbol] members, Array[Skyward::ORM::Tables::column_type] types) -> ^(Array[untyped]) -> untyped
+
+  # Raw SQL returns rows, with no room for a violation, so one raises.
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: [Array[Symbol], Array[Array[untyped]]]
+  def run: (String sql, Array[untyped] values) -> [ Array[Symbol], Array[Array[untyped]] ]
+
+  # @rbs row: Class
+  # @rbs columns: Array[Symbol]
+  # @rbs members: Array[Symbol]
+  # @rbs return: void
+  def unmatched: (Class row, Array[Symbol] columns, Array[Symbol] members) -> void
 end

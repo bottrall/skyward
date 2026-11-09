@@ -19,6 +19,13 @@ describe Skyward::ORM::Query do
     def self.placeholder(position) = "$#{position}"
   end
 
+  # PostgreSQL takes an OFFSET with no LIMIT before it.
+  offset_alone = Module.new do
+    extend Skyward::ORM::Adapters::SQLite
+
+    def self.unlimited = nil
+  end
+
   let(:adapter) { sqlite }
   let(:connection) do
     sqlite.connect(":memory:").tap do |connection|
@@ -199,6 +206,85 @@ describe Skyward::ORM::Query do
     end
   end
 
+  describe "#limit" do
+    it "limits the rows with LIMIT, bound as a parameter" do
+      assert_equal [%(#{select} LIMIT ?), [20]], query.limit(20).to_sql
+    end
+
+    it "returns at most that many rows" do
+      insert(milk, eggs)
+
+      assert_equal [milk], query.order(:id).limit(1).to_a
+    end
+
+    it "replaces an earlier limit" do
+      assert_equal [%(#{select} LIMIT ?), [20]], query.limit(5).limit(20).to_sql
+    end
+
+    it "refuses a negative count" do
+      error = assert_raises(ArgumentError) { query.limit(-1) }
+
+      assert_equal "TablesFixtures::Todo can't limit by -1, only by a non-negative Integer", error.message
+    end
+
+    it "refuses anything but an Integer" do
+      error = assert_raises(ArgumentError) { query.limit(2.5) }
+
+      assert_equal "TablesFixtures::Todo can't limit by 2.5, only by a non-negative Integer", error.message
+    end
+  end
+
+  describe "#offset" do
+    it "skips rows with OFFSET, bound as a parameter after SQLite's LIMIT -1" do
+      assert_equal [%(#{select} LIMIT -1 OFFSET ?), [40]], query.offset(40).to_sql
+    end
+
+    it "returns the rows after those it skips" do
+      insert(milk, eggs)
+
+      assert_equal [eggs], query.order(:id).offset(1).to_a
+    end
+
+    describe "with an adapter that takes an OFFSET alone" do
+      let(:adapter) { offset_alone }
+
+      it "has no LIMIT before it" do
+        assert_equal [%(#{select} OFFSET ?), [40]], query.offset(40).to_sql
+      end
+    end
+
+    describe "with numbered placeholders" do
+      let(:adapter) { numbered }
+
+      it "follows the limit, numbering both after the conditions" do
+        assert_equal [%(#{select} WHERE "done" = $1 ORDER BY "id" ASC LIMIT $2 OFFSET $3), [0, 20, 40]],
+                     query.where(done: false).order(:id).limit(20).offset(40).to_sql
+      end
+    end
+
+    it "gives every page of a query the same SQL" do
+      page = query.order(:id).limit(20)
+
+      assert_equal page.offset(0).to_sql.first, page.offset(40).to_sql.first
+    end
+
+    it "returns the page asked for" do
+      insert(*(1..7).map { |id| milk.with(id:) })
+
+      assert_equal [5, 6], query.order(:id).limit(2).offset(4).map(&:id)
+    end
+
+    it "replaces an earlier offset" do
+      assert_equal [%(#{select} LIMIT -1 OFFSET ?), [40]], query.offset(20).offset(40).to_sql
+    end
+
+    it "refuses a negative count" do
+      error = assert_raises(ArgumentError) { query.offset(-1) }
+
+      assert_equal "TablesFixtures::Todo can't offset by -1, only by a non-negative Integer", error.message
+    end
+  end
+
   describe "#first" do
     it "returns the first row in the query's order" do
       insert(milk, eggs)
@@ -222,6 +308,13 @@ describe Skyward::ORM::Query do
       insert(tag.new(name: "work", colour: "blue"), tag.new(name: "home", colour: "green"))
 
       assert_equal tag.new(name: "home", colour: "green"), Skyward::ORM::Query.new(tag, session).first
+    end
+
+    it "keeps the offset, with a limit of 1 in place of the query's" do
+      assert_equal(
+        [%(#{select} ORDER BY "id" ASC LIMIT 1 OFFSET 1)],
+        traced { query.order(:id).limit(5).offset(1).first }
+      )
     end
 
     it "is nil when no row matches" do
@@ -269,6 +362,25 @@ describe Skyward::ORM::Query do
       assert_equal 2, query.group(:done).count
     end
 
+    it "counts a page through a subquery, without the order" do
+      assert_equal(
+        [%(SELECT COUNT(*) FROM (SELECT 1 FROM "todos" LIMIT 2 OFFSET 1) AS "counted")],
+        traced { query.order(:title).limit(2).offset(1).count }
+      )
+    end
+
+    it "counts only the rows a limit leaves" do
+      insert(milk, eggs, eggs.with(id: 3, title: "Buy bread"))
+
+      assert_equal 2, query.limit(2).count
+    end
+
+    it "counts only the rows an offset leaves" do
+      insert(milk, eggs, eggs.with(id: 3, title: "Buy bread"))
+
+      assert_equal 1, query.offset(2).count
+    end
+
     it "counts the rows the block accepts, in Ruby" do
       insert(milk, eggs)
 
@@ -279,6 +391,39 @@ describe Skyward::ORM::Query do
       insert(milk, eggs)
 
       assert_equal 1, query.count(milk)
+    end
+  end
+
+  describe "#exists?" do
+    it "is true when a row matches" do
+      insert(milk)
+
+      assert_predicate query.where(done: false), :exists?
+    end
+
+    it "is false when no row matches" do
+      insert(milk)
+
+      refute_predicate query.where(done: true), :exists?
+    end
+
+    it "selects 1 with LIMIT 1, keeping the offset but not the order" do
+      assert_equal(
+        [%(SELECT 1 FROM "todos" WHERE "done" = 0 LIMIT 1 OFFSET 1)],
+        traced { query.where(done: false).order(:title).limit(5).offset(1).exists? }
+      )
+    end
+
+    it "is false past the last row" do
+      insert(milk)
+
+      refute_predicate query.offset(1), :exists?
+    end
+
+    it "is false for a limit of 0" do
+      insert(milk)
+
+      refute_predicate query.limit(0), :exists?
     end
   end
 

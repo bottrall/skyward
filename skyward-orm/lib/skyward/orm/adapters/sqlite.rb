@@ -90,6 +90,10 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs (Integer _position) -> String
   def placeholder(_position) = "?"
 
+  # SQLite takes an OFFSET only after a LIMIT, and a negative one is no limit.
+  # @rbs return: String
+  def unlimited = "LIMIT -1"
+
   # @rbs type: Skyward::ORM::Tables::column_type
   # @rbs return: String?
   def sql_type(type) = SQL_TYPES[type]
@@ -160,10 +164,11 @@ module Skyward::ORM::Adapters::SQLite
 
   # The code says which kind of constraint failed. The message names the
   # columns of a unique or not-null one, and the name of a check, and the rest
-  # comes from the schema.
+  # comes from the schema, from the table written, or from every table when
+  # raw SQL doesn't say which it writes.
   # @rbs error: StandardError
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation?
   def violation(error, tables, table)
     return unless error.is_a?(SQLite3::ConstraintException)
@@ -230,11 +235,12 @@ module Skyward::ORM::Adapters::SQLite
 
   # @rbs message: String
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation
   def check(message, tables, table)
     name = detail(message)
-    found = tables.select { |candidate| candidate.name == table }.flat_map(&:constraints).find do |constraint|
+    written = tables.select { |candidate| table.nil? || candidate.name == table }
+    found = written.flat_map(&:constraints).find do |constraint|
       constraint.kind == :check && constraint.name == name
     end
     Skyward::ORM::Violation.new(kind: :check, constraint: name, columns: found&.columns || [], message:)
@@ -244,12 +250,13 @@ module Skyward::ORM::Adapters::SQLite
   # or that refers to it. With more than one, it can't say which.
   # @rbs message: String
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation
   def foreign_key(message, tables, table)
     keys = tables.flat_map do |candidate|
       candidate.constraints.select do |constraint|
-        constraint.kind == :foreign_key && (candidate.name == table || constraint.references == table)
+        constraint.kind == :foreign_key &&
+          (table.nil? || candidate.name == table || constraint.references == table)
       end
     end
     key = keys.first if keys.one?

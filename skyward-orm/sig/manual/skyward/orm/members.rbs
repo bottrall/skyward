@@ -1,0 +1,3 @@
+module Skyward::ORM::Members
+  extend ::Skyward::ORM::Members
+end

@@ -8,6 +8,10 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   DIRECTIONS: Array[direction]
 
+  @offset: Integer?
+
+  @limit: Integer?
+
   @groups: Array[Symbol]
 
   @orders: Array[[ Symbol, direction ]]
@@ -23,8 +27,10 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
   # @rbs return: void
-  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol]) -> void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
 
   # @rbs **conditions: untyped
   # @rbs return: Skyward::ORM::Query[R]
@@ -39,6 +45,14 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs return: Skyward::ORM::Query[R]
   def group: (*Symbol columns) -> Skyward::ORM::Query[R]
 
+  # @rbs count: Integer
+  # @rbs return: Skyward::ORM::Query[R]
+  def limit: (Integer count) -> Skyward::ORM::Query[R]
+
+  # @rbs count: Integer
+  # @rbs return: Skyward::ORM::Query[R]
+  def offset: (Integer count) -> Skyward::ORM::Query[R]
+
   # Ordered by the primary key when nothing else orders it, so both databases
   # return the same row.
   # @rbs () -> R?
@@ -51,8 +65,15 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   def find_by: (**untyped conditions) -> R?
 
   # PostgreSQL refuses an ORDER BY beside COUNT(*), so the count leaves it out.
+  # A LIMIT beside it would limit the one row COUNT(*) returns, so a page is
+  # counted through a subquery, as the groups of a grouped query are.
   # @rbs (*untyped args) ?{ (R) -> boolish } -> Integer
   def count: (*untyped args) ?{ (R) -> boolish } -> Integer
+
+  # Order can't change whether the query has a row, so it's left out, and a
+  # limit of 0 has none.
+  # @rbs return: bool
+  def exists?: () -> bool
 
   # @rbs () { (R) -> void } -> self
   #    | () -> Enumerator[R, self]
@@ -67,8 +88,10 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[R]
-  def with: (?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol]) -> Skyward::ORM::Query[R]
+  def with: (?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[R]
 
   # @rbs columns: Array[Symbol]
   # @rbs return: void
@@ -78,14 +101,22 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # @rbs return: void
   def require_types: (Hash[Symbol, untyped] conditions) -> void
 
-  # @rbs database: Skyward::ORM::Connection::Database
-  # @rbs orders: Array[[Symbol, direction]]
-  # @rbs return: [String, Array[untyped]]
-  def statement: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders) -> [ String, Array[untyped] ]
+  # @rbs method: Symbol
+  # @rbs count: Integer
+  # @rbs return: Integer
+  def require_count: (Symbol method, Integer count) -> Integer
 
   # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
-  def from: (Skyward::ORM::Connection::Database database) -> [ String, Array[untyped] ]
+  def statement: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: [String, Array[untyped]]
+  def from: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs name: String
@@ -105,9 +136,9 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   # Steep can't tie a table class to R, so the rows are untyped here and each
   # public method types them.
   # @rbs orders: Array[[Symbol, direction]]
-  # @rbs limit: String
+  # @rbs limit: Integer?
   # @rbs return: Array[untyped]
-  def rows: (Array[[ Symbol, direction ]] orders, ?String limit) -> Array[untyped]
+  def rows: (Array[[ Symbol, direction ]] orders, Integer? limit) -> Array[untyped]
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol

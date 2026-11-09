@@ -30,6 +30,9 @@ class Skyward::ORM::Record
   # @rbs return: instance?
   def self.find_by(**conditions) = all.find_by(**conditions)
 
+  # @rbs return: Array[Symbol]
+  def self.members = schema.columns
+
   # Ruby warns whenever initialize is removed, so a table class redefines
   # initialize_columns instead, each time it gains a column.
   # @rbs **columns: untyped

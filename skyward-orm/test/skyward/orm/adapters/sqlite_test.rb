@@ -98,6 +98,12 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".unlimited" do
+    it "is LIMIT -1, which SQLite needs before an OFFSET" do
+      assert_equal [[3]], sqlite.connect(":memory:").execute("SELECT 3 #{sqlite.unlimited} OFFSET 0")
+    end
+  end
+
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
       types = %i[integer float string bool date time enum].to_h { |type| [type, sqlite.sql_type(type)] }
@@ -334,6 +340,11 @@ describe Skyward::ORM::Adapters::SQLite do
                    violation("INSERT INTO todos (list_id, title) VALUES (1, '')", :todos)
     end
 
+    it "reads a check's columns from any table when it isn't told which was written" do
+      assert_equal violation_of(:check, "todos_title_check", [:title], "CHECK constraint failed: todos_title_check"),
+                   violation("INSERT INTO todos (list_id, title) VALUES (1, '')", nil)
+    end
+
     it "has no columns for a check with no name, which SQLite reports by its expression" do
       assert_equal violation_of(:check, "done IN (0, 1)", [], "CHECK constraint failed: done IN (0, 1)"),
                    violation("INSERT INTO todos (list_id, title, done) VALUES (1, 'Eggs', 2)", :todos)
@@ -354,6 +365,18 @@ describe Skyward::ORM::Adapters::SQLite do
 
       assert_equal violation_of(:foreign_key, nil, [], "FOREIGN KEY constraint failed"),
                    violation("INSERT INTO shares (list_id, todo_id) VALUES (9, 1)", :shares)
+    end
+
+    it "reads the one foreign key any table has when it isn't told which was written" do
+      assert_equal violation_of(:foreign_key, "todos_list_id_fkey", [:list_id], "FOREIGN KEY constraint failed"),
+                   violation("INSERT INTO todos (list_id, title) VALUES (9, 'Eggs')", nil)
+    end
+
+    it "can't say which foreign key failed when it isn't told which table was written and the tables have more" do
+      connection.execute("CREATE TABLE shares (list_id INTEGER REFERENCES lists)")
+
+      assert_equal violation_of(:foreign_key, nil, [], "FOREIGN KEY constraint failed"),
+                   violation("INSERT INTO todos (list_id, title) VALUES (9, 'Eggs')", nil)
     end
 
     it "is nil for a constraint it doesn't report, such as a trigger's" do

@@ -3,7 +3,7 @@
 class Skyward::ORM::Tables::ColumnTypes
   @reader: Skyward::Core::Types::Reader
 
-  @resolved: Hash[singleton(Skyward::ORM::Record), Array[Skyward::ORM::Tables::Column]]
+  @resolved: Hash[Class, Array[Skyward::ORM::Tables::Column]]
 
   UNTYPED: Skyward::Core::Types::Scalar
 
@@ -15,15 +15,15 @@ class Skyward::ORM::Tables::ColumnTypes
 
   # A class's types are resolved once for the signatures the reader loaded, so
   # no query reads RBS.
-  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs klass: Class
   # @rbs return: Array[Skyward::ORM::Tables::Column]
-  def columns: (singleton(Skyward::ORM::Record) klass) -> Array[Skyward::ORM::Tables::Column]
+  def columns: (Class klass) -> Array[Skyward::ORM::Tables::Column]
 
   private
 
-  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs klass: Class
   # @rbs return: Array[Skyward::ORM::Tables::Column]
-  def resolve: (singleton(Skyward::ORM::Record) klass) -> Array[Skyward::ORM::Tables::Column]
+  def resolve: (Class klass) -> Array[Skyward::ORM::Tables::Column]
 
   # @rbs name: Symbol
   # @rbs returned: RBS::Types::t

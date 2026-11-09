@@ -50,6 +50,10 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs (Integer _position) -> String
   def placeholder: (Integer _position) -> String
 
+  # SQLite takes an OFFSET only after a LIMIT, and a negative one is no limit.
+  # @rbs return: String
+  def unlimited: () -> String
+
   # @rbs type: Skyward::ORM::Tables::column_type
   # @rbs return: String?
   def sql_type: (Skyward::ORM::Tables::column_type type) -> String?
@@ -84,12 +88,13 @@ module Skyward::ORM::Adapters::SQLite
 
   # The code says which kind of constraint failed. The message names the
   # columns of a unique or not-null one, and the name of a check, and the rest
-  # comes from the schema.
+  # comes from the schema, from the table written, or from every table when
+  # raw SQL doesn't say which it writes.
   # @rbs error: StandardError
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation?
-  def violation: (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation?
+  def violation: (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol? table) -> Skyward::ORM::Violation?
 
   private
 
@@ -109,17 +114,17 @@ module Skyward::ORM::Adapters::SQLite
 
   # @rbs message: String
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation
-  def check: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation
+  def check: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol? table) -> Skyward::ORM::Violation
 
   # SQLite's message names no key at all, so it's the one key the table has
   # or that refers to it. With more than one, it can't say which.
   # @rbs message: String
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
-  # @rbs table: Symbol
+  # @rbs table: Symbol?
   # @rbs return: Skyward::ORM::Violation
-  def foreign_key: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol table) -> Skyward::ORM::Violation
+  def foreign_key: (String message, Array[Skyward::ORM::Catalog::Table] tables, Symbol? table) -> Skyward::ORM::Violation
 
   # SQLite names them as table.column: "UNIQUE constraint failed: todos.list_id, todos.title".
   # @rbs message: String
