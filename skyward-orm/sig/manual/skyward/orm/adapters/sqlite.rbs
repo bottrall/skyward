@@ -1,0 +1,3 @@
+module Skyward::ORM::Adapters::SQLite
+  extend ::Skyward::ORM::Adapters::SQLite
+end

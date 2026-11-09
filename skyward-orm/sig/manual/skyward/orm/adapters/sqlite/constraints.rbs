@@ -1,0 +1,3 @@
+module Skyward::ORM::Adapters::SQLite::Constraints
+  extend ::Skyward::ORM::Adapters::SQLite::Constraints
+end

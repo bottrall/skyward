@@ -1,0 +1,3 @@
+module Skyward::ORM::Adapters
+  extend ::Skyward::ORM::Adapters
+end

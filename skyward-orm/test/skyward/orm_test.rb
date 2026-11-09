@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM do
   it "loads every file under its own part of the Skyward namespace" do
@@ -18,6 +19,30 @@ describe Skyward::ORM do
 end
 
 describe Skyward do
+  describe ".connect" do
+    fixtures = File.expand_path("../fixtures/tables", __dir__)
+    todo = TablesFixtures::Todo
+    values = [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"]
+
+    it "keeps the database it connects to, for every query" do
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+
+      assert_same database, Skyward::ORM::Connection::SESSION.database
+    end
+
+    it "reads column types from the signatures given" do
+      database = Skyward.connect("sqlite://:memory:", signatures: File.join(fixtures, "sig"))
+
+      assert_equal :normal, database.decoder(todo, todo).call(values).priority
+    end
+
+    it "reads them from sig/ in the current directory by default" do
+      database = Dir.chdir(fixtures) { Skyward.connect("sqlite://:memory:") }
+
+      assert_equal :normal, database.decoder(todo, todo).call(values).priority
+    end
+  end
+
   describe ".sql" do
     it "wraps an SQL expression" do
       assert_equal Skyward::ORM::Tables::SQL.new(expression: "now()"), Skyward.sql("now()")

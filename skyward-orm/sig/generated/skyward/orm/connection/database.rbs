@@ -1,0 +1,36 @@
+# Generated from lib/skyward/orm/connection/database.rb with RBS::Inline
+
+class Skyward::ORM::Connection::Database
+  @adapter: Skyward::ORM::_Adapter
+
+  @connection: Skyward::ORM::_Connection
+
+  @column_types: Skyward::ORM::Tables::ColumnTypes
+
+  @tables: Array[Skyward::ORM::Catalog::Table]
+
+  @decoders: Hash[[ singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record) ], ^(Array[untyped]) -> Skyward::ORM::Record]
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection,
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
+  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
+
+  # A query selects its row class's columns in order, so the decoder reads
+  # each value by position, as its table's column type says.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs row: singleton(Skyward::ORM::Record)
+  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
+  def decoder: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+
+  # @rbs error: StandardError
+  # @rbs table: Symbol
+  # @rbs return: Skyward::ORM::Violation?
+  def violation: (StandardError error, Symbol table) -> Skyward::ORM::Violation?
+
+  private
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs row: singleton(Skyward::ORM::Record)
+  # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
+  def build: (singleton(Skyward::ORM::Record) table, singleton(Skyward::ORM::Record) row) -> ^(Array[untyped]) -> Skyward::ORM::Record
+end

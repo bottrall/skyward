@@ -1,0 +1,22 @@
+# Generated from lib/skyward/orm/violation.rb with RBS::Inline
+
+module Skyward::ORM
+  type violation_kind = :unique | :foreign_key | :not_null | :check
+
+  class Violation < Data
+    attr_reader kind(): violation_kind
+
+    attr_reader constraint(): String?
+
+    attr_reader columns(): Array[Symbol]
+
+    attr_reader message(): String
+
+    def self.new: (violation_kind kind, String? constraint, Array[Symbol] columns, String message) -> instance
+                | (kind: violation_kind, constraint: String?, columns: Array[Symbol], message: String) -> instance
+
+    def self.members: () -> [ :kind, :constraint, :columns, :message ]
+
+    def members: () -> [ :kind, :constraint, :columns, :message ]
+  end
+end

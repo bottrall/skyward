@@ -1,0 +1,20 @@
+# Generated from lib/skyward/orm/catalog/table.rb with RBS::Inline
+
+module Skyward::ORM::Catalog
+  class Table < Data
+    attr_reader name(): Symbol
+
+    attr_reader columns(): Array[Column]
+
+    attr_reader indexes(): Array[Index]
+
+    attr_reader constraints(): Array[Constraint]
+
+    def self.new: (Symbol name, Array[Column] columns, Array[Index] indexes, Array[Constraint] constraints) -> instance
+                | (name: Symbol, columns: Array[Column], indexes: Array[Index], constraints: Array[Constraint]) -> instance
+
+    def self.members: () -> [ :name, :columns, :indexes, :constraints ]
+
+    def members: () -> [ :name, :columns, :indexes, :constraints ]
+  end
+end
