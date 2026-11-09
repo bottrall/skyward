@@ -14,19 +14,25 @@ class Skyward::ORM::Query
   # @rbs @conditions: Array[[Symbol, untyped]]
   # @rbs @orders: Array[[Symbol, direction]]
   # @rbs @groups: Array[Symbol]
+  # @rbs @limit: Integer?
+  # @rbs @offset: Integer?
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
   # @rbs return: void
-  def initialize(table, session, conditions: [], orders: [], groups: [])
+  def initialize(table, session, conditions: [], orders: [], groups: [], limit: nil, offset: nil)
     @table = table
     @session = session
     @conditions = [*conditions].freeze
     @orders = [*orders].freeze
     @groups = [*groups].freeze
+    @limit = limit
+    @offset = offset
     freeze
   end
 
@@ -56,6 +62,14 @@ class Skyward::ORM::Query
     with(groups: [*@groups, *columns])
   end
 
+  # @rbs count: Integer
+  # @rbs return: Skyward::ORM::Query[R]
+  def limit(count) = with(limit: require_count(:limit, count))
+
+  # @rbs count: Integer
+  # @rbs return: Skyward::ORM::Query[R]
+  def offset(count) = with(offset: require_count(:offset, count))
+
   # Ordered by the primary key when nothing else orders it, so both databases
   # return the same row.
   # @rbs () -> R?
@@ -63,7 +77,7 @@ class Skyward::ORM::Query
   def first(count = nil)
     return super if count
 
-    rows(@orders.empty? ? [[@table.schema.primary_key, :asc]] : @orders, " LIMIT 1").first
+    rows(@orders.empty? ? [[@table.schema.primary_key, :asc]] : @orders, 1).first
   end
 
   # @rbs **conditions: untyped
@@ -71,15 +85,27 @@ class Skyward::ORM::Query
   def find_by(**conditions) = where(**conditions).first
 
   # PostgreSQL refuses an ORDER BY beside COUNT(*), so the count leaves it out.
+  # A LIMIT beside it would limit the one row COUNT(*) returns, so a page is
+  # counted through a subquery, as the groups of a grouped query are.
   # @rbs (*untyped args) ?{ (R) -> boolish } -> Integer
   def count(*args, &block)
     return super if block || !args.empty?
 
     database = @session.database
     database.prepare(@table)
-    sql, binds = from(database)
-    counted = @groups.empty? ? sql : %(FROM (SELECT 1 #{sql}) AS "grouped")
+    sql, binds = from(database, [], @limit)
+    counted = @groups.empty? && @limit.nil? && @offset.nil? ? sql : %(FROM (SELECT 1 #{sql}) AS "counted")
     database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0)
+  end
+
+  # Order can't change whether the query has a row, so it's left out, and a
+  # limit of 0 has none.
+  # @rbs return: bool
+  def exists?
+    database = @session.database
+    database.prepare(@table)
+    sql, binds = from(database, [], [@limit, 1].compact.min)
+    !database.execute("SELECT 1 #{sql}", binds).empty?
   end
 
   # @rbs () { (R) -> void } -> self
@@ -87,21 +113,23 @@ class Skyward::ORM::Query
   def each(&block)
     return enum_for(:each) unless block
 
-    rows(@orders).each(&block)
+    rows(@orders, @limit).each(&block)
     self
   end
 
   # @rbs return: [String, Array[untyped]]
-  def to_sql = statement(@session.database, @orders)
+  def to_sql = statement(@session.database, @orders, @limit)
 
   private
 
   # @rbs conditions: Array[[Symbol, untyped]]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[R]
-  def with(conditions: @conditions, orders: @orders, groups: @groups)
-    Skyward::ORM::Query.new(@table, @session, conditions:, orders:, groups:)
+  def with(conditions: @conditions, orders: @orders, groups: @groups, limit: @limit, offset: @offset)
+    Skyward::ORM::Query.new(@table, @session, conditions:, orders:, groups:, limit:, offset:)
   end
 
   # @rbs columns: Array[Symbol]
@@ -115,30 +143,48 @@ class Skyward::ORM::Query
     raise ArgumentError, "#{@table} has no column #{unknown}.#{" Did you mean #{suggestion}?" if suggestion}"
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
-  # @rbs orders: Array[[Symbol, direction]]
-  # @rbs return: [String, Array[untyped]]
-  def statement(database, orders)
-    sql, binds = from(database)
-    columns = @table.schema.columns.map { |column| quote(column) }.join(", ")
-    ordered = orders.map { |column, direction| "#{quote(column)} #{direction.upcase}" }.join(", ")
-    ["SELECT #{columns} #{sql}#{" ORDER BY #{ordered}" unless orders.empty?}", binds]
+  # @rbs method: Symbol
+  # @rbs count: Integer
+  # @rbs return: Integer
+  def require_count(method, count)
+    return count if count.is_a?(Integer) && !count.negative?
+
+    raise ArgumentError, "#{@table} can't #{method} by #{count.inspect}, only by a non-negative Integer"
   end
 
   # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
-  def from(database)
+  def statement(database, orders, limit)
+    sql, binds = from(database, orders, limit)
+    ["SELECT #{@table.schema.columns.map { |column| quote(column) }.join(", ")} #{sql}", binds]
+  end
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: [String, Array[untyped]]
+  def from(database, orders, limit)
+    adapter = database.adapter
     none = [[], []] #: [Array[String], Array[untyped]]
     clauses, binds = @conditions.reduce(none) do |(sqls, values), (column, value)|
       sql, bound = condition(database, quote(column), value, values.size + 1)
       [[*sqls, sql], [*values, *bound]]
     end
+    ordered = orders.map { |column, direction| "#{quote(column)} #{direction.upcase}" }.join(", ")
+    # The limit and offset are bound rather than written in, so every page of a
+    # query shares one SQL string.
+    paging = [limit, @offset].compact
     sql = [
       "FROM #{quote(@table.table_name)}",
       ("WHERE #{clauses.join(" AND ")}" unless clauses.empty?),
-      ("GROUP BY #{@groups.map { |column| quote(column) }.join(", ")}" unless @groups.empty?)
+      ("GROUP BY #{@groups.map { |column| quote(column) }.join(", ")}" unless @groups.empty?),
+      ("ORDER BY #{ordered}" unless orders.empty?),
+      limit ? "LIMIT #{adapter.placeholder(binds.size + 1)}" : (adapter.unlimited if @offset),
+      ("OFFSET #{adapter.placeholder(binds.size + paging.size)}" if @offset)
     ].compact.join(" ")
-    [sql, binds]
+    [sql, [*binds, *paging]]
   end
 
   # @rbs database: Skyward::ORM::Connection::Database
@@ -175,13 +221,13 @@ class Skyward::ORM::Query
   # Steep can't tie a table class to R, so the rows are untyped here and each
   # public method types them.
   # @rbs orders: Array[[Symbol, direction]]
-  # @rbs limit: String
+  # @rbs limit: Integer?
   # @rbs return: Array[untyped]
-  def rows(orders, limit = "")
+  def rows(orders, limit)
     database = @session.database
     decode = database.decoder(@table, @table)
-    sql, binds = statement(database, orders)
-    database.execute("#{sql}#{limit}", binds).map(&decode)
+    sql, binds = statement(database, orders, limit)
+    database.execute(sql, binds).map(&decode)
   end
 
   # Quoted, so a column named order or user is still a column.
