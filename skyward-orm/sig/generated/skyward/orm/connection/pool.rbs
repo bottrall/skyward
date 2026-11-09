@@ -22,12 +22,16 @@ class Skyward::ORM::Connection::Pool
   # @rbs [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
   def with: [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
 
-  private
-
   # Thread::Queue and Thread::Mutex block only the waiting fiber under a fiber
   # scheduler, so under Falcon a fiber waiting for a connection lets others run.
   # @rbs return: Skyward::ORM::_Connection
   def checkout: () -> Skyward::ORM::_Connection
+
+  # @rbs connection: Skyward::ORM::_Connection
+  # @rbs return: void
+  def checkin: (Skyward::ORM::_Connection connection) -> void
+
+  private
 
   # The place is taken under the lock but the connection opened outside it, so a
   # slow connect holds up no other checkout.

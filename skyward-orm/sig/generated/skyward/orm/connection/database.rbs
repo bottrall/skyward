@@ -6,12 +6,14 @@ class Skyward::ORM::Connection::Database
 
     attr_reader fiber(): Fiber
 
-    def self.new: (Skyward::ORM::_Connection connection, Fiber fiber) -> instance
-                | (connection: Skyward::ORM::_Connection, fiber: Fiber) -> instance
+    attr_reader transaction(): bool
 
-    def self.members: () -> [ :connection, :fiber ]
+    def self.new: (Skyward::ORM::_Connection connection, Fiber fiber, bool transaction) -> instance
+                | (connection: Skyward::ORM::_Connection, fiber: Fiber, transaction: bool) -> instance
 
-    def members: () -> [ :connection, :fiber ]
+    def self.members: () -> [ :connection, :fiber, :transaction ]
+
+    def members: () -> [ :connection, :fiber, :transaction ]
   end
 
   class Statements < Data
@@ -65,6 +67,16 @@ class Skyward::ORM::Connection::Database
   # @rbs return: bool
   def transaction?: () -> bool
 
+  # A transaction for code that can't wrap itself in one block, such as a
+  # test's setup and teardown, until #release rolls it back. transaction?
+  # doesn't report it, so code that branches on it behaves as it would untested.
+  # @rbs return: void
+  def hold: () -> void
+
+  # Nothing is held when #hold raised before it could take a connection.
+  # @rbs return: void
+  def release: () -> void
+
   # @dynamic adapter
   attr_reader adapter: Skyward::ORM::_Adapter
 
@@ -109,6 +121,9 @@ class Skyward::ORM::Connection::Database
   # @rbs held: Held
   # @rbs return: bool
   def owned?: (Held held) -> bool
+
+  # @rbs [T] (Held held) { () -> T } -> T
+  def within: [T] (Held held) { () -> T } -> T
 
   # Rolled back in ensure rather than rescue, so a block left by throw or a
   # killed thread rolls back too, and so does a commit that fails.

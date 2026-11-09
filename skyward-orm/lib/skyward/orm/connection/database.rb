@@ -3,7 +3,8 @@
 class Skyward::ORM::Connection::Database
   Held = Data.define(
     :connection, #: Skyward::ORM::_Connection
-    :fiber #: Fiber
+    :fiber, #: Fiber
+    :transaction #: bool
   )
 
   Statements = Data.define(
@@ -60,18 +61,37 @@ class Skyward::ORM::Connection::Database
     held = Fiber[@key] #: Held?
     return atomically(held.connection, SAVEPOINT, &block) if held && owned?(held)
 
-    @pool.with do |connection|
-      Fiber[@key] = Held.new(connection:, fiber: Fiber.current)
-      atomically(connection, TRANSACTION, &block)
-    ensure
-      Fiber[@key] = held
-    end
+    @pool.with { |connection| atomically(connection, TRANSACTION, &block) }
   end
 
   # @rbs return: bool
   def transaction?
     held = Fiber[@key] #: Held?
-    !held.nil? && owned?(held)
+    !held.nil? && held.transaction && owned?(held)
+  end
+
+  # A transaction for code that can't wrap itself in one block, such as a
+  # test's setup and teardown, until #release rolls it back. transaction?
+  # doesn't report it, so code that branches on it behaves as it would untested.
+  # @rbs return: void
+  def hold
+    connection = @pool.checkout
+    Fiber[@key] = Held.new(connection:, fiber: Fiber.current, transaction: false)
+    connection.execute(TRANSACTION.start)
+  end
+
+  # Nothing is held when #hold raised before it could take a connection.
+  # @rbs return: void
+  def release
+    held = Fiber[@key] #: Held?
+    return unless held
+
+    Fiber[@key] = nil
+    begin
+      TRANSACTION.rollback.each { |sql| held.connection.execute(sql) }
+    ensure
+      @pool.checkin(held.connection)
+    end
   end
 
   # @dynamic adapter
@@ -127,19 +147,32 @@ class Skyward::ORM::Connection::Database
   # @rbs return: bool
   def owned?(held) = held.fiber.equal?(Fiber.current)
 
+  # @rbs [T] (Held held) { () -> T } -> T
+  def within(held)
+    outer = Fiber[@key] #: Held?
+    Fiber[@key] = held
+    begin
+      yield
+    ensure
+      Fiber[@key] = outer
+    end
+  end
+
   # Rolled back in ensure rather than rescue, so a block left by throw or a
   # killed thread rolls back too, and so does a commit that fails.
   # @rbs [T] (Skyward::ORM::_Connection connection, Statements statements) { () -> T } -> T
   def atomically(connection, statements)
-    connection.execute(statements.start)
-    settled = false
-    begin
-      result = yield
-      ending(statements, result).each { |sql| connection.execute(sql) }
-      settled = true
-      result
-    ensure
-      statements.rollback.each { |sql| connection.execute(sql) } unless settled
+    within(Held.new(connection:, fiber: Fiber.current, transaction: true)) do
+      connection.execute(statements.start)
+      settled = false
+      begin
+        result = yield
+        ending(statements, result).each { |sql| connection.execute(sql) }
+        settled = true
+        result
+      ensure
+        statements.rollback.each { |sql| connection.execute(sql) } unless settled
+      end
     end
   end
 
