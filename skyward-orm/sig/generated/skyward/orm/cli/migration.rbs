@@ -3,6 +3,8 @@
 module Skyward::ORM::CLI::Migration
   NAME: Regexp
 
+  EMPTY: String
+
   USAGE: String
 
   NOTHING: String
@@ -12,6 +14,9 @@ module Skyward::ORM::CLI::Migration
   def run: (Array[String] args, directory: String, time: Time, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
 
   private
+
+  # @rbs (String name, directory: String, time: Time, out: _Writer) -> void
+  def write_empty: (String name, directory: String, time: Time, out: _Writer) -> void
 
   # Writing a second migration before the first has run would write the same
   # change twice, so a pending one stops it.
