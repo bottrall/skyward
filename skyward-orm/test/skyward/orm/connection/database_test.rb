@@ -623,4 +623,34 @@ describe Skyward::ORM::Connection::Database do
       assert_equal "The SQL returns no days_late for TablesFixtures::Overdue", error.message
     end
   end
+
+  describe "#migrate" do
+    runner = Skyward::ORM::Migrations::Runner
+    create_notes = runner.parse("20261001000000_create_notes.sql", "CREATE TABLE notes (id INTEGER);\n")
+    note = Class.new(Skyward::ORM::Record) do
+      table :notes
+      attr_reader :id
+    end
+
+    it "runs the migrations on a connection it checks out, through its adapter" do
+      ran = database.migrate([create_notes])
+
+      assert_equal [["20261001000000"], [["notes"]]],
+                   [ran, connection.execute("SELECT name FROM sqlite_schema WHERE name = 'notes'")]
+    end
+
+    it "reads the schema again, so a class is checked against the tables the migrations made" do
+      database.migrate([create_notes])
+
+      assert_silent { database.check([note]) }
+    end
+
+    it "checks a class again against the schema it migrated to, though it matched before" do
+      database.check([todo])
+      database.migrate([runner.parse("20261001000000_drop_title.sql", "ALTER TABLE todos DROP COLUMN title;\n")])
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.check([todo]) }
+
+      assert_equal mismatch(todo), error.message
+    end
+  end
 end

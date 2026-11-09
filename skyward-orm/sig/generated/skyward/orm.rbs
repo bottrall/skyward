@@ -21,6 +21,10 @@ module Skyward
   def self.query: [T] (ORM::_Row[T] row, String sql, *untyped values) -> Array[T]
                 | (String sql, *untyped values) -> Array[Hash[Symbol, untyped]]
 
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def self.migrate: (String directory) -> Array[String]
+
   # @rbs expression: String
   # @rbs return: ORM::Tables::SQL
   def self.sql: (String expression) -> ORM::Tables::SQL

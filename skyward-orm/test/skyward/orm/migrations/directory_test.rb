@@ -56,4 +56,23 @@ describe Skyward::ORM::Migrations::Directory do
       end
     end
   end
+
+  describe ".sql_files" do
+    it "lists the .sql files in a directory of migrations, in order" do
+      app(
+        "db/migrate/20261019141500_add_notes.sql",
+        "db/migrate/20261018093000_create_todos.sql",
+        "db/migrate/README"
+      ) do |path|
+        assert_equal %w[20261018093000_create_todos.sql 20261019141500_add_notes.sql],
+                     directory.sql_files(File.join(path, "db/migrate"))
+      end
+    end
+  end
+
+  describe ".version" do
+    it "is what the file's name has before the first _" do
+      assert_equal "20261018093000", directory.version("db/migrate/20261018093000_create_todos.sql")
+    end
+  end
 end

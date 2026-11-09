@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/runner/edited.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  class Edited < Data
+    attr_reader files(): Array[String]
+
+    def self.new: (Array[String] files) -> instance
+                | (files: Array[String]) -> instance
+
+    def self.members: () -> [ :files ]
+
+    def members: () -> [ :files ]
+  end
+end

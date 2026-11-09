@@ -34,6 +34,9 @@ gems:
   - name: did_you_mean
     source:
       type: stdlib
+  - name: digest
+    source:
+      type: stdlib
   - name: json
     source:
       type: stdlib

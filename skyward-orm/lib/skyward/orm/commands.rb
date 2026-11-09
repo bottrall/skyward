@@ -17,3 +17,13 @@ Skyward::Core::CLI.register(
     discover: -> { Skyward::ORM::Migrations::Discovery.table_classes(Zeitwerk::Loader) }
   )
 end
+
+Skyward::Core::CLI.register("migrate", "Run the pending migrations in db/migrate") do |_args|
+  Skyward::ORM::CLI::Migrate.run(
+    directory: Dir.pwd,
+    out: $stdout,
+    kernel: Kernel,
+    session: Skyward::ORM::Connection::SESSION,
+    discover: -> { Skyward::ORM::Migrations::Discovery.table_classes(Zeitwerk::Loader) }
+  )
+end
