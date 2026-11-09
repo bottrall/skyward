@@ -80,4 +80,22 @@ describe Skyward::ORM::Connection::Pool do
       assert_same opened.first, connection
     end
   end
+
+  describe "#checkout" do
+    it "keeps a connection out until it's checked in" do
+      pool = pool_class.new(1, opener, timeout: 0.01)
+      pool.checkout
+
+      assert_raises(Skyward::ORM::PoolTimeout) { pool.checkout }
+    end
+  end
+
+  describe "#checkin" do
+    it "gives a connection back for the next checkout" do
+      pool = pool_class.new(1, opener, timeout: 0.01)
+      pool.checkin(pool.checkout)
+
+      assert_same opened.first, pool.checkout
+    end
+  end
 end

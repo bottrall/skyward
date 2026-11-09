@@ -27,11 +27,9 @@ class Skyward::ORM::Connection::Pool
     begin
       yield connection
     ensure
-      @idle.push(connection)
+      checkin(connection)
     end
   end
-
-  private
 
   # Thread::Queue and Thread::Mutex block only the waiting fiber under a fiber
   # scheduler, so under Falcon a fiber waiting for a connection lets others run.
@@ -43,6 +41,14 @@ class Skyward::ORM::Connection::Pool
       "stayed in use. Pass Skyward.connect a larger pool:, or hold each connection for less time."
     )
   end
+
+  # @rbs connection: Skyward::ORM::_Connection
+  # @rbs return: void
+  def checkin(connection)
+    @idle.push(connection)
+  end
+
+  private
 
   # The place is taken under the lock but the connection opened outside it, so a
   # slow connect holds up no other checkout.
