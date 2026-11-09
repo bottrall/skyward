@@ -171,6 +171,15 @@ describe Skyward::ORM::CLI::Migration do
       end
     end
 
+    # boot.rb connects with the default, and the fixtures' tables are loaded, so a check would refuse it.
+    it "boots the app with the schema check off, because the migration is what makes the schema match" do
+      app do |directory|
+        run_in(directory, "create_todos")
+
+        assert_equal [nil, 1], [kernel.aborted, written(directory).size]
+      end
+    end
+
     it "refuses while a migration hasn't run, so it can't write the same change twice" do
       app do |directory|
         migration_file(directory, "20261001000000_create_lists.sql")

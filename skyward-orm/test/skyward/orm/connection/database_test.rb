@@ -12,32 +12,65 @@ describe Skyward::ORM::Connection::Database do
   refused = Skyward::ORM::Violation.new(kind: :check, constraint: nil, columns: [], message: "refused")
   foreign = "this transaction belongs to another fiber; start your own, or return the result to the block"
 
-  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
+  counting_adapter = Class.new do
+    attr_reader :comparisons
+
+    def initialize(adapter)
+      @adapter = adapter
+    end
+
+    def compatible?(type, sql_type)
+      @comparisons = comparisons.to_i + 1
+      @adapter.compatible?(type, sql_type)
+    end
+
+    def sql_type(type) = @adapter.sql_type(type)
+  end
+
   let(:connection) do
     sqlite.connect(":memory:").tap do |connection|
+      # lists.name allows NULL, which TablesFixtures::List#name doesn't.
       connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
       connection.execute("INSERT INTO lists (name) VALUES ('Home')")
+      connection.execute(<<~SQL)
+        CREATE TABLE todos (
+          id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL, title TEXT NOT NULL, priority TEXT NOT NULL,
+          due_on TEXT, done INTEGER NOT NULL, created_at TEXT NOT NULL
+        )
+      SQL
     end
   end
+  let(:adapter) { sqlite }
+  let(:check) { true }
+  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
   let(:database) do
     Skyward::ORM::Connection::Database.new(
-      sqlite,
+      adapter,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,
-      sqlite.tables(connection)
+      sqlite.tables(connection),
+      check:
     )
   end
   # Each connection to :memory: is a database of its own, so these are told
   # apart only by identity.
   let(:two_connections) { pooled(-> { sqlite.connect(":memory:") }) }
   let(:todo) { TablesFixtures::Todo }
+  let(:list) { TablesFixtures::List }
+
+  def mismatch(table)
+    Skyward::ORM::Connection::Database::SchemaCheck.mismatch(
+      table, column_types.columns(table), adapter.tables(connection), adapter
+    )
+  end
 
   def pooled(opener)
     Skyward::ORM::Connection::Database.new(
       Skyward::ORM::Adapters::SQLite,
       Skyward::ORM::Connection::Pool.new(2, opener),
       column_types,
-      []
+      [],
+      check: false
     )
   end
 
@@ -352,7 +385,7 @@ describe Skyward::ORM::Connection::Database do
 
   describe "#tables" do
     it "is the schema it was given" do
-      assert_equal [:lists], database.tables.map(&:name)
+      assert_equal %i[lists todos], database.tables.map(&:name)
     end
   end
 
@@ -366,8 +399,61 @@ describe Skyward::ORM::Connection::Database do
     end
   end
 
+  describe "#check" do
+    it "passes table classes that match the schema" do
+      assert_silent { database.check([todo]) }
+    end
+
+    it "validates each class's declarations before comparing it" do
+      invalid = Class.new(Skyward::ORM::Record) do
+        index :done
+        attr_reader :id
+      end
+      error = assert_raises(Skyward::Core::BootError) { database.check([invalid]) }
+
+      assert_equal "#{invalid} has no column done, which its index names. Add `attr_reader :done`, or fix the name.",
+                   error.message
+    end
+
+    it "raises SchemaMismatch with a block for each class that doesn't match" do
+      missing = Class.new(Skyward::ORM::Record) do
+        table :notes
+        attr_reader :id
+      end
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.check([todo, list, missing]) }
+
+      assert_equal "#{mismatch(list)}\n\n#{mismatch(missing)}", error.message
+    end
+
+    describe "with an adapter that counts comparisons" do
+      let(:adapter) { counting_adapter.new(sqlite) }
+
+      it "checks a class that matches once" do
+        database.check([todo])
+        comparisons = adapter.comparisons
+        database.check([todo])
+
+        assert_equal comparisons, adapter.comparisons
+      end
+
+      it "checks a class that doesn't match again" do
+        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+        comparisons = adapter.comparisons
+        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+
+        assert_equal comparisons * 2, adapter.comparisons
+      end
+    end
+  end
+
   describe "#decoder" do
     let(:values) { [1, 1, "Buy milk", "normal", nil, 0, "2026-10-18 09:30:00.000000"] }
+
+    it "checks its table class first" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list) }
+
+      assert_equal mismatch(list), error.message
+    end
 
     it "reads each value by its table's column type, into a row" do
       expected = todo.new(
@@ -403,6 +489,22 @@ describe Skyward::ORM::Connection::Database do
       late = Class.new(Skyward::ORM::Record) { attr_reader :days_late }
 
       assert_equal late.new(days_late: 3), database.decoder(todo, late).call([3])
+    end
+  end
+
+  describe "#prepare" do
+    it "checks the table class" do
+      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.prepare(list) }
+
+      assert_equal mismatch(list), error.message
+    end
+
+    describe "with the check off" do
+      let(:check) { false }
+
+      it "doesn't check it" do
+        assert_silent { database.prepare(list) }
+      end
     end
   end
 

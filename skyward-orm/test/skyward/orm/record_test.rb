@@ -34,7 +34,8 @@ describe Skyward::ORM::Record do
               Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
             )
           ),
-          Skyward::ORM::Adapters::SQLite.tables(connection)
+          Skyward::ORM::Adapters::SQLite.tables(connection),
+          check: false
         )
       )
     end

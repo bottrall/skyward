@@ -1,0 +1,31 @@
+# Generated from lib/skyward/orm/connection/database/schema_check.rb with RBS::Inline
+
+module Skyward::ORM::Connection::Database::SchemaCheck
+  type problem = [ String, String, String ]
+
+  MIGRATE: String
+
+  # Only what the class declares is compared. Extra columns, indexes and
+  # constraints are left to `skyward status`, which reports them.
+  # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
+  #   Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter) -> String?
+  def mismatch: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter) -> String?
+
+  private
+
+  # @rbs (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table,
+  #   Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> Array[problem]
+  def column_problems: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> Array[problem]
+
+  # @rbs stored: String
+  # @rbs declared: String
+  # @rbs nullable: bool
+  # @rbs return: String
+  def nullability: (String stored, String declared, bool nullable) -> String
+
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs table: Symbol
+  # @rbs problems: Array[problem]
+  # @rbs return: String
+  def report: (singleton(Skyward::ORM::Record) klass, Symbol table, Array[problem] problems) -> String
+end

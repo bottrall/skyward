@@ -1,0 +1,29 @@
+# Generated from lib/skyward/orm/tables/values.rb with RBS::Inline
+
+module Skyward::ORM::Tables::Values
+  ACCEPTED: Hash[Symbol, Array[Module]]
+
+  WRITTEN: Hash[Symbol, String]
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def mismatch: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Tables::Column column, untyped value) -> String?
+
+  private
+
+  # A range's nil end leaves it open, so it isn't a NULL to check.
+  # @rbs value: untyped
+  # @rbs return: Array[untyped]
+  def candidates: (untyped value) -> Array[untyped]
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: bool
+  def accepts?: (Skyward::ORM::Tables::Column column, untyped value) -> bool
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs return: String
+  def written: (Skyward::ORM::Tables::Column column) -> String
+end

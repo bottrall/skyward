@@ -17,7 +17,8 @@ describe Skyward::ORM::Migrations::Versions do
       sqlite,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,
-      sqlite.tables(connection)
+      sqlite.tables(connection),
+      check: false
     )
   end
 

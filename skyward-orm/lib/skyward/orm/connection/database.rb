@@ -30,16 +30,22 @@ class Skyward::ORM::Connection::Database
   # @rbs @pool: Skyward::ORM::Connection::Pool
   # @rbs @column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs @tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs @check: bool
+  # @rbs @checked: Set[singleton(Skyward::ORM::Record)]
+  # @rbs @lock: Thread::Mutex
   # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), singleton(Skyward::ORM::Record)], ^(Array[untyped]) -> Skyward::ORM::Record]
   # @rbs @key: Symbol
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
-  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> void
-  def initialize(adapter, pool, column_types, tables)
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+  def initialize(adapter, pool, column_types, tables, check:)
     @adapter = adapter
     @pool = pool
     @column_types = column_types
     @tables = tables
+    @check = check
+    @checked = Set.new
+    @lock = Thread::Mutex.new
     @decoders = {}
     # Fiber storage takes only a Symbol key, and each database's transactions are its own.
     @key = :"skyward_orm_transaction_#{object_id}"
@@ -108,12 +114,35 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Array[Array[untyped]]
   def execute(sql, binds = []) = connection { |checked_out| checked_out.execute(sql, binds) }
 
+  # @rbs tables: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: void
+  def check(tables)
+    @lock.synchronize do
+      unchecked = tables.reject { |table| @checked.include?(table) }
+      unchecked.each { |table| Skyward::ORM::Tables::Validation.validate(table) }
+      mismatches = unchecked.filter_map do |table|
+        SchemaCheck.mismatch(table, @column_types.columns(table), @tables, @adapter)
+      end
+      raise Skyward::ORM::SchemaMismatch, mismatches.join("\n\n") unless mismatches.empty?
+
+      @checked.merge(unchecked)
+    end
+  end
+
   # A query selects its row class's columns in order, so the decoder reads
   # each value by position, as its table's column type says.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def decoder(table, row) = @decoders[[table, row]] ||= build(table, row)
+
+  # Every query and write calls this before it touches its table, so a table
+  # class loaded after connect is checked before its first use.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: void
+  def prepare(table)
+    check([table]) if @check
+  end
 
   # @rbs error: StandardError
   # @rbs table: Symbol?
@@ -187,6 +216,7 @@ class Skyward::ORM::Connection::Database
   # @rbs row: singleton(Skyward::ORM::Record)
   # @rbs return: ^(Array[untyped]) -> Skyward::ORM::Record
   def build(table, row)
+    prepare(table)
     columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }
     members = row.schema.columns
     compile(row, members, members.map { |member| columns[member] || :untyped })

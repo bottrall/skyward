@@ -29,7 +29,7 @@ module Skyward::ORM::CLI::Migration
     # the app can connect.
     return write_empty(name, directory:, time:, out:) if empty
 
-    database = Skyward::ORM::CLI::BootFile.load(directory, session)
+    database = session.without_check { Skyward::ORM::CLI::BootFile.load(directory, session) }
     case database
     when String then kernel.abort(database)
     else write(name, database, directory:, time:, input:, out:, kernel:, discover:)

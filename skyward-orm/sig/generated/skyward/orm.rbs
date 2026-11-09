@@ -4,8 +4,9 @@ module Skyward
   # @rbs url: String
   # @rbs signatures: String
   # @rbs pool: Integer
+  # @rbs check: bool
   # @rbs return: ORM::Connection::Database
-  def self.connect: (String url, ?signatures: String, ?pool: Integer) -> ORM::Connection::Database
+  def self.connect: (String url, ?signatures: String, ?pool: Integer, ?check: bool) -> ORM::Connection::Database
 
   # @rbs [T] () { () -> T } -> T
   def self.transaction: [T] () { () -> T } -> T

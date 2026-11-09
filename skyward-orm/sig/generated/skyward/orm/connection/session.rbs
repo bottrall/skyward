@@ -3,10 +3,23 @@
 class Skyward::ORM::Connection::Session
   @database: Skyward::ORM::Connection::Database?
 
+  @check: bool
+
+  # @rbs return: void
+  def initialize: () -> void
+
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs return: Skyward::ORM::Connection::Database
   def connect: (Skyward::ORM::Connection::Database database) -> Skyward::ORM::Connection::Database
 
   # @rbs return: Skyward::ORM::Connection::Database
   def database: () -> Skyward::ORM::Connection::Database
+
+  # @rbs return: bool
+  def check?: () -> bool
+
+  # The migration commands boot the app in here, because the migration is what
+  # fixes a schema that doesn't match, and its boot.rb connects with the default.
+  # @rbs [T] () { () -> T } -> T
+  def without_check: [T] () { () -> T } -> T
 end
