@@ -8,10 +8,12 @@ module Skyward::ORM::Migrations::Versions
   TABLE = :schema_migrations #: Symbol
 
   # @rbs database: Skyward::ORM::Connection::Database
-  # @rbs return: Array[String]
-  def ran(database)
-    return [] unless database.tables.any? { |table| table.name == TABLE }
+  # @rbs return: Hash[String, String]
+  def checksums(database)
+    return {} unless database.tables.any? { |table| table.name == TABLE }
 
-    database.execute("SELECT version FROM #{TABLE}").map { |row| row.fetch(0).to_s }
+    database.execute("SELECT version, checksum FROM #{TABLE}").to_h do |version, checksum|
+      [version.to_s, checksum.to_s]
+    end
   end
 end

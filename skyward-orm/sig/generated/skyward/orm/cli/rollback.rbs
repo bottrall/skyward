@@ -1,0 +1,7 @@
+# Generated from lib/skyward/orm/cli/rollback.rb with RBS::Inline
+
+module Skyward::ORM::CLI::Rollback
+  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session)
+  #   -> void
+  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session) -> void
+end

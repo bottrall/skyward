@@ -1,0 +1,14 @@
+# Generated from lib/skyward/orm/migrations/runner/raced.rb with RBS::Inline
+
+module Skyward::ORM::Migrations::Runner
+  class Raced < Data
+    attr_reader file(): String
+
+    def self.new: (String file) -> instance
+                | (file: String) -> instance
+
+    def self.members: () -> [ :file ]
+
+    def members: () -> [ :file ]
+  end
+end

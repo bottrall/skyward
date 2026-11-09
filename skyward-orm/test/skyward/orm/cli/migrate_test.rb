@@ -7,7 +7,6 @@ require "sqlite3"
 require "tmpdir"
 
 describe Skyward::ORM::CLI::Migrate do
-  session = Skyward::ORM::Connection::SESSION
   # Loaded, so boot.rb's Skyward.connect would refuse it with the check on.
   note = Class.new(Skyward::ORM::Record) do
     table :notes
@@ -25,12 +24,14 @@ describe Skyward::ORM::CLI::Migrate do
   let(:out) { StringIO.new }
 
   # An app whose boot.rb connects to its own SQLite database, with these files in db/migrate.
-  def app(migrations = {}, boot_rb: nil)
+  def app(migrations = {})
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
       database = "sqlite://#{File.join(directory, "app.sqlite3")}"
-      boot_rb ||= "Skyward.connect(#{database.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
-      File.write(File.join(directory, "boot.rb"), boot_rb)
+      File.write(
+        File.join(directory, "boot.rb"),
+        "Skyward.connect(#{database.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
+      )
       FileUtils.mkdir_p(File.join(directory, "db/migrate"))
       migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
       yield directory
@@ -44,25 +45,7 @@ describe Skyward::ORM::CLI::Migrate do
   end
 
   describe ".run" do
-    it "fails with what's wrong when there's no boot.rb" do
-      Dir.mktmpdir do |tmp|
-        directory = File.realpath(tmp)
-        run_in(directory)
-
-        assert_equal [Skyward::ORM::CLI::BootFile.load(directory, session), ""], [kernel.aborted, out.string]
-      end
-    end
-
-    it "fails with only the message of a boot error, such as boot.rb not connecting" do
-      boot_rb = "raise Skyward::Core::BootError, \"Skyward ORM can't connect to a URL with no scheme.\"\n"
-      app(boot_rb:) do |directory|
-        run_in(directory)
-
-        assert_equal ["Skyward ORM can't connect to a URL with no scheme.", ""], [kernel.aborted, out.string]
-      end
-    end
-
-    it "boots with the schema check off, then checks the classes it finds against the tables it made" do
+    it "checks the classes it finds against the tables it made" do
       app(create_notes) do |directory|
         run_in(directory, discover: -> { [note] })
 

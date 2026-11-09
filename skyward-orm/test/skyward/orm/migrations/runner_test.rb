@@ -44,6 +44,14 @@ describe Skyward::ORM::Migrations::Runner do
       assert_equal "CREATE TABLE a (id INTEGER);\n\n", create_a.up
     end
 
+    it "keeps the part after the -- down line as the down section" do
+      assert_equal "\nDROP TABLE a;\n", create_a.down
+    end
+
+    it "has an empty down section when it has no -- down line" do
+      assert_equal "", create_b.down
+    end
+
     it "finds the -- down line with whitespace around it" do
       assert_equal "CREATE TABLE a (id INTEGER);\n",
                    runner.parse("1_a.sql", "CREATE TABLE a (id INTEGER);\n  -- down \t\nDROP TABLE a;\n").up
@@ -283,6 +291,119 @@ describe Skyward::ORM::Migrations::Runner do
     end
   end
 
+  describe ".rollback" do
+    create_d = runner.parse("20261004000000_create_d.sql", "CREATE TABLE d (id INTEGER);\n\n-- down\nDROP TABLE d;\n")
+
+    let(:connection) { sqlite.connect(":memory:") }
+
+    def migrate(*migrations)
+      Skyward::ORM::Migrations::Runner.run(Skyward::ORM::Adapters::SQLite, connection, migrations)
+    end
+
+    def roll_back(*migrations, adapter: Skyward::ORM::Adapters::SQLite)
+      Skyward::ORM::Migrations::Runner.rollback(adapter, connection, migrations)
+    end
+
+    def tables = connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name").flatten
+
+    def versions = connection.execute("SELECT version FROM schema_migrations ORDER BY version").flatten
+
+    it "has nothing to roll back on a database that's never been migrated, and doesn't make schema_migrations" do
+      assert_equal [:nothing, []], [roll_back(create_a), tables]
+    end
+
+    it "has nothing to roll back when no migration has run" do
+      migrate
+
+      assert_equal :nothing, roll_back(create_a)
+    end
+
+    it "refuses when the latest migration's file is gone, naming its version" do
+      migrate(create_a, create_d)
+
+      assert_equal [runner::Missing.new(version: create_d.version), %w[a d schema_migrations]],
+                   [roll_back(create_a), tables]
+    end
+
+    it "refuses a migration whose down section is blank, naming the file" do
+      blank = runner.parse("20261004000000_create_e.sql", "CREATE TABLE e (id INTEGER);\n-- down\n  \n\n")
+      migrate(blank)
+
+      assert_equal [runner::Irreversible.new(file: blank.file), [blank.version]], [roll_back(blank), versions]
+    end
+
+    it "runs the latest migration's down section, deletes its version, and returns it" do
+      migrate(create_a, create_d)
+
+      assert_equal [create_d.version, %w[a schema_migrations], [create_a.version]],
+                   [roll_back(create_a, create_d), tables, versions]
+    end
+
+    it "rolls back the greatest version, which sorts last, though another ran after it" do
+      migrate(create_d)
+      migrate(create_a, create_d)
+
+      assert_equal [create_d.version, [create_a.version]], [roll_back(create_a, create_d), versions]
+    end
+
+    it "rolls back nothing when it can't take the migration lock, naming the file and the database's message" do
+      Dir.mktmpdir do |directory|
+        path = File.join(directory, "todos.db")
+        holder = sqlite.connect(path)
+        waiter = sqlite.connect(path)
+        runner.run(sqlite, waiter, [create_d])
+        holder.execute("BEGIN IMMEDIATE")
+        waiter.busy_handler_timeout = 10
+
+        assert_equal [runner::Locked.new(file: create_d.file, message: "database is locked"), false],
+                     [runner.rollback(sqlite, waiter, [create_d]), waiter.transaction_active?]
+      end
+    end
+
+    it "rolls back nothing when another migrator rolled back the latest after this one read it" do
+      migrate(create_a, create_d)
+      # Rolls create_d back for the other migrator, after this one has read the latest version.
+      racing = Module.new do
+        extend Skyward::ORM::Adapters::SQLite
+
+        def self.begin_migration
+          "DELETE FROM schema_migrations WHERE version = '20261004000000'; BEGIN IMMEDIATE"
+        end
+      end
+
+      assert_equal [runner::Raced.new(file: create_d.file), %w[a d schema_migrations]],
+                   [roll_back(create_a, create_d, adapter: racing), tables]
+    end
+
+    it "undoes a down section that fails, keeping its version, and returns the file and the database's message" do
+      failing = runner.parse(
+        "20261004000000_create_e.sql",
+        "CREATE TABLE e (id INTEGER);\n-- down\nDROP TABLE e;\nDROP TABLE nowhere;\n"
+      )
+      migrate(failing)
+      failed = runner::Failed.new(file: failing.file, message: "no such table: nowhere:\nDROP TABLE nowhere;")
+
+      assert_equal [failed, %w[e schema_migrations], [failing.version]], [roll_back(failing), tables, versions]
+    end
+
+    it "undoes a down section that leaves a row referring to a missing one, naming each such row" do
+      parent = runner.parse(
+        "20261004000000_create_lists.sql",
+        "CREATE TABLE lists (id INTEGER PRIMARY KEY);\n" \
+        "CREATE TABLE todos (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists);\n" \
+        "INSERT INTO lists (id) VALUES (1);\nINSERT INTO todos (list_id) VALUES (1);\n" \
+        "-- down\nDROP TABLE lists;\n"
+      )
+      migrate(parent)
+      failed = runner::Failed.new(
+        file: parent.file,
+        message: "foreign key check failed: todos row 1 refers to a missing lists row (foreign key 0)"
+      )
+
+      assert_equal [failed, %w[lists schema_migrations todos], [parent.version]], [roll_back(parent), tables, versions]
+    end
+  end
+
   describe ".message" do
     it "names each migration that changed after it ran" do
       expected = <<~MESSAGE.chomp
@@ -305,6 +426,42 @@ describe Skyward::ORM::Migrations::Runner do
       assert_equal "20261001000000_create_a.sql failed, so it was rolled back and no later migration ran: " \
                    "no such table: nowhere",
                    runner.message(runner::Failed.new(file: create_a.file, message: "no such table: nowhere"))
+    end
+  end
+
+  describe ".rollback_message" do
+    it "says there's nothing to roll back" do
+      assert_equal "No migration has run, so there's nothing to roll back.", runner.rollback_message(:nothing)
+    end
+
+    it "names the latest version, whose file is gone" do
+      assert_equal "20261001000000 is the latest migration to have run, but its file is gone, so it can't be rolled " \
+                   "back. Put its file back to roll it back.",
+                   runner.rollback_message(runner::Missing.new(version: "20261001000000"))
+    end
+
+    it "names the migration with nothing in its down section" do
+      assert_equal "20261001000000_create_a.sql has nothing in its -- down section, so it wasn't rolled back. " \
+                   "Write the SQL that undoes it there.",
+                   runner.rollback_message(runner::Irreversible.new(file: create_a.file))
+    end
+
+    it "names the migration another migrator moved past" do
+      assert_equal "20261001000000_create_a.sql isn't the latest migration anymore, since another migrator ran or " \
+                   "rolled back one while this one waited for the lock, so it wasn't rolled back.",
+                   runner.rollback_message(runner::Raced.new(file: create_a.file))
+    end
+
+    it "names the migration that couldn't take the lock, with the database's message" do
+      assert_equal "20261001000000_create_a.sql couldn't take the migration lock, which another migrator may hold, " \
+                   "so it wasn't rolled back: database is locked",
+                   runner.rollback_message(runner::Locked.new(file: create_a.file, message: "database is locked"))
+    end
+
+    it "names the migration whose down section failed, with the database's message" do
+      assert_equal "Rolling back 20261001000000_create_a.sql failed, so its -- down section was undone and it still " \
+                   "counts as run: no such table: nowhere",
+                   runner.rollback_message(runner::Failed.new(file: create_a.file, message: "no such table: nowhere"))
     end
   end
 end

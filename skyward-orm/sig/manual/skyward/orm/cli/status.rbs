@@ -1,0 +1,3 @@
+module Skyward::ORM::CLI::Status
+  extend ::Skyward::ORM::CLI::Status
+end

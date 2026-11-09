@@ -7,4 +7,13 @@ module Skyward::ORM::CLI::BootFile
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs return: Skyward::ORM::Connection::Database | String
   def load: (String directory, Skyward::ORM::Connection::Session session) -> (Skyward::ORM::Connection::Database | String)
+
+  # The migration commands are what fixes a schema that doesn't match, so they
+  # boot the app with the check off.
+  # @rbs directory: String
+  # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs kernel: singleton(Kernel)
+  # @rbs &: (Skyward::ORM::Connection::Database) -> void
+  # @rbs return: void
+  def boot: (String directory, Skyward::ORM::Connection::Session session, singleton(Kernel) kernel) { (Skyward::ORM::Connection::Database) -> void } -> void
 end

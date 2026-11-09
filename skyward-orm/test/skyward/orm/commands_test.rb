@@ -3,6 +3,7 @@
 require "fileutils"
 require "open3"
 require "test_helper"
+require "sqlite3"
 require "tmpdir"
 
 describe "skyward/orm/commands.rb" do
@@ -78,6 +79,59 @@ describe "skyward/orm/commands.rb" do
           1
         ],
                      skyward("migrate", chdir: directory)
+      end
+    end
+  end
+
+  describe "rollback" do
+    def schema(directory)
+      SQLite3::Database.new(File.join(directory, "app.sqlite3")).execute(
+        "SELECT type, name, sql FROM sqlite_schema WHERE tbl_name != 'schema_migrations' ORDER BY name"
+      )
+    end
+
+    it "undoes the migration skyward migration wrote, so migrating again makes the same schema" do
+      app do |directory|
+        skyward("migration", "create_todos", chdir: directory)
+        skyward("migrate", chdir: directory)
+        migrated = schema(directory)
+        output, status = skyward("rollback", chdir: directory)
+        rolled_back = schema(directory)
+        skyward("migrate", chdir: directory)
+
+        assert_equal [["Rolled back TIMESTAMP\n", 0], [], migrated],
+                     [[output.sub(/\d{14}/, "TIMESTAMP"), status], rolled_back, schema(directory)]
+      end
+    end
+
+    it "fails without a backtrace, and exits 1, when nothing has run" do
+      app do |directory|
+        assert_equal ["No migration has run, so there's nothing to roll back.\n", 1],
+                     skyward("rollback", chdir: directory)
+      end
+    end
+  end
+
+  describe "status" do
+    it "exits 1 while a migration is pending, and 0 once it's run" do
+      app do |directory|
+        skyward("migration", "create_todos", chdir: directory)
+        pending = skyward("status", chdir: directory)
+        skyward("migrate", chdir: directory)
+        clean = skyward("status", chdir: directory)
+
+        assert_equal(
+          [
+            [
+              "Migrations:\n  TIMESTAMP_create_todos.sql  pending\n" \
+              "List has no table yet:\n  + lists  2 columns\n" \
+              "Todo has no table yet:\n  + todos  7 columns, 1 reference, 2 checks, 1 index\n",
+              1
+            ],
+            ["Migrations:\n  TIMESTAMP_create_todos.sql  ran\n#{Skyward::ORM::Migrations::Status::CLEAN}", 0]
+          ],
+          [pending, clean].map { |output, status| [output.gsub(/\d{14}/, "TIMESTAMP"), status] }
+        )
       end
     end
   end

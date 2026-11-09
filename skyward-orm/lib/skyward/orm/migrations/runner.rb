@@ -7,6 +7,8 @@ module Skyward::ORM::Migrations::Runner
 
   # @rbs!
   #   type outcome = Array[String] | Edited | Locked | Failed
+  #   type unrolled = :nothing | Missing | Irreversible | Raced | Locked | Failed
+  #   type rolled_back = String | unrolled
 
   TABLE = Skyward::ORM::Migrations::Versions::TABLE #: Symbol
 
@@ -26,11 +28,12 @@ module Skyward::ORM::Migrations::Runner
   # @rbs source: String
   # @rbs return: Migration
   def parse(file, source)
-    up = source.gsub("\r\n", "\n").partition(DOWN).first
+    up, _, down = source.gsub("\r\n", "\n").partition(DOWN)
     Migration.new(
       file:,
       version: Skyward::ORM::Migrations::Directory.version(file),
       up:,
+      down:,
       checksum: Digest::SHA256.hexdigest(up)
     )
   end
@@ -49,12 +52,45 @@ module Skyward::ORM::Migrations::Runner
 
     none = [] #: Array[String]
     migrations.reject { |migration| ran.key?(migration.version) }.reduce(none) do |versions, migration|
-      applied = apply(adapter, connection, migration)
+      applied = apply(adapter, connection, migration) do
+        # Another migrator can run it between reading what has run and taking
+        # the lock, so it's checked again now the lock is held.
+        pending?(adapter, connection, migration) && change(adapter, connection, migration, migration.up) do
+          connection.execute(
+            "INSERT INTO #{TABLE} (version, checksum) VALUES (#{adapter.placeholder(1)}, #{adapter.placeholder(2)})",
+            [migration.version, migration.checksum]
+          )
+        end
+      end
       case applied
       when Locked, Failed then return applied
       when true then [*versions, migration.version]
       else versions
       end
+    end
+  end
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Array[Migration] migrations)
+  #   -> rolled_back
+  def rollback(adapter, connection, migrations)
+    version = latest(connection) if adapter.tables(connection).any? { |table| table.name == TABLE }
+    return :nothing unless version
+
+    migration = migrations.find { |candidate| candidate.version == version }
+    return Missing.new(version:) unless migration
+    return Irreversible.new(file: migration.file) if migration.down.strip.empty?
+
+    undone = apply(adapter, connection, migration) do
+      # Another migrator can run or roll back one between reading the latest
+      # and taking the lock, so it's read again now the lock is held.
+      latest(connection) == version && change(adapter, connection, migration, migration.down) do
+        connection.execute("DELETE FROM #{TABLE} WHERE version = #{adapter.placeholder(1)}", [version])
+      end
+    end
+    case undone
+    when Locked, Failed then undone
+    when true then version
+    else Raced.new(file: migration.file)
     end
   end
 
@@ -73,64 +109,88 @@ module Skyward::ORM::Migrations::Runner
     end
   end
 
+  # @rbs failure: unrolled
+  # @rbs return: String
+  def rollback_message(failure)
+    case failure
+    when :nothing then "No migration has run, so there's nothing to roll back."
+    when Missing
+      "#{failure.version} is the latest migration to have run, but its file is gone, so it can't be rolled back. " \
+      "Put its file back to roll it back."
+    when Irreversible
+      "#{failure.file} has nothing in its -- down section, so it wasn't rolled back. " \
+      "Write the SQL that undoes it there."
+    when Raced
+      "#{failure.file} isn't the latest migration anymore, since another migrator ran or rolled back one while " \
+      "this one waited for the lock, so it wasn't rolled back."
+    when Locked
+      "#{failure.file} couldn't take the migration lock, which another migrator may hold, so it wasn't rolled back: " \
+      "#{failure.message}"
+    else "Rolling back #{failure.file} failed, so its -- down section was undone and it still counts as run: " \
+         "#{failure.message}"
+    end
+  end
+
   private
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
-  #   -> (bool | Locked | Failed)
-  def apply(adapter, connection, migration)
+  #   { () -> (bool | Failed) } -> (bool | Locked | Failed)
+  def apply(adapter, connection, migration, &)
     connection.execute_batch(adapter.begin_migration)
   rescue StandardError => e
     Locked.new(file: migration.file, message: e.message)
   else
-    run_locked(adapter, connection, migration)
+    run_locked(connection, migration, &)
   ensure
     connection.execute_batch(adapter.end_migration)
   end
 
   # Rolled back in ensure rather than rescue, so a migration left by throw or a
   # killed thread rolls back too, before foreign keys go back on.
-  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (bool | Failed)
-  def run_locked(adapter, connection, migration)
+  # @rbs (Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Failed)
+  def run_locked(connection, migration)
     settled = false
     begin
-      # Another migrator can run it between reading what has run and taking the
-      # lock, so it's checked again now the lock is held.
-      pending = connection.execute(
-        "SELECT 1 FROM #{TABLE} WHERE version = #{adapter.placeholder(1)}",
-        [migration.version]
-      ).empty?
-      applied = pending ? up(adapter, connection, migration) : false
+      applied = yield
       connection.execute(applied.is_a?(Failed) ? "ROLLBACK" : "COMMIT")
       settled = true
       applied
     rescue StandardError => e
       Failed.new(file: migration.file, message: e.message)
     ensure
-      rollback(connection) unless settled
+      cancel(connection) unless settled
     end
   end
 
   # SQLite ends the transaction itself on some failures, such as ON CONFLICT
   # ROLLBACK, and then ROLLBACK raises, though the outcome is already decided.
   # @rbs (Skyward::ORM::_Connection connection) -> void
-  def rollback(connection)
+  def cancel(connection)
     connection.execute("ROLLBACK")
   rescue StandardError
     nil
   end
 
-  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> (true | Failed)
-  def up(adapter, connection, migration)
-    connection.execute_batch(migration.up)
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration) -> bool
+  def pending?(adapter, connection, migration)
+    connection.execute("SELECT 1 FROM #{TABLE} WHERE version = #{adapter.placeholder(1)}", [migration.version]).empty?
+  end
+
+  # Versions sort in filename order, which is the order they ran in, so the
+  # greatest is the latest.
+  # @rbs (Skyward::ORM::_Connection connection) -> String?
+  def latest(connection) = connection.execute("SELECT max(version) FROM #{TABLE}").dig(0, 0)
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration, String section)
+  #   { () -> void } -> (true | Failed)
+  def change(adapter, connection, migration, section)
+    connection.execute_batch(section)
     violations = adapter.foreign_key_violations(connection)
     if violations.any?
       return Failed.new(file: migration.file, message: "foreign key check failed: #{violations.join(", ")}")
     end
 
-    connection.execute(
-      "INSERT INTO #{TABLE} (version, checksum) VALUES (#{adapter.placeholder(1)}, #{adapter.placeholder(2)})",
-      [migration.version, migration.checksum]
-    )
+    yield
     true
   end
 end

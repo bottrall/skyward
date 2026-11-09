@@ -1,0 +1,3 @@
+module Skyward::ORM::Migrations::Status
+  extend ::Skyward::ORM::Migrations::Status
+end
