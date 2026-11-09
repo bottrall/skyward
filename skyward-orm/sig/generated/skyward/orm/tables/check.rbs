@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/tables/check.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class Check < Data
+    attr_reader column(): Symbol
+
+    attr_reader rule(): SQL | Length
+
+    def self.new: (Symbol column, SQL | Length rule) -> instance
+                | (column: Symbol, rule: SQL | Length) -> instance
+
+    def self.members: () -> [ :column, :rule ]
+
+    def members: () -> [ :column, :rule ]
+  end
+end

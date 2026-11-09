@@ -1,0 +1,18 @@
+# Generated from lib/skyward/orm/tables/reference.rb with RBS::Inline
+
+module Skyward::ORM::Tables
+  class Reference < Data
+    attr_reader column(): Symbol
+
+    attr_reader table(): singleton(Skyward::ORM::Record)
+
+    attr_reader on_delete(): on_delete?
+
+    def self.new: (Symbol column, singleton(Skyward::ORM::Record) table, on_delete? on_delete) -> instance
+                | (column: Symbol, table: singleton(Skyward::ORM::Record), on_delete: on_delete?) -> instance
+
+    def self.members: () -> [ :column, :table, :on_delete ]
+
+    def members: () -> [ :column, :table, :on_delete ]
+  end
+end

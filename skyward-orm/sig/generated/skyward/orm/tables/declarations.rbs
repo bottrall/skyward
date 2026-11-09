@@ -1,0 +1,87 @@
+# Generated from lib/skyward/orm/tables/declarations.rb with RBS::Inline
+
+# @rbs module-self Class
+module Skyward::ORM::Tables::Declarations : Class
+  EMPTY: Skyward::ORM::Tables::Schema
+
+  ON_DELETE: Array[Skyward::ORM::Tables::on_delete]
+
+  @schema: Skyward::ORM::Tables::Schema?
+
+  # @rbs return: Skyward::ORM::Tables::Schema
+  def schema: () -> Skyward::ORM::Tables::Schema
+
+  # @rbs return: Symbol
+  def table_name: () -> Symbol
+
+  # Every attr_reader is a column, so each one compiles the row's methods again.
+  # @rbs *names: interned
+  # @rbs return: Array[Symbol]
+  def attr_reader: (*interned names) -> Array[Symbol]
+
+  # @rbs name: Symbol
+  # @rbs return: void
+  def table: (Symbol name) -> void
+
+  # @rbs column: Symbol
+  # @rbs return: void
+  def primary_key: (Symbol column) -> void
+
+  # @rbs column: Symbol
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs on_delete: Skyward::ORM::Tables::on_delete?
+  # @rbs return: void
+  def references: (Symbol column, singleton(Skyward::ORM::Record) table, ?on_delete: Skyward::ORM::Tables::on_delete?) -> void
+
+  # @rbs **values: untyped
+  # @rbs return: void
+  def default: (**untyped values) -> void
+
+  # @rbs *columns: Symbol
+  # @rbs return: void
+  def unique: (*Symbol columns) -> void
+
+  # @rbs column: Symbol
+  # @rbs sql: Skyward::ORM::Tables::SQL?
+  # @rbs length: Range[Integer?]?
+  # @rbs return: void
+  def check: (Symbol column, ?Skyward::ORM::Tables::SQL? sql, ?length: Range[Integer?]?) -> void
+
+  # @rbs *columns: Symbol
+  # @rbs return: void
+  def index: (*Symbol columns) -> void
+
+  private
+
+  # @rbs **changes: untyped
+  # @rbs return: void
+  def declare: (**untyped changes) -> void
+
+  # @rbs declaration: Symbol
+  # @rbs arguments: Array[untyped]
+  # @rbs problem: String
+  # @rbs return: bot
+  def refuse: (Symbol declaration, Array[untyped] arguments, String problem) -> bot
+
+  # @rbs value: untyped
+  # @rbs return: bool
+  def symbol?: (untyped value) -> bool
+
+  # @rbs columns: Array[untyped]
+  # @rbs return: String?
+  def unnamed: (Array[untyped] columns) -> String?
+
+  # @rbs table: untyped
+  # @rbs on_delete: untyped
+  # @rbs return: String?
+  def unreferenceable: (untyped table, untyped on_delete) -> String?
+
+  # @rbs sql: untyped
+  # @rbs length: untyped
+  # @rbs return: Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length | String
+  def check_rule: (untyped sql, untyped length) -> (Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length | String)
+
+  # @rbs range: untyped
+  # @rbs return: Skyward::ORM::Tables::Length | String
+  def length_rule: (untyped range) -> (Skyward::ORM::Tables::Length | String)
+end

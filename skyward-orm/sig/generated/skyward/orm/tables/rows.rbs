@@ -1,0 +1,24 @@
+# Generated from lib/skyward/orm/tables/rows.rb with RBS::Inline
+
+module Skyward::ORM::Tables::Rows
+  METHODS: Array[Symbol]
+
+  # Each row sets, compares and hashes its columns' instance variables
+  # directly, rather than reflecting on them for every row.
+  # @rbs columns: Array[Symbol]
+  # @rbs return: String
+  def source: (Array[Symbol] columns) -> String
+
+  # @rbs klass: Class
+  # @rbs columns: Array[Symbol]
+  # @rbs given: Array[Symbol]
+  # @rbs return: String
+  def mismatch: (Class klass, Array[Symbol] columns, Array[Symbol] given) -> String
+
+  private
+
+  # @rbs columns: Array[Symbol]
+  # @rbs method: String
+  # @rbs return: String
+  def compare: (Array[Symbol] columns, String method) -> String
+end
