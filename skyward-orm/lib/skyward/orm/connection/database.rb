@@ -84,8 +84,9 @@ class Skyward::ORM::Connection::Database
   attr_reader :tables #: Array[Skyward::ORM::Catalog::Table]
 
   # @rbs sql: String
+  # @rbs binds: Array[untyped]
   # @rbs return: Array[Array[untyped]]
-  def execute(sql) = connection { |checked_out| checked_out.execute(sql) }
+  def execute(sql, binds = []) = connection { |checked_out| checked_out.execute(sql, binds) }
 
   # A query selects its row class's columns in order, so the decoder reads
   # each value by position, as its table's column type says.

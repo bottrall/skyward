@@ -14,6 +14,22 @@ class Skyward::ORM::Record
   # @dynamic initialize_columns, to_h, ==, eql?, hash
   class_eval(Skyward::ORM::Tables::Rows.source([]), __FILE__, __LINE__)
 
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.all = Skyward::ORM::Query.new(self, Skyward::ORM::Connection::SESSION)
+
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.where(**conditions) = all.where(**conditions)
+
+  # @rbs *columns: Symbol
+  # @rbs **directions: Skyward::ORM::Query::direction
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.order(*columns, **directions) = all.order(*columns, **directions)
+
+  # @rbs **conditions: untyped
+  # @rbs return: instance?
+  def self.find_by(**conditions) = all.find_by(**conditions)
+
   # Ruby warns whenever initialize is removed, so a table class redefines
   # initialize_columns instead, each time it gains a column.
   # @rbs **columns: untyped

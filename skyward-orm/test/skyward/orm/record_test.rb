@@ -14,6 +14,58 @@ describe Skyward::ORM::Record do
     assert_empty Skyward::ORM::Record.new.to_h
   end
 
+  describe "querying the connected database" do
+    let(:session) { Skyward::ORM::Connection::SESSION }
+    let(:all) { Skyward::ORM::Query.new(TablesFixtures::List, session) }
+
+    let(:connection) do
+      Skyward::ORM::Adapters::SQLite.connect(":memory:").tap do |connection|
+        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT)")
+      end
+    end
+
+    before do
+      session.connect(
+        Skyward::ORM::Connection::Database.new(
+          Skyward::ORM::Adapters::SQLite,
+          Skyward::ORM::Connection::Pool.new(1, -> { connection }),
+          Skyward::ORM::Tables::ColumnTypes.new(
+            Skyward::Core::Types::Reader.new(
+              Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
+            )
+          ),
+          Skyward::ORM::Adapters::SQLite.tables(connection)
+        )
+      )
+    end
+
+    describe ".all" do
+      it "is a query of every row" do
+        assert_equal all.to_sql, TablesFixtures::List.all.to_sql
+      end
+    end
+
+    describe ".where" do
+      it "starts from every row" do
+        assert_equal all.where(name: "Work").to_sql, TablesFixtures::List.where(name: "Work").to_sql
+      end
+    end
+
+    describe ".order" do
+      it "starts from every row" do
+        assert_equal all.order(name: :desc).to_sql, TablesFixtures::List.order(name: :desc).to_sql
+      end
+    end
+
+    describe ".find_by" do
+      it "starts from every row" do
+        connection.execute("INSERT INTO lists VALUES (2, 'Work')")
+
+        assert_equal all.where(name: "Work").first, TablesFixtures::List.find_by(name: "Work")
+      end
+    end
+  end
+
   describe "#initialize" do
     it "sets the columns" do
       assert_equal({ id: 1, name: "Home" }, list.to_h)
