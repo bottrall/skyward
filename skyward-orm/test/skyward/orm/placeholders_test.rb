@@ -43,4 +43,22 @@ describe Skyward::ORM::Placeholders do
       assert_equal "The SQL has 0 ?, each taking one value, but was given 1", error.message
     end
   end
+
+  describe ".require_scalars" do
+    it "passes scalars" do
+      assert_silent { Skyward::ORM::Placeholders.require_scalars([1, "a", nil], "The SQL") }
+    end
+
+    it "refuses an Array, naming its position" do
+      error = assert_raises(ArgumentError) { Skyward::ORM::Placeholders.require_scalars([1, [2, 3]], "The SQL") }
+
+      assert_equal "The SQL binds one value to each ?, but value 2 is an Array", error.message
+    end
+
+    it "refuses a Hash, naming its position" do
+      error = assert_raises(ArgumentError) { Skyward::ORM::Placeholders.require_scalars([{ a: 1 }], "The SQL") }
+
+      assert_equal "The SQL binds one value to each ?, but value 1 is a Hash", error.message
+    end
+  end
 end

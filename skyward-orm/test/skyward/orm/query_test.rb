@@ -93,7 +93,7 @@ describe Skyward::ORM::Query do
     end
 
     it "leaves the arrays it's given unfrozen" do
-      conditions = [[:done, false]]
+      conditions = [Skyward::ORM::Query::Comparison.new(column: :done, operator: "=", value: false)]
       Skyward::ORM::Query.new(todo, session, conditions:)
 
       refute_predicate conditions, :frozen?
@@ -149,6 +149,81 @@ describe Skyward::ORM::Query do
       assert_equal [milk, eggs], query.where(due_on: [nil, eggs.due_on]).to_a
     end
 
+    describe "with a range" do
+      today = Date.new(2026, 10, 18)
+      later = Date.new(2026, 10, 25)
+
+      it "matches a..b with >= and <=" do
+        assert_equal [%(#{select} WHERE "due_on" >= ? AND "due_on" <= ?), %w[2026-10-18 2026-10-25]],
+                     query.where(due_on: today..later).to_sql
+      end
+
+      it "matches a...b with >= and <" do
+        assert_equal [%(#{select} WHERE "due_on" >= ? AND "due_on" < ?), %w[2026-10-18 2026-10-25]],
+                     query.where(due_on: today...later).to_sql
+      end
+
+      it "matches ..b with <=" do
+        assert_equal [%(#{select} WHERE "due_on" <= ?), ["2026-10-18"]], query.where(due_on: ..today).to_sql
+      end
+
+      it "matches ...b with <" do
+        assert_equal [%(#{select} WHERE "due_on" < ?), ["2026-10-18"]], query.where(due_on: ...today).to_sql
+      end
+
+      it "matches a.. with >=" do
+        assert_equal [%(#{select} WHERE "due_on" >= ?), ["2026-10-18"]], query.where(due_on: today..).to_sql
+      end
+
+      it "returns the rows in the range" do
+        insert(milk, eggs, eggs.with(id: 3, due_on: later))
+
+        assert_equal [eggs], query.where(due_on: today...later).to_a
+      end
+
+      it "refuses an end its column's type doesn't take" do
+        error = assert_raises(ArgumentError) { query.where(due_on: "2026-10-25"..) }
+
+        assert_equal %(TablesFixtures::Todo.due_on is Date?, not "2026-10-25" (String)), error.message
+      end
+
+      it "refuses a range with neither end" do
+        error = assert_raises(ArgumentError) { query.where(due_on: nil..nil) }
+
+        assert_equal "TablesFixtures::Todo can't match due_on to nil..nil, a range with neither end", error.message
+      end
+    end
+
+    describe "with SQL" do
+      it "adds the SQL in parentheses, binding its values as the adapter encodes them" do
+        assert_equal [%(#{select} WHERE (title LIKE ? AND done = ?)), ["%milk%", 0]],
+                     query.where("title LIKE ? AND done = ?", "%milk%", false).to_sql
+      end
+
+      it "returns the rows the SQL matches" do
+        insert(milk, eggs)
+
+        assert_equal [milk], query.where("title LIKE ?", "%milk%").to_a
+      end
+
+      it "leaves a ? in a string as it is" do
+        assert_equal [%(#{select} WHERE (title <> 'why?' AND id = ?)), [1]],
+                     query.where("title <> 'why?' AND id = ?", 1).to_sql
+      end
+
+      it "puts the closing parenthesis after a -- comment on a line of its own" do
+        insert(milk, eggs)
+
+        assert_equal [milk], query.where("title = ? -- exact", "Buy milk").where(done: false).to_a
+      end
+
+      it "refuses an Array value, which the driver would spread across several ?" do
+        error = assert_raises(ArgumentError) { query.where("id IN (?) AND title = ?", [1, 2], "Buy milk").to_sql }
+
+        assert_equal "An SQL condition binds one value to each ?, but value 1 is an Array", error.message
+      end
+    end
+
     describe "with numbered placeholders" do
       let(:adapter) { numbered }
 
@@ -157,6 +232,11 @@ describe Skyward::ORM::Query do
                     [0, "high", "normal", "Buy milk"]]
 
         assert_equal expected, query.where(done: false, priority: %i[high normal]).where(title: "Buy milk").to_sql
+      end
+
+      it "numbers an SQL string's placeholders on from the query's other binds" do
+        assert_equal [%(#{select} WHERE "done" = $1 AND (title = $2 OR title = $3)), [0, "Buy milk", "Buy eggs"]],
+                     query.where(done: false).where("title = ? OR title = ?", "Buy milk", "Buy eggs").to_sql
       end
     end
 
@@ -176,6 +256,145 @@ describe Skyward::ORM::Query do
       error = assert_raises(ArgumentError) { query.where(done: "yes") }
 
       assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+  end
+
+  describe "#exclude" do
+    it "negates the conditions with NOT" do
+      assert_equal [%(#{select} WHERE NOT ("done" = ?)), [1]], query.exclude(done: true).to_sql
+    end
+
+    it "negates IS NULL, leaving out only the NULL rows" do
+      assert_equal [%(#{select} WHERE NOT ("due_on" IS NULL)), []], query.exclude(due_on: nil).to_sql
+    end
+
+    it "negates several conditions together, joined with AND to the conditions before it" do
+      assert_equal [%(#{select} WHERE "list_id" = ? AND NOT ("done" = ? AND "priority" = ?)), [3, 1, "high"]],
+                   query.where(list_id: 3).exclude(done: true, priority: :high).to_sql
+    end
+
+    it "keeps the NULL rows of a nullable column" do
+      assert_equal [%(#{select} WHERE (NOT ("due_on" = ?) OR "due_on" IS NULL)), ["2026-10-20"]],
+                   query.exclude(due_on: eggs.due_on).to_sql
+    end
+
+    it "keeps the NULL rows of a nullable column matched with an array" do
+      assert_equal [%(#{select} WHERE (NOT ("due_on" IN (?)) OR "due_on" IS NULL)), ["2026-10-20"]],
+                   query.exclude(due_on: [eggs.due_on]).to_sql
+    end
+
+    it "keeps the NULL rows of a nullable column matched with a range, once" do
+      assert_equal [%(#{select} WHERE (NOT ("due_on" >= ? AND "due_on" < ?) OR "due_on" IS NULL)),
+                    %w[2026-10-20 2026-10-25]],
+                   query.exclude(due_on: eggs.due_on...Date.new(2026, 10, 25)).to_sql
+    end
+
+    it "keeps the NULL rows of an untyped column" do
+      memos = Class.new(Skyward::ORM::Record) do
+        table :memos
+        attr_reader :id, :body
+      end
+
+      assert_equal [%(SELECT "id", "body" FROM "memos" WHERE (NOT ("body" = ?) OR "body" IS NULL)), ["a"]],
+                   Skyward::ORM::Query.new(memos, session).exclude(body: "a").to_sql
+    end
+
+    it "returns the rows that don't match, including those whose column is NULL" do
+      later = eggs.with(id: 3, due_on: Date.new(2026, 10, 25))
+      insert(milk, eggs, later)
+
+      assert_equal [milk, later], query.exclude(due_on: eggs.due_on, done: true).to_a
+    end
+
+    it "leaves out the NULL rows when the array holds nil" do
+      later = eggs.with(id: 3, due_on: Date.new(2026, 10, 25))
+      insert(milk, eggs, later)
+
+      assert_equal [later], query.exclude(due_on: [nil, eggs.due_on]).to_a
+    end
+
+    it "negates SQL as it is, since its columns can't be known" do
+      assert_equal [%(#{select} WHERE NOT ((title LIKE ?))), ["%milk%"]], query.exclude("title LIKE ?", "%milk%").to_sql
+    end
+
+    it "returns the query as it is when there is nothing to exclude" do
+      assert_equal [%(#{select} WHERE "done" = ?), [1]], query.where(done: true).exclude.to_sql
+    end
+
+    it "refuses a column the table doesn't have" do
+      error = assert_raises(ArgumentError) { query.exclude(dnoe: true) }
+
+      assert_equal "TablesFixtures::Todo has no column dnoe. Did you mean done?", error.message
+    end
+
+    it "refuses a value its column's type doesn't take" do
+      error = assert_raises(ArgumentError) { query.exclude(done: "yes") }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+  end
+
+  describe "#or" do
+    it "matches the conditions before it, or the ones it's given" do
+      assert_equal [%(#{select} WHERE "done" = ? OR "priority" = ?), [0, "high"]],
+                   query.where(done: false).or(priority: :high).to_sql
+    end
+
+    it "groups several conditions on either side in parentheses" do
+      due = Date.new(2026, 10, 18)..Date.new(2026, 10, 25)
+
+      assert_equal [%(#{select} WHERE ("done" = ? AND "list_id" = ?) OR ("due_on" >= ? AND "due_on" <= ?)),
+                    [0, 3, "2026-10-18", "2026-10-25"]],
+                   query.where(done: false, list_id: 3).or(due_on: due).to_sql
+    end
+
+    it "is grouped in parentheses by a later where" do
+      assert_equal [%(#{select} WHERE (("done" = ? AND "list_id" = ?) OR "priority" = ?) AND "title" = ?),
+                    [0, 3, "high", "Buy milk"]],
+                   query.where(done: false).where(list_id: 3).or(priority: :high).where(title: "Buy milk").to_sql
+    end
+
+    it "chains without parentheses" do
+      assert_equal [%(#{select} WHERE "done" = ? OR "priority" = ? OR "list_id" = ?), [0, "high", 3]],
+                   query.where(done: false).or(priority: :high).or(list_id: 3).to_sql
+    end
+
+    it "takes SQL" do
+      assert_equal [%(#{select} WHERE "done" = ? OR (title LIKE ?)), [0, "%milk%"]],
+                   query.where(done: false).or("title LIKE ?", "%milk%").to_sql
+    end
+
+    it "returns the rows that match either" do
+      insert(milk, eggs, eggs.with(id: 3, title: "Buy bread", priority: :low))
+
+      assert_equal [milk, eggs], query.where(done: false).or(priority: :normal).to_a
+    end
+
+    describe "with numbered placeholders" do
+      let(:adapter) { numbered }
+
+      it "numbers placeholders across both sides" do
+        assert_equal [%(#{select} WHERE ("done" = $1 OR (title = $2)) AND "list_id" = $3), [0, "Buy milk", 3]],
+                     query.where(done: false).or("title = ?", "Buy milk").where(list_id: 3).to_sql
+      end
+    end
+
+    it "refuses a query with no conditions to or with" do
+      error = assert_raises(ArgumentError) { query.or(done: true) }
+
+      assert_equal "TablesFixtures::Todo has no conditions to or with. Start with where or exclude.", error.message
+    end
+
+    it "refuses a value its column's type doesn't take" do
+      error = assert_raises(ArgumentError) { query.where(done: true).or(done: "yes") }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
+    it "refuses nothing to or with" do
+      error = assert_raises(ArgumentError) { query.where(done: true).or }
+
+      assert_equal "TablesFixtures::Todo has nothing to or with. Give or conditions or SQL.", error.message
     end
   end
 

@@ -16,9 +16,17 @@ class Skyward::ORM::Record
   # @rbs return: Skyward::ORM::Query[instance]
   def self.all: () -> Skyward::ORM::Query[instance]
 
+  # @rbs sql: String?
+  # @rbs *values: untyped
   # @rbs **conditions: untyped
   # @rbs return: Skyward::ORM::Query[instance]
-  def self.where: (**untyped conditions) -> Skyward::ORM::Query[instance]
+  def self.where: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[instance]
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[instance]
+  def self.exclude: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[instance]
 
   # @rbs *columns: Symbol
   # @rbs **directions: Skyward::ORM::Query::direction

@@ -6,7 +6,61 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   type direction = :asc | :desc
 
+  type condition = Comparison | Fragment | Negation | Disjunction
+
   DIRECTIONS: Array[direction]
+
+  class Comparison < Data
+    attr_reader column(): Symbol
+
+    attr_reader operator(): String
+
+    attr_reader value(): untyped
+
+    def self.new: (Symbol column, String operator, untyped value) -> instance
+                | (column: Symbol, operator: String, value: untyped) -> instance
+
+    def self.members: () -> [ :column, :operator, :value ]
+
+    def members: () -> [ :column, :operator, :value ]
+  end
+
+  class Fragment < Data
+    attr_reader sql(): String
+
+    attr_reader values(): Array[untyped]
+
+    def self.new: (String sql, Array[untyped] values) -> instance
+                | (sql: String, values: Array[untyped]) -> instance
+
+    def self.members: () -> [ :sql, :values ]
+
+    def members: () -> [ :sql, :values ]
+  end
+
+  class Negation < Data
+    attr_reader conditions(): Array[condition]
+
+    def self.new: (Array[condition] conditions) -> instance
+                | (conditions: Array[condition]) -> instance
+
+    def self.members: () -> [ :conditions ]
+
+    def members: () -> [ :conditions ]
+  end
+
+  class Disjunction < Data
+    attr_reader left(): Array[condition]
+
+    attr_reader right(): Array[condition]
+
+    def self.new: (Array[condition] left, Array[condition] right) -> instance
+                | (left: Array[condition], right: Array[condition]) -> instance
+
+    def self.members: () -> [ :left, :right ]
+
+    def members: () -> [ :left, :right ]
+  end
 
   @offset: Integer?
 
@@ -16,7 +70,7 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   @orders: Array[[ Symbol, direction ]]
 
-  @conditions: Array[[ Symbol, untyped ]]
+  @conditions: Array[condition]
 
   @session: Skyward::ORM::Connection::Session
 
@@ -24,17 +78,31 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs session: Skyward::ORM::Connection::Session
-  # @rbs conditions: Array[[Symbol, untyped]]
+  # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: void
-  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
 
+  # @rbs sql: String?
+  # @rbs *values: untyped
   # @rbs **conditions: untyped
   # @rbs return: Skyward::ORM::Query[R]
-  def where: (**untyped conditions) -> Skyward::ORM::Query[R]
+  def where: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[R]
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[R]
+  def exclude: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[R]
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: Skyward::ORM::Query[R]
+  def or: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[R]
 
   # @rbs *columns: Symbol
   # @rbs **directions: direction
@@ -85,13 +153,24 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
 
   private
 
-  # @rbs conditions: Array[[Symbol, untyped]]
+  # @rbs conditions: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs groups: Array[Symbol]
   # @rbs limit: Integer?
   # @rbs offset: Integer?
   # @rbs return: Skyward::ORM::Query[R]
-  def with: (?conditions: Array[[ Symbol, untyped ]], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[R]
+  def with: (?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> Skyward::ORM::Query[R]
+
+  # @rbs sql: String?
+  # @rbs values: Array[untyped]
+  # @rbs conditions: Hash[Symbol, untyped]
+  # @rbs return: Array[condition]
+  def build: (String? sql, Array[untyped] values, Hash[Symbol, untyped] conditions) -> Array[condition]
+
+  # @rbs column: Symbol
+  # @rbs value: untyped
+  # @rbs return: Array[Comparison]
+  def comparisons: (Symbol column, untyped value) -> Array[Comparison]
 
   # @rbs columns: Array[Symbol]
   # @rbs return: void
@@ -119,11 +198,43 @@ class Skyward::ORM::Query[R < Skyward::ORM::Record]
   def from: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
 
   # @rbs database: Skyward::ORM::Connection::Database
-  # @rbs name: String
-  # @rbs value: untyped
+  # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def condition: (Skyward::ORM::Connection::Database database, String name, untyped value, Integer position) -> [ String, Array[untyped] ]
+  def conjunction: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs condition: condition
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def render: (Skyward::ORM::Connection::Database database, condition condition, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs comparison: Comparison
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def comparison: (Skyward::ORM::Connection::Database database, Comparison comparison, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs fragment: Fragment
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def fragment: (Skyward::ORM::Connection::Database database, Fragment fragment, Integer position) -> [ String, Array[untyped] ]
+
+  # NOT of an unknown is unknown, so a row whose column is NULL would be left
+  # out, though it doesn't match. An untyped column may hold NULL, and an SQL
+  # string's columns can't be known.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs conditions: Array[condition]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def negation: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs conditions: Array[condition]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def alternative: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
   # @rbs database: Skyward::ORM::Connection::Database

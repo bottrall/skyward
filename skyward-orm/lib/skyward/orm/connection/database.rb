@@ -244,15 +244,7 @@ class Skyward::ORM::Connection::Database
   def run(sql, values)
     statement = Skyward::ORM::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
     binds = values.map { |value| @adapter.encode(value) }
-    # The driver spreads an Array or Hash across several placeholders, or
-    # none, moving every value after it to another `?`.
-    binds.each.with_index(1) do |bind, position|
-      kind = case bind
-             when Array then "an Array"
-             when Hash then "a Hash"
-             end
-      raise ArgumentError, "Skyward.query binds one value to each ?, but value #{position} is #{kind}" if kind
-    end
+    Skyward::ORM::Placeholders.require_scalars(binds, "Skyward.query")
     result = connection { |checked_out| checked_out.execute2(statement, *binds) }
     [result.fetch(0).map(&:to_sym), result.drop(1)]
   rescue StandardError => e
