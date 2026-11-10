@@ -1,7 +1,7 @@
 # Skyward API
 
 > [!CAUTION]
-> **Work in progress: Skyward API is barely started.** Version 0.1 is a skeleton. The gems install and load, but only the parts listed under [Status](#status) are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
+> **Work in progress: Skyward API works, but it isn't finished.** Most of what this README describes is built, but it's the spec, and a few parts of it aren't built yet: [Status](#status) lists what is, and what's still to come. Until 1.0, any release may change the API, so don't depend on it in production yet.
 
 A small, fast Ruby web framework where **an endpoint is a method**.
 
@@ -676,7 +676,7 @@ No type error detected.
 
 ## Status
 
-This README is the spec. Skyward 0.1 is a skeleton: the gem installs and loads, and only the parts listed here are built. Skyward API is built first, and this section lists each part as it lands.
+This README is the spec, and this section lists each part of it that's built, as it lands. Anything it describes that isn't listed here isn't built yet.
 
 - **Route declarations.** An API class subclasses `Skyward::API` and lists its routes with `get`, `post`, `put`, `patch` and `delete`, each with an optional `summary:` and `description:`, and describes itself with `description`. A subclass starts with its parent's routes. A path that doesn't start with `/`, a path parameter that isn't a valid keyword name or appears twice, or a `to:` that isn't a Symbol raises `ArgumentError` where it's declared. The rest is checked at boot, below.
 - **Building an app.** `Skyward.app` yields a builder and returns a frozen Rack app, and the builder is frozen once the block returns. `mount` attaches an API object at a prefix (`at:`, `/` by default), and raises `Skyward::Core::BootError` given anything but a `Skyward::API` instance. One object can be mounted at several prefixes. A request matches a route when its method and whole path match, trailing slash included, with each path parameter matching one non-empty segment, percent-decoded. Routes are tried in mount order, then declaration order. The method is called with its inputs, below, and its return value is answered by its return type, as Responses below describes. A request whose path no route matches gets a 404 problem+json.

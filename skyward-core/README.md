@@ -1,7 +1,7 @@
 # Skyward Core
 
 > [!CAUTION]
-> **Work in progress: Skyward Core is barely started.** Version 0.1 is a skeleton. The gems install and load, and only the parts [Status](#status) lists are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
+> **Work in progress: Skyward isn't finished.** Everything this README describes is built, as [Status](#status) lists, but a few parts of the [Skyward API](../skyward-api/README.md#status) and [Skyward ORM](../skyward-orm/README.md#status) specs aren't yet. Until 1.0, any release may change the API, so don't depend on Skyward in production yet.
 
 The plumbing that [Skyward API](../skyward-api/README.md) and [Skyward ORM](../skyward-orm/README.md) share. You don't add it to your Gemfile: each of them depends on it, at exactly the same version.
 
@@ -31,7 +31,7 @@ Skyward supports every Ruby that isn't end-of-life (3.3 and later, as of Novembe
 
 ## Status
 
-This README is the spec. Skyward 0.1 is a skeleton: the gem installs, opens the `Skyward` namespace and sets up its loader. This section lists each part as it lands.
+This README is the spec, and this section lists each part of it that's built, as it lands. The gem opens the `Skyward` namespace and sets up its loader.
 
 - **The `skyward` command.** The executable loads each installed gem's `commands.rb`, `Skyward::Core::CLI.register` adds a command, and `skyward` lists them and runs one, as [Adding commands](#adding-commands) describes.
 - **Loading RBS signatures.** `Skyward::Core::Signatures.load(directory)` returns an `RBS::DefinitionBuilder` over every `.rbs` file under `directory`, the `sig/` of each Skyward gem that has registered it with `Skyward::Core::Signatures.register(path)`, and the `date` and `time` libraries. Skyward Core registers its own. A directory that doesn't exist contributes nothing. A file that doesn't parse, a name declared twice, or a class whose declarations disagree on its type parameters raises `Skyward::Core::BootError` naming the file and line.

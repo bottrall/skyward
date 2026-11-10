@@ -1,7 +1,7 @@
 # Skyward
 
 > [!CAUTION]
-> **Work in progress: Skyward doesn't do anything yet.** Version 0.1 is a skeleton. The gems install and load, but none of the features described here are built. These READMEs are the spec for what's coming, not documentation of what exists. Don't depend on Skyward yet: Skyward API is being built first, then Skyward ORM.
+> **Work in progress: Skyward works, but it isn't finished.** Skyward API serves typed endpoints and publishes their OpenAPI document, Skyward ORM reads and writes SQLite and PostgreSQL and generates its own migrations, and `skyward new` writes an app that uses both. Each gem's README is its spec, though, and a few parts of the API and ORM specs aren't built yet: each README's Status section lists what is. Until 1.0, any release may change the API, so don't depend on Skyward in production yet.
 
 Typed Ruby web apps, in four gems. An endpoint is a method, a row is a value, and RBS signatures are the contract between them, your type checker and your API's consumers.
 
