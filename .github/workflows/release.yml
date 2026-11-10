@@ -55,8 +55,30 @@ jobs:
           git commit -am "chore: update the lockfiles to the new version"
           git push
 
-  publish:
+  # The publish job can mint a RubyGems API key, so it runs none of the dev
+  # bundle's gems: the checks that need them run here, unprivileged, and
+  # publish then builds the gems itself with plain RubyGems.
+  verify:
     needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: bundle exec rake "release:verify[${TAG}]"
+      - run: bundle exec rake package:check
+
+  publish:
+    needs: [release-please, verify]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     environment: release
@@ -72,9 +94,23 @@ jobs:
           persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
-          bundler-cache: true
-      - run: bundle exec rake "release:verify[${TAG}]"
-      - run: bundle exec rake package:check
+          bundler-cache: false
+      # Mirrors rake release:verify, which can't run here: the Rakefile loads
+      # the dev bundle.
+      - run: |
+          ruby -r ./tooling/lib/release - "$TAG" <<'RUBY'
+            tag = ARGV.fetch(0)
+            shared = Release.shared(Release::VERSION_FILES.map { |file| File.read(file) })
+            abort "The gems' versions disagree: #{Release::VERSION_FILES.join(", ")}" unless shared
+            abort "#{tag} doesn't match the gems' version, #{shared}" unless tag == "v#{shared}"
+          RUBY
+      # Mirrors rake package:build.
+      - run: |
+          mkdir pkg
+          for gem in skyward-core skyward-api skyward-orm skyward; do
+            (cd "$gem" && gem build --quiet "${gem}.gemspec")
+            mv "$gem/$gem"-[0-9]*.gem pkg/
+          done
       # RubyGems lets trusted publishing create a new gem only when the token
       # exchange names the account that will own it, and no release of
       # rubygems/configure-rubygems-credentials sends that `owner` yet.
