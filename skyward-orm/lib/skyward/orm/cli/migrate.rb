@@ -6,9 +6,9 @@ module Skyward::ORM::CLI::Migrate
   NOTHING = "No pending migrations.\n" #: String
 
   # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
-  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run(directory:, out:, kernel:, session:, discover:)
-    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
+  def run(directory:, out:, kernel:, session:, discover:, generate:)
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel, generate) do |database|
       migrate(database, directory:, out:, kernel:, discover:)
     end
   end

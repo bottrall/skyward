@@ -1,0 +1,38 @@
+# Generated from lib/skyward/core/signatures/inline.rb with RBS::Inline
+
+module Skyward::Core::Signatures::Inline
+  OUTPUT: String
+
+  # None holds the app's contract: its tests, its installed gems and scratch.
+  UNCHECKED: Array[String]
+
+  # rbs-inline writes to scratch, so a file it no longer generates can be
+  # removed, and only a file whose content changed is written: skyward serve
+  # reloads on every .rbs file written.
+  # @rbs directory: String
+  # @rbs rbs_inline: String?
+  # @rbs capture: Skyward::Core::CLI::Executable::capture
+  # @rbs return: String?
+  def generate: (String directory, rbs_inline: String?, capture: Skyward::Core::CLI::Executable::capture) -> String?
+
+  # @rbs directory: String
+  # @rbs rbs_inline: String
+  # @rbs capture: Skyward::Core::CLI::Executable::capture
+  # @rbs return: Hash[String, String] | String
+  def run: (String directory, rbs_inline: String, capture: Skyward::Core::CLI::Executable::capture) -> (Hash[String, String] | String)
+
+  # @rbs directory: String
+  # @rbs return: Array[String]
+  def sources: (String directory) -> Array[String]
+
+  # @rbs directory: String
+  # @rbs return: Hash[String, String]
+  def rbs_files: (String directory) -> Hash[String, String]
+
+  private
+
+  # @rbs generated: String
+  # @rbs files: Hash[String, String]
+  # @rbs return: void
+  def write: (String generated, Hash[String, String] files) -> void
+end

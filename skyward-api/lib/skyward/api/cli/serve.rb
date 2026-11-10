@@ -51,11 +51,17 @@ module Skyward::API::CLI::Serve
   # @rbs apis: ^() -> Array[singleton(Skyward::API)]
   # @rbs features: Array[String]
   # @rbs loaders: ^() -> Array[Zeitwerk::Loader]
+  # @rbs generate: ^() -> String?
   # @rbs return: Reloader
-  def reloader(directory, build:, clock:, apis:, features:, loaders:)
+  def reloader(directory, build:, clock:, apis:, features:, loaders:, generate:)
     Reloader.new(
       watch: -> { watch(directory) },
-      load: lambda do
+      load: lambda do |changed|
+        # Regenerating writes only the .rbs files that changed, which bring
+        # one more reload, of .rbs files alone, so it doesn't loop.
+        failure = generate.call if changed.any? { |file| file.end_with?(".rb") }
+        raise Skyward::Core::BootError, failure if failure
+
         unload(directory, apis: apis.call, features:, loaders: loaders.call)
         build.call(File.join(directory, CONFIG))
       end,

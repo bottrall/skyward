@@ -32,7 +32,7 @@ A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward
 
 - Every method is typed with rbs-inline comments: one `# @rbs name: Type` per parameter and a `# @rbs return: Type`. Constants, `Data.define` members and `attr_reader`s take a trailing `#: Type`, and an `attr_reader` also needs a `# @dynamic name` line above it. Each Ruby file outside `test/` starts with `# rbs_inline: enabled`.
 - A file that names Skyward API's types starts with `# @rbs use Skyward::API::*` and writes them relative to it (`Responses::NotFound`).
-- `sig/generated` is generated from those comments, so never edit it: `bin/ci` regenerates it, and fails when that changed it, for you to commit. Hand-written signatures, such as interfaces, go in `sig/manual`.
+- `sig/generated` is generated from those comments, so never edit it or regenerate it by hand: every `skyward` command that reads types (`serve`, `routes`, `openapi`, `migration`, `migrate`, `rollback` and `status`) regenerates it first, and `bin/ci` regenerates it and fails when that changed it, for you to commit. Hand-written signatures, such as interfaces, go in `sig/manual`.
 - The types are the contract: Skyward API coerces and validates every request against them, the OpenAPI document is built from them, and Steep checks the code against them, with every diagnostic an error.
 
 ## Database

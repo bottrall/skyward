@@ -3,10 +3,10 @@
 module Skyward::ORM::CLI::Rollback
   extend self
 
-  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session)
-  #   -> void
-  def run(directory:, out:, kernel:, session:)
-    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+  # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
+  #   generate: ^() -> String?) -> void
+  def run(directory:, out:, kernel:, session:, generate:)
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel, generate) do |database|
       runner = Skyward::ORM::Migrations::Runner
       rolled_back = database.rollback(runner.read(File.join(directory, Skyward::ORM::Migrations::Directory::PATH)))
       case rolled_back

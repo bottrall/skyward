@@ -40,6 +40,16 @@ describe "skyward/orm/commands.rb" do
       end
     end
 
+    it "uses sig/ as it is, and says nothing about it, in a bundle without rbs-inline, as this one is" do
+      app do |directory|
+        File.write(File.join(directory, "app/note.rb"), "# rbs_inline: enabled\n\nclass Note\nend\n")
+        output, status = skyward("migration", "create_todos", chdir: directory)
+
+        assert_equal [0, false, false],
+                     [status, output.include?("rbs-inline"), File.exist?(File.join(directory, "sig/generated"))]
+      end
+    end
+
     it "has nothing to write once that migration has run" do
       app do |directory|
         skyward("migration", "create_todos", chdir: directory)

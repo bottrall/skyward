@@ -5,8 +5,8 @@ require "test_helper"
 describe Skyward::API::CLI::Serve::Reloader do
   let(:fake_world) do
     Class.new do
-      attr_accessor :now
-      attr_reader :loads, :watches
+      attr_accessor :now, :files
+      attr_reader :loads, :watches, :changes
 
       def initialize(loads)
         @now = 0.0
@@ -14,6 +14,7 @@ describe Skyward::API::CLI::Serve::Reloader do
         @pending = loads
         @loads = 0
         @watches = 0
+        @changes = []
       end
 
       def watch
@@ -21,8 +22,9 @@ describe Skyward::API::CLI::Serve::Reloader do
         @files
       end
 
-      def load
+      def load(changed)
         @loads += 1
+        @changes << changed
         case (result = @pending.shift)
         when Exception then raise result
         when Thread::Queue then result.pop
@@ -110,6 +112,17 @@ describe Skyward::API::CLI::Serve::Reloader do
       world.change
 
       assert_equal "second", body(served)
+    end
+
+    it "loads first with every file it watches, then with each file changed, added or removed" do
+      world = world_with(app("first"), app("second"))
+      world.files = { "app.rb" => Time.at(0), "config.ru" => Time.at(0), "old.rb" => Time.at(0) }
+      served = reloader(world)
+      world.now = 1.0
+      world.files = { "app.rb" => Time.at(0), "config.ru" => Time.at(1), "new.rb" => Time.at(0) }
+      body(served)
+
+      assert_equal [%w[app.rb config.ru old.rb], %w[config.ru new.rb old.rb]], world.changes.map(&:sort)
     end
 
     it "answers a failed load with a 500 problem showing the error" do

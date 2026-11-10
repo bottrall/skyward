@@ -1,11 +1,9 @@
 # frozen_string_literal: true
 
-require "tmpdir"
-
 module Skyward::API::CLI::Check
   extend self
 
-  # @rbs! type capture = ^(Hash[String, String] env, Array[String] command, String chdir) -> [String, bool]
+  # @rbs! type capture = Skyward::Core::CLI::Executable::capture
 
   Outcome = Data.define(
     :passed, #: bool
@@ -14,19 +12,17 @@ module Skyward::API::CLI::Check
 
   PASSED = Outcome.new(passed: true, detail: "") #: Outcome
 
-  GENERATED = "sig/generated" #: String
+  GENERATED = Skyward::Core::Signatures::Inline::OUTPUT #: String
 
   STEEPFILE = "Steepfile" #: String
-
-  # None holds the app's contract: its tests, its installed gems and scratch.
-  UNCHECKED = %w[test spec vendor tmp].freeze #: Array[String]
 
   # The strict boot's own Ruby runs it, so the forced strict mode, the app's
   # side effects and an exit or crash stay out of skyward check. The require
   # lives here because a `-r` on the command line runs before RUBYOPT's
   # `-rbundler/setup` on newer Rubies, before the bundle's gems are loadable.
+  # skyward check writes nothing, so the boot doesn't regenerate sig/generated.
   BOOT = 'require "skyward/api"; ' \
-         'Skyward::API::CLI::AppFile.run(Dir.pwd, out: $stdout, kernel: Kernel) { "" }' #: String
+         'Skyward::API::CLI::AppFile.run(Dir.pwd, out: $stdout, kernel: Kernel, generate: -> {}) { "" }' #: String
 
   INSTALL_RBS_INLINE = "rbs-inline isn't installed. Add `gem \"rbs-inline\", require: false` to the Gemfile " \
                        "and run `bundle install`.\n" #: String
@@ -56,19 +52,20 @@ module Skyward::API::CLI::Check
   def signatures(directory, capture:, rbs_inline:)
     return failed(INSTALL_RBS_INLINE) unless rbs_inline
 
-    paths = sources(directory)
+    inline = Skyward::Core::Signatures::Inline
+    paths = inline.sources(directory)
     generate = "bundle exec rbs-inline --output=#{GENERATED} #{paths.join(" ")}"
     generated = File.join(directory, GENERATED)
     unless File.directory?(generated)
       return failed("There's no #{GENERATED}. Run `#{generate}` and commit the result.\n")
     end
 
-    Dir.mktmpdir("skyward-check") do |output|
-      log, ok = capture.call({}, [Gem.ruby, rbs_inline, "--output=#{output}", *paths], directory)
-      next failed(log) unless ok
-
-      stale = differences(rbs_files(generated), rbs_files(output))
-      next PASSED if stale.empty?
+    expected = inline.run(directory, rbs_inline:, capture:)
+    case expected
+    when String then failed(expected)
+    else
+      stale = differences(inline.rbs_files(generated), expected)
+      return PASSED if stale.empty?
 
       failed(
         [
@@ -112,20 +109,6 @@ module Skyward::API::CLI::Check
   # @rbs detail: String
   # @rbs return: Outcome
   def failed(detail) = Outcome.new(passed: false, detail:)
-
-  # @rbs directory: String
-  # @rbs return: Array[String]
-  def sources(directory)
-    roots = Dir.glob("*/", base: directory).map { |root| root.delete_suffix("/") } - UNCHECKED
-    files = Dir.glob("*.rb", base: directory)
-    [*files, *roots.reject { |root| Dir.glob("#{root}/**/*.rb", base: directory).empty? }].sort
-  end
-
-  # @rbs directory: String
-  # @rbs return: Hash[String, String]
-  def rbs_files(directory)
-    Dir.glob("**/*.rbs", base: directory).to_h { |file| [file, File.read(File.join(directory, file))] }
-  end
 
   # @rbs current: Hash[String, String]
   # @rbs expected: Hash[String, String]

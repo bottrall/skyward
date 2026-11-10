@@ -1,0 +1,3 @@
+module Skyward::Core::CLI::Executable
+  extend ::Skyward::Core::CLI::Executable
+end

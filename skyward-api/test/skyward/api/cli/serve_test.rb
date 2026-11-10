@@ -133,7 +133,17 @@ describe Skyward::API::CLI::Serve do
       run #{skyward_app("#{api}.new")}
     RUBY
 
-    def app(files = { "hello.rb" => hello("/hello"), "sig/hello.rbs" => signature, "config.ru" => config("/") })
+    let(:generations) { [] }
+
+    def regenerate
+      generations << :generated
+      nil
+    end
+
+    def app(
+      files = { "hello.rb" => hello("/hello"), "sig/hello.rbs" => signature, "config.ru" => config("/") },
+      generate: method(:regenerate)
+    )
       Dir.mktmpdir do |tmp|
         @directory = File.realpath(tmp)
         files.each { |file, source| write(file, source) }
@@ -144,7 +154,8 @@ describe Skyward::API::CLI::Serve do
           clock: -> { @now },
           apis: -> { ObjectSpace.each_object(Skyward::API.singleton_class).to_a },
           features: $LOADED_FEATURES,
-          loaders: -> { registered_loaders }
+          loaders: -> { registered_loaders },
+          generate:
         )
       end
     end
@@ -204,6 +215,45 @@ describe Skyward::API::CLI::Serve do
         edit("config.ru", config("/v2"))
 
         assert_equal 200, status(served, "/v2/hello")
+      end
+    end
+
+    it "regenerates sig/generated when it starts" do
+      app { assert_equal [:generated], generations }
+    end
+
+    it "regenerates sig/generated before a reload that a .rb file is among the changes of, and loads its types" do
+      # As rbs-inline would, from the edited hello.rb.
+      generate = lambda do
+        write("sig/hello.rbs", signature(keyword: "?name: String"))
+        nil
+      end
+      app(generate:) do |served|
+        edit("hello.rb", hello("/hello", keyword: 'name: "you"'))
+
+        assert_equal 200, status(served, "/hello")
+      end
+    end
+
+    it "doesn't regenerate for a reload of .rbs files and config.ru alone" do
+      app do |served|
+        edit("sig/hello.rbs", signature)
+        edit("config.ru", config("/v2"))
+        status(served, "/v2/hello")
+
+        assert_equal [:generated], generations
+      end
+    end
+
+    it "answers with the development 500 when sig/generated can't be regenerated, until the next change" do
+      failure = "rbs-inline couldn't regenerate sig/generated:\nhello.rb: can't read\n"
+      failures = [failure]
+      app(generate: -> { failures.shift }) do |served|
+        response = served.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/hello" })
+        edit("hello.rb", hello("/hello"))
+
+        assert_equal [500, "Skyward::Core::BootError: #{failure}", 200],
+                     [response.first, JSON.parse(response.last.first)["detail"], status(served, "/hello")]
       end
     end
 

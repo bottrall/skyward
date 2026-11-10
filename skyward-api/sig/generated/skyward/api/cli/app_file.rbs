@@ -5,11 +5,12 @@ module Skyward::API::CLI::AppFile
 
   ASSIGNMENT: String
 
-  # @rbs (String directory, out: _Writer, kernel: singleton(Kernel)) { (Skyward::API::Assembly::Application) -> String }
-  #   -> void
-  def run: (String directory, out: _Writer, kernel: singleton(Kernel)) { (Skyward::API::Assembly::Application) -> String } -> void
+  # @rbs (String directory, out: _Writer, kernel: singleton(Kernel), generate: ^() -> String?)
+  #   { (Skyward::API::Assembly::Application) -> String } -> void
+  def run: (String directory, out: _Writer, kernel: singleton(Kernel), generate: ^() -> String?) { (Skyward::API::Assembly::Application) -> String } -> void
 
   # @rbs directory: String
+  # @rbs generate: ^() -> String?
   # @rbs return: Skyward::API::Assembly::Application | String
-  def load: (String directory) -> (Skyward::API::Assembly::Application | String)
+  def load: (String directory, ^() -> String? generate) -> (Skyward::API::Assembly::Application | String)
 end
