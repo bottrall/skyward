@@ -5,39 +5,9 @@ require "test_helper"
 describe "App" do
   let(:client) { Skyward::API::Test.client(App) }
 
-  def write(title = "Ship it") = client.post("/notes", json: { title:, body: "Today" })
-
-  describe "GET /notes" do
-    it "lists the newest note first" do
-      id = write.json[:id]
-
-      assert_equal id, client.get("/notes").json.first[:id]
-    end
-  end
-
-  describe "GET /notes/:id" do
-    it "answers the note" do
-      note = write.json
-
-      assert_equal note, client.get("/notes/#{note[:id]}").json
-    end
-
-    it "answers 404 for a note that doesn't exist" do
-      assert_equal 404, client.get("/notes/0").status
-    end
-  end
-
-  describe "POST /notes" do
-    it "answers 201 with the new note" do
-      response = write("Buy milk")
-
-      assert_equal [201, { title: "Buy milk", body: "Today" }], [response.status, response.json.except(:id)]
-    end
-
-    it "answers 422 for a title that's missing" do
-      response = client.post("/notes", json: { body: "Today" })
-
-      assert_equal [422, "body.title"], [response.status, response.json[:errors].first[:at]]
+  describe "GET /up" do
+    it "says the app is up" do
+      assert_equal({ status: "ok" }, client.get("/up").json)
     end
   end
 
