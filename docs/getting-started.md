@@ -1,6 +1,6 @@
 # Getting started with Skyward
 
-This guide takes you from installing Skyward to a running, tested, documented API. It's written for Skyward 0.3. Each step shows the command to run, the code to write and the output to expect. Where output is long, `...` marks what's left out. Timestamps, request IDs and test seeds will differ on your machine, and on Ruby 3.3 hashes print as `{:title=>"Buy milk"}` rather than `{title: "Buy milk"}`.
+This guide takes you from installing Skyward to a running, tested, documented API. It's written for Skyward 0.3. You start from the blank app `skyward new` writes and build a resource in it, todos, from nothing. Each step shows the command to run, the code to write and the output to expect. Where output is long, `...` marks what's left out. Timestamps, migration versions, request IDs and test seeds will differ on your machine.
 
 ## 1. Install Skyward
 
@@ -43,18 +43,15 @@ Wrote todos/bin/setup
 Wrote todos/bin/test
 Wrote todos/boot.rb
 Wrote todos/config.ru
-Wrote todos/db/migrate/20261109000000_create_notes.sql
-Wrote todos/modules/notes/api.rb
-Wrote todos/modules/notes/record.rb
-Wrote todos/modules/notes.rb
+Wrote todos/db/migrate/.keep
+Wrote todos/lib/health_api.rb
+Wrote todos/modules/.keep
 Wrote todos/rbs_collection.yaml
 Wrote todos/sig/generated/app.rbs
 Wrote todos/sig/generated/boot.rbs
-Wrote todos/sig/generated/modules/notes/api.rbs
-Wrote todos/sig/generated/modules/notes/record.rbs
-Wrote todos/sig/generated/modules/notes.rbs
+Wrote todos/sig/generated/health_api.rbs
 Wrote todos/test/app_test.rb
-Wrote todos/test/modules/notes/api_test.rb
+Wrote todos/test/lib/health_api_test.rb
 Wrote todos/test/test_helper.rb
 ...
 Bundle complete! 7 Gemfile dependencies, 62 gems now installed.
@@ -62,7 +59,7 @@ Use `bundle info [gemname]` to see where a bundled gem is installed.
 Next: cd todos && bin/setup
 ```
 
-`bin/setup` installs the gems, downloads the signatures that Steep, the type checker, needs for them, and creates the development database at `db/todos.sqlite3`:
+`bin/setup` installs the gems, downloads the signatures that Steep, the type checker, needs for them, and creates the development database at `db/todos.sqlite3`. There are no migrations yet:
 
 ```sh
 $ cd todos
@@ -71,44 +68,25 @@ $ bin/setup
 Bundle complete! 7 Gemfile dependencies, 62 gems now installed.
 ...
 It's done! 20 gems' RBSs now installed.
-Migrated 20261109000000
+No pending migrations.
 ```
 
 From here on, every command runs in the `todos` directory.
 
 ## 3. A tour of the app
 
-The app is an API with no frontend. It comes with one small resource, notes, for you to copy. The files that matter most:
+The app is an API with no frontend, and it starts blank. The files that matter most:
 
-- `modules/notes/record.rb` is `Notes::Record`, a table class. Each typed `attr_reader` is a column, and each row comes back as a frozen instance of the class.
-- `modules/notes/api.rb` is `Notes::API`, the notes endpoints. An endpoint is a public method: its keywords are its inputs, and what it returns is the response.
 - `app.rb` builds the app and wires each API to what it needs. It's the one place that does.
-- `boot.rb` loads `modules/` and connects to the database: `DATABASE_URL` if it's set, and otherwise SQLite at `db/todos.sqlite3`.
-- `db/migrate/` holds the migrations, as plain SQL.
+- `lib/health_api.rb` is `HealthAPI`, the app's one endpoint so far: `GET /up`, for load balancers and uptime checks.
+- `modules/` is empty. It's where your code goes, one directory per resource.
+- `db/migrate/` is empty too. It's where the migrations go, as plain SQL.
+- `boot.rb` loads `lib/` and `modules/`, and connects to the database: `DATABASE_URL` if it's set, and otherwise SQLite at `db/todos.sqlite3`.
 - `sig/generated/` holds the type signatures, generated from the `#:` and `# @rbs` comments in the Ruby. `skyward serve`, `skyward migration` and the other commands that read types regenerate it first, so you never edit or regenerate it by hand.
 - `test/` holds the tests, and `bin/test` and `bin/ci` run them.
 - `AGENTS.md` teaches a coding agent working in the app its conventions. It's a good read for people too.
 
-The table class:
-
-```ruby
-# modules/notes/record.rb
-# frozen_string_literal: true
-
-# rbs_inline: enabled
-
-class Notes::Record < Skyward::ORM::Record
-  table :notes
-  check :title, length: 1..200
-
-  # @dynamic id, title, body
-  attr_reader :id     #: Integer
-  attr_reader :title  #: String
-  attr_reader :body   #: String?
-end
-```
-
-The app, which mounts the notes endpoints at `/notes` and passes them the table class to query:
+The app mounts `HealthAPI` and turns on the API reference at `/docs`:
 
 ```ruby
 # app.rb
@@ -119,54 +97,89 @@ The app, which mounts the notes endpoints at `/notes` and passes them the table 
 require_relative "boot"
 
 App = Skyward.app(docs: true, title: "Todos") do |app|
-  app.mount Notes::API.new(notes: Notes::Record), at: "/notes"
+  app.mount HealthAPI.new
 end #: Skyward::API::_RackApp
 ```
 
-[Starting an app](../skyward/README.md#starting-an-app) lists every file.
-
-## 4. Add a column
-
-Let a note be pinned. Add a `pinned` column to the table class, with a default, so the notes already in the table get one:
+An endpoint is a public method. Its route goes at the top of the class, and its `# @rbs return:` line is its contract:
 
 ```ruby
-# modules/notes/record.rb
+# lib/health_api.rb
 # frozen_string_literal: true
 
 # rbs_inline: enabled
 
-class Notes::Record < Skyward::ORM::Record
-  table :notes
-  check :title, length: 1..200
-  default pinned: false
+class HealthAPI < Skyward::API
+  description "Whether the app is up, for load balancers and uptime checks."
 
-  # @dynamic id, title, body, pinned
-  attr_reader :id      #: Integer
-  attr_reader :title   #: String
-  attr_reader :body    #: String?
-  attr_reader :pinned  #: bool
+  get "/up", to: :show, summary: "Report that the app is up."
+
+  # @rbs return: { status: "ok" }
+  def show = { status: "ok" }
 end
 ```
 
+[Starting an app](../skyward/README.md#starting-an-app) lists every file.
+
+## 4. Add a table class
+
+A todo is a title and whether it's done. Its code goes in `modules/todos/`, and file paths match constant names, so the table class is `Todos::Record`. First declare the `Todos` module, in a file of its own, so it has a signature too:
+
+```ruby
+# modules/todos.rb
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+module Todos
+end
+```
+
+Then the table class. Each typed `attr_reader` is a column, and each row comes back as a frozen instance of the class:
+
+```ruby
+# modules/todos/record.rb
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+class Todos::Record < Skyward::ORM::Record
+  table :todos
+  default done: false
+  check :title, length: 1..200
+
+  # @dynamic id, title, done
+  attr_reader :id     #: Integer
+  attr_reader :title  #: String
+  attr_reader :done   #: bool
+end
+```
+
+The class body is the schema: the rows live in `todos`, a new todo isn't done, and a title is 1 to 200 characters. The `# @dynamic` line lists the columns for Steep, which doesn't count an `attr_reader` as defining a method.
+
 ## 5. Migrate the database
 
-Skyward writes the migration for you, by comparing the table class with the database. It reads the column types from `sig/generated`, which it regenerates from the Ruby first, so it sees `pinned`:
+Skyward writes the migration for you, by comparing the table class with the database. It reads the column types from `sig/generated`, which it regenerates from the Ruby first, so it sees `Todos::Record`:
 
 ```sh
-$ bundle exec skyward migration add_pinned_to_notes
-Notes::Record differs from the notes table:
-  + pinned  INTEGER NOT NULL
-Wrote db/migrate/20261109160824_add_pinned_to_notes.sql. Review it, then run `skyward migrate`.
+$ bundle exec skyward migration create_todos
+Todos::Record has no table yet:
+  + todos  3 columns, 1 check
+Wrote db/migrate/20261110050204_create_todos.sql. Review it, then run `skyward migrate`.
 ```
 
 Review the SQL before you run it. It's yours to edit and commit:
 
 ```sql
--- db/migrate/20261109160824_add_pinned_to_notes.sql
-ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+-- db/migrate/20261110050204_create_todos.sql
+CREATE TABLE todos (
+  id     INTEGER CONSTRAINT todos_pkey PRIMARY KEY,
+  title  TEXT    NOT NULL CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200),
+  done   INTEGER NOT NULL DEFAULT 0
+);
 
 -- down
-ALTER TABLE notes DROP COLUMN pinned;
+DROP TABLE todos;
 ```
 
 The SQL is written for the database the app connects to, here SQLite, which stores a `bool` as an `INTEGER` that's 0 or 1. The `-- down` section is what `skyward rollback` runs.
@@ -175,52 +188,236 @@ Then run it:
 
 ```sh
 $ bundle exec skyward migrate
-Migrated 20261109160824
+Migrated 20261110050204
 ```
 
-## 6. Add a typed endpoint
+## 6. Add a typed API
 
-Add an endpoint that pins a note. Its route goes at the top of the class with the others, and its method below them:
+The endpoints go in `Todos::API`. Its routes go at the top of the class, and each names the method it calls:
 
 ```ruby
-# modules/notes/api.rb
+# modules/todos/api.rb
 # frozen_string_literal: true
 
 # rbs_inline: enabled
 
 # @rbs use Skyward::API::*
 
-class Notes::API < Skyward::API
-  description "Notes, each a title and an optional body."
+class Todos::API < Skyward::API
+  description "Things to do, and the satisfaction of ticking them off."
 
-  get  "/",        to: :index,  summary: "List notes, newest first."
-  get  "/:id",     to: :show,   summary: "Fetch a single note."
-  post "/",        to: :create, summary: "Write a note."
-  post "/:id/pin", to: :pin,    summary: "Pin a note."
+  get  "/",             to: :index,    summary: "List todos, newest first."
+  get  "/:id",          to: :show,     summary: "Fetch a single todo."
+  post "/",             to: :create,   summary: "Create a todo."
+  post "/:id/complete", to: :complete, summary: "Mark a todo as done."
 
-  # ... the existing methods ...
+  NewTodo = Data.define(
+    :title #: String
+  )
+
+  # @rbs @todos: singleton(Todos::Record)
+
+  # @rbs todos: singleton(Todos::Record)
+  # @rbs return: void
+  def initialize(todos:)
+    super()
+    @todos = todos
+  end
+
+  # @rbs limit: Integer
+  # @rbs return: Array[Todos::Record]
+  def index(limit: 50)
+    @todos.order(id: :desc).limit(limit).to_a
+  end
 
   # @rbs id: Integer
-  # @rbs return: Notes::Record | Responses::NotFound
-  def pin(id:)
-    @notes.where(id:).into(Notes::Record).update!(pinned: true).first || not_found
+  # @rbs return: Todos::Record | Responses::NotFound
+  def show(id:)
+    @todos.find_by(id:) || not_found
+  end
+
+  # @rbs body: NewTodo
+  # @rbs return: Responses::Created[Todos::Record] | Responses::Unprocessable
+  def create(body:)
+    todo = @todos.into(Todos::Record).insert(title: body.title)
+    case todo
+    when Todos::Record then created todo
+    else unprocessable "A title needs 1 to 200 characters"
+    end
+  end
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record | Responses::NotFound
+  def complete(id:)
+    @todos.where(id:).into(Todos::Record).update!(done: true).first || not_found
   end
 end
 ```
 
-The `# @rbs` lines are the endpoint's contract. `id: Integer` makes Skyward turn the `"1"` in `/notes/1/pin` into `1`, and answer 422 for `/notes/abc/pin` before the method runs. The return type says the endpoint answers with a note or a 404, and that goes into the API's documentation. A write returns how many rows it changed, unless `into` names the rows to return, so `into(Notes::Record)` makes `update!` return the notes it changed. There's no note when none has the `id`, and the endpoint answers 404.
+An endpoint's keywords are its inputs, and the `# @rbs` lines are its contract. `id: Integer` makes Skyward turn the `"1"` in `/todos/1` into `1`, and answer 422 for `/todos/abc` before the method runs. `limit: 50` has a default, so it's an optional query parameter, and `body: NewTodo` is the JSON request body, checked against `NewTodo` before `create` runs. The return types say which responses each endpoint can answer with, and they go into the API's documentation.
 
-List the routes to see the new one with its signature, which `skyward routes` regenerates from the comments first:
+A write returns how many rows it changed, unless `into` names the rows to return. So `into(Todos::Record)` makes `insert` return the new todo, or a `Skyward::ORM::Violation` when the database refuses it, as it does an empty title. That's an outcome, not an exception, so `create` matches it with `case`/`when` and answers 201 or 422. In `complete`, `update!` returns the todos it changed, and there's none when no todo has the `id`, so the endpoint answers 404. It's the bang version because setting `done` can't break a rule, so a violation there would be a bug, and it raises.
+
+`Todos::API` takes the table class it queries as `todos:`, rather than reaching for `Todos::Record` itself, so a test can pass in whatever it likes.
+
+## 7. Mount it
+
+Mount the API in `app.rb`, at `/todos`, and pass it the table class:
+
+```ruby
+# app.rb
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+require_relative "boot"
+
+App = Skyward.app(docs: true, title: "Todos") do |app|
+  app.mount HealthAPI.new
+  app.mount Todos::API.new(todos: Todos::Record), at: "/todos"
+end #: Skyward::API::_RackApp
+```
+
+List the routes to see each with its signature, which `skyward routes` regenerates from the comments first:
 
 ```sh
 $ bundle exec skyward routes
-GET   /notes          Notes::API#index   (?limit: Integer) -> Array[Notes::Record]
-GET   /notes/:id      Notes::API#show    (id: Integer) -> (Notes::Record | Responses::NotFound)
-POST  /notes          Notes::API#create  (body: NewNote) -> (Responses::Created[Notes::Record] | Responses::Unprocessable)
-POST  /notes/:id/pin  Notes::API#pin     (id: Integer) -> (Notes::Record | Responses::NotFound)
+GET   /up                  HealthAPI#show       () -> { status: "ok" }
+GET   /todos               Todos::API#index     (?limit: Integer) -> Array[Todos::Record]
+GET   /todos/:id           Todos::API#show      (id: Integer) -> (Todos::Record | Responses::NotFound)
+POST  /todos               Todos::API#create    (body: NewTodo) -> (Responses::Created[Todos::Record] | Responses::Unprocessable)
+POST  /todos/:id/complete  Todos::API#complete  (id: Integer) -> (Todos::Record | Responses::NotFound)
 ```
 
-## 7. Run it
+## 8. Test it
+
+An endpoint is a method on a plain object, so the fastest test calls it. The tests mirror the code, so `Todos::API`'s go in `test/modules/todos/api_test.rb`:
+
+```ruby
+# test/modules/todos/api_test.rb
+# frozen_string_literal: true
+
+require "test_helper"
+
+describe Todos::API do
+  let(:api) { Todos::API.new(todos: Todos::Record) }
+
+  def create(title = "Ship it") = Todos::Record.into(Todos::Record).insert!(title:)
+
+  describe "#index" do
+    it "lists the newest todo first" do
+      %w[First Second].each { |title| create(title) }
+
+      assert_equal %w[Second First], api.index.map(&:title)
+    end
+
+    it "lists at most limit todos" do
+      %w[First Second].each { |title| create(title) }
+
+      assert_equal %w[Second], api.index(limit: 1).map(&:title)
+    end
+  end
+
+  describe "#show" do
+    it "answers the todo" do
+      todo = create
+
+      assert_equal todo, api.show(id: todo.id)
+    end
+
+    it "answers 404 for a todo that doesn't exist" do
+      assert_instance_of Skyward::API::Responses::NotFound, api.show(id: 0)
+    end
+  end
+
+  describe "#create" do
+    it "answers the new todo, created" do
+      todo = api.create(body: Todos::API::NewTodo.new(title: "Ship it")).value
+
+      assert_equal Todos::Record.find_by(id: todo.id), todo
+    end
+
+    it "answers 422 for a title that's empty" do
+      response = api.create(body: Todos::API::NewTodo.new(title: ""))
+
+      assert_instance_of Skyward::API::Responses::Unprocessable, response
+    end
+  end
+
+  describe "#complete" do
+    it "answers the todo, done" do
+      todo = create
+
+      assert_equal todo.with(done: true), api.complete(id: todo.id)
+    end
+
+    it "answers 404 for a todo that doesn't exist" do
+      assert_instance_of Skyward::API::Responses::NotFound, api.complete(id: 0)
+    end
+  end
+end
+```
+
+Rows are values, so the tests compare them with `==`, and `todo.with(done: true)` is the same todo, done.
+
+`test/app_test.rb` tests what `app.rb` decides, over HTTP, with `Skyward::API::Test.client`, which calls the app in-process without a server. Add a test that `Todos::API` is mounted at `/todos`, inside `describe "App"`, between the tests of `/up` and `/docs` that came with the app:
+
+```ruby
+describe "GET /todos" do
+  it "serves Todos::API" do
+    response = client.get("/todos")
+
+    assert_equal [200, []], [response.status, response.json]
+  end
+end
+```
+
+Each test runs in a transaction that's rolled back after it, on a database of its own, so every test starts with no todos, and the tests never see your development data. Run them:
+
+```sh
+$ bin/test
+Run options: --seed 23760
+
+# Running:
+
+............
+
+Finished in 0.005121s, 2343.3747 runs/s, 2538.6559 assertions/s.
+
+12 runs, 13 assertions, 0 failures, 0 errors, 0 skips
+```
+
+## 9. Run CI
+
+`bin/ci` runs everything CI should: it regenerates the signatures and fails if that changed them, runs the tests, then runs `skyward check`, which checks the signatures again, boots the app in strict mode, so an endpoint without types fails it, and type-checks the code with Steep. Run it before you push:
+
+```sh
+$ bin/ci
+...
+🎉 Generated 6 RBS files under sig/generated
+Run options: --seed 53426
+
+# Running:
+
+............
+
+Finished in 0.004611s, 2602.4159 runs/s, 2819.2839 assertions/s.
+
+12 runs, 13 assertions, 0 failures, 0 errors, 0 skips
+Migrated 20261110050204
+Signatures: passed
+Strict boot: passed
+Steep: passed
+# Type checking files:
+
+............
+
+No type error detected. 🧉
+```
+
+The `Migrated` line is for a database `bin/ci` makes for `skyward check` and deletes after, not your development database.
+
+## 10. Run it
 
 ```sh
 $ bundle exec skyward serve
@@ -228,40 +425,44 @@ $ bundle exec skyward serve
 ...
 ```
 
-It serves the app on port 9292, or on `PORT` if you set it, and reloads it whenever you change a file, regenerating `sig/generated` first when you change Ruby. Every request logs one line of JSON. In another terminal, write a note:
+It serves the app on port 9292, or on `PORT` if you set it, and reloads it whenever you change a file, regenerating `sig/generated` first when you change Ruby. Every request logs one line of JSON. In another terminal, check it's up, then create a todo:
 
 ```sh
-$ curl -i -X POST localhost:9292/notes -H "content-type: application/json" -d '{"title":"Buy milk","body":"Oat, not dairy"}'
+$ curl localhost:9292/up
+{"status":"ok"}
+$ curl -i -X POST localhost:9292/todos -H "content-type: application/json" -d '{"title":"Buy milk"}'
 HTTP/1.1 201 Created
 content-type: application/json
-x-request-id: b2de5bbb-9f8d-439b-b969-c0754f097583
+x-request-id: 2e444adb-8ca9-4ee3-9c3c-494e26e51c05
 vary: accept-encoding
-content-length: 66
+content-length: 40
 
-{"id":1,"title":"Buy milk","body":"Oat, not dairy","pinned":false}
+{"id":1,"title":"Buy milk","done":false}
 ```
 
-Pin it, and list the notes:
+List the todos, mark it as done, and fetch it:
 
 ```sh
-$ curl -X POST localhost:9292/notes/1/pin
-{"id":1,"title":"Buy milk","body":"Oat, not dairy","pinned":true}
-$ curl localhost:9292/notes
-[{"id":1,"title":"Buy milk","body":"Oat, not dairy","pinned":true}]
+$ curl localhost:9292/todos
+[{"id":1,"title":"Buy milk","done":false}]
+$ curl -X POST localhost:9292/todos/1/complete
+{"id":1,"title":"Buy milk","done":true}
+$ curl localhost:9292/todos/1
+{"id":1,"title":"Buy milk","done":true}
 ```
 
-The types do their work on requests that don't fit. A note that doesn't exist is a 404, an `id` that isn't a number is refused before the method runs, and the database refuses an empty title:
+The types do their work on requests that don't fit. A todo that doesn't exist is a 404, an `id` that isn't a number is refused before the method runs, and the database refuses an empty title:
 
 ```sh
-$ curl -X POST localhost:9292/notes/42/pin
+$ curl -X POST localhost:9292/todos/42/complete
 {"type":"about:blank","title":"Not Found","status":404}
-$ curl -X POST localhost:9292/notes/abc/pin
+$ curl -X POST localhost:9292/todos/abc/complete
 {"type":"about:blank","title":"Unprocessable Content","status":422,"errors":[{"at":"path.id","message":"expected Integer, got \"abc\""}]}
-$ curl -X POST localhost:9292/notes -H "content-type: application/json" -d '{"title":""}'
+$ curl -X POST localhost:9292/todos -H "content-type: application/json" -d '{"title":""}'
 {"type":"about:blank","title":"Unprocessable Content","status":422,"detail":"A title needs 1 to 200 characters"}
 ```
 
-Now open <http://localhost:9292/docs> in your browser. It's the API reference, built from the routes, their summaries and their signatures, `POST /notes/{id}/pin` included. The page itself is small, and loads [Scalar](https://github.com/scalar/scalar) to render the OpenAPI document at `/openapi.json`:
+Now open <http://localhost:9292/docs> in your browser. It's the API reference, built from the routes, their summaries and their signatures. The page itself is small, and loads [Scalar](https://github.com/scalar/scalar) to render the OpenAPI document at `/openapi.json`:
 
 ```sh
 $ curl localhost:9292/docs
@@ -278,120 +479,7 @@ $ curl localhost:9292/docs
 
 Stop the server with Ctrl-C.
 
-## 8. Test it
-
-An endpoint is a method on a plain object, so the fastest test calls it. Add to `test/modules/notes/api_test.rb`, inside `describe Notes::API`:
-
-```ruby
-describe "#pin" do
-  it "answers the note, pinned" do
-    note = write
-
-    assert_equal note.with(pinned: true), api.pin(id: note.id)
-  end
-
-  it "answers 404 for a note that doesn't exist" do
-    assert_instance_of Skyward::API::Responses::NotFound, api.pin(id: 0)
-  end
-end
-```
-
-Rows are values, so the test compares them with `==`. `write` is a helper already in the file, which inserts a note.
-
-To test the whole stack, routing and the `id:` conversion included, use `Skyward::API::Test.client`, which calls the app in-process without a server. Add to `test/app_test.rb`, inside `describe "App"`:
-
-```ruby
-describe "POST /notes/:id/pin" do
-  it "answers the note, pinned" do
-    response = client.post("/notes/#{write.json[:id]}/pin")
-
-    assert_equal [200, true], [response.status, response.json[:pinned]]
-  end
-
-  it "answers 422 for an id that isn't a number" do
-    response = client.post("/notes/abc/pin")
-
-    assert_equal [422, "path.id"], [response.status, response.json[:errors].first[:at]]
-  end
-end
-```
-
-Each test runs in a transaction that's rolled back after it, on a database of its own, so the tests never see your development notes. Run them:
-
-```sh
-$ bin/test
-Run options: --seed 41342
-
-# Running:
-
-...........F....
-
-Finished in 0.006895s, 2320.4477 runs/s, 2465.4757 assertions/s.
-
-  1) Failure:
-App::POST /notes#test_0001_answers 201 with the new note [test/app_test.rb:34]:
---- expected
-+++ actual
-@@ -1 +1 @@
--[201, {title: "Buy milk", body: "Today"}]
-+[201, {title: "Buy milk", body: "Today", pinned: false}]
-
-
-16 runs, 17 assertions, 1 failures, 0 errors, 0 skips
-...
-```
-
-The new tests pass, but one that came with the app fails: it checks every field of a new note, and a note now has `pinned` too. Add it to what the test expects, on line 34 of `test/app_test.rb`:
-
-```ruby
-assert_equal [201, { title: "Buy milk", body: "Today", pinned: false }], [response.status, response.json.except(:id)]
-```
-
-```sh
-$ bin/test
-Run options: --seed 14087
-
-# Running:
-
-................
-
-Finished in 0.005640s, 2837.0002 runs/s, 3014.3127 assertions/s.
-
-16 runs, 17 assertions, 0 failures, 0 errors, 0 skips
-```
-
-## 9. Run CI
-
-`bin/ci` runs everything CI should: it regenerates the signatures and fails if that changed them, runs the tests, then runs `skyward check`, which checks the signatures again, boots the app in strict mode, so an endpoint without types fails it, and type-checks the code with Steep. Run it before you push:
-
-```sh
-$ bin/ci
-...
-🎉 Generated 5 RBS files under sig/generated
-Run options: --seed 25242
-
-# Running:
-
-................
-
-Finished in 0.004997s, 3201.8955 runs/s, 3402.0140 assertions/s.
-
-16 runs, 17 assertions, 0 failures, 0 errors, 0 skips
-Migrated 20261109000000
-Migrated 20261109160824
-Signatures: passed
-Strict boot: passed
-Steep: passed
-# Type checking files:
-
-..........
-
-No type error detected. 🫖
-```
-
-The two `Migrated` lines are for a database `bin/ci` makes for `skyward check` and deletes after, not your development database.
-
-## 10. Hand the API to its consumers
+## 11. Hand the API to its consumers
 
 The OpenAPI document is your API's contract with the code that calls it. Write it to a file:
 
@@ -418,4 +506,4 @@ $ docker run --rm -v "$PWD:/local" openapitools/openapi-generator-cli generate -
 
 - [Skyward API](../skyward-api/README.md) covers endpoints, inputs, responses, providers, errors and the OpenAPI document in full.
 - [Skyward ORM](../skyward-orm/README.md) covers tables, queries, writes, transactions and migrations.
-- [`examples/todos`](../examples/todos/README.md) is a larger app on SQLite, the database `skyward new` sets up, and [`examples/todos_postgres`](../examples/todos_postgres/README.md) is the same app on PostgreSQL, each with the migration `skyward migration` wrote on its database.
+- [`examples/todos`](../examples/todos/README.md) is a larger version of this app on SQLite, the database `skyward new` sets up, with lists, priorities, due dates and a service between the API and the table, and [`examples/todos_postgres`](../examples/todos_postgres/README.md) is the same app on PostgreSQL, each with the migration `skyward migration` wrote on its database.

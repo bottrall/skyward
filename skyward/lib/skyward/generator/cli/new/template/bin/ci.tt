@@ -11,7 +11,7 @@ bundle exec rbs collection install
 # fails here, already fixed, for you to review and commit.
 mkdir -p sig/generated
 mv sig/generated "$scratch/committed"
-bundle exec rbs-inline --output=sig/generated *.rb modules
+bundle exec rbs-inline --output=sig/generated *.rb lib modules
 if ! diff -r "$scratch/committed" sig/generated; then
   echo "sig/generated was out of date, and bin/ci has regenerated it. Review and commit it." >&2
   exit 1

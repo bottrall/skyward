@@ -20,7 +20,8 @@ Gem::Specification.new do |spec|
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  # The .tt files are the app skyward new writes, and FNM_DOTMATCH keeps its .gitignore.
+  # The .tt files are the app skyward new writes, and FNM_DOTMATCH keeps its
+  # .gitignore and .keep files.
   spec.files = Dir.glob(["lib/**/*.{rb,tt}", "sig/**/*.rbs", "README.md"], File::FNM_DOTMATCH)
   spec.require_paths = ["lib"]
 

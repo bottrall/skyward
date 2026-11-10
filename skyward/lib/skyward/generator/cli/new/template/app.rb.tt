@@ -5,5 +5,5 @@
 require_relative "boot"
 
 App = Skyward.app(docs: true, title: "{{title}}") do |app|
-  app.mount Notes::API.new(notes: Notes::Record), at: "/notes"
+  app.mount HealthAPI.new
 end #: Skyward::API::_RackApp
