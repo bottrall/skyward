@@ -5,7 +5,7 @@ D = Steep::Diagnostic
 target :app do
   signature "sig"
 
-  check "*.rb", "modules"
+  check "*.rb", "lib", "modules"
 
   # The Skyward gems' signatures come with the gems, and the rest from the RBS
   # collection, which bin/setup installs.

@@ -9,7 +9,8 @@ module Skyward::Generator::CLI::New::Template
 
   PLACEHOLDER: Regexp
 
-  # FNM_DOTMATCH, so the app gets its .gitignore.
+  # FNM_DOTMATCH, so the app gets its .gitignore, and the .keep files that make
+  # git keep its empty directories.
   FILES: Hash[String, String]
 
   # @rbs name: String

@@ -82,7 +82,7 @@ $ cd todos && bin/setup
 $ bundle exec skyward serve   # http://localhost:9292/docs
 ```
 
-`skyward new` writes a working app with typing, tests and CI set up. [The getting-started guide](docs/getting-started.md) goes from there to a new column, a new endpoint and their tests. If you're an agent, start at [`llms.txt`](llms.txt).
+`skyward new` writes a blank, working app with typing, tests and CI set up. [The getting-started guide](docs/getting-started.md) goes from there to its first resource: a table, its migration, a typed API and their tests. If you're an agent, start at [`llms.txt`](llms.txt).
 
 ## The gems
 

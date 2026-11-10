@@ -5,9 +5,9 @@ require "test_helper"
 describe "App" do
   let(:client) { Skyward::API::Test.client(App) }
 
-  describe "GET /notes" do
-    it "mounts the notes API" do
-      assert_equal [], client.get("/notes").json
+  describe "GET /up" do
+    it "says the app is up" do
+      assert_equal({ status: "ok" }, client.get("/up").json)
     end
   end
 
@@ -15,7 +15,7 @@ describe "App" do
     it "documents every endpoint" do
       paths = client.get("/openapi.json").json[:paths].keys
 
-      assert_equal %i[/notes /notes/{id}], paths
+      assert_equal %i[/up], paths
     end
   end
 

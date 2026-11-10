@@ -11,9 +11,10 @@ A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward
 
 ## Layout
 
-- `boot.rb` loads `modules/` with Zeitwerk, eager loads it and calls `Skyward.connect`. The ORM's commands load it.
+- `boot.rb` loads `lib/` and `modules/` with Zeitwerk, eager loads them and calls `Skyward.connect`. The ORM's commands load it.
 - `app.rb` requires `boot.rb` and assigns `App`, mounting each API. The API's commands load it, and `config.ru` runs it.
-- `modules/` groups the code by domain, one directory per resource, and file paths match constant names: `modules/notes/record.rb` is `Notes::Record`, the table class, and `modules/notes/api.rb` is `Notes::API`, its endpoints.
+- `modules/` groups the code by domain, one directory per resource, and file paths match constant names: `modules/todos/record.rb` is `Todos::Record`, the table class, and `modules/todos/api.rb` is `Todos::API`, its endpoints. `modules/todos.rb` only declares `module Todos`, so rbs-inline gives it a signature. [`examples/todos`](https://github.com/bottrall/skyward/tree/main/examples/todos) is a worked resource.
+- `lib/` holds what belongs to no domain, such as `lib/health_api.rb`, `HealthAPI`, which answers `GET /up` for load balancers and uptime checks.
 - `test/` mirrors the code it tests.
 
 ## Endpoints
@@ -25,7 +26,7 @@ A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward
 
 ## Wiring
 
-- An API takes its collaborators as keywords to `initialize`, typed with the smallest type it uses. `app.rb` is the one place that wires them: `Notes::API.new(notes: Notes::Record)`.
+- An API takes its collaborators as keywords to `initialize`, typed with the smallest type it uses. `app.rb` is the one place that wires them: `Todos::API.new(todos: Todos::Record)`.
 - A test passes its own in through the same front door, so tests need no mocks.
 
 ## Types
@@ -44,8 +45,8 @@ A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward
 ## Tests
 
 - Tests are Minitest, in spec style (`describe`/`it`).
-- An endpoint's behaviour is tested by calling its method, in its API's test: `test/modules/notes/api_test.rb` for `Notes::API`. Skyward API coerces and validates each request against the signature, so the tests don't repeat that over HTTP.
-- `test/app_test.rb` covers mounting, which is what `app.rb` decides. Through `Skyward::API::Test.client(App)`, it makes one request to each API at the path it's mounted at, and checks that `/openapi.json` lists every path and `/docs` is served. A new endpoint adds its path to that list, and nothing else to `app_test.rb`.
+- An endpoint's behaviour is tested by calling its method, in its API's test, which mirrors the API's path: `test/lib/health_api_test.rb` for `HealthAPI`. Skyward API coerces and validates each request against the signature, so the tests don't repeat that over HTTP.
+- `test/app_test.rb` covers mounting, which is what `app.rb` decides. Through `Skyward::API::Test.client(App)`, it makes one request to each API at the path it's mounted at, and checks that `/openapi.json` lists every path and `/docs` is served. A new API adds one request at its mount path, and a new endpoint only adds its path to that list.
 - Every test runs in a transaction that's rolled back after it, the HTTP tests included, so each starts from an empty database.
 - The tests use their own database, migrated from empty each run: in-memory SQLite, or `TEST_DATABASE_URL`. They never touch `DATABASE_URL`.
 

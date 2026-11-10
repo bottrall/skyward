@@ -11,7 +11,8 @@ module Skyward::Generator::CLI::New::Template
 
   PLACEHOLDER = /\{\{\w+\}\}/ #: Regexp
 
-  # FNM_DOTMATCH, so the app gets its .gitignore.
+  # FNM_DOTMATCH, so the app gets its .gitignore, and the .keep files that make
+  # git keep its empty directories.
   FILES = Dir.glob("**/*#{SUFFIX}", File::FNM_DOTMATCH, base: DIRECTORY).to_h do |file|
     [file.delete_suffix(SUFFIX), File.read(File.join(DIRECTORY, file))]
   end.freeze #: Hash[String, String]

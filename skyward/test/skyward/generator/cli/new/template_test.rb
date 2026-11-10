@@ -7,13 +7,12 @@ describe Skyward::Generator::CLI::New::Template do
   template = Skyward::Generator::CLI::New::Template
 
   describe ".files" do
-    it "writes the app's code, a resource, its tests, its tooling and its agent instructions" do
+    it "writes the app's code, its tests, its tooling, its agent instructions and empty modules/ and db/migrate/" do
       paths = %w[
         .gitignore AGENTS.md Gemfile Rakefile Steepfile app.rb bin/ci bin/setup bin/test boot.rb config.ru
-        db/migrate/20261109000000_create_notes.sql modules/notes.rb modules/notes/api.rb modules/notes/record.rb
-        rbs_collection.yaml sig/generated/app.rbs sig/generated/boot.rbs sig/generated/modules/notes.rbs
-        sig/generated/modules/notes/api.rbs sig/generated/modules/notes/record.rbs test/app_test.rb
-        test/modules/notes/api_test.rb test/test_helper.rb
+        db/migrate/.keep lib/health_api.rb modules/.keep rbs_collection.yaml sig/generated/app.rbs
+        sig/generated/boot.rbs sig/generated/health_api.rbs test/app_test.rb test/lib/health_api_test.rb
+        test/test_helper.rb
       ]
 
       assert_equal paths.sort, template.files("todos").keys.sort
