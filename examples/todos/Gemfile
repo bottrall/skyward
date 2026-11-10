@@ -9,10 +9,8 @@ gem "skyward-orm", path: "../../skyward-orm"
 # Skyward ORM requires the driver for the database it connects to.
 gem "sqlite3", "~> 2.10"
 
-group :development do
-  # skyward serve runs the app under Falcon.
-  gem "falcon", "~> 0.57"
-end
+# Falcon serves the app in development (skyward serve) and in production.
+gem "falcon", "~> 0.57", require: false
 
 group :development, :test do
   # skyward check runs both.
