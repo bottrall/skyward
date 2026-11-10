@@ -24,5 +24,4 @@ jobs:
       safe-paths: |
         ^(examples/)?([a-z_-]+/)?Gemfile\.lock$
         ^rbs_collection\.lock\.yaml$
-        ^(examples/)?([a-z_-]+/)?sig/
-        ^\.rubocop(_todo)?\.yml$
+        ^(examples/)?([a-z_-]+/)?sig/.*\.rbs$
