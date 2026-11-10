@@ -1,0 +1,26 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "skyward-api", path: "../../skyward-api"
+gem "skyward-core", path: "../../skyward-core"
+gem "skyward-orm", path: "../../skyward-orm"
+
+# Skyward ORM requires the driver for the database it connects to.
+gem "pg", "~> 1.7"
+
+group :development do
+  # skyward serve runs the app under Falcon.
+  gem "falcon", "~> 0.57"
+end
+
+group :development, :test do
+  # skyward check runs both.
+  gem "rbs-inline", "~> 0.14", require: false
+  gem "steep", "~> 2.1", require: false
+end
+
+group :test do
+  gem "minitest", "~> 6.0"
+  gem "rake", "~> 13.4"
+end

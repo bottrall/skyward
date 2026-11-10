@@ -27,7 +27,7 @@ Run `bin/ci` before you push.
 
 ## PostgreSQL
 
-Skyward ORM's tests, and the `skyward` gem's tests that check Skyward API and Skyward ORM read types the same way, run on SQLite unless `TEST_DATABASE=postgresql` says to run them on PostgreSQL. Either way, the PostgreSQL adapter's own tests need a PostgreSQL, at `TEST_POSTGRES_URL`, so `bin/test` and `bin/ci` do too. Before each test that uses it, the suite drops that database's `public` schema and closes its other connections, so give it a database of its own, such as one in a container:
+Skyward ORM's tests, and the `skyward` gem's tests that check Skyward API and Skyward ORM read types the same way, run on SQLite unless `TEST_DATABASE=postgresql` says to run them on PostgreSQL. Either way, the PostgreSQL adapter's own tests need a PostgreSQL, at `TEST_POSTGRES_URL`, so `bin/test` and `bin/ci` do too. Before each test that uses it, the suite drops that database's `public` schema and closes its other connections, and `bin/test` drops it again before it runs [`examples/todos_postgres`](examples/todos_postgres/README.md)'s tests there, so give it a database of its own, such as one in a container:
 
 ```sh
 docker run -d --rm --name skyward-postgres -e POSTGRES_PASSWORD=postgres -p 54320:5432 postgres:17
@@ -39,7 +39,7 @@ TEST_DATABASE=postgresql bin/test   # and on PostgreSQL
 docker stop skyward-postgres
 ```
 
-CI runs both suites both ways, on every supported Ruby.
+CI runs both suites both ways, on every supported Ruby. Each example runs on its own database alone, whatever `TEST_DATABASE` says: [`examples/todos`](examples/todos/README.md) on SQLite, and `examples/todos_postgres` on PostgreSQL.
 
 ## Pull requests
 

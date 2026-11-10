@@ -1,0 +1,18 @@
+# Generated from modules/todos/record.rb with RBS::Inline
+
+class Todos::Record < Skyward::ORM::Record
+  type priority = :low | :normal | :high
+
+  # @dynamic id, list_id, title, priority, due_on, done
+  attr_reader id: Integer
+
+  attr_reader list_id: Integer?
+
+  attr_reader title: String
+
+  attr_reader priority: priority
+
+  attr_reader due_on: Date?
+
+  attr_reader done: bool
+end

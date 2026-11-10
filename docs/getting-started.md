@@ -427,3 +427,4 @@ $ docker run --rm -v "$PWD:/local" openapitools/openapi-generator-cli generate -
 
 - [Skyward API](../skyward-api/README.md) covers endpoints, inputs, responses, providers, errors and the OpenAPI document in full.
 - [Skyward ORM](../skyward-orm/README.md) covers tables, queries, writes, transactions and migrations.
+- [`examples/todos`](../examples/todos/README.md) is a larger app on SQLite, the database `skyward new` sets up, and [`examples/todos_postgres`](../examples/todos_postgres/README.md) is the same app on PostgreSQL, each with the migration `skyward migration` wrote on its database.

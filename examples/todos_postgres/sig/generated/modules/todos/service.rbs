@@ -1,0 +1,27 @@
+# Generated from modules/todos/service.rb with RBS::Inline
+
+module Todos::Service
+  # @rbs done: bool?
+  # @rbs limit: Integer
+  # @rbs return: Array[Todos::Record]
+  def list: (done: bool?, limit: Integer) -> Array[Todos::Record]
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record?
+  def find: (Integer id) -> Todos::Record?
+
+  # @rbs title: String
+  # @rbs priority: Todos::Record::priority
+  # @rbs due_on: Date?
+  # @rbs list_id: Integer?
+  # @rbs return: Todos::Record | :no_such_list | :invalid_title
+  def create: (title: String, priority: Todos::Record::priority, due_on: Date?, list_id: Integer?) -> (Todos::Record | :no_such_list | :invalid_title)
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record?
+  def complete: (Integer id) -> Todos::Record?
+
+  # @rbs id: Integer
+  # @rbs return: Todos::Record?
+  def delete: (Integer id) -> Todos::Record?
+end

@@ -29,19 +29,21 @@ GEMS.each do |name, gem|
   end
 end
 
-target :todos do
-  unreferenced!
+%i[todos todos_postgres].each do |example|
+  target example do
+    unreferenced!
 
-  signature "examples/todos/sig"
+    signature "examples/#{example}/sig"
 
-  check "examples/todos/*.rb", "examples/todos/lib", "examples/todos/modules"
+    check "examples/#{example}/*.rb", "examples/#{example}/lib", "examples/#{example}/modules"
 
-  # api's and orm's signatures belong to their own targets, which no other
-  # target sees, so the example loads them as the gems' libraries instead.
-  # orm's subclass core's, and a library resolves its superclasses among the
-  # libraries alone, so core comes as one too.
-  library "skyward-core", "skyward-api", "skyward-orm"
-  collection_config "rbs_collection.yaml"
+    # api's and orm's signatures belong to their own targets, which no other
+    # target sees, so the example loads them as the gems' libraries instead.
+    # orm's subclass core's, and a library resolves its superclasses among the
+    # libraries alone, so core comes as one too.
+    library "skyward-core", "skyward-api", "skyward-orm"
+    collection_config "rbs_collection.yaml"
 
-  configure_code_diagnostics(D::Ruby.all_error)
+    configure_code_diagnostics(D::Ruby.all_error)
+  end
 end

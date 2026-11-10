@@ -1,0 +1,8 @@
+# Generated from modules/lists/record.rb with RBS::Inline
+
+class Lists::Record < Skyward::ORM::Record
+  # @dynamic id, name
+  attr_reader id: Integer
+
+  attr_reader name: String
+end
