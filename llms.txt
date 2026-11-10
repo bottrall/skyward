@@ -13,3 +13,5 @@
 ## Apps
 
 - [AGENTS.md for a Skyward app](https://raw.githubusercontent.com/bottrall/skyward/main/skyward/lib/skyward/generator/cli/new/template/AGENTS.md.tt): the conventions `skyward new` writes into every app for agents working in it, with `{{title}}` and `{{name}}` standing for the app's title and name
+- [Todos on SQLite](https://raw.githubusercontent.com/bottrall/skyward/main/examples/todos/README.md): a complete Skyward app on SQLite, the database `skyward new` sets up, with the migration `skyward migration` wrote on it
+- [Todos on PostgreSQL](https://raw.githubusercontent.com/bottrall/skyward/main/examples/todos_postgres/README.md): the same app on PostgreSQL, with the migration `skyward migration` wrote on it

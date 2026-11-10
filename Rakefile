@@ -14,7 +14,7 @@ GEMS = %w[skyward-core skyward-api skyward-orm skyward].freeze
 
 # Apps built on the gems. Each has its own bundle and signatures, like a gem,
 # but is never packaged or released.
-EXAMPLES = %w[examples/todos].freeze
+EXAMPLES = %w[examples/todos examples/todos_postgres].freeze
 
 BUNDLES = [*GEMS, *EXAMPLES].freeze
 
@@ -46,6 +46,21 @@ def write_signatures(dir, output)
   sh "rbs-inline", "--opt-out", "--output=#{output}", *sources, chdir: dir, verbose: false
 end
 
+# examples/todos_postgres's tests run on TEST_POSTGRES_URL, the database
+# Skyward ORM's PostgreSQL tests use. Those leave their tables behind, todos
+# among them, so it's emptied first, in the example's bundle, which has pg.
+def prepare_test_database(dir)
+  return {} unless dir == "examples/todos_postgres"
+
+  url = ENV.fetch("TEST_POSTGRES_URL") do
+    abort "Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how."
+  end
+  sh "bundle", "exec", "ruby", "-rpg", "-e", <<~RUBY, url, chdir: dir, verbose: false
+    PG.connect(ARGV.fetch(0)).exec("SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public")
+  RUBY
+  { "TEST_DATABASE_URL" => url }
+end
+
 # Each gem's tests run in that gem's own bundle, which holds only the gem and
 # the Skyward gems it depends on, so a test that reaches for another fails.
 # Each example's run in its own bundle the same way.
@@ -55,8 +70,10 @@ bundle_test_tasks = BUNDLES.filter_map do |dir|
 
   desc "Run #{dir}'s tests in its own bundle"
   task "test:#{dir}" do
-    env = { "TEST" => files&.join(",") }.compact
-    Bundler.with_unbundled_env { sh env, "bundle", "exec", "rake", "test", chdir: dir }
+    Bundler.with_unbundled_env do
+      env = { "TEST" => files&.join(","), **prepare_test_database(dir) }.compact
+      sh env, "bundle", "exec", "rake", "test", chdir: dir
+    end
   end
   "test:#{dir}"
 end

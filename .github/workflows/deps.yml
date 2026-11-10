@@ -22,7 +22,7 @@ jobs:
       # The shared defaults, widened to every gem's and example's lockfile and
       # signatures.
       safe-paths: |
-        ^(examples/)?([a-z-]+/)?Gemfile\.lock$
+        ^(examples/)?([a-z_-]+/)?Gemfile\.lock$
         ^rbs_collection\.lock\.yaml$
-        ^(examples/)?([a-z-]+/)?sig/
+        ^(examples/)?([a-z_-]+/)?sig/
         ^\.rubocop(_todo)?\.yml$

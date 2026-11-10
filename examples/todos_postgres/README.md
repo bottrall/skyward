@@ -1,0 +1,101 @@
+# Todos
+
+A JSON API for todos, built with [Skyward API](../../skyward-api/README.md) and stored with [Skyward ORM](../../skyward-orm/README.md). It's Skyward's end-to-end test on PostgreSQL: its HTTP tests prove the two halves work together in a real app. It's [`examples/todos`](../todos/README.md) on PostgreSQL rather than SQLite, and differs from it only where the database decides: its driver, its connection defaults and its migration.
+
+It has no frontend. Its tests and `/docs` exercise it, and a client is whatever you generate from its OpenAPI document at `/openapi.json`.
+
+---
+
+## Contents
+
+- [Layout](#layout)
+- [Endpoints](#endpoints)
+- [Running it](#running-it)
+- [Testing it](#testing-it)
+- [Checking it](#checking-it)
+
+---
+
+## Layout
+
+The code is grouped by domain. `boot.rb` loads `lib/` and `modules/` with Zeitwerk, eager loads them, and calls `Skyward.connect`.
+
+| Path                       | Holds                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| `boot.rb`                  | loads the app's code and connects to `DATABASE_URL`, or `postgres://localhost/todos` without it |
+| `app.rb`                   | requires `boot.rb` and assigns `App`, wiring each API to its collaborators          |
+| `config.ru`                | runs `App`                                                                         |
+| `lib/health_api.rb`        | `HealthAPI`, for load balancers and uptime checks                                  |
+| `modules/lists/record.rb`  | `Lists::Record`, the `lists` table                                                 |
+| `modules/todos/record.rb`  | `Todos::Record`, the `todos` table                                                 |
+| `modules/todos/service.rb` | `Todos::Service`, the queries and writes                                           |
+| `modules/todos/api.rb`     | `Todos::API`, the `/todos` endpoints, which return `Todos::Record` rows directly    |
+| `db/migrate/`              | the migration `skyward migration` wrote from the table classes on PostgreSQL, committed as written |
+| `sig/`                     | `sig/generated` from the inline annotations (`bin/rbs`), and `sig/manual`          |
+| `Steepfile`                | what `skyward check` type-checks                                                   |
+
+`Todos::Record` uses each of the ORM's declarations: a reference to `Lists::Record` that cascades on delete, defaults for `priority` and `done`, a check on the title's length, a symbol union for `priority` and an index on `list_id` and `done`.
+
+---
+
+## Endpoints
+
+| Endpoint                   | Does                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| `GET /up`                  | says the app is up                                                                     |
+| `GET /todos`               | lists todos, newest first: `done=true` or `done=false` filters them, and `limit` caps them at 50 by default |
+| `GET /todos/:id`           | answers a todo, or 404                                                                 |
+| `POST /todos`              | creates a todo from `title`, `priority` (`low`, `normal` or `high`), and an optional `due_on` and `list_id` |
+| `POST /todos/:id/complete` | marks a todo as done, or 404                                                           |
+| `DELETE /todos/:id`        | deletes a todo, or 404                                                                 |
+
+`POST /todos` answers 201 with the todo, 404 when `list_id` names a list that doesn't exist, and 422 when the title is empty or longer than 200 characters. The database enforces both: the service turns the `Skyward::ORM::Violation` into a symbol, and the endpoint matches it with `case`/`when` to answer 404 or 422.
+
+`/openapi.json` is the OpenAPI document, and `/docs` is its API reference.
+
+---
+
+## Running it
+
+Run `bin/setup` at the repository's root first. The app connects to the PostgreSQL database `DATABASE_URL` names, or to `todos` on a local PostgreSQL without it. One in a container will do:
+
+```sh
+docker run -d --rm --name todos-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
+```
+
+Then, from `examples/todos_postgres`:
+
+```sh
+bundle exec skyward migrate   # creates the tables
+bundle exec skyward serve     # http://localhost:9292/docs
+```
+
+`PORT` picks another port for `skyward serve`. After changing a table class, `bundle exec skyward migration NAME` writes the migration that brings the database in line with it, in PostgreSQL's SQL, since that's the database it connects to.
+
+---
+
+## Testing it
+
+```sh
+bundle exec rake test
+```
+
+The tests run on the PostgreSQL database `TEST_DATABASE_URL` names, or on `todos_test` on a local PostgreSQL without it, and migrate it first. Give them a database of their own: they never read `DATABASE_URL`, so they can't touch the app's database. In the container above:
+
+```sh
+docker exec todos-postgres createdb -U postgres todos_test
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/todos_test bundle exec rake test
+```
+
+Every test runs in a transaction that's rolled back after it, the HTTP tests included, so each starts from an empty database. `bin/test` at the repository's root runs them too, with every gem's, on `TEST_POSTGRES_URL`, as [`CONTRIBUTING.md`](../../CONTRIBUTING.md#postgresql) says.
+
+---
+
+## Checking it
+
+```sh
+bundle exec skyward check
+```
+
+checks that `sig/generated` is current, boots `app.rb` in strict mode and runs Steep with this directory's `Steepfile`. The boot connects, so it needs a migrated database: run `bundle exec skyward migrate` first, with the same `DATABASE_URL`, as [Running it](#running-it) does. CI runs both on every change.

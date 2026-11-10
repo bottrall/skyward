@@ -1,6 +1,6 @@
 # Todos
 
-A JSON API for todos, built with [Skyward API](../../skyward-api/README.md) and stored with [Skyward ORM](../../skyward-orm/README.md). It's Skyward's end-to-end test: its HTTP tests run on SQLite and on PostgreSQL, which proves the two halves work together in a real app.
+A JSON API for todos, built with [Skyward API](../../skyward-api/README.md) and stored with [Skyward ORM](../../skyward-orm/README.md). It's Skyward's end-to-end test on SQLite: its HTTP tests prove the two halves work together in a real app. [`examples/todos_postgres`](../todos_postgres/README.md) is the same app on PostgreSQL.
 
 It has no frontend. Its tests and `/docs` exercise it, and a client is whatever you generate from its OpenAPI document at `/openapi.json`.
 
@@ -30,7 +30,7 @@ The code is grouped by domain. `boot.rb` loads `lib/` and `modules/` with Zeitwe
 | `modules/todos/record.rb`  | `Todos::Record`, the `todos` table                                                 |
 | `modules/todos/service.rb` | `Todos::Service`, the queries and writes                                           |
 | `modules/todos/api.rb`     | `Todos::API`, the `/todos` endpoints, which return `Todos::Record` rows directly    |
-| `db/migrate/`              | the migration `skyward migration` wrote from the table classes, committed as written |
+| `db/migrate/`              | the migration `skyward migration` wrote from the table classes on SQLite, committed as written |
 | `sig/`                     | `sig/generated` from the inline annotations (`bin/rbs`), and `sig/manual`          |
 | `Steepfile`                | what `skyward check` type-checks                                                   |
 
@@ -64,21 +64,7 @@ bundle exec skyward migrate   # creates db/todos.sqlite3 and its tables
 bundle exec skyward serve     # http://localhost:9292/docs
 ```
 
-`PORT` picks another port for `skyward serve`. After changing a table class, `bundle exec skyward migration NAME` writes the migration that brings the database in line with it.
-
-### On PostgreSQL
-
-`skyward migration` writes SQL for the database it connects to, so the committed migration is SQLite's, and PostgreSQL needs its own. Generate it in place of SQLite's, with `DATABASE_URL` naming the database:
-
-```sh
-export DATABASE_URL=postgres://postgres:postgres@localhost:5432/todos
-rm db/migrate/*.sql
-bundle exec skyward migration create_lists_and_todos
-bundle exec skyward migrate
-bundle exec skyward serve
-```
-
-Don't commit the PostgreSQL migration: `git checkout db/migrate` puts SQLite's back.
+`PORT` picks another port for `skyward serve`, and `DATABASE_URL` another SQLite database. After changing a table class, `bundle exec skyward migration NAME` writes the migration that brings the database in line with it, in SQLite's SQL, since that's the database it connects to.
 
 ---
 
@@ -88,11 +74,7 @@ Don't commit the PostgreSQL migration: `git checkout db/migrate` puts SQLite's b
 bundle exec rake test
 ```
 
-The tests run on an in-memory SQLite database of their own, migrated from empty each run. To run them on PostgreSQL, generate its migration as [On PostgreSQL](#on-postgresql) describes, then point `TEST_DATABASE_URL` at an empty database, which the tests migrate. The tests never read `DATABASE_URL`, so they can't touch the app's database:
-
-```sh
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/todos_test bundle exec rake test
-```
+The tests run on an in-memory SQLite database of their own, migrated from empty each run, or on the SQLite database `TEST_DATABASE_URL` names. They never read `DATABASE_URL`, so they can't touch the app's database.
 
 Every test runs in a transaction that's rolled back after it, the HTTP tests included, so each starts from an empty database. `bin/test` at the repository's root runs them too, with every gem's.
 
@@ -104,4 +86,4 @@ Every test runs in a transaction that's rolled back after it, the HTTP tests inc
 bundle exec skyward check
 ```
 
-checks that `sig/generated` is current, boots `app.rb` in strict mode and runs Steep with this directory's `Steepfile`. The boot connects, so it needs a migrated database: run `bundle exec skyward migrate` first, with the same `DATABASE_URL`. CI runs it on every change.
+checks that `sig/generated` is current, boots `app.rb` in strict mode and runs Steep with this directory's `Steepfile`. The boot connects, so it needs a migrated database: run `bundle exec skyward migrate` first, as [Running it](#running-it) does. CI runs both on every change.

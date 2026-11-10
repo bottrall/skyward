@@ -6,9 +6,7 @@ gem "skyward-api", path: "../../skyward-api"
 gem "skyward-core", path: "../../skyward-core"
 gem "skyward-orm", path: "../../skyward-orm"
 
-# Skyward ORM requires the driver for the database it connects to, so the app
-# brings both: SQLite by default, and PostgreSQL when DATABASE_URL names it.
-gem "pg", "~> 1.7"
+# Skyward ORM requires the driver for the database it connects to.
 gem "sqlite3", "~> 2.10"
 
 group :development do

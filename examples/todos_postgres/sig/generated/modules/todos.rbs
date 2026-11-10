@@ -1,0 +1,4 @@
+# Generated from modules/todos.rb with RBS::Inline
+
+module Todos
+end
