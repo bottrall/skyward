@@ -40,11 +40,26 @@ describe Skyward::ORM::CLI::Migrate do
     end
   end
 
-  def run_in(directory, discover: -> { [] })
-    Skyward::ORM::CLI::Migrate.run(directory:, out:, kernel:, session: Skyward::ORM::Connection::SESSION, discover:)
+  def run_in(directory, discover: -> { [] }, generate: -> {})
+    Skyward::ORM::CLI::Migrate.run(
+      directory:,
+      out:,
+      kernel:,
+      session: Skyward::ORM::Connection::SESSION,
+      discover:,
+      generate:
+    )
   end
 
   describe ".run" do
+    it "fails with why sig/generated couldn't be regenerated, before it migrates" do
+      app(create_notes) do |directory|
+        run_in(directory, generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
+
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+      end
+    end
+
     it "checks the classes it finds against the tables it made" do
       app(create_notes) do |directory|
         run_in(directory, discover: -> { [note] })

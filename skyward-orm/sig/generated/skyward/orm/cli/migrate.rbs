@@ -4,8 +4,8 @@ module Skyward::ORM::CLI::Migrate
   NOTHING: String
 
   # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
-  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
+  def run: (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
 
   private
 

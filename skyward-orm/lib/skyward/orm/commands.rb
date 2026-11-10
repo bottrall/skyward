@@ -3,6 +3,13 @@
 require "skyward/orm"
 
 discover = -> { Skyward::ORM::Migrations::Discovery.table_classes(Zeitwerk::Loader) }
+generate = lambda do
+  Skyward::Core::Signatures::Inline.generate(
+    Dir.pwd,
+    rbs_inline: Skyward::Core::CLI::Executable.find("rbs-inline", feature: "rbs/inline"),
+    capture: Skyward::Core::CLI::Executable::CAPTURE
+  )
+end
 
 Skyward::Core::CLI.register(
   "migration",
@@ -16,7 +23,8 @@ Skyward::Core::CLI.register(
     out: $stdout,
     kernel: Kernel,
     session: Skyward::ORM::Connection::SESSION,
-    discover:
+    discover:,
+    generate:
   )
 end
 
@@ -26,7 +34,8 @@ Skyward::Core::CLI.register("migrate", "Run the pending migrations in db/migrate
     out: $stdout,
     kernel: Kernel,
     session: Skyward::ORM::Connection::SESSION,
-    discover:
+    discover:,
+    generate:
   )
 end
 
@@ -35,7 +44,8 @@ Skyward::Core::CLI.register("rollback", "Undo the latest migration by running it
     directory: Dir.pwd,
     out: $stdout,
     kernel: Kernel,
-    session: Skyward::ORM::Connection::SESSION
+    session: Skyward::ORM::Connection::SESSION,
+    generate:
   )
 end
 
@@ -48,6 +58,7 @@ Skyward::Core::CLI.register(
     out: $stdout,
     kernel: Kernel,
     session: Skyward::ORM::Connection::SESSION,
-    discover:
+    discover:,
+    generate:
   )
 end

@@ -85,7 +85,7 @@ The app is an API with no frontend. It comes with one small resource, notes, for
 - `app.rb` builds the app and wires each API to what it needs. It's the one place that does.
 - `boot.rb` loads `modules/` and connects to the database: `DATABASE_URL` if it's set, and otherwise SQLite at `db/todos.sqlite3`.
 - `db/migrate/` holds the migrations, as plain SQL.
-- `sig/generated/` holds the type signatures, generated from the `#:` and `# @rbs` comments in the Ruby. You never edit it by hand.
+- `sig/generated/` holds the type signatures, generated from the `#:` and `# @rbs` comments in the Ruby. `skyward serve`, `skyward migration` and the other commands that read types regenerate it first, so you never edit or regenerate it by hand.
 - `test/` holds the tests, and `bin/test` and `bin/ci` run them.
 - `AGENTS.md` teaches a coding agent working in the app its conventions. It's a good read for people too.
 
@@ -148,16 +148,9 @@ class Notes::Record < Skyward::ORM::Record
 end
 ```
 
-Skyward reads column types from the signatures in `sig/generated`, so regenerate them:
-
-```sh
-$ bundle exec rbs-inline --output=sig/generated *.rb modules
-🎉 Generated 1 RBS files under sig/generated
-```
-
 ## 5. Migrate the database
 
-Skyward writes the migration for you, by comparing the table class with the database:
+Skyward writes the migration for you, by comparing the table class with the database. It reads the column types from `sig/generated`, which it regenerates from the Ruby first, so it sees `pinned`:
 
 ```sh
 $ bundle exec skyward migration add_pinned_to_notes
@@ -217,11 +210,9 @@ end
 
 The `# @rbs` lines are the endpoint's contract. `id: Integer` makes Skyward turn the `"1"` in `/notes/1/pin` into `1`, and answer 422 for `/notes/abc/pin` before the method runs. The return type says the endpoint answers with a note or a 404, and that goes into the API's documentation. `update!` returns the rows it changed, so there's no row when no note has the `id`, and the endpoint answers 404.
 
-Regenerate the signatures, then list the routes to see the new one with its signature:
+List the routes to see the new one with its signature, which `skyward routes` regenerates from the comments first:
 
 ```sh
-$ bundle exec rbs-inline --output=sig/generated *.rb modules
-🎉 Generated 1 RBS files under sig/generated
 $ bundle exec skyward routes
 GET   /notes          Notes::API#index   (?limit: Integer) -> Array[Notes::Record]
 GET   /notes/:id      Notes::API#show    (id: Integer) -> (Notes::Record | Responses::NotFound)
@@ -237,7 +228,7 @@ $ bundle exec skyward serve
 ...
 ```
 
-It serves the app on port 9292, or on `PORT` if you set it, and reloads it whenever you change a file. Every request logs one line of JSON. In another terminal, write a note:
+It serves the app on port 9292, or on `PORT` if you set it, and reloads it whenever you change a file, regenerating `sig/generated` first when you change Ruby. Every request logs one line of JSON. In another terminal, write a note:
 
 ```sh
 $ curl -i -X POST localhost:9292/notes -H "content-type: application/json" -d '{"title":"Buy milk","body":"Oat, not dairy"}'

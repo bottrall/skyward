@@ -12,8 +12,9 @@ module Skyward::ORM::CLI::Migration
   YES: Regexp
 
   # @rbs (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel),
-  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run: (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
+  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)],
+  #   generate: ^() -> String?) -> void
+  def run: (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
 
   private
 

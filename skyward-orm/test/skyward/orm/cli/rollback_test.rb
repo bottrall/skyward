@@ -35,11 +35,19 @@ describe Skyward::ORM::CLI::Rollback do
     end
   end
 
-  def run_in(directory)
-    Skyward::ORM::CLI::Rollback.run(directory:, out:, kernel:, session: Skyward::ORM::Connection::SESSION)
+  def run_in(directory, generate: -> {})
+    Skyward::ORM::CLI::Rollback.run(directory:, out:, kernel:, session: Skyward::ORM::Connection::SESSION, generate:)
   end
 
   describe ".run" do
+    it "fails with why sig/generated couldn't be regenerated, before it rolls back" do
+      app("20261001000000_create_a.sql" => "CREATE TABLE a (id INTEGER);\n-- down\nDROP TABLE a;\n") do |directory|
+        run_in(directory, generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
+
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+      end
+    end
+
     it "rolls back the latest migration in db/migrate on boot.rb's database, printing its version" do
       migrations = {
         "20261001000000_create_a.sql" => "CREATE TABLE a (id INTEGER);\n-- down\nDROP TABLE a;\n",

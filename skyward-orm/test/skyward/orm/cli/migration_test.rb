@@ -51,7 +51,8 @@ describe Skyward::ORM::CLI::Migration do
     directory,
     *args,
     classes: [MigrationsFixtures::List, MigrationsFixtures::Todo],
-    input: terminal(tty: false)
+    input: terminal(tty: false),
+    generate: -> {}
   )
     Skyward::ORM::CLI::Migration.run(
       args,
@@ -61,7 +62,8 @@ describe Skyward::ORM::CLI::Migration do
       out:,
       kernel:,
       session: Skyward::ORM::Connection::SESSION,
-      discover: -> { classes }
+      discover: -> { classes },
+      generate:
     )
   end
 
@@ -137,9 +139,9 @@ describe Skyward::ORM::CLI::Migration do
       end
     end
 
-    it "writes an empty migration, without booting an app that has no boot.rb yet, and says where" do
+    it "writes an empty migration, without regenerating or booting an app that has no boot.rb yet, and says where" do
       Dir.mktmpdir do |directory|
-        run_in(directory, "--empty", "backfill_priorities")
+        run_in(directory, "--empty", "backfill_priorities", generate: -> { flunk })
         file = "db/migrate/20261018093000_backfill_priorities.sql"
 
         assert_equal ["Wrote #{file}. Add your SQL, then run `skyward migrate`.\n", "\n-- down\n", nil],
@@ -152,6 +154,15 @@ describe Skyward::ORM::CLI::Migration do
         run_in(directory, "backfill_priorities", "--empty")
 
         assert_equal ["db/migrate/20261018093000_backfill_priorities.sql"], written(directory)
+      end
+    end
+
+    it "fails with why sig/generated couldn't be regenerated, before it compares anything" do
+      app do |directory|
+        run_in(directory, "create_todos", generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
+
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", "", []],
+                     [kernel.aborted, out.string, written(directory)]
       end
     end
 

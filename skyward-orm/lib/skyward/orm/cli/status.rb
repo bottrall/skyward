@@ -8,9 +8,9 @@ module Skyward::ORM::CLI::Status
   UNASKED = ->(*) { false } #: ^(Symbol, Symbol, Symbol) -> bool
 
   # @rbs (directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session,
-  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run(directory:, out:, kernel:, session:, discover:)
-    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+  #   discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
+  def run(directory:, out:, kernel:, session:, discover:, generate:)
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel, generate) do |database|
       report(database, directory:, out:, kernel:, discover:)
     end
   end

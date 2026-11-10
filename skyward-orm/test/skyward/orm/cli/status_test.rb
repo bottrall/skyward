@@ -38,17 +38,26 @@ describe Skyward::ORM::CLI::Status do
     end
   end
 
-  def run_in(directory, classes: [])
+  def run_in(directory, classes: [], generate: -> {})
     Skyward::ORM::CLI::Status.run(
       directory:,
       out:,
       kernel:,
       session: Skyward::ORM::Connection::SESSION,
-      discover: -> { classes }
+      discover: -> { classes },
+      generate:
     )
   end
 
   describe ".run" do
+    it "fails with why sig/generated couldn't be regenerated, before it reports" do
+      app(noop) do |directory|
+        run_in(directory, generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
+
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+      end
+    end
+
     it "says everything's up to date, and doesn't exit 1, once every migration has run and every class matches" do
       app(noop) do |directory, connection|
         runner.run(empty.adapter, connection, runner.read(File.join(directory, "db/migrate")))
