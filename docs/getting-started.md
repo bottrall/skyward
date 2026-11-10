@@ -210,12 +210,12 @@ class Notes::API < Skyward::API
   # @rbs id: Integer
   # @rbs return: Notes::Record | Responses::NotFound
   def pin(id:)
-    @notes.where(id:).update!(pinned: true).first || not_found
+    @notes.where(id:).into(Notes::Record).update!(pinned: true).first || not_found
   end
 end
 ```
 
-The `# @rbs` lines are the endpoint's contract. `id: Integer` makes Skyward turn the `"1"` in `/notes/1/pin` into `1`, and answer 422 for `/notes/abc/pin` before the method runs. The return type says the endpoint answers with a note or a 404, and that goes into the API's documentation. `update!` returns the rows it changed, so there's no row when no note has the `id`, and the endpoint answers 404.
+The `# @rbs` lines are the endpoint's contract. `id: Integer` makes Skyward turn the `"1"` in `/notes/1/pin` into `1`, and answer 422 for `/notes/abc/pin` before the method runs. The return type says the endpoint answers with a note or a 404, and that goes into the API's documentation. A write returns how many rows it changed, unless `into` names the rows to return, so `into(Notes::Record)` makes `update!` return the notes it changed. There's no note when none has the `id`, and the endpoint answers 404.
 
 Regenerate the signatures, then list the routes to see the new one with its signature:
 

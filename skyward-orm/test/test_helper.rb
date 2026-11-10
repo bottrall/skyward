@@ -60,6 +60,8 @@ module TestDatabase
       sent << [sql, binds]
       connection.execute(sql, binds)
     end
+
+    def changes = connection.changes
   end
 
   DIRECTORY = Dir.mktmpdir("skyward-orm-test")

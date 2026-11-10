@@ -10,16 +10,16 @@ GEMS = {
   skyward: { dir: "skyward", depends_on: %i[core api orm] }
 }.freeze
 
-# Steep gives a signature file to the first target that lists it, and other
-# targets see it only when that owner isn't `unreferenced!`. Every gem depends
-# on core, so core's signatures are shared. Every other target is
-# unreferenced!, so its signatures stay private to it, and api and orm can't
-# reach into each other.
+# Every target is unreferenced!, so its signatures stay private to it, and
+# api and orm can't reach into each other. A project signature shared with a
+# target that also loads it as a library would be declared twice, and Steep
+# skips a target whose signatures don't load without saying so.
 GEMS.each do |name, gem|
   target name do
-    unreferenced! unless name == :core
+    unreferenced!
 
-    [name, *gem.fetch(:depends_on)].each { |part| signature "#{GEMS.fetch(part).fetch(:dir)}/sig" }
+    signature "#{gem.fetch(:dir)}/sig"
+    library(*gem.fetch(:depends_on).map { |part| GEMS.fetch(part).fetch(:dir) })
 
     check "#{gem.fetch(:dir)}/lib"
 
@@ -37,13 +37,25 @@ end
 
     check "examples/#{example}/*.rb", "examples/#{example}/lib", "examples/#{example}/modules"
 
-    # api's and orm's signatures belong to their own targets, which no other
-    # target sees, so the example loads them as the gems' libraries instead.
-    # orm's subclass core's, and a library resolves its superclasses among the
-    # libraries alone, so core comes as one too.
+    # A library resolves its superclasses among the libraries alone, so orm's,
+    # which subclass core's, need core's as a library too.
     library "skyward-core", "skyward-api", "skyward-orm"
     collection_config "rbs_collection.yaml"
 
     configure_code_diagnostics(D::Ruby.all_error)
   end
+end
+
+# Pins the type each of Skyward ORM's writes returns, as an app's code sees it.
+target :orm_writes do
+  unreferenced!
+
+  signature "skyward-orm/test/fixtures/writes/sig"
+
+  check "skyward-orm/test/fixtures/writes"
+
+  library "skyward-core", "skyward-orm"
+  collection_config "rbs_collection.yaml"
+
+  configure_code_diagnostics(D::Ruby.all_error)
 end

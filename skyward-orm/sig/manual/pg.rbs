@@ -17,6 +17,7 @@ module PG
   class Result
     def fields: () -> Array[String]
     def values: () -> Array[Array[String?]]
+    def cmd_tuples: () -> Integer
     def error_field: (Integer field) -> String?
     def clear: () -> void
   end

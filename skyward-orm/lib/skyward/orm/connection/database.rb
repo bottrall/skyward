@@ -183,6 +183,22 @@ class Skyward::ORM::Connection::Database
     changing { |checked_out| Skyward::ORM::Migrations::Runner.rollback(@adapter, checked_out, migrations) }
   end
 
+  # The count is read on the connection that ran the write, before anything
+  # else runs on it.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs return: Integer | Skyward::ORM::Violation
+  def write(table, sql, binds)
+    prepare(table)
+    connection do |checked_out|
+      checked_out.execute(sql, binds)
+      checked_out.changes
+    end
+  rescue StandardError => e
+    violation(e, table.table_name) || raise
+  end
+
   # RETURNING lists the row class's members in order, as its decoder reads
   # them. Steep can't tie the row class to its rows, so they're untyped here.
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -190,7 +206,7 @@ class Skyward::ORM::Connection::Database
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[untyped] | Skyward::ORM::Violation
-  def write(table, row, sql, binds)
+  def write_returning(table, row, sql, binds)
     # Building the decoder prepares the table, so it's built before the write runs.
     decode = decoder(table, row, [])
     execute(sql, binds).map(&decode)

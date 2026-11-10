@@ -22,6 +22,6 @@ module Todos::Service
   def complete: (Integer id) -> Todos::Record?
 
   # @rbs id: Integer
-  # @rbs return: Todos::Record?
-  def delete: (Integer id) -> Todos::Record?
+  # @rbs return: Integer
+  def delete: (Integer id) -> Integer
 end

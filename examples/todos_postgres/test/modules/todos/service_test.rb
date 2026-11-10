@@ -64,7 +64,7 @@ describe Todos::Service do
     end
 
     it "puts the todo on its list" do
-      list = Lists::Record.insert!(name: "Home")
+      list = Lists::Record.into(Lists::Record).insert!(name: "Home")
 
       assert_equal list.id, create(list_id: list.id).list_id
     end
@@ -98,10 +98,8 @@ describe Todos::Service do
   end
 
   describe ".delete" do
-    it "returns the deleted todo" do
-      todo = create
-
-      assert_equal todo, service.delete(todo.id)
+    it "returns how many todos it deleted" do
+      assert_equal 1, service.delete(create.id)
     end
 
     it "forgets the todo" do
@@ -111,8 +109,8 @@ describe Todos::Service do
       assert_nil service.find(todo.id)
     end
 
-    it "returns nil for a todo that doesn't exist" do
-      assert_nil service.delete(0)
+    it "returns 0 for a todo that doesn't exist" do
+      assert_equal 0, service.delete(0)
     end
   end
 end

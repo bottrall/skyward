@@ -8,7 +8,6 @@ describe Skyward::ORM::Statements do
     Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
   )
   todo = TablesFixtures::Todo
-  columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
 
   let(:empty) { TestDatabase.empty }
   let(:adapter) { empty.adapter }
@@ -18,7 +17,7 @@ describe Skyward::ORM::Statements do
   describe ".insert" do
     it "inserts the values given, bound as the adapter encodes them, leaving out the key, defaults and nullables" do
       expected = empty.shown(
-        %(INSERT INTO "todos" ("list_id", "title", "done") VALUES (?, ?, ?) RETURNING #{columns}),
+        %(INSERT INTO "todos" ("list_id", "title", "done") VALUES (?, ?, ?)),
         [1, "Buy milk", false]
       )
       values = { list_id: 1, title: "Buy milk", done: false }
@@ -32,7 +31,7 @@ describe Skyward::ORM::Statements do
       it "numbers each value's placeholder" do
         sql, = Skyward::ORM::Statements.insert(adapter, column_types, todo, { list_id: 1, title: "Buy milk" })
 
-        assert_equal %(INSERT INTO "todos" ("list_id", "title") VALUES ($1, $2) RETURNING #{columns}), sql
+        assert_equal %(INSERT INTO "todos" ("list_id", "title") VALUES ($1, $2)), sql
       end
     end
 
@@ -66,7 +65,7 @@ describe Skyward::ORM::Statements do
         attr_reader :id, :body
       end
 
-      assert_equal [%(INSERT INTO "notes" DEFAULT VALUES RETURNING "id", "body"), []],
+      assert_equal [%(INSERT INTO "notes" DEFAULT VALUES), []],
                    Skyward::ORM::Statements.insert(adapter, column_types, note, {})
     end
   end

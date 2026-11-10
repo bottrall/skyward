@@ -1,7 +1,7 @@
 # Generated from lib/skyward/orm/adapters/sqlite.rb with RBS::Inline
 
 module Skyward::ORM::Adapters::SQLite
-  # The first SQLite with RETURNING, which every write uses.
+  # The first SQLite with RETURNING, which every write into a row class uses.
   MINIMUM_VERSION: Gem::Version
 
   SQL_TYPES: Hash[Skyward::ORM::Tables::column_type, String]

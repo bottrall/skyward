@@ -1,0 +1,32 @@
+use Skyward::ORM::*
+
+module WritesFixtures
+  class Todo < Record
+    attr_reader id: Integer
+    attr_reader title: String
+    attr_reader done: bool
+  end
+
+  class Id < Data
+    attr_reader id: Integer
+    def self.new: (Integer id) -> instance
+                | (id: Integer) -> instance
+  end
+
+  module Writes
+    def insert: () -> (Integer | Violation)
+    def insert!: () -> Integer
+    def insert_into_table: () -> (Todo | Violation)
+    def insert_into_row: () -> (Id | Violation)
+    def insert_into_row!: () -> Id
+    def update: (Integer id) -> (Integer | Violation)
+    def update!: (Integer id) -> Integer
+    def update_into_row: (Integer id) -> (Array[Id] | Violation)
+    def update_into_table!: (Integer id) -> Array[Todo]
+    def update_into_row_narrowed: (Integer id) -> (Array[Id] | Violation)
+    def delete: () -> (Integer | Violation)
+    def delete!: () -> Integer
+    def delete_into_row: () -> (Array[Id] | Violation)
+    def delete_into_table!: () -> Array[Todo]
+  end
+end

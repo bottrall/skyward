@@ -53,7 +53,7 @@ describe "Skyward's types" do
       # Inserts a row, posts back what the API returned for it, and answers
       # with what the endpoint received and the row the database holds.
       def round_trip(values)
-        id = TypesFixtures::Everything.insert!(**values).id
+        id = TypesFixtures::Everything.into(TypesFixtures::Everything).insert!(**values).id
         shown = client.get("/everythings/#{id}")
 
         assert_equal 200, shown.status, shown.body

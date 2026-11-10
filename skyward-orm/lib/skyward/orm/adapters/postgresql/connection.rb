@@ -4,18 +4,29 @@
 # gives it the execute every adapter's connection has.
 class Skyward::ORM::Adapters::PostgreSQL::Connection
   # @rbs @connection: PG::Connection
+  # @rbs @changes: Integer
 
   # @rbs connection: PG::Connection
   # @rbs return: void
   def initialize(connection)
     @connection = connection
+    @changes = 0
   end
 
-  # The block form clears each result as soon as its rows are read.
+  # The block form clears each result as soon as its rows are read, so the
+  # rows it changed are kept for changes, as SQLite keeps them for its own.
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[Array[String?]]
-  def execute(sql, binds = []) = @connection.exec_params(sql, binds, &:values)
+  def execute(sql, binds = [])
+    @connection.exec_params(sql, binds) do |result|
+      @changes = result.cmd_tuples
+      result.values
+    end
+  end
+
+  # @dynamic changes
+  attr_reader :changes #: Integer
 
   # @rbs sql: String
   # @rbs *binds: untyped

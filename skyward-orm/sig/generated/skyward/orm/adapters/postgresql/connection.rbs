@@ -5,15 +5,21 @@
 class Skyward::ORM::Adapters::PostgreSQL::Connection
   @connection: PG::Connection
 
+  @changes: Integer
+
   # @rbs connection: PG::Connection
   # @rbs return: void
   def initialize: (PG::Connection connection) -> void
 
-  # The block form clears each result as soon as its rows are read.
+  # The block form clears each result as soon as its rows are read, so the
+  # rows it changed are kept for changes, as SQLite keeps them for its own.
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[Array[String?]]
   def execute: (String sql, ?Array[untyped] binds) -> Array[Array[String?]]
+
+  # @dynamic changes
+  attr_reader changes: Integer
 
   # @rbs sql: String
   # @rbs *binds: untyped

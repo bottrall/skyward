@@ -3,7 +3,7 @@
 module Skyward::ORM::Adapters::SQLite
   extend self
 
-  # The first SQLite with RETURNING, which every write uses.
+  # The first SQLite with RETURNING, which every write into a row class uses.
   MINIMUM_VERSION = Gem::Version.new("3.35") #: Gem::Version
 
   SQL_TYPES = {

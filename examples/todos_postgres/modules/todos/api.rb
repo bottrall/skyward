@@ -65,6 +65,6 @@ class Todos::API < Skyward::API
   # @rbs id: Integer
   # @rbs return: Responses::NoContent | Responses::NotFound
   def destroy(id:)
-    @todos.delete(id) ? no_content : not_found
+    @todos.delete(id).zero? ? not_found : no_content
   end
 end

@@ -141,6 +141,14 @@ class Skyward::ORM::Connection::Database
   # @rbs return: Skyward::ORM::Migrations::Runner::rolled_back
   def rollback: (Array[Skyward::ORM::Migrations::Runner::Migration] migrations) -> Skyward::ORM::Migrations::Runner::rolled_back
 
+  # The count is read on the connection that ran the write, before anything
+  # else runs on it.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs return: Integer | Skyward::ORM::Violation
+  def write: (singleton(Skyward::ORM::Record) table, String sql, Array[untyped] binds) -> (Integer | Skyward::ORM::Violation)
+
   # RETURNING lists the row class's members in order, as its decoder reads
   # them. Steep can't tie the row class to its rows, so they're untyped here.
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -148,7 +156,7 @@ class Skyward::ORM::Connection::Database
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[untyped] | Skyward::ORM::Violation
-  def write: (singleton(Skyward::ORM::Record) table, Class row, String sql, Array[untyped] binds) -> (Array[untyped] | Skyward::ORM::Violation)
+  def write_returning: (singleton(Skyward::ORM::Record) table, Class row, String sql, Array[untyped] binds) -> (Array[untyped] | Skyward::ORM::Violation)
 
   private
 
