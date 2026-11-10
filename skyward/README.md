@@ -35,7 +35,7 @@ The name is lowercase letters, digits and underscores, starting with a letter, s
 
 | Path | Holds |
 | --- | --- |
-| `Gemfile` | `skyward` at the version that wrote the app, `sqlite3`, Falcon for `skyward serve`, and Steep, rbs-inline, Minitest and Rake |
+| `Gemfile` | `skyward` at the version that wrote the app, `sqlite3`, Falcon to serve the app in development (`skyward serve`) and in production, and Steep, rbs-inline, Minitest and Rake |
 | `boot.rb` | loads `modules/` with Zeitwerk, eager loads it and connects to `DATABASE_URL`, or SQLite at `db/todos.sqlite3` without it |
 | `app.rb` | requires `boot.rb` and assigns `App = Skyward.app(docs: true, ...)`, wiring each API to its collaborators |
 | `config.ru` | runs `App` |
