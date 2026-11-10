@@ -44,7 +44,7 @@ The name is lowercase letters, digits and underscores, starting with a letter, s
 | `db/migrate/` | empty, for the migrations `skyward migration` writes |
 | `sig/generated` | the signatures rbs-inline generates from the app's inline annotations |
 | `Steepfile`, `rbs_collection.yaml` | Steep with every diagnostic an error, and the gem signatures it reads |
-| `test/` | a test of `HealthAPI`, and of `App` serving `/up` and `/docs` over HTTP, each in a transaction that's rolled back, on in-memory SQLite or `TEST_DATABASE_URL` |
+| `test/` | a test of `HealthAPI`, which calls its method, and of `App`, which checks over HTTP that it mounts `HealthAPI` at `/up` and serves `/openapi.json` and `/docs`, each in a transaction that's rolled back, on in-memory SQLite or `TEST_DATABASE_URL` |
 | `bin/setup` | installs the gems and the gem signatures, and migrates the database |
 | `bin/test` | runs the tests |
 | `bin/ci` | regenerates the signatures and fails if they changed, runs the tests, then runs `skyward check` on a database of its own |

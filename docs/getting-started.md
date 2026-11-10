@@ -291,7 +291,7 @@ POST  /todos/:id/complete  Todos::API#complete  (id: Integer) -> (Todos::Record 
 
 ## 8. Test it
 
-An endpoint is a method on a plain object, so the fastest test calls it. The tests mirror the code, so `Todos::API`'s go in `test/modules/todos/api_test.rb`:
+An endpoint is a method on a plain object, so its test calls it. The tests mirror the code, so `Todos::API`'s go in `test/modules/todos/api_test.rb`:
 
 ```ruby
 # test/modules/todos/api_test.rb
@@ -358,9 +358,9 @@ describe Todos::API do
 end
 ```
 
-Rows are values, so the tests compare them with `==`, and `todo.with(done: true)` is the same todo, done.
+Rows are values, so the tests compare them with `==`, and `todo.with(done: true)` is the same todo, done. Skyward checks each request against the method's signature before the method runs, as it does the `abc` in `/todos/abc`, so the tests don't repeat that.
 
-`test/app_test.rb` tests what `app.rb` decides, over HTTP, with `Skyward::API::Test.client`, which calls the app in-process without a server. Add a test that `Todos::API` is mounted at `/todos`, inside `describe "App"`, between the tests of `/up` and `/docs` that came with the app:
+`test/app_test.rb` tests what `app.rb` decides, over HTTP, with `Skyward::API::Test.client`, which calls the app in-process without a server: one request to each API at the path it's mounted at, and that `/openapi.json` documents every path and `/docs` is served. Endpoint behaviour stays in the API's own test. Add a test that `Todos::API` is mounted at `/todos`, inside `describe "App"`, after the test of `/up` that came with the app:
 
 ```ruby
 describe "GET /todos" do
@@ -372,6 +372,12 @@ describe "GET /todos" do
 end
 ```
 
+Then add `Todos::API`'s paths to the list the `/openapi.json` test expects:
+
+```ruby
+assert_equal %i[/up /todos /todos/{id} /todos/{id}/complete], paths
+```
+
 Each test runs in a transaction that's rolled back after it, on a database of its own, so every test starts with no todos, and the tests never see your development data. Run them:
 
 ```sh
@@ -380,11 +386,11 @@ Run options: --seed 23760
 
 # Running:
 
-............
+.............
 
-Finished in 0.005121s, 2343.3747 runs/s, 2538.6559 assertions/s.
+Finished in 0.004612s, 2818.9128 runs/s, 3035.7523 assertions/s.
 
-12 runs, 13 assertions, 0 failures, 0 errors, 0 skips
+13 runs, 14 assertions, 0 failures, 0 errors, 0 skips
 ```
 
 ## 9. Run CI
@@ -399,11 +405,11 @@ Run options: --seed 53426
 
 # Running:
 
-............
+.............
 
-Finished in 0.004611s, 2602.4159 runs/s, 2819.2839 assertions/s.
+Finished in 0.004623s, 2811.7671 runs/s, 3028.0569 assertions/s.
 
-12 runs, 13 assertions, 0 failures, 0 errors, 0 skips
+13 runs, 14 assertions, 0 failures, 0 errors, 0 skips
 Migrated 20261110050204
 Signatures: passed
 Strict boot: passed

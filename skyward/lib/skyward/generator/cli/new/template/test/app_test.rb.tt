@@ -11,6 +11,14 @@ describe "App" do
     end
   end
 
+  describe "GET /openapi.json" do
+    it "documents every endpoint" do
+      paths = client.get("/openapi.json").json[:paths].keys
+
+      assert_equal %i[/up], paths
+    end
+  end
+
   describe "GET /docs" do
     it "serves the API reference" do
       assert_includes client.get("/docs").body, "<title>{{title}}</title>"
