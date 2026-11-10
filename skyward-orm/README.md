@@ -1,7 +1,7 @@
 # Skyward ORM
 
 > [!CAUTION]
-> **Work in progress: Skyward ORM is barely started.** Version 0.1 is a skeleton. The gems install and load, but only the parts listed under [Status](#status) are built. This README is the spec for what's coming, not documentation of what exists. Don't depend on it yet.
+> **Work in progress: Skyward ORM works, but it isn't finished.** Most of what this README describes is built, but it's the spec, and a few parts of it aren't built yet: [Status](#status) lists what is, and what's still to come. Until 1.0, any release may change the API, so don't depend on it in production yet.
 
 A small, fast Ruby ORM where **a class is a table and its rows are values**.
 
@@ -575,7 +575,7 @@ The CLI runs in your app's directory and requires its `boot.rb`, which loads you
 
 ## Status
 
-This README is the spec. Skyward 0.1 is a skeleton: the gem installs and loads, and only the parts listed here are built. Skyward ORM is built after Skyward API, and this section lists each part as it lands.
+This README is the spec, and this section lists each part of it that's built, as it lands. Anything it describes that isn't listed here isn't built yet.
 
 - **Tables.** A table class subclasses `Skyward::ORM::Record`, and each `attr_reader` adds a column, in order. Skyward ORM registers its signatures with Skyward Core, so an app's signatures can subclass `Skyward::ORM::Record` too. `table`, `primary_key` (`:id` by default), `references` (with an optional `on_delete:` of `:cascade`, `:restrict`, `:set_null`, `:set_default` or `:no_action`), `default`, `unique`, `check` and `index` build one frozen schema for the class, and `Skyward.sql("...")` wraps an SQL expression for `default` and `check`. A malformed declaration raises `ArgumentError` in the class body: a column declared twice, a table or column name that isn't a Symbol, `unique` or `index` with no columns, `references` to anything but a table class or with another `on_delete:`, `Skyward.sql` given anything but a String, and a `check` given a plain String, both SQL and `length:`, neither, or a `length:` that isn't a Range of Integers, has no bound or is empty. A declaration can come before the `attr_reader` it names, so the columns declarations name, the default primary key included, are checked by a validation function that connecting and generating a migration call, which raises `Skyward::Core::BootError` naming the class and each column it doesn't have. A class with no `table` raises `Skyward::Core::BootError` when its table name is asked for, saying to add `table :name`.
 - **Rows.** `Todo.new(**columns)` builds a frozen row, and raises `ArgumentError` naming the columns left out and the ones the class doesn't have. A row has `to_h`, `with`, `deconstruct_keys`, `==`, `eql?`, `hash` and `inspect` (`#<Todo id=1, title="Buy milk", done=false>`), and two rows are `==`, or `eql?`, when they're of the same class and each of their columns is. A table class's `members` are its columns, as a `Data` class's are its members. Each `attr_reader` compiles the class's row methods for its columns so far, so building and comparing a row reads and writes its columns directly, and redefining them never makes Ruby warn.
