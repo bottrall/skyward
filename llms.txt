@@ -1,6 +1,6 @@
 # Skyward
 
-> Skyward is a set of Ruby gems for typed JSON APIs, where an endpoint is a method and a row is a value. Skyward API is a web framework that coerces and validates requests from each method's RBS signature and publishes an OpenAPI 3.1 document, Skyward ORM is an ORM where a class is a table, its rows are frozen values and migrations are generated from the class, and `skyward new` writes an app that uses both. Each gem's README is its spec, and its Status section lists what's built.
+> Skyward is a set of Ruby gems for typed JSON APIs: you write RBS types, and Skyward validates requests against them, publishes them as OpenAPI and writes database migrations from them. Skyward API is a web framework that coerces and validates requests from each method's RBS signature and publishes an OpenAPI 3.1 document, Skyward ORM is an ORM where a class is a table, its rows are frozen values and migrations are generated from the class, and `skyward new` writes an app that uses both. Each gem's README is its spec, and its Status section lists what's built.
 
 ## Docs
 

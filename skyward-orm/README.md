@@ -1,13 +1,13 @@
 # Skyward ORM
 
 > [!CAUTION]
-> **Work in progress: Skyward ORM works, but it isn't finished.** Most of what this README describes is built, but it's the spec, and a few parts of it aren't built yet: [Status](#status) lists what is, and what's still to come. Until 1.0, any release may change the API, so don't depend on it in production yet.
+> Skyward ORM is pre-1.0. This README is its spec, most of it is built, and [Status](#status) lists exactly what is. Any release may change the API, so don't run it in production yet.
 
-A small, fast Ruby ORM where **a class is a table and its rows are values**.
+A Ruby ORM for PostgreSQL and SQLite where **a class is a table and its rows are values**.
 
-You write a plain Ruby class with a typed reader for each column, and tell Skyward ORM which table it lives in. The class is then the table: you query it, write to it and migrate it. What comes back are immutable instances of your class. There are no callbacks, no dirty tracking and no lazy loading. You get your data and the SQL that fetched it.
+You write a plain Ruby class with a typed reader for each column, and tell Skyward ORM which table it lives in. From then on the class is the table: you query it and write to it, and Skyward ORM writes its migrations from it. Rows come back as frozen instances of your class. There are no callbacks, no dirty tracking and no lazy loading, so you get your data and the SQL that fetched it.
 
-Skyward ORM is half of Skyward. The other half is [Skyward API](../skyward-api/README.md), but each works without the other.
+It's half of Skyward. The other half is [Skyward API](../skyward-api/README.md), and you can use either without the other.
 
 ```ruby
 # rbs_inline: enabled
@@ -57,7 +57,7 @@ $ skyward migrate
 - [Testing](#testing)
 - [Performance](#performance)
 - [CLI](#cli)
-- [Coming from…](#coming-from)
+- [Coming from other libraries](#coming-from-other-libraries)
 - [Design principles](#design-principles)
 - [Status](#status)
 
@@ -221,7 +221,7 @@ Skyward.connect(ENV.fetch("DATABASE_URL"), pool: 10)
 
 Call it once, where your app boots. Skyward ORM reads your column types from the `.rbs` files under `sig/`, or the directory you pass as `signatures:`.
 
-Like ActiveRecord, Skyward ORM keeps the connection for you, so `Todo.where(...)` just works. Also like ActiveRecord, it gives you the seams that make that safe: tests that each run in a rolled-back transaction, and `Skyward.using(other_database) { ... }` to switch databases for one block. The switch applies only to the current fiber, never globally.
+Like ActiveRecord, Skyward ORM keeps the connection for you, so `Todo.where(...)` just works. It also gives you what makes that safe: tests that each run in a rolled-back transaction, and `Skyward.using(other_database) { ... }` to switch databases for one block. The switch applies only to the current fiber, never globally.
 
 When you connect, Skyward ORM compares every loaded table class with the live schema and refuses to start if they disagree:
 
@@ -364,7 +364,7 @@ An expression is raw SQL that goes into the query exactly as written, so it must
 
 ## Raw SQL
 
-Skyward ORM builds SQL. It doesn't hide it. When a query is easier to write than to build, write it, and name the shape you want back:
+When a query is easier to write than to build, write it, and name the shape you want back:
 
 ```ruby
 Overdue = Data.define(:title, :days_late)
@@ -406,7 +406,7 @@ A query with a join, `group`, `order`, `limit` or `offset`, or `into` a class wi
 
 ### When the database says no
 
-A duplicate email or a missing parent row isn't exceptional. It's an outcome your code should handle. So the plain write methods return either the rows or a `Skyward::ORM::Violation`:
+A duplicate email or a missing parent row is an outcome your code should handle, so the plain write methods return either the rows or a `Skyward::ORM::Violation`:
 
 ```ruby
 result = User.insert(email:)
@@ -553,11 +553,11 @@ The CLI runs in your app's directory and requires its `boot.rb`, which loads you
 
 ---
 
-## Coming from…
+## Coming from other libraries
 
-- **ActiveRecord.** `Todo.where` works the way you expect, and `insert`/`insert!` work like `save`/`save!`. But a row is data rather than an object with a lifecycle: it has no callbacks, validations or associations. The columns are written in the class, so you can see them, and migrations are written for you from them.
-- **Sequel.** It's the same idea of queries as values, but the rows are instances of your own typed classes rather than hashes or models.
-- **Django or Prisma.** It's the same declare-then-generate approach to migrations, in plain Ruby with RBS types.
+- **ActiveRecord.** `Todo.where` works the way you expect, and `insert`/`insert!` work like `save`/`save!`. A row is data, with no lifecycle: it has no callbacks, validations or associations. The columns are written in the class, where you can see them, and the migrations are written from them.
+- **Sequel.** Queries are values here too. The rows are instances of your own typed classes, not hashes or models.
+- **Django or Prisma.** The same declare-then-generate approach to migrations, in plain Ruby with RBS types.
 - **Raw SQL.** Use it whenever you like (`Skyward.query`), and keep typed results and bound parameters.
 
 ---
@@ -567,8 +567,8 @@ The CLI runs in your app's directory and requires its `boot.rb`, which loads you
 1. **A class is a table, and its rows are values.** You query the class, and you get back frozen instances of it that you can use anywhere.
 2. **The class is the schema.** Columns, types and constraints are declared once, in Ruby, where Steep and Skyward ORM can both read them. Migrations follow from them.
 3. **A query is a value.** It's immutable, composable and printable, and nothing runs until you ask for rows.
-4. **SQL is the feature, not the problem.** Skyward ORM builds the SQL you'd write yourself, writes your migrations in SQL you can read, and lets you write it yourself when that's clearer.
-5. **Outcomes are values.** The database saying no is a result you handle, not an exception you rescue.
+4. **SQL stays in view.** Skyward ORM builds the SQL you'd write yourself, writes migrations as SQL you can read, and lets you write your own when that's clearer.
+5. **Outcomes are values.** When the database says no, you get a `Skyward::ORM::Violation` to match on with `case`/`when`.
 6. **No hidden work.** Skyward ORM has no lazy loading and no callbacks. Every query is one you can see.
 
 ---
