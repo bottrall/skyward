@@ -15,6 +15,21 @@ describe Skyward::ORM::Adapters::PostgreSQL::Connection do
     end
   end
 
+  describe "#changes" do
+    it "is 0 before anything runs" do
+      assert_equal 0, connection.changes
+    end
+
+    it "is how many rows the latest execute changed" do
+      connection.execute_batch("CREATE TABLE lists (name text); INSERT INTO lists VALUES ('Home'), ('Work');")
+      connection.execute("UPDATE lists SET name = $1", ["Away"])
+      updated = connection.changes
+      connection.execute("DELETE FROM lists WHERE name = $1", ["Home"])
+
+      assert_equal [2, 0], [updated, connection.changes]
+    end
+  end
+
   describe "#execute2" do
     it "returns the column names, then each row's values" do
       assert_equal [%w[title done], %w[Milk t]],

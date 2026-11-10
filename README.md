@@ -57,7 +57,7 @@ class TodosAPI < Skyward::API
   # @rbs body: NewTodo
   # @rbs return: Responses::Created[Todo]
   def create(body:)
-    created Todo.insert!(**body.to_h)
+    created Todo.into(Todo).insert!(**body.to_h)
   end
 end
 ```

@@ -23,7 +23,7 @@ module Todos::Service
   # @rbs list_id: Integer?
   # @rbs return: Todos::Record | :no_such_list | :invalid_title
   def create(title:, priority:, due_on:, list_id:)
-    todo = Todos::Record.insert(title:, priority:, due_on:, list_id:)
+    todo = Todos::Record.into(Todos::Record).insert(title:, priority:, due_on:, list_id:)
     case todo
     when Todos::Record then todo
     # The API checks the priority's values, so the title's length and the list
@@ -34,9 +34,9 @@ module Todos::Service
 
   # @rbs id: Integer
   # @rbs return: Todos::Record?
-  def complete(id) = Todos::Record.where(id:).update!(done: true).first
+  def complete(id) = Todos::Record.where(id:).into(Todos::Record).update!(done: true).first
 
   # @rbs id: Integer
-  # @rbs return: Todos::Record?
-  def delete(id) = Todos::Record.where(id:).delete!.first
+  # @rbs return: Integer
+  def delete(id) = Todos::Record.where(id:).delete!
 end

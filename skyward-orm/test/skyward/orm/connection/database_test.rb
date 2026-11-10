@@ -718,8 +718,46 @@ describe Skyward::ORM::Connection::Database do
 
   describe "#write" do
     it "checks its table class before it writes" do
+      assert_raises(Skyward::ORM::SchemaMismatch) { database.write(list, "DELETE FROM missing", []) }
+    end
+
+    describe "with the check off" do
+      let(:check) { false }
+
+      let(:inserting) { "INSERT INTO lists (name) VALUES (#{adapter.placeholder(1)})" }
+
+      it "returns how many rows the write changed" do
+        insert(database, "Work")
+
+        assert_equal [2, 0],
+                     [database.write(list, "UPDATE lists SET name = name || '!'", []),
+                      database.write(list, "DELETE FROM lists WHERE name = 'Away'", [])]
+      end
+
+      it "returns a violation the write causes, filled in for the table written, with the database's message" do
+        written = database.write(list, inserting, ["Home"])
+        expected = Skyward::ORM::Violation.new(
+          kind: :unique,
+          constraint: "lists_name_key",
+          columns: [:name],
+          message: empty.violation("INSERT INTO lists (name) VALUES ('Home')", :lists)&.message
+        )
+
+        assert_equal expected, written
+      end
+
+      it "raises any other error as it is" do
+        error = assert_raises(StandardError) { database.write(list, "DELETE FROM missing", []) }
+
+        refute_kind_of Skyward::ORM::ViolationError, error
+      end
+    end
+  end
+
+  describe "#write_returning" do
+    it "checks its table class before it writes" do
       assert_raises(Skyward::ORM::SchemaMismatch) do
-        database.write(list, list, "DELETE FROM missing RETURNING id, name", [])
+        database.write_returning(list, list, "DELETE FROM missing RETURNING id, name", [])
       end
     end
 
@@ -729,11 +767,11 @@ describe Skyward::ORM::Connection::Database do
       let(:inserting) { "INSERT INTO lists (name) VALUES (#{adapter.placeholder(1)}) RETURNING id, name" }
 
       it "returns the rows the write returns, as the table's rows" do
-        assert_equal [list.new(id: 2, name: "Work")], database.write(list, list, inserting, ["Work"])
+        assert_equal [list.new(id: 2, name: "Work")], database.write_returning(list, list, inserting, ["Work"])
       end
 
       it "returns a violation the write causes, filled in for the table written, with the database's message" do
-        written = database.write(list, list, inserting, ["Home"])
+        written = database.write_returning(list, list, inserting, ["Home"])
         expected = Skyward::ORM::Violation.new(
           kind: :unique,
           constraint: "lists_name_key",
@@ -746,7 +784,7 @@ describe Skyward::ORM::Connection::Database do
 
       it "raises any other error as it is" do
         error = assert_raises(StandardError) do
-          database.write(list, list, "DELETE FROM missing RETURNING id, name", [])
+          database.write_returning(list, list, "DELETE FROM missing RETURNING id, name", [])
         end
 
         refute_kind_of Skyward::ORM::ViolationError, error

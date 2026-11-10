@@ -19,7 +19,6 @@ describe Skyward::ORM::Record do
       Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
     )
     todo = TablesFixtures::Todo
-    columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
     # The SQL beside each violation breaks it the same way, so the database
     # gives its message.
     violations = {
@@ -116,7 +115,7 @@ describe Skyward::ORM::Record do
       end
 
       it "asks for every row, so it can change them all" do
-        assert_equal [TablesFixtures::List.new(id: 1, name: "Work")], TablesFixtures::List.all.update(name: "Work")
+        assert_equal 1, TablesFixtures::List.all.update(name: "Work")
       end
     end
 
@@ -164,17 +163,46 @@ describe Skyward::ORM::Record do
       end
     end
 
-    describe ".insert" do
-      it "inserts a row, and returns it with the database's defaults" do
-        assert_equal milk, todo.insert(list_id: 1, title: "Buy milk")
+    describe ".into" do
+      title = TablesFixtures::TodoTitle
+
+      it "starts from every row" do
+        assert_equal Skyward::ORM::Query.new(todo, session).into(title).to_sql, todo.into(title).to_sql
       end
 
-      it "runs one INSERT, returning the row" do
+      it "passes expressions on" do
+        assert_equal Skyward::ORM::Query.new(todo, session).into(title, title: "upper(title)").to_sql,
+                     todo.into(title, title: "upper(title)").to_sql
+      end
+
+      it "starts a query that can insert" do
+        assert_equal title.new(id: 1, title: "Buy milk"), todo.into(title).insert(list_id: 1, title: "Buy milk")
+      end
+
+      it "isn't an explicit all, so it can't update or delete every row" do
+        errors = [
+          assert_raises(ArgumentError) { todo.into(title).update(done: true) },
+          assert_raises(ArgumentError) { todo.into(title).delete }
+        ]
+        expected = %w[update delete].map do |method|
+          "TablesFixtures::Todo can't #{method} a query with no conditions, which would change every row. " \
+            "Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row."
+        end
+
+        assert_equal expected, errors.map(&:message)
+      end
+    end
+
+    describe ".insert" do
+      it "inserts a row with the database's defaults, and returns how many rows it inserted" do
+        inserted = todo.insert(list_id: 1, title: "Buy milk")
+
+        assert_equal [1, [milk]], [inserted, todo.all.to_a]
+      end
+
+      it "runs one INSERT, returning nothing" do
         assert_equal(
-          [empty.shown(
-            %(INSERT INTO "todos" ("list_id", "title") VALUES (?, ?) RETURNING #{columns}),
-            [1, "Buy milk"]
-          )],
+          [empty.shown(%(INSERT INTO "todos" ("list_id", "title") VALUES (?, ?)), [1, "Buy milk"])],
           traced { todo.insert(list_id: 1, title: "Buy milk") }
         )
       end
@@ -185,10 +213,8 @@ describe Skyward::ORM::Record do
           attr_reader :id
         end
         connection.execute("CREATE TABLE counters (id #{empty.primary_key})")
-        inserted = counter.insert
 
-        # Its id is untyped, so it's as the driver returns it.
-        assert_equal counter.new(id: connection.execute("SELECT id FROM counters").dig(0, 0)), inserted
+        assert_equal [1, 1], [counter.insert, counter.all.count]
       end
 
       it "refuses a row missing a required column before any SQL runs" do
@@ -223,8 +249,8 @@ describe Skyward::ORM::Record do
     end
 
     describe ".insert!" do
-      it "returns the row it inserted" do
-        assert_equal milk, todo.insert!(list_id: 1, title: "Buy milk")
+      it "returns how many rows it inserted" do
+        assert_equal 1, todo.insert!(list_id: 1, title: "Buy milk")
       end
 
       violations.each do |kind, (violation, sql, written)|

@@ -1,0 +1,367 @@
+# Generated from lib/skyward/orm/queries/clauses.rb with RBS::Inline
+
+# Skyward::ORM::Query and Skyward::ORM::Projection differ only in what a write
+# returns, so everything else is here.
+# @rbs generic R
+module Skyward::ORM::Queries::Clauses[R]
+  include Enumerable[R]
+
+  type direction = :asc | :desc
+
+  type condition = Comparison | Fragment | Negation | Disjunction
+
+  type scope = :all | :start | :narrowed
+
+  DIRECTIONS: Array[direction]
+
+  class Comparison < Data
+    attr_reader column(): Symbol
+
+    attr_reader operator(): String
+
+    attr_reader value(): untyped
+
+    def self.new: (Symbol column, String operator, untyped value) -> instance
+                | (column: Symbol, operator: String, value: untyped) -> instance
+
+    def self.members: () -> [ :column, :operator, :value ]
+
+    def members: () -> [ :column, :operator, :value ]
+  end
+
+  class Fragment < Data
+    attr_reader sql(): String
+
+    attr_reader values(): Array[untyped]
+
+    def self.new: (String sql, Array[untyped] values) -> instance
+                | (sql: String, values: Array[untyped]) -> instance
+
+    def self.members: () -> [ :sql, :values ]
+
+    def members: () -> [ :sql, :values ]
+  end
+
+  class Negation < Data
+    attr_reader conditions(): Array[condition]
+
+    def self.new: (Array[condition] conditions) -> instance
+                | (conditions: Array[condition]) -> instance
+
+    def self.members: () -> [ :conditions ]
+
+    def members: () -> [ :conditions ]
+  end
+
+  class Disjunction < Data
+    attr_reader left(): Array[condition]
+
+    attr_reader right(): Array[condition]
+
+    def self.new: (Array[condition] left, Array[condition] right) -> instance
+                | (left: Array[condition], right: Array[condition]) -> instance
+
+    def self.members: () -> [ :left, :right ]
+
+    def members: () -> [ :left, :right ]
+  end
+
+  class Join < Data
+    attr_reader keyword(): String
+
+    attr_reader table(): singleton(Skyward::ORM::Record)
+
+    attr_reader on(): Hash[Symbol, Symbol]
+
+    def self.new: (String keyword, singleton(Skyward::ORM::Record) table, Hash[Symbol, Symbol] on) -> instance
+                | (keyword: String, table: singleton(Skyward::ORM::Record), on: Hash[Symbol, Symbol]) -> instance
+
+    def self.members: () -> [ :keyword, :table, :on ]
+
+    def members: () -> [ :keyword, :table, :on ]
+  end
+
+  @offset: Integer?
+
+  @limit: Integer?
+
+  @groups: Array[Symbol]
+
+  @orders: Array[[ Symbol, direction ]]
+
+  @conditions: Array[condition]
+
+  @scope: scope
+
+  @expressions: Hash[Symbol, String]
+
+  @row: Class
+
+  @joins: Array[Join]
+
+  @session: Skyward::ORM::Connection::Session
+
+  @table: singleton(Skyward::ORM::Record)
+
+  # scope: is :all only for an explicit Todo.all, which may update or delete
+  # every row, and :narrowed once a where or exclude has been called, even
+  # with nothing, which an insert refuses.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs session: Skyward::ORM::Connection::Session
+  # @rbs joins: Array[Join]
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
+  # @rbs scope: scope
+  # @rbs conditions: Array[condition]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
+  # @rbs return: void
+  def initialize: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Connection::Session session, ?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?scope: scope, ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> void
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: self
+  def join: (singleton(Skyward::ORM::Record) table, **Symbol on) -> self
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs **on: Symbol
+  # @rbs return: self
+  def left_join: (singleton(Skyward::ORM::Record) table, **Symbol on) -> self
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: self
+  def where: (?String? sql, *untyped values, **untyped conditions) -> self
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: self
+  def exclude: (?String? sql, *untyped values, **untyped conditions) -> self
+
+  # @rbs sql: String?
+  # @rbs *values: untyped
+  # @rbs **conditions: untyped
+  # @rbs return: self
+  def or: (?String? sql, *untyped values, **untyped conditions) -> self
+
+  # @rbs *columns: Symbol
+  # @rbs **directions: direction
+  # @rbs return: self
+  def order: (*Symbol columns, **direction directions) -> self
+
+  # @rbs *columns: Symbol
+  # @rbs return: self
+  def group: (*Symbol columns) -> self
+
+  # @rbs count: Integer
+  # @rbs return: self
+  def limit: (Integer count) -> self
+
+  # @rbs count: Integer
+  # @rbs return: self
+  def offset: (Integer count) -> self
+
+  # Steep ties the row class to S only through its new, so the query keeps it
+  # as the Class it is.
+  # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
+  def into: [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
+
+  # Ordered by the primary key when nothing else orders it, so both databases
+  # return the same row.
+  # @rbs () -> R?
+  #    | (Integer count) -> Array[R]
+  def first: () -> R?
+           | (Integer count) -> Array[R]
+
+  # @rbs **conditions: untyped
+  # @rbs return: R?
+  def find_by: (**untyped conditions) -> R?
+
+  # PostgreSQL refuses an ORDER BY beside COUNT(*), so the count leaves it out.
+  # A LIMIT beside it would limit the one row COUNT(*) returns, so a page is
+  # counted through a subquery, as the groups of a grouped query are.
+  # @rbs (*untyped args) ?{ (R) -> boolish } -> Integer
+  def count: (*untyped args) ?{ (R) -> boolish } -> Integer
+
+  # Order can't change whether the query has a row, so it's left out, and a
+  # limit of 0 has none.
+  # @rbs return: bool
+  def exists?: () -> bool
+
+  # @rbs () { (R) -> void } -> self
+  #    | () -> Enumerator[R, self]
+  def each: () { (R) -> void } -> self
+          | () -> Enumerator[R, self]
+
+  # @rbs return: [String, Array[untyped]]
+  def to_sql: () -> [ String, Array[untyped] ]
+
+  private
+
+  # Steep can't tie the class it builds to self, or the row class to S, so
+  # each public method types the query it returns.
+  # @rbs query: Class
+  # @rbs joins: Array[Join]
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
+  # @rbs scope: scope
+  # @rbs conditions: Array[condition]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs groups: Array[Symbol]
+  # @rbs limit: Integer?
+  # @rbs offset: Integer?
+  # @rbs return: untyped
+  def with: (?query: Class, ?joins: Array[Join], ?row: Class, ?expressions: Hash[Symbol, String], ?scope: scope, ?conditions: Array[condition], ?orders: Array[[ Symbol, direction ]], ?groups: Array[Symbol], ?limit: Integer?, ?offset: Integer?) -> untyped
+
+  # @rbs keyword: String
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs on: Hash[Symbol, Symbol]
+  # @rbs return: Join
+  def joined: (String keyword, singleton(Skyward::ORM::Record) table, Hash[Symbol, Symbol] on) -> Join
+
+  # @rbs sql: String?
+  # @rbs values: Array[untyped]
+  # @rbs conditions: Hash[Symbol, untyped]
+  # @rbs return: Array[condition]
+  def build: (String? sql, Array[untyped] values, Hash[Symbol, untyped] conditions) -> Array[condition]
+
+  # @rbs column: Symbol
+  # @rbs value: untyped
+  # @rbs return: Array[Comparison]
+  def comparisons: (Symbol column, untyped value) -> Array[Comparison]
+
+  # @rbs return: Array[String]
+  def clauses: () -> Array[String]
+
+  # @rbs clauses: Array[String]
+  # @rbs return: String
+  def listing: (Array[String] clauses) -> String
+
+  # Neither PostgreSQL nor SQLite (as it's usually built) takes a JOIN,
+  # ORDER BY, GROUP BY, LIMIT or OFFSET on an UPDATE or DELETE, and an into
+  # expression, such as an aggregate, means nothing portable in its RETURNING.
+  # @rbs method: Symbol
+  # @rbs return: void
+  def require_writable: (Symbol method) -> void
+
+  # @rbs method: Symbol
+  # @rbs count: Integer
+  # @rbs return: Integer
+  def require_count: (Symbol method, Integer count) -> Integer
+
+  # @rbs row: Class
+  # @rbs expressions: Hash[Symbol, String]
+  # @rbs return: void
+  def require_members: (Class row, Hash[Symbol, String] expressions) -> void
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: [String, Array[untyped]]
+  def statement: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: [String, Array[untyped]]
+  def from: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+
+  # @rbs join: Join
+  # @rbs return: String
+  def joining: (Join join) -> String
+
+  # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
+  # start after them.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs position: Integer
+  # @rbs return: [String?, Array[untyped]]
+  def filter: (Skyward::ORM::Connection::Database database, Integer position) -> [ String?, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs conditions: Array[condition]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def conjunction: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs condition: condition
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def render: (Skyward::ORM::Connection::Database database, condition condition, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs comparison: Comparison
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def comparison: (Skyward::ORM::Connection::Database database, Comparison comparison, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs fragment: Fragment
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def fragment: (Skyward::ORM::Connection::Database database, Fragment fragment, Integer position) -> [ String, Array[untyped] ]
+
+  # NOT of an unknown is unknown, so a row whose column is NULL would be left
+  # out, though it doesn't match. An untyped column may hold NULL, and an SQL
+  # string's columns can't be known.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs conditions: Array[condition]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def negation: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs conditions: Array[condition]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def alternative: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+
+  # PostgreSQL refuses an empty IN (), and IN never matches NULL.
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs name: String
+  # @rbs values: Array[untyped]
+  # @rbs position: Integer
+  # @rbs return: [String, Array[untyped]]
+  def within: (Skyward::ORM::Connection::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
+
+  # Steep can't tie the row class to R, so the rows are untyped here and each
+  # public method types them.
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: Array[untyped]
+  def rows: (Array[[ Symbol, direction ]] orders, Integer? limit) -> Array[untyped]
+
+  # @rbs return: Array[singleton(Skyward::ORM::Record)]
+  def tables: () -> Array[singleton(Skyward::ORM::Record)]
+
+  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs return: void
+  def prepare: (Skyward::ORM::Connection::Database database) -> void
+
+  # Once a query has a join, a column's name could be in more than one table,
+  # so each is qualified with its own.
+  # @rbs name: Symbol
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: String
+  def qualified: (Symbol name, ?singleton(Skyward::ORM::Record) table) -> String
+
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: [String, Array[untyped]]
+  def updating: (Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
+
+  # @rbs return: [String, Array[untyped]]
+  def deleting: () -> [ String, Array[untyped] ]
+
+  # @rbs method: Symbol
+  # @rbs sql: String
+  # @rbs values: Array[untyped]
+  # @rbs return: [String, Array[untyped]]
+  def changing: (Symbol method, String sql, Array[untyped] values) -> [ String, Array[untyped] ]
+
+  # @rbs [T] (T | Skyward::ORM::Violation written) -> T
+  def unviolated: [T] (T | Skyward::ORM::Violation written) -> T
+end

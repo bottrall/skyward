@@ -39,21 +39,24 @@ class Skyward::ORM::Record
   def self.exclude: (?String? sql, *untyped values, **untyped conditions) -> Skyward::ORM::Query[instance]
 
   # @rbs *columns: Symbol
-  # @rbs **directions: Skyward::ORM::Query::direction
+  # @rbs **directions: Skyward::ORM::Queries::Clauses::direction
   # @rbs return: Skyward::ORM::Query[instance]
-  def self.order: (*Symbol columns, **Skyward::ORM::Query::direction directions) -> Skyward::ORM::Query[instance]
+  def self.order: (*Symbol columns, **Skyward::ORM::Queries::Clauses::direction directions) -> Skyward::ORM::Query[instance]
 
   # @rbs **conditions: untyped
   # @rbs return: instance?
   def self.find_by: (**untyped conditions) -> instance?
 
-  # @rbs **values: untyped
-  # @rbs return: instance | Skyward::ORM::Violation
-  def self.insert: (**untyped values) -> (instance | Skyward::ORM::Violation)
+  # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
+  def self.into: [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
 
   # @rbs **values: untyped
-  # @rbs return: instance
-  def self.insert!: (**untyped values) -> instance
+  # @rbs return: Integer | Skyward::ORM::Violation
+  def self.insert: (**untyped values) -> (Integer | Skyward::ORM::Violation)
+
+  # @rbs **values: untyped
+  # @rbs return: Integer
+  def self.insert!: (**untyped values) -> Integer
 
   # @rbs return: Array[Symbol]
   def self.members: () -> Array[Symbol]

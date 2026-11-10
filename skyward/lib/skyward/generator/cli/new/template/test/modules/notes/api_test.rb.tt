@@ -5,7 +5,7 @@ require "test_helper"
 describe Notes::API do
   let(:api) { Notes::API.new(notes: Notes::Record) }
 
-  def write(title = "Ship it") = Notes::Record.insert!(title:, body: nil)
+  def write(title = "Ship it") = Notes::Record.into(Notes::Record).insert!(title:, body: nil)
 
   describe "#index" do
     it "lists the newest note first" do

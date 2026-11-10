@@ -41,7 +41,7 @@ class Notes::API < Skyward::API
   # @rbs body: NewNote
   # @rbs return: Responses::Created[Notes::Record] | Responses::Unprocessable
   def create(body:)
-    note = @notes.insert(title: body.title, body: body.body)
+    note = @notes.into(Notes::Record).insert(title: body.title, body: body.body)
     case note
     when Notes::Record then created note
     else unprocessable "A title needs 1 to 200 characters"

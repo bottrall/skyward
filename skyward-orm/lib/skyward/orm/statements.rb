@@ -12,13 +12,11 @@ module Skyward::ORM::Statements
     require_values(column_types, table, values)
     require_present(table, column_types.columns(table), values.keys)
     into = "INSERT INTO #{quote(table.table_name)}"
-    returned = returning(table.schema.columns)
-    return ["#{into} DEFAULT VALUES #{returned}", []] if values.empty?
+    return ["#{into} DEFAULT VALUES", []] if values.empty?
 
     placeholders = Array.new(values.size) { |index| adapter.placeholder(index + 1) }
     [
-      "#{into} (#{values.keys.map { |column| quote(column) }.join(", ")}) " \
-      "VALUES (#{placeholders.join(", ")}) #{returned}",
+      "#{into} (#{values.keys.map { |column| quote(column) }.join(", ")}) VALUES (#{placeholders.join(", ")})",
       values.values.map { |value| adapter.encode(value) }
     ]
   end

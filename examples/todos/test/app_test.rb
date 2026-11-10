@@ -74,7 +74,7 @@ describe "App" do
     end
 
     it "adds the todo to its list" do
-      list = Lists::Record.insert!(name: "Home")
+      list = Lists::Record.into(Lists::Record).insert!(name: "Home")
       todo = client.post("/todos", json: { title: "Ship it", priority: "normal", list_id: list.id }).json
 
       assert_equal list.id, todo[:list_id]
