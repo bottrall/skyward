@@ -24,8 +24,9 @@ module Skyward::API::CLI::Serve
   # @rbs apis: ^() -> Array[singleton(Skyward::API)]
   # @rbs features: Array[String]
   # @rbs loaders: ^() -> Array[Zeitwerk::Loader]
+  # @rbs generate: ^() -> String?
   # @rbs return: Reloader
-  def reloader: (String directory, build: ^(String config) -> Skyward::API::_RackApp, clock: ^() -> Float, apis: ^() -> Array[singleton(Skyward::API)], features: Array[String], loaders: ^() -> Array[Zeitwerk::Loader]) -> Reloader
+  def reloader: (String directory, build: ^(String config) -> Skyward::API::_RackApp, clock: ^() -> Float, apis: ^() -> Array[singleton(Skyward::API)], features: Array[String], loaders: ^() -> Array[Zeitwerk::Loader], generate: ^() -> String?) -> Reloader
 
   # @rbs directory: String
   # @rbs return: Hash[String, Time]

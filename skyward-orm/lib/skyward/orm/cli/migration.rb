@@ -16,8 +16,9 @@ module Skyward::ORM::CLI::Migration
   YES = /\Ay(?:es)?\z/i #: Regexp
 
   # @rbs (Array[String] args, directory: String, time: Time, input: IO, out: _Writer, kernel: singleton(Kernel),
-  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
-  def run(args, directory:, time:, input:, out:, kernel:, session:, discover:)
+  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)],
+  #   generate: ^() -> String?) -> void
+  def run(args, directory:, time:, input:, out:, kernel:, session:, discover:, generate:)
     flags, names = args.partition { |arg| arg.start_with?("-") }
     name = names.fetch(0) if names.one?
     empty = flags == [EMPTY]
@@ -29,7 +30,7 @@ module Skyward::ORM::CLI::Migration
     # the app can connect.
     return write_empty(name, directory:, time:, out:) if empty
 
-    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel) do |database|
+    Skyward::ORM::CLI::BootFile.boot(directory, session, kernel, generate) do |database|
       write(name, database, directory:, time:, input:, out:, kernel:, discover:)
     end
   end

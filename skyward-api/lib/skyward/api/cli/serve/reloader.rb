@@ -6,7 +6,7 @@ class Skyward::API::CLI::Serve::Reloader
   INTERVAL = 0.5 #: Float
 
   # @rbs @watch: ^() -> Hash[String, Time]
-  # @rbs @load: ^() -> Skyward::API::_RackApp
+  # @rbs @load: ^(Array[String] changed) -> Skyward::API::_RackApp
   # @rbs @clock: ^() -> Float
   # @rbs @mutex: Thread::Mutex
   # @rbs @checked_at: Float
@@ -14,7 +14,7 @@ class Skyward::API::CLI::Serve::Reloader
   # @rbs @app: Skyward::API::_RackApp
 
   # @rbs watch: ^() -> Hash[String, Time]
-  # @rbs load: ^() -> Skyward::API::_RackApp
+  # @rbs load: ^(Array[String] changed) -> Skyward::API::_RackApp
   # @rbs clock: ^() -> Float
   # @rbs return: void
   def initialize(watch:, load:, clock:)
@@ -24,7 +24,7 @@ class Skyward::API::CLI::Serve::Reloader
     @mutex = Thread::Mutex.new
     @checked_at = clock.call
     @files = watch.call
-    @app = attempt
+    @app = attempt(@files.keys)
   end
 
   # The app is taken under the lock but called outside it, so a request in
@@ -44,13 +44,15 @@ class Skyward::API::CLI::Serve::Reloader
     files = @watch.call
     return @app if files == @files
 
+    changed = (files.keys | @files.keys).reject { |file| files[file] == @files[file] }
     @files = files
-    @app = attempt
+    @app = attempt(changed)
   end
 
+  # @rbs changed: Array[String]
   # @rbs return: Skyward::API::_RackApp
-  def attempt
-    @load.call
+  def attempt(changed)
+    @load.call(changed)
   # A SyntaxError or LoadError is a ScriptError, not a StandardError.
   rescue StandardError, ScriptError => e
     ->(env) { failure(e, env) } #: ^(Hash[String, untyped]) -> Skyward::API::rack_response

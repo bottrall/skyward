@@ -1,7 +1,7 @@
 # Generated from lib/skyward/api/cli/check.rb with RBS::Inline
 
 module Skyward::API::CLI::Check
-  type capture = ^(Hash[String, String] env, Array[String] command, String chdir) -> [ String, bool ]
+  type capture = Skyward::Core::CLI::Executable::capture
 
   class Outcome < Data
     attr_reader passed(): bool
@@ -22,13 +22,11 @@ module Skyward::API::CLI::Check
 
   STEEPFILE: String
 
-  # None holds the app's contract: its tests, its installed gems and scratch.
-  UNCHECKED: Array[String]
-
   # The strict boot's own Ruby runs it, so the forced strict mode, the app's
   # side effects and an exit or crash stay out of skyward check. The require
   # lives here because a `-r` on the command line runs before RUBYOPT's
   # `-rbundler/setup` on newer Rubies, before the bundle's gems are loadable.
+  # skyward check writes nothing, so the boot doesn't regenerate sig/generated.
   BOOT: String
 
   INSTALL_RBS_INLINE: String
@@ -60,14 +58,6 @@ module Skyward::API::CLI::Check
   # @rbs detail: String
   # @rbs return: Outcome
   def failed: (String detail) -> Outcome
-
-  # @rbs directory: String
-  # @rbs return: Array[String]
-  def sources: (String directory) -> Array[String]
-
-  # @rbs directory: String
-  # @rbs return: Hash[String, String]
-  def rbs_files: (String directory) -> Hash[String, String]
 
   # @rbs current: Hash[String, String]
   # @rbs expected: Hash[String, String]

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "json"
 require "test_helper"
 require "open3"
@@ -61,7 +62,24 @@ describe "skyward/api/commands.rb" do
     end
   end
 
+  # A copy of an app whose app.rb rbs-inline reads, with its return type changed
+  # since sig/generated was.
+  def retyped
+    Dir.mktmpdir do |directory|
+      FileUtils.cp_r("#{File.expand_path("../../fixtures/check/passing", __dir__)}/.", directory)
+      app_rb = File.join(directory, "app.rb")
+      File.write(app_rb, File.read(app_rb).gsub("{ message: String }", "{ message: Integer }"))
+      yield directory
+    end
+  end
+
   describe "routes" do
+    it "regenerates sig/generated first, so it prints the types app.rb has now" do
+      retyped do |directory|
+        assert_equal ["GET  /  Hello#greet  () -> { message: Integer }\n", 0], skyward("routes", chdir: directory)
+      end
+    end
+
     it "prints the routes of the app.rb in the directory it's run in, laid out as the README shows" do
       readme = File.read(File.expand_path("../../../README.md", __dir__))
       example = readme[/^\$ skyward routes\n(.*?)^```/m, 1]
@@ -71,7 +89,7 @@ describe "skyward/api/commands.rb" do
 
     it "fails without a backtrace in a directory with no app.rb" do
       Dir.mktmpdir do |directory|
-        message = Skyward::API::CLI::AppFile.load(File.realpath(directory))
+        message = Skyward::API::CLI::AppFile.load(File.realpath(directory), -> {})
 
         assert_equal ["#{message}\n", 1], skyward("routes", chdir: directory)
       end
@@ -79,6 +97,16 @@ describe "skyward/api/commands.rb" do
   end
 
   describe "openapi" do
+    it "regenerates sig/generated first, so it writes the types app.rb has now" do
+      retyped do |directory|
+        written, status = skyward("openapi", chdir: directory)
+        response = JSON.parse(written).dig("paths", "/", "get", "responses", "200")
+        message = response.dig("content", "application/json", "schema", "properties", "message")
+
+        assert_equal [0, { "type" => "integer" }], [status, message]
+      end
+    end
+
     it "writes the app.rb app's document as pretty JSON with a trailing newline" do
       written, status = skyward("openapi", chdir: fixture)
       document = JSON.parse(written)

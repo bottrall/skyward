@@ -7,10 +7,10 @@ module Skyward::API::CLI::AppFile
 
   ASSIGNMENT = "App = Skyward.app { ... }" #: String
 
-  # @rbs (String directory, out: _Writer, kernel: singleton(Kernel)) { (Skyward::API::Assembly::Application) -> String }
-  #   -> void
-  def run(directory, out:, kernel:, &)
-    app = load(directory)
+  # @rbs (String directory, out: _Writer, kernel: singleton(Kernel), generate: ^() -> String?)
+  #   { (Skyward::API::Assembly::Application) -> String } -> void
+  def run(directory, out:, kernel:, generate:, &)
+    app = load(directory, generate)
     case app
     when String then kernel.abort(app)
     else out.write(yield app)
@@ -22,12 +22,16 @@ module Skyward::API::CLI::AppFile
   end
 
   # @rbs directory: String
+  # @rbs generate: ^() -> String?
   # @rbs return: Skyward::API::Assembly::Application | String
-  def load(directory)
+  def load(directory, generate)
     path = File.join(directory, FILE)
     unless File.file?(path)
       return "skyward: no #{FILE} in #{directory}. Run skyward where your app's #{FILE} assigns #{ASSIGNMENT}."
     end
+
+    failure = generate.call
+    return failure if failure
 
     require path
     app = Object.const_get(:App) if Object.const_defined?(:App)

@@ -1,0 +1,3 @@
+module Skyward::Core::Signatures::Inline
+  extend ::Skyward::Core::Signatures::Inline
+end
