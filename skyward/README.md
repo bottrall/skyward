@@ -1,12 +1,12 @@
 # Skyward
 
 > [!CAUTION]
-> **Work in progress: Skyward works, but it isn't finished.** Everything this README describes is built, as [Status](#status) lists, but a few parts of the [Skyward API](../skyward-api/README.md#status) and [Skyward ORM](../skyward-orm/README.md#status) specs aren't yet. Until 1.0, any release may change the API, so don't depend on it in production yet.
+> Skyward is pre-1.0. Everything this README describes is built, as [Status](#status) lists, but parts of the [Skyward API](../skyward-api/README.md#status) and [Skyward ORM](../skyward-orm/README.md#status) specs aren't yet. Any release may change the API, so don't run it in production yet.
 
-Typed Ruby web apps, where an endpoint is a method and a row is a value. This gem installs both halves of Skyward:
+This gem installs both halves of Skyward, and adds `skyward new`, which writes an app that uses them:
 
-- [Skyward API](../skyward-api/README.md), a web framework where an endpoint is a method, typed with RBS.
-- [Skyward ORM](../skyward-orm/README.md), an ORM where a class is a table and its rows are frozen values, typed with RBS.
+- [Skyward API](../skyward-api/README.md), a web framework where an endpoint is a method and its RBS signature is the API contract.
+- [Skyward ORM](../skyward-orm/README.md), an ORM where a class is a table, its rows are frozen values and its migrations are written for you.
 
 Each works without the other. Add this gem when you want both.
 

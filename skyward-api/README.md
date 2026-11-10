@@ -1,13 +1,13 @@
 # Skyward API
 
 > [!CAUTION]
-> **Work in progress: Skyward API works, but it isn't finished.** Most of what this README describes is built, but it's the spec, and a few parts of it aren't built yet: [Status](#status) lists what is, and what's still to come. Until 1.0, any release may change the API, so don't depend on it in production yet.
+> Skyward API is pre-1.0. This README is its spec, most of it is built, and [Status](#status) lists exactly what is. Any release may change the API, so don't run it in production yet.
 
-A small, fast Ruby web framework where **an endpoint is a method**.
+A Ruby web framework where **an endpoint is a method**, and its type signature is the API contract.
 
-Its inputs are keyword arguments. Its response is the return value. Add a type signature and Skyward API uses it to coerce and validate the request, check your code with Steep, and write your OpenAPI docs for you. Leave the signature off and it's still just Ruby.
+Its inputs are keyword arguments and its response is the return value. Add an RBS signature and Skyward API coerces and validates the request against it, publishes it as your OpenAPI document, and Steep checks the method against it. Leave the signature off and it's plain Ruby.
 
-Skyward API is half of Skyward. The other half is [Skyward ORM](../skyward-orm/README.md), but each works without the other.
+It's half of Skyward. The other half is [Skyward ORM](../skyward-orm/README.md), and you can use either without the other.
 
 ```ruby
 # config.ru
@@ -31,7 +31,7 @@ $ curl localhost:9292/hello/ruby?shout=true
 {"message":"HELLO, RUBY"}
 ```
 
-That's the whole framework. The rest of this README is detail.
+The rest of this README is reference. If you only read one section, read [Types](#types).
 
 ---
 
@@ -41,7 +41,7 @@ That's the whole framework. The rest of this README is detail.
 - [Endpoints](#endpoints)
 - [Inputs](#inputs)
 - [Responses](#responses)
-- [Types: the bonus that pays rent](#types-the-bonus-that-pays-rent)
+- [Types](#types)
 - [OpenAPI docs](#openapi-docs)
 - [Building an app](#building-an-app)
 - [Providers](#providers)
@@ -49,7 +49,7 @@ That's the whole framework. The rest of this README is detail.
 - [Testing](#testing)
 - [Production](#production)
 - [CLI](#cli)
-- [Coming from…](#coming-from)
+- [Coming from other frameworks](#coming-from-other-frameworks)
 - [Design principles](#design-principles)
 - [Status](#status)
 
@@ -107,7 +107,7 @@ Skyward API fills each keyword argument by its name:
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
 | a path parameter (`id:` for `/:id`)             | the URL path                                                                      |
 | `body:`                                         | the parsed JSON request body                                                      |
-| `request:`                                      | the raw `Skyward::API::Request` (an escape hatch for headers, cookies and the IP) |
+| `request:`                                      | the raw `Skyward::API::Request`, for headers, cookies and the IP                  |
 | a [provided](#providers) name (`current_user:`) | your provider                                                                     |
 | anything else                                   | the query string                                                                  |
 
@@ -126,7 +126,7 @@ def create(body:)
 end
 ```
 
-`request:` is the escape hatch for what typed inputs don't cover. It's a frozen `Skyward::API::Request`, built only when an endpoint or a provider asks for it, with the request's `headers` by lowercase name (`request.headers["authorization"]`), its `cookies`, the client's `ip`, its `request_id`, and `env`, the raw Rack env, for anything else. Its type is `Skyward::API::Request`, it never comes from the query string, and it never appears in the docs.
+`request:` covers what typed inputs don't. It's a frozen `Skyward::API::Request`, built only when an endpoint or a provider asks for it, with the request's `headers` by lowercase name (`request.headers["authorization"]`), its `cookies`, the client's `ip`, its `request_id`, and `env`, the raw Rack env, for anything else. Its type is `Skyward::API::Request`, it never comes from the query string, and it never appears in the docs.
 
 ---
 
@@ -165,7 +165,7 @@ Error responses use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) `applicat
 }
 ```
 
-A Rack triple is the escape hatch for anything a value can't express: streaming, files, or a content type other than JSON. Its status, headers and body are sent as given, so a body that streams through `each` or `call` works. Rack 3 wants lowercase header names, and Skyward API doesn't rewrite them. A typed endpoint sends a triple only when its return type says so, with `Skyward::API::rack`, which is `[Integer, Hash[String, String], untyped]`, written `rack` under the [`# @rbs use` line](#types-the-bonus-that-pays-rent):
+Return a Rack triple for anything a value can't express: streaming, files, or a content type other than JSON. Its status, headers and body are sent as given, so a body that streams through `each` or `call` works. Rack 3 wants lowercase header names, and Skyward API doesn't rewrite them. A typed endpoint sends a triple only when its return type says so, with `Skyward::API::rack`, which is `[Integer, Hash[String, String], untyped]`, written `rack` under the [`# @rbs use` line](#types):
 
 ```ruby
 # @rbs id: Integer
@@ -176,18 +176,18 @@ def export(id:)
 end
 ```
 
-Nothing checks what a triple sends: that's the point of an escape hatch, and why it's opt-in through the return type. An `Array[T]` return is always JSON, even with three items.
+Nothing checks what a triple sends, which is why it's opt-in through the return type. An `Array[T]` return is always JSON, even with three items.
 
 ---
 
-## Types: the bonus that pays rent
+## Types
 
-Everything above works without types. Add a signature and it does more:
+Everything above works without types. Add a signature and:
 
-- **Coercion.** `"42"` in the path becomes `42` when the signature says `Integer`.
-- **Validation.** A body that doesn't match its type is rejected with a 422 that says exactly what was wrong, before your method runs.
-- **Docs.** The signature becomes the OpenAPI operation, including every possible response.
-- **Checking.** Steep checks your handlers like any other Ruby code, because they _are_ ordinary Ruby code.
+- `"42"` in the path becomes `42` when the signature says `Integer`.
+- A body that doesn't match its type gets a 422 saying exactly what's wrong, before your method runs.
+- The signature becomes the OpenAPI operation, with every response it can return.
+- Steep checks your handlers like any other Ruby, because that's all they are.
 
 Signatures are plain [RBS](https://github.com/ruby/rbs). Write them inline with [rbs-inline](https://github.com/soutaro/rbs-inline), or in `sig/*.rbs` files. Skyward API reads both, from the `.rbs` files under `sig/` (or the directory you pass as `Skyward.app(signatures:)`), so run rbs-inline before you boot. There's no schema DSL to learn and nothing to keep in sync: **the type you write for Steep is the API contract.**
 
@@ -363,7 +363,7 @@ end
 
 A `summary:` is one line, and Skyward API refuses to boot if it has a line break. A `description:` is Markdown.
 
-Comments are never read. They're for people reading the Ruby, and they never reach your docs, so documentation can't hide in a comment, and a comment can't change what you publish.
+Comments are never read, so they never reach your docs, and changing one can't change what you publish.
 
 Docs are served only when you pass `docs: true`, so leave it out to hide them. With it, a route or a static file at `/openapi.json` or `/docs` fails boot. The document and the page at `/docs` are built once, at boot, and the same app always writes the same bytes. The document is your API's contract with the code that calls it. Skyward API doesn't write clients: write the document at build time, and generate a client from it with whatever tooling suits that code:
 
@@ -499,7 +499,7 @@ end
 
 ## Errors
 
-Skyward API checks your app thoroughly at boot, so mistakes surface when you start it, not at 3am:
+Skyward API checks your app at boot, so mistakes show up when you start it, not at 3am:
 
 ```
 Skyward::Core::BootError: TodosAPI#show (GET /todos/:id)
@@ -555,7 +555,7 @@ describe TodosAPI do
 end
 ```
 
-No server, no Rack, no mocks. You pass the fake in through the front door.
+There's no server or Rack in that test. The fake goes in through `initialize`.
 
 When you want the whole stack, including routing, coercion, providers and middleware, use the test client:
 
@@ -578,9 +578,9 @@ end
 
 ## Production
 
-Here's what you get without configuring anything:
+Without any configuration, you get:
 
-- **Boot does the work. Requests don't.** Routes are compiled into a single matcher, and signatures are compiled into coercers and validators, all at boot. API objects are created once. A request is a route lookup, a coercion and a method call.
+- **Work done at boot.** Routes are compiled into a single matcher, and signatures are compiled into coercers and validators, all at boot. API objects are created once. A request is a route lookup, a coercion and a method call.
 - **Bounded request bodies.** A body is read only for an endpoint that takes `body:`, and only up to `Skyward.app(max_body_size:)` bytes, 1 MiB (`1_048_576`) by default. A larger `Content-Length`, or a body that runs past the limit, answers 413 without reading the rest, and a body whose `Content-Type` isn't `application/json` or `*+json` answers 415.
 - **Bounded error lists.** A 422 lists at most 1,000 problems, and coercion stops once it has found them. Each message writes its expected type in at most 200 characters, worked out at boot, so a small body can't produce a large response.
 - **Bounded coercion.** A union's members only find whether a value fits, without writing errors, and a union nested in several members coerces each value once, so overlapping members don't multiply the cost of coercing a body by the type's depth.
@@ -654,23 +654,23 @@ No type error detected.
 
 ---
 
-## Coming from…
+## Coming from other frameworks
 
-- **Sinatra.** The routes will feel familiar, but the handler is a named method rather than a block, so you can call it, test it and type it.
-- **Rails.** There's no controller instance per request and no `params` hash. Inputs arrive as arguments, and dependencies arrive through `initialize`.
-- **FastAPI.** It's the same big idea: the function signature is the API contract. Here it's in Ruby, with RBS instead of type hints.
+- **Sinatra.** The routes will look familiar. The handler is a named method instead of a block, so you can call it, test it and type it.
+- **Rails.** There's no controller instance per request and no `params` hash. Inputs arrive as arguments, and dependencies through `initialize`.
+- **FastAPI.** Same idea: the function signature is the API contract. Here it's Ruby, with RBS for the type hints.
 - **Grape.** You get the docs without the DSL.
 
 ---
 
 ## Design principles
 
-1. **It's just Ruby.** Classes, methods, keyword arguments and return values. If you can write a method, you can write an endpoint.
-2. **Types are a bonus that pays rent.** Nothing requires them. Every signature you add buys coercion, validation, docs and type checking.
-3. **One source of truth.** The signature is the contract, so there's no schema written twice.
-4. **Responses are values.** You return what happened. Nothing is raised for an ordinary outcome.
-5. **Dependencies come in through the front door.** Collaborators arrive through `initialize`, and per-request values through providers. Nothing reaches for globals.
-6. **Boot does the work.** Skyward API fails at boot rather than in production, and pays the cost at boot rather than on each request.
+1. **Plain Ruby.** An endpoint is a method on a class you wrote, with keyword arguments in and a value out.
+2. **Optional types.** Nothing requires a signature. Each one you add gets you coercion, validation, docs and type checking for that endpoint.
+3. **One contract.** The signature is the schema, so nothing is written twice.
+4. **Responses are values.** You return what happened. Nothing is raised for an ordinary outcome like a 404.
+5. **Dependencies are passed in.** Collaborators arrive through `initialize`, and per-request values through providers. Nothing reaches for globals.
+6. **Boot does the work.** Mistakes stop the app from booting, and routes and types are compiled once, at boot, instead of on every request.
 
 ---
 

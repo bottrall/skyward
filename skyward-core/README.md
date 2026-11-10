@@ -1,7 +1,7 @@
 # Skyward Core
 
 > [!CAUTION]
-> **Work in progress: Skyward isn't finished.** Everything this README describes is built, as [Status](#status) lists, but a few parts of the [Skyward API](../skyward-api/README.md#status) and [Skyward ORM](../skyward-orm/README.md#status) specs aren't yet. Until 1.0, any release may change the API, so don't depend on Skyward in production yet.
+> Skyward is pre-1.0. Everything this README describes is built, as [Status](#status) lists, but parts of the [Skyward API](../skyward-api/README.md#status) and [Skyward ORM](../skyward-orm/README.md#status) specs aren't yet. Any release may change the API, so don't run it in production yet.
 
 The plumbing that [Skyward API](../skyward-api/README.md) and [Skyward ORM](../skyward-orm/README.md) share. You don't add it to your Gemfile: each of them depends on it, at exactly the same version.
 
