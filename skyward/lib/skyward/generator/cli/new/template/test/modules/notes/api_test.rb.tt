@@ -35,6 +35,13 @@ describe Notes::API do
 
   describe "#create" do
     it "answers the new note, created" do
+      response = api.create(body: Notes::API::NewNote.new(title: "Buy milk", body: "Today"))
+
+      assert_instance_of Skyward::API::Responses::Created, response
+      assert_equal({ title: "Buy milk", body: "Today" }, response.value.to_h.except(:id))
+    end
+
+    it "keeps the new note" do
       note = api.create(body: Notes::API::NewNote.new(title: "Ship it", body: "Today")).value
 
       assert_equal Notes::Record.find_by(id: note.id), note

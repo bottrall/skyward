@@ -280,7 +280,7 @@ Stop the server with Ctrl-C.
 
 ## 8. Test it
 
-An endpoint is a method on a plain object, so the fastest test calls it. Add to `test/modules/notes/api_test.rb`, inside `describe Notes::API`:
+An endpoint is a method on a plain object, so its test calls it. Add to `test/modules/notes/api_test.rb`, inside `describe Notes::API`:
 
 ```ruby
 describe "#pin" do
@@ -296,55 +296,43 @@ describe "#pin" do
 end
 ```
 
-Rows are values, so the test compares them with `==`. `write` is a helper already in the file, which inserts a note.
+Rows are values, so the test compares them with `==`. `write` is a helper already in the file, which inserts a note. Skyward checks each request against the method's signature before the method runs, as the 422 for `/notes/abc/pin` showed, so the tests don't repeat that.
 
-To test the whole stack, routing and the `id:` conversion included, use `Skyward::API::Test.client`, which calls the app in-process without a server. Add to `test/app_test.rb`, inside `describe "App"`:
+`test/app_test.rb` covers mounting, which is what `app.rb` decides. It uses `Skyward::API::Test.client`, which calls the app in-process without a server, to make one request to the notes API at `/notes`, and checks that `/docs` is served and `/openapi.json` documents every path. Add the new path to that list, on line 18:
 
 ```ruby
-describe "POST /notes/:id/pin" do
-  it "answers the note, pinned" do
-    response = client.post("/notes/#{write.json[:id]}/pin")
-
-    assert_equal [200, true], [response.status, response.json[:pinned]]
-  end
-
-  it "answers 422 for an id that isn't a number" do
-    response = client.post("/notes/abc/pin")
-
-    assert_equal [422, "path.id"], [response.status, response.json[:errors].first[:at]]
-  end
-end
+assert_equal %i[/notes /notes/{id} /notes/{id}/pin], paths
 ```
 
 Each test runs in a transaction that's rolled back after it, on a database of its own, so the tests never see your development notes. Run them:
 
 ```sh
 $ bin/test
-Run options: --seed 41342
+Run options: --seed 30111
 
 # Running:
 
-...........F....
+..F.........
 
-Finished in 0.006895s, 2320.4477 runs/s, 2465.4757 assertions/s.
+Finished in 0.006744s, 1779.3563 runs/s, 2075.9156 assertions/s.
 
   1) Failure:
-App::POST /notes#test_0001_answers 201 with the new note [test/app_test.rb:34]:
+Notes::API::#create#test_0001_answers the new note, created [test/modules/notes/api_test.rb:41]:
 --- expected
 +++ actual
 @@ -1 +1 @@
--[201, {title: "Buy milk", body: "Today"}]
-+[201, {title: "Buy milk", body: "Today", pinned: false}]
+-{title: "Buy milk", body: "Today"}
++{title: "Buy milk", body: "Today", pinned: false}
 
 
-16 runs, 17 assertions, 1 failures, 0 errors, 0 skips
+12 runs, 14 assertions, 1 failures, 0 errors, 0 skips
 ...
 ```
 
-The new tests pass, but one that came with the app fails: it checks every field of a new note, and a note now has `pinned` too. Add it to what the test expects, on line 34 of `test/app_test.rb`:
+The new tests pass, but one that came with the app fails: it checks every field of a new note, and a note now has `pinned` too. Add it to what the test expects, on line 41 of `test/modules/notes/api_test.rb`:
 
 ```ruby
-assert_equal [201, { title: "Buy milk", body: "Today", pinned: false }], [response.status, response.json.except(:id)]
+assert_equal({ title: "Buy milk", body: "Today", pinned: false }, response.value.to_h.except(:id))
 ```
 
 ```sh
@@ -353,11 +341,11 @@ Run options: --seed 14087
 
 # Running:
 
-................
+............
 
-Finished in 0.005640s, 2837.0002 runs/s, 3014.3127 assertions/s.
+Finished in 0.005343s, 2245.7397 runs/s, 2620.0296 assertions/s.
 
-16 runs, 17 assertions, 0 failures, 0 errors, 0 skips
+12 runs, 14 assertions, 0 failures, 0 errors, 0 skips
 ```
 
 ## 9. Run CI
@@ -372,11 +360,11 @@ Run options: --seed 25242
 
 # Running:
 
-................
+............
 
-Finished in 0.004997s, 3201.8955 runs/s, 3402.0140 assertions/s.
+Finished in 0.004696s, 2555.3325 runs/s, 2981.2213 assertions/s.
 
-16 runs, 17 assertions, 0 failures, 0 errors, 0 skips
+12 runs, 14 assertions, 0 failures, 0 errors, 0 skips
 Migrated 20261109000000
 Migrated 20261109160824
 Signatures: passed

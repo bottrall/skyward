@@ -43,7 +43,9 @@ A JSON API built with Skyward: [Skyward API](https://github.com/bottrall/skyward
 
 ## Tests
 
-- Tests are Minitest, in spec style (`describe`/`it`). The fastest test calls an endpoint's method directly; `Skyward::API::Test.client(App)` drives the whole stack.
+- Tests are Minitest, in spec style (`describe`/`it`).
+- An endpoint's behaviour is tested by calling its method, in its API's test: `test/modules/notes/api_test.rb` for `Notes::API`. Skyward API coerces and validates each request against the signature, so the tests don't repeat that over HTTP.
+- `test/app_test.rb` covers mounting, which is what `app.rb` decides. Through `Skyward::API::Test.client(App)`, it makes one request to each API at the path it's mounted at, and checks that `/openapi.json` lists every path and `/docs` is served. A new endpoint adds its path to that list, and nothing else to `app_test.rb`.
 - Every test runs in a transaction that's rolled back after it, the HTTP tests included, so each starts from an empty database.
 - The tests use their own database, migrated from empty each run: in-memory SQLite, or `TEST_DATABASE_URL`. They never touch `DATABASE_URL`.
 

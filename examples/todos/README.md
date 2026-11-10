@@ -1,6 +1,6 @@
 # Todos
 
-A JSON API for todos, built with [Skyward API](../../skyward-api/README.md) and stored with [Skyward ORM](../../skyward-orm/README.md). It's Skyward's end-to-end test on SQLite: its HTTP tests prove the two halves work together in a real app. [`examples/todos_postgres`](../todos_postgres/README.md) is the same app on PostgreSQL.
+A JSON API for todos, built with [Skyward API](../../skyward-api/README.md) and stored with [Skyward ORM](../../skyward-orm/README.md). It's Skyward's end-to-end test on SQLite: its API and service tests run the two halves together on a real database, and its app test checks they're mounted. [`examples/todos_postgres`](../todos_postgres/README.md) is the same app on PostgreSQL.
 
 It has no frontend. Its tests and `/docs` exercise it, and a client is whatever you generate from its OpenAPI document at `/openapi.json`.
 

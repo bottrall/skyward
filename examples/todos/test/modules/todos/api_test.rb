@@ -8,7 +8,9 @@ describe Todos::API do
 
   def create(title = "Ship it") = todos.create(title:, priority: :normal, due_on: nil, list_id: nil)
 
-  def new_todo(title: "Ship it", list_id: nil) = Todos::API::NewTodo.new(title:, priority: :high, due_on: nil, list_id:)
+  def new_todo(title: "Ship it", due_on: nil, list_id: nil)
+    Todos::API::NewTodo.new(title:, priority: :high, due_on:, list_id:)
+  end
 
   describe "#index" do
     it "lists 50 todos, open or done, by default" do
@@ -46,9 +48,14 @@ describe Todos::API do
 
   describe "#create" do
     it "answers the new todo, created" do
-      todo = api.create(body: new_todo).value
+      list = Lists::Record.into(Lists::Record).insert!(name: "Home")
+      response = api.create(body: new_todo(title: "Buy milk", due_on: Date.new(2026, 12, 1), list_id: list.id))
 
-      assert_equal todos.find(todo.id), todo
+      assert_instance_of Skyward::API::Responses::Created, response
+      assert_equal(
+        { list_id: list.id, title: "Buy milk", priority: :high, due_on: Date.new(2026, 12, 1), done: false },
+        response.value.to_h.except(:id)
+      )
     end
 
     it "answers 404 for a list that doesn't exist" do

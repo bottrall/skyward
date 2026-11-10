@@ -43,7 +43,7 @@ The name is lowercase letters, digits and underscores, starting with a letter, s
 | `db/migrate/` | the migration `skyward migration` wrote for `Notes::Record` |
 | `sig/generated` | the signatures rbs-inline generates from the app's inline annotations |
 | `Steepfile`, `rbs_collection.yaml` | Steep with every diagnostic an error, and the gem signatures it reads |
-| `test/` | tests of `Notes::API` and of `App` over HTTP, each in a transaction that's rolled back, on in-memory SQLite or `TEST_DATABASE_URL` |
+| `test/` | tests of `Notes::API`, which call its methods, and of `App`, which check over HTTP that it mounts each API and serves `/openapi.json` and `/docs`, each in a transaction that's rolled back, on in-memory SQLite or `TEST_DATABASE_URL` |
 | `bin/setup` | installs the gems and the gem signatures, and migrates the database |
 | `bin/test` | runs the tests |
 | `bin/ci` | regenerates the signatures and fails if they changed, runs the tests, then runs `skyward check` on a database of its own |
