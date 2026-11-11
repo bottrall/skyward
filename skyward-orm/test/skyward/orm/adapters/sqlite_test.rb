@@ -156,16 +156,38 @@ describe Skyward::ORM::Adapters::SQLite do
         [:float, "float"],
         [:string, "varchar(255)"],
         [:enum, "CLOB"],
-        [:date, "text"]
+        [:date, "text"],
+        [:bool, "BOOLEAN"],
+        [:date, "DATE"],
+        [:time, "DATETIME"],
+        [:time, "DATETIME(6)"]
       ]
 
       assert(declared.all? { |type, sql_type| sqlite.compatible?(type, sql_type) })
     end
 
     it "refuses a declared type with another affinity" do
-      declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "DATETIME"], [:float, "NUMERIC"]]
+      declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "BLOB"], [:float, "NUMERIC"]]
 
       assert(declared.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
+    end
+  end
+
+  describe ".compatible? with NUMERIC affinity" do
+    it "refuses every type but bool, date and time" do
+      numeric = %w[NUMERIC DECIMAL(10,2) BOOLEAN DATETIME]
+      refused = %i[integer float string enum].product(numeric)
+
+      assert(refused.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
+    end
+
+    it "reads back == what was written to BOOLEAN, DATE and DATETIME(6) columns" do
+      connection.execute_batch("CREATE TABLE events (done BOOLEAN, on_date DATE, at DATETIME(6))")
+      written = [true, Date.new(2026, 11, 11), Time.utc(2026, 11, 11, 9, 30, 0, 123_456)]
+      connection.execute("INSERT INTO events VALUES (?, ?, ?)", written.map { |value| sqlite.encode(value) })
+      row = connection.execute("SELECT done, on_date, at FROM events").fetch(0)
+
+      assert_equal(written, %i[bool date time].zip(row).map { |type, value| sqlite.decode(type, value) })
     end
   end
 
