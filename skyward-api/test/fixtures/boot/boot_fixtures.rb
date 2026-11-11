@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedPositional, UnsignedProvider, ModuleProvider,
-# ClassProvider, UnsignedProvided and the classes refused before their signature is read: Unrouted, Private and
-# Protected. Each class that fails to boot has one problem.
+# Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedPositional, UnsignedRacking, UnsignedProvider,
+# ModuleProvider, ClassProvider, UnsignedProvided and the classes refused before their signature is read: Unrouted,
+# Private and Protected. Each class that fails to boot has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
@@ -319,6 +319,17 @@ module BootFixtures
     def written = [204, {}, []]
 
     def download(id:) = not_found("Todo #{id} does not exist")
+  end
+
+  UnsignedRacking = Class.new(Skyward::API) do
+    get "/", to: :text
+
+    def initialize(body)
+      super()
+      @body = body
+    end
+
+    def text = [200, { "content-type" => "text/plain" }, @body]
   end
 
   # Every kind of route the OpenAPI document describes, each method routed once.

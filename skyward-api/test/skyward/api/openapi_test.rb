@@ -451,6 +451,13 @@ describe Skyward::API::OpenAPI do
         )
       end
 
+      it "answers untyped with a 200 of any value and no default, though it can send a Rack triple" do
+        assert_equal(
+          { "200" => { "description" => "OK", "content" => content("application/json", {}) } },
+          responses(endpoint(:index, returns: [types::Scalar.new(name: :untyped)]))
+        )
+      end
+
       it "gives members that share a status one response, with oneOf their schemas" do
         written = responses(endpoint(:index, returns: [todo, types::Reader::NIL_LITERAL]))
 

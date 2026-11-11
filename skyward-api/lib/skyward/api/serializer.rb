@@ -65,11 +65,11 @@ class Skyward::API::Serializer
     end
   end
 
-  # Untyped code can return any response value.
+  # Untyped code can return any response value, or a Rack triple.
   # @rbs return: Writers::Writer
   def untyped
     writer = Writers.writer(UNTYPED)
-    responses = [created(writer), *RESPONSES.map { |klass| response(klass) }, ok(writer)]
+    responses = [created(writer), *RESPONSES.map { |klass| response(klass) }, untyped_rack, ok(writer)]
     Writers.union(responses).with(name: "untyped")
   end
 
@@ -105,11 +105,29 @@ class Skyward::API::Serializer
 
   # @rbs return: Writers::Writer
   def rack
-    Writers.checked(
-      "Skyward::API::rack",
-      ->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) },
-      ->(given, _) { given }
-    )
+    rack_writer(->(given) { given.is_a?(Array) && given.size == 3 && given[0].is_a?(Integer) && given[1].is_a?(Hash) })
+  end
+
+  # Nothing typed says an untyped value is a triple, so it must have a status HTTP has and a body Rack can send.
+  # @rbs return: Writers::Writer
+  def untyped_rack
+    rack_writer(->(given) { triple?(given) })
+  end
+
+  # @rbs fits: ^(untyped) -> bool
+  # @rbs return: Writers::Writer
+  def rack_writer(fits)
+    Writers.checked("Skyward::API::rack", fits, ->(given, _) { given })
+  end
+
+  # @rbs given: untyped
+  # @rbs return: bool
+  def triple?(given)
+    return false unless given.is_a?(Array) && given.size == 3
+
+    status, headers, body = given
+    status.is_a?(Integer) && status.between?(100, 599) && headers.is_a?(Hash) &&
+      (body.respond_to?(:each) || body.respond_to?(:call))
   end
 
   # @rbs problem: Problem
