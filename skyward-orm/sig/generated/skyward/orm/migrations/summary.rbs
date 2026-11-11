@@ -43,7 +43,6 @@ module Skyward::ORM::Migrations::Summary
   # @rbs return: String
   def constraint: (Skyward::ORM::Catalog::Constraint constraint) -> String
 
-  # An index on an expression has no columns to name.
   # @rbs index: Skyward::ORM::Catalog::Index
   # @rbs return: String
   def index: (Skyward::ORM::Catalog::Index index) -> String

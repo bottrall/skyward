@@ -85,6 +85,23 @@ describe Skyward::ORM::CLI::Status do
       end
     end
 
+    it "lists what a table keeps that its class can't declare, without exiting 1 for it" do
+      app do |directory, connection|
+        text = empty.adapter.sql_type(:string)
+        connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name #{text} NOT NULL)")
+        connection.execute("CREATE INDEX lists_lower_name_index ON lists (lower(name))")
+        run_in(directory, classes: [MigrationsFixtures::List])
+        expected = <<~TEXT
+          No migrations yet.
+          lists:
+            lists_lower_name_index  kept: not declared by MigrationsFixtures::List
+          #{Skyward::ORM::Migrations::Status::CLEAN.chomp}
+        TEXT
+
+        assert_equal [expected, nil], [out.string, kernel.exited]
+      end
+    end
+
     it "shows a column that may have been renamed as one dropped and one added, since it doesn't ask" do
       app do |directory, connection|
         text = empty.adapter.sql_type(:string)

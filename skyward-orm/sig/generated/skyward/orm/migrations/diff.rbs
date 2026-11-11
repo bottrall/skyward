@@ -5,6 +5,20 @@ module Skyward::ORM::Migrations::Diff
 
   NULL: String
 
+  # A name as SQLite or PostgreSQL writes it, quoted or not.
+  NAME: Regexp
+
+  # A name with its schema, if it has one.
+  QUALIFIED: Regexp
+
+  # An index a class can declare: on columns alone, by PostgreSQL's btree,
+  # with no WHERE or INCLUDE, and not unique, since a class makes that only as
+  # a unique constraint.
+  PLAIN_INDEX: Regexp
+
+  # The columns a foreign key names after its table, if it names any.
+  REFERENCED: Regexp
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -12,6 +26,16 @@ module Skyward::ORM::Migrations::Diff
   #   Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter,
   #   ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Array[Skyward::ORM::Migrations::change]
   def changes: (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Array[Skyward::ORM::Migrations::change]
+
+  # The indexes and constraints the table has that the class can't declare,
+  # which the diff neither drops nor adds. PostgreSQL puts a check on every
+  # column it mentions, so one the class declares is matched by its name first.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs table: Skyward::ORM::Catalog::Table
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: [Array[Skyward::ORM::Catalog::Index], Array[Skyward::ORM::Catalog::Constraint]]
+  def kept: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables) -> [ Array[Skyward::ORM::Catalog::Index], Array[Skyward::ORM::Catalog::Constraint] ]
 
   private
 
@@ -22,9 +46,9 @@ module Skyward::ORM::Migrations::Diff
   # Indexes and constraints go before the columns they're on, and come back
   # after the columns they need.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
-  #   Skyward::ORM::Catalog::Table table, Skyward::ORM::_Adapter adapter,
+  #   Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter,
   #   ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
-  def altered: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
+  def altered: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
 
   # The indexes to drop and to add. One is compared by the columns it will
   # have after any rename, and dropped as the database has it.
@@ -75,6 +99,17 @@ module Skyward::ORM::Migrations::Diff
   # @rbs wanted: Skyward::ORM::Catalog::Index
   # @rbs return: bool
   def same_index?: (Skyward::ORM::Catalog::Index had, Skyward::ORM::Catalog::Index wanted) -> bool
+
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: bool
+  def declarable?: (Skyward::ORM::Catalog::Constraint constraint, Array[Skyward::ORM::Catalog::Table] tables) -> bool
+
+  # A reference that names no columns is to its table's primary key.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: bool
+  def to_primary_key?: (Skyward::ORM::Catalog::Constraint constraint, Array[Skyward::ORM::Catalog::Table] tables) -> bool
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint
   # @rbs added: Array[Skyward::ORM::Tables::Column]

@@ -25,7 +25,9 @@ describe Skyward::ORM::Migrations::Script do
   def create(klass) = Skyward::ORM::Migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
 
   def alter(klass, edits, table: catalog_table(klass.table_name), types: column_types)
-    Skyward::ORM::Migrations::AlterTable.new(klass:, columns: types.columns(klass), table:, edits:)
+    Skyward::ORM::Migrations::AlterTable.new(
+      klass:, columns: types.columns(klass), table:, edits:, kept_indexes: [], kept_constraints: []
+    )
   end
 
   def add(klass, *names)
@@ -442,6 +444,33 @@ describe Skyward::ORM::Migrations::Script do
         migrate(section(changes, :down))
 
         assert_equal [[[1, "Milk", "milk"]], [[1, "Milk", "milk"]]], [kept, rows]
+      end
+
+      it "keeps what the class can't declare when it rebuilds, recreating each index and copying each constraint" do
+        created = section(diff([changed::Owner, changed::Item]), :up).sub(/(CREATE TABLE items \(.*?)\n\);/m) do
+          "#{Regexp.last_match(1)},\n  CONSTRAINT items_pair_check CHECK (rank < length(title)),\n  CHECK (1 = 1)\n);"
+        end
+        migrate(<<~SQL)
+          #{created}
+          CREATE INDEX items_lower_title_index ON items (lower(title));
+          CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL;
+        SQL
+        had = schema
+        changes = diff([changed::Owner, changed::Unchecked])
+        migrate(section(changes, :up))
+        kept = schema.find { |table| table.name == :items }
+        matched = diff([changed::Owner, changed::Unchecked])
+        migrate(section(changes, :down))
+
+        assert_equal(
+          [["CHECK (1 = 1)", "CHECK (rank < length(title))"], %w[items_lower_title_index items_noted_index], [], had],
+          [
+            kept&.constraints.to_a.map(&:definition).grep(/rank|1 = 1/).sort,
+            kept&.indexes.to_a.map(&:name).grep(/lower|noted/),
+            matched,
+            schema
+          ]
+        )
       end
 
       it "alters in place what SQLite's ALTER TABLE can, without rebuilding" do

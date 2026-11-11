@@ -22,15 +22,24 @@ module Skyward::ORM::Migrations::Status
   # @rbs return: Array[Symbol]
   def unowned: (Array[Skyward::ORM::Catalog::Table] tables, Array[singleton(Skyward::ORM::Record)] classes) -> Array[Symbol]
 
+  # Each class whose table has what the class can't declare, with the name of
+  # each such index and constraint. SQLite can hold a constraint with no name.
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: Array[[singleton(Skyward::ORM::Record), Array[String]]]
+  def kept: (Array[singleton(Skyward::ORM::Record)] classes, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables) -> Array[[ singleton(Skyward::ORM::Record), Array[String] ]]
+
   # @rbs migrations: Array[[String, state]]
   # @rbs changes: Array[Skyward::ORM::Migrations::change]
   # @rbs unowned: Array[Symbol]
   # @rbs return: bool
   def clean?: (Array[[ String, state ]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned) -> bool
 
-  # @rbs (Array[[String, state]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned,
+  # @rbs (Array[[String, state]] migrations, Array[Skyward::ORM::Migrations::change] changes,
+  #   Array[[singleton(Skyward::ORM::Record), Array[String]]] kept, Array[Symbol] unowned,
   #   Skyward::ORM::_Adapter adapter) -> String
-  def text: (Array[[ String, state ]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[Symbol] unowned, Skyward::ORM::_Adapter adapter) -> String
+  def text: (Array[[ String, state ]] migrations, Array[Skyward::ORM::Migrations::change] changes, Array[[ singleton(Skyward::ORM::Record), Array[String] ]] kept, Array[Symbol] unowned, Skyward::ORM::_Adapter adapter) -> String
 
   private
 
@@ -42,6 +51,10 @@ module Skyward::ORM::Migrations::Status
   # @rbs migrations: Array[[String, state]]
   # @rbs return: String
   def listing: (Array[[ String, state ]] migrations) -> String
+
+  # @rbs kept: Array[[singleton(Skyward::ORM::Record), Array[String]]]
+  # @rbs return: String
+  def kept_text: (Array[[ singleton(Skyward::ORM::Record), Array[String] ]] kept) -> String
 
   # @rbs unowned: Array[Symbol]
   # @rbs return: String

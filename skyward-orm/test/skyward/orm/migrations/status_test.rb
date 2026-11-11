@@ -11,6 +11,10 @@ describe Skyward::ORM::Migrations::Status do
   create_a = runner.parse("20261001000000_create_a.sql", "CREATE TABLE a (id INTEGER);\n")
   create_c = runner.parse("20261003000000_create_c.sql", "CREATE TABLE c (id INTEGER);\n")
   create_lists = Skyward::ORM::Migrations::CreateTable.new(klass: list, columns: [])
+  signatures = File.expand_path("../../../fixtures/migrations/sig", __dir__)
+  column_types = Skyward::ORM::Tables::ColumnTypes.new(
+    Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
+  )
 
   def table(name) = Skyward::ORM::Catalog::Table.new(name:, columns: [], indexes: [], constraints: [])
 
@@ -43,6 +47,30 @@ describe Skyward::ORM::Migrations::Status do
     end
   end
 
+  describe ".kept" do
+    lower = Skyward::ORM::Catalog::Index.new(
+      name: "lists_lower_name_index",
+      columns: [],
+      unique: false,
+      definition: "CREATE INDEX lists_lower_name_index ON lists (lower(name))"
+    )
+    pair = Skyward::ORM::Catalog::Constraint.new(
+      name: nil, kind: :check, columns: %i[id name], references: nil, definition: "CHECK (id < length(name))"
+    )
+
+    it "names what each class's table has that the class can't declare, in order of table, and an unnamed one so" do
+      lists = table(:lists).with(indexes: [lower], constraints: [pair])
+      todos = table(:todos).with(constraints: [pair.with(name: "todos_pair_check")])
+
+      assert_equal [[list, %w[lists_lower_name_index unnamed]], [MigrationsFixtures::Todo, ["todos_pair_check"]]],
+                   status.kept([MigrationsFixtures::Todo, list], column_types, [todos, lists])
+    end
+
+    it "leaves out a class whose table keeps nothing, or that has no table" do
+      assert_empty status.kept([list, MigrationsFixtures::Todo], column_types, [table(:lists)])
+    end
+  end
+
   describe ".clean?" do
     it "is clean when every migration ran, every class matches its table, and every table has a class" do
       assert status.clean?([[create_a.file, :ran]], [], [])
@@ -63,12 +91,12 @@ describe Skyward::ORM::Migrations::Status do
 
   describe ".text" do
     it "says when there are no migrations" do
-      assert_equal "No migrations yet.\n#{status::CLEAN}", status.text([], [], [], sqlite)
+      assert_equal "No migrations yet.\n#{status::CLEAN}", status.text([], [], [], [], sqlite)
     end
 
     it "says when everything's up to date" do
       assert_equal "Migrations:\n  #{create_a.file}  ran\n#{status::CLEAN}",
-                   status.text([[create_a.file, :ran]], [], [], sqlite)
+                   status.text([[create_a.file, :ran]], [], [], [], sqlite)
     end
 
     it "lists each migration with its state, lined up" do
@@ -78,7 +106,7 @@ describe Skyward::ORM::Migrations::Status do
           20261002000000               ran, but its file is gone
       TEXT
 
-      assert_equal expected, status.text([[create_a.file, :ran], ["20261002000000", :gone]], [], [], sqlite)
+      assert_equal expected, status.text([[create_a.file, :ran], ["20261002000000", :gone]], [], [], [], sqlite)
     end
 
     it "names each state" do
@@ -86,22 +114,33 @@ describe Skyward::ORM::Migrations::Status do
 
       assert_equal(
         ["ran", "pending", "edited after it ran", "ran, but its file is gone"],
-        status.text(states, [], [], sqlite).lines.drop(1).map { |line| line.split("  ").last.chomp }
+        status.text(states, [], [], [], sqlite).lines.drop(1).map { |line| line.split("  ").last.chomp }
       )
     end
 
-    it "follows with how each class differs from the database, as skyward migration says, then each table with no " \
-       "class" do
+    it "follows with how each class differs from the database, as skyward migration says, then what each table " \
+       "keeps, then each table with no class" do
       expected = <<~TEXT
         Migrations:
           20261001000000_create_a.sql  pending
         #{Skyward::ORM::Migrations::Summary.text([create_lists], sqlite).chomp}
+        lists:
+          lists_lower_name_index  kept: not declared by MigrationsFixtures::List
+          unnamed                 kept: not declared by MigrationsFixtures::List
         These tables have no class, so `skyward migration` leaves them alone:
           legacy
           old_todos
       TEXT
+      kept = [[list, %w[lists_lower_name_index unnamed]]]
 
-      assert_equal expected, status.text([[create_a.file, :pending]], [create_lists], %i[legacy old_todos], sqlite)
+      assert_equal expected,
+                   status.text([[create_a.file, :pending]], [create_lists], kept, %i[legacy old_todos], sqlite)
+    end
+
+    it "says everything's up to date when a table keeps what its class can't declare" do
+      assert_equal "No migrations yet.\nlists:\n  unnamed  kept: not declared by MigrationsFixtures::List\n" \
+                   "#{status::CLEAN}",
+                   status.text([], [], [[list, ["unnamed"]]], [], sqlite)
     end
   end
 end

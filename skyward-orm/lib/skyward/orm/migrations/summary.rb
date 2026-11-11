@@ -100,11 +100,7 @@ module Skyward::ORM::Migrations::Summary
     end
   end
 
-  # An index on an expression has no columns to name.
   # @rbs index: Skyward::ORM::Catalog::Index
   # @rbs return: String
-  def index(index)
-    kind = index.unique ? "unique index" : "index"
-    index.columns.empty? ? "#{kind} on an expression" : "#{kind} (#{index.columns.join(", ")})"
-  end
+  def index(index) = "index (#{index.columns.join(", ")})"
 end
