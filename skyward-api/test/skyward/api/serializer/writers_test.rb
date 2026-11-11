@@ -60,6 +60,16 @@ describe Skyward::API::Serializer::Writers do
         assert_equal([false] * 6, given.map { |name, value| writer(types::Scalar.new(name:)).fits.call(value) })
       end
 
+      it "doesn't fit a Float that isn't finite, which JSON can't write" do
+        float = types::Scalar.new(name: :float)
+        values = [Float::INFINITY, -Float::INFINITY, Float::NAN]
+
+        assert_equal(
+          %w[Infinity -Infinity NaN].map { |got| misfit("", "Float", got) },
+          values.map { |value| write(float, value) }
+        )
+      end
+
       it "answers a value that doesn't fit with a misfit naming the type and the value" do
         assert_equal misfit("", "Integer", "nil"), write(integer, nil)
       end

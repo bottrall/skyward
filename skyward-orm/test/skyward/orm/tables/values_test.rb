@@ -119,6 +119,14 @@ describe Skyward::ORM::Tables::Values do
       assert_nil mismatch(column(:float), 1)
     end
 
+    it "takes Infinity and -Infinity for a Float column" do
+      assert_nil mismatch(column(:float), [Float::INFINITY, -Float::INFINITY])
+    end
+
+    it "refuses NaN for a Float column, which SQLite stores as NULL" do
+      assert_equal "#{todo}.value is Float, not NaN (Float)", mismatch(column(:float), Float::NAN)
+    end
+
     it "takes true for a bool column" do
       assert_nil mismatch(column(:bool), true)
     end

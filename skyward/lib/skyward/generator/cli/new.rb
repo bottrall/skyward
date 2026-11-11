@@ -11,8 +11,9 @@ module Skyward::Generator::CLI::New
   # once camelized.
   NAME = /\A[a-z][a-z0-9_]*\z/ #: Regexp
 
-  # @rbs (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
-  def run(args, directory:, out:, kernel:)
+  # @rbs (Array[String] args, directory: String, env: Hash[String, String], out: _Writer,
+  #       kernel: singleton(Kernel)) -> void
+  def run(args, directory:, env:, out:, kernel:)
     names = args - [SKIP_BUNDLE]
     problem = problem(names, directory)
     return kernel.abort(problem) if problem
@@ -26,7 +27,8 @@ module Skyward::Generator::CLI::New
       File.chmod(0o755, file) if path.start_with?("bin/")
       out.write("Wrote #{File.join(name, path)}\n")
     end
-    unless args.include?(SKIP_BUNDLE) || kernel.system("bundle", "install", chdir: app)
+    # system merges env into this process's environment unless told to replace it.
+    unless args.include?(SKIP_BUNDLE) || kernel.system(env, "bundle", "install", chdir: app, unsetenv_others: true)
       return kernel.abort("skyward: bundle install failed in #{name}. Fix what it printed, then run bin/setup there.")
     end
 

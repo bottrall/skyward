@@ -83,7 +83,7 @@ module Skyward::API::Serializer::Writers
   def scalar(name)
     case name
     when :integer then checked("Integer", ->(value) { value.is_a?(Integer) }, ->(value, _) { value })
-    when :float then checked("Float", ->(value) { value.is_a?(Float) }, ->(value, _) { value })
+    when :float then checked("Float", ->(value) { value.is_a?(Float) && value.finite? }, ->(value, _) { value })
     when :string then checked("String", ->(value) { value.is_a?(String) }, ->(value, _) { value })
     when :bool then checked("bool", ->(value) { [true, false].include?(value) }, ->(value, _) { value })
     when :date then checked("Date", ->(value) { value.is_a?(Date) }, ->(value, _) { date(value) })
