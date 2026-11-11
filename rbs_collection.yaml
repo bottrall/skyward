@@ -21,6 +21,7 @@ gems:
     ignore: true
   # Ignoring the Skyward gems also drops their dependencies and the standard
   # libraries they require, so name those here.
+  - name: prism
   - name: rbs
   - name: zeitwerk
   # Without a stdlib source, rbs looks each of these up in Gemfile.lock and

@@ -59,6 +59,7 @@ module Skyward::Core::Types
   Unreadable = Data.define(
     :type, #: String
     :at, #: String?
-    :instead #: String
+    :instead, #: String
+    :suggestion #: String?
   )
 end

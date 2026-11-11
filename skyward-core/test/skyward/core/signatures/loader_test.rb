@@ -7,6 +7,7 @@ describe Skyward::Core::Signatures::Loader do
   app = File.join(fixtures, "app")
   gem_sig = File.join(fixtures, "gem")
   gem_id = RBS::TypeName.parse("::gem_id")
+  relative = fixtures.delete_prefix("#{Dir.pwd}/")
 
   let(:loader) { Skyward::Core::Signatures::Loader.new }
 
@@ -53,22 +54,59 @@ describe Skyward::Core::Signatures::Loader do
       assert loader.load(app).env.class_decl?(RBS::TypeName.parse("::BigDecimal"))
     end
 
-    it "raises BootError naming the file and line that doesn't parse" do
+    it "raises BootError with an excerpt under the token that doesn't parse" do
       error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, "broken")) }
 
-      assert_match %r{#{Regexp.escape(fixtures)}/broken/broken\.rbs:3:.*Syntax error}, error.message
+      assert_equal <<~MESSAGE.chomp, error.message
+        Can't load the RBS signatures: Syntax error: unexpected token for simple type.
+
+            #{relative}/broken/broken.rbs:3
+            end
+            ^^^
+      MESSAGE
     end
 
-    it "raises BootError naming every file and line of a duplicated declaration" do
+    it "raises BootError with an excerpt under each name of a duplicated declaration" do
       error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, "duplicated")) }
 
-      %w[a b].each { |file| assert_includes error.message, "#{fixtures}/duplicated/#{file}.rbs:1:" }
+      assert_equal <<~MESSAGE.chomp, error.message
+        Can't load the RBS signatures: id is declared twice.
+
+            #{relative}/duplicated/b.rbs:1
+            type id = String
+                 ^^
+
+            #{relative}/duplicated/a.rbs:1
+            type id = Integer
+                 ^^
+      MESSAGE
     end
 
-    it "raises BootError naming the file and line of mismatched generic parameters" do
+    it "raises BootError with an excerpt under the new name of a duplicated class alias" do
+      error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, "duplicated_alias")) }
+
+      assert_equal <<~MESSAGE.chomp, error.message
+        Can't load the RBS signatures: Foo is declared twice.
+
+            #{relative}/duplicated_alias/foo.rbs:1
+            class Foo = String
+                  ^^^
+            ...
+            class Foo
+                  ^^^
+      MESSAGE
+    end
+
+    it "raises BootError with an excerpt under the declaration whose generic parameters mismatch" do
       error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, "generic")) }
 
-      assert_match %r{#{Regexp.escape(fixtures)}/generic/\w\.rbs:1:.*Generic parameters mismatch: ::Box}, error.message
+      assert_equal <<~MESSAGE.chomp, error.message
+        Can't load the RBS signatures: Generic parameters mismatch: ::Box
+
+            #{relative}/generic/b.rbs:1
+            class Box[T, U]
+                  ^^^
+      MESSAGE
     end
 
     it "builds a fresh environment on every call" do

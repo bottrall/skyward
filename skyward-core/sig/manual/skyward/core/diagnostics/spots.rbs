@@ -1,0 +1,3 @@
+module Skyward::Core::Diagnostics::Spots
+  extend ::Skyward::Core::Diagnostics::Spots
+end

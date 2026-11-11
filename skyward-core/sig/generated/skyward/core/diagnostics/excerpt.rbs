@@ -1,0 +1,27 @@
+# Generated from lib/skyward/core/diagnostics/excerpt.rb with RBS::Inline
+
+module Skyward::Core::Diagnostics::Excerpt
+  INDENT: String
+
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot]
+  # @rbs directory: String
+  # @rbs return: String?
+  def render: (Array[Skyward::Core::Diagnostics::Spot] spots, ?directory: String) -> String?
+
+  private
+
+  # @rbs path: String
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot]
+  # @rbs return: String
+  def block: (String path, Array[Skyward::Core::Diagnostics::Spot] spots) -> String
+
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot]
+  # @rbs indent: Integer
+  # @rbs return: Array[String]
+  def carets: (Array[Skyward::Core::Diagnostics::Spot] spots, Integer indent) -> Array[String]
+
+  # @rbs path: String
+  # @rbs directory: String
+  # @rbs return: String
+  def relative: (String path, String directory) -> String
+end

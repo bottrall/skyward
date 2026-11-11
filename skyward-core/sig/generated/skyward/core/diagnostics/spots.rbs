@@ -1,0 +1,101 @@
+# Generated from lib/skyward/core/diagnostics/spots.rb with RBS::Inline
+
+module Skyward::Core::Diagnostics::Spots
+  # @rbs location: RBS::Location[untyped, untyped]
+  # @rbs return: Skyward::Core::Diagnostics::Spot
+  def rbs: (RBS::Location[untyped, untyped] location) -> Skyward::Core::Diagnostics::Spot
+
+  # @rbs method: Method | UnboundMethod
+  # @rbs name: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def keyword_parameter: (Method | UnboundMethod method, Symbol name) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs method: Method | UnboundMethod
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def parameters: (Method | UnboundMethod method) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs method: Method | UnboundMethod
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def method_name: (Method | UnboundMethod method) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs call: Symbol
+  # @rbs key: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def keyword_key: (String path, Integer line, call: Symbol, key: Symbol) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs call: Symbol
+  # @rbs key: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def keyword_value: (String path, Integer line, call: Symbol, key: Symbol) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs call: Symbol
+  # @rbs value: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def symbol: (String path, Integer line, call: Symbol, value: Symbol) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs call: Symbol
+  # @rbs part: String
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def string: (String path, Integer line, call: Symbol, part: String) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def reader_type: (String path, Integer line) -> Skyward::Core::Diagnostics::Spot?
+
+  private
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs text: String
+  # @rbs columns: Range[Integer]
+  # @rbs return: Skyward::Core::Diagnostics::Spot
+  def spot: (String path, Integer line, String text, Range[Integer] columns) -> Skyward::Core::Diagnostics::Spot
+
+  # @rbs path: String
+  # @rbs &: (Prism::ParseResult) -> Prism::Location?
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def parse: (String path) { (Prism::ParseResult) -> Prism::Location? } -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs method: Method | UnboundMethod
+  # @rbs &: (Prism::DefNode) -> Prism::Location?
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def definition: (Method | UnboundMethod method) { (Prism::DefNode) -> Prism::Location? } -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs path: String
+  # @rbs line: Integer
+  # @rbs name: Symbol
+  # @rbs &: (Array[Prism::node]) -> Prism::Location?
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def arguments: (String path, Integer line, Symbol name) { (Array[Prism::node]) -> Prism::Location? } -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs result: Prism::ParseResult
+  # @rbs line: Integer
+  # @rbs name: Symbol
+  # @rbs return: Prism::CallNode?
+  def call: (Prism::ParseResult result, Integer line, Symbol name) -> Prism::CallNode?
+
+  # @rbs arguments: Array[Prism::node]
+  # @rbs key: Symbol
+  # @rbs return: Prism::AssocNode?
+  def pair: (Array[Prism::node] arguments, Symbol key) -> Prism::AssocNode?
+
+  # @rbs node: Prism::node
+  # @rbs value: Symbol
+  # @rbs return: bool
+  def symbol?: (Prism::node node, Symbol value) -> bool
+
+  # Prism's locations count bytes, so a part is found by its byte offset.
+  # @rbs location: Prism::Location
+  # @rbs part: String
+  # @rbs return: Prism::Location?
+  def within: (Prism::Location location, String part) -> Prism::Location?
+end

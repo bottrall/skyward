@@ -457,7 +457,8 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Skyward::API::Routing::Router::Created | Skyward::Core::Types::Unreadable
   def created(type, reader)
     unless type.args.size == 1
-      return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Skyward::API::Responses::Created[T]")
+      instead = "Skyward::API::Responses::Created[T]"
+      return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead:, suggestion: nil)
     end
 
     read = read_type(reader, type.args.fetch(0))

@@ -60,4 +60,15 @@ module ReaderFixtures
 
   class Mismatched < String
   end
+
+  class Typo
+    attr_reader title: Strng
+  end
+
+  class Unknown
+    def show: () -> Integr
+  end
+
+  class Stray < Absent
+  end
 end

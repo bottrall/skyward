@@ -2,6 +2,7 @@ PATH
   remote: ../skyward-core
   specs:
     skyward-core (0.3.0)
+      prism (>= 1.6)
       rbs (~> 4.2)
       zeitwerk (~> 2.8)
 

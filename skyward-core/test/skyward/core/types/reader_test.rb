@@ -7,6 +7,8 @@ describe Skyward::Core::Types::Reader do
   types = Skyward::Core::Types
   builder = Skyward::Core::Signatures::Loader.new.load(File.expand_path("../../../fixtures/types", __dir__))
   reader = Skyward::Core::Types::Reader.new(builder)
+  others = File.expand_path("../../../fixtures/types/others.rbs", __dir__).delete_prefix("#{Dir.pwd}/")
+  line_of = ->(snippet) { File.readlines(others).index { |line| line.include?(snippet) }.to_i + 1 }
 
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
@@ -189,7 +191,7 @@ describe Skyward::Core::Types::Reader do
     end
 
     it "reads a bare Array as unreadable, suggesting Array[T]" do
-      assert_equal types::Unreadable.new(type: "Array", at: nil, instead: "Array[T]"), read("::Array")
+      assert_equal types::Unreadable.new(type: "Array", at: nil, instead: "Array[T]", suggestion: nil), read("::Array")
     end
 
     it "reads Array[T]" do
@@ -202,18 +204,19 @@ describe Skyward::Core::Types::Reader do
 
     it "reads a Hash with any other key type as unreadable, saying only String keys are supported" do
       assert_equal(
-        [types::Unreadable.new(type: "Hash[Symbol, Integer]", at: nil, instead: hash_hint),
-         types::Unreadable.new(type: "Hash[Integer, Integer]", at: nil, instead: hash_hint)],
+        [types::Unreadable.new(type: "Hash[Symbol, Integer]", at: nil, instead: hash_hint, suggestion: nil),
+         types::Unreadable.new(type: "Hash[Integer, Integer]", at: nil, instead: hash_hint, suggestion: nil)],
         ["::Hash[::Symbol, ::Integer]", "::Hash[::Integer, ::Integer]"].map { |source| read(source) }
       )
     end
 
     it "reads a bare Hash as unreadable, suggesting Hash[String, T]" do
-      assert_equal types::Unreadable.new(type: "Hash", at: nil, instead: hash_hint), read("::Hash")
+      assert_equal types::Unreadable.new(type: "Hash", at: nil, instead: hash_hint, suggestion: nil), read("::Hash")
     end
 
     it "reads a Hash without a value type as unreadable, suggesting Hash[String, T]" do
-      assert_equal types::Unreadable.new(type: "Hash[String]", at: nil, instead: hash_hint), read("::Hash[::String]")
+      assert_equal types::Unreadable.new(type: "Hash[String]", at: nil, instead: hash_hint, suggestion: nil),
+                   read("::Hash[::String]")
     end
 
     it "reads Hash[String, T]" do
@@ -229,16 +232,29 @@ describe Skyward::Core::Types::Reader do
       assert_equal "[ Integer ]", read("::Hash[::String, [::Integer]]").type
     end
 
-    it "reads a class RBS doesn't declare as unreadable" do
-      assert_equal types::Unreadable.new(type: "Nowhere", at: nil, instead: record_hint), read("::Nowhere")
+    it "suggests the closest declared class for one RBS doesn't declare" do
+      expected = types::Unreadable.new(
+        type: "Strng",
+        at: "ReaderFixtures::Typo#title",
+        instead: record_hint,
+        suggestion: "String"
+      )
+
+      assert_equal expected, read("::ReaderFixtures::Typo")
     end
 
-    it "reads a module as unreadable" do
-      assert_instance_of types::Unreadable, read("::ReaderFixtures::Mixin")
+    it "reads a class RBS doesn't declare as unreadable" do
+      assert_equal types::Unreadable.new(type: "Nowhere", at: nil, instead: record_hint, suggestion: nil),
+                   read("::Nowhere")
+    end
+
+    it "reads a module as unreadable, with no suggestion" do
+      assert_equal types::Unreadable.new(type: "ReaderFixtures::Mixin", at: nil, instead: record_hint, suggestion: nil),
+                   read("::ReaderFixtures::Mixin")
     end
 
     it "reads a class with no readers as unreadable" do
-      assert_equal types::Unreadable.new(type: "ReaderFixtures::Plain", at: nil, instead: record_hint),
+      assert_equal types::Unreadable.new(type: "ReaderFixtures::Plain", at: nil, instead: record_hint, suggestion: nil),
                    read("::ReaderFixtures::Plain")
     end
 
@@ -246,11 +262,16 @@ describe Skyward::Core::Types::Reader do
       assert_instance_of types::Unreadable, read("::ReaderFixtures::Hidden")
     end
 
-    it "raises BootError for a class with no Ruby class loaded" do
+    it "raises BootError for a class with no Ruby class loaded, with an excerpt of its declaration" do
       error = assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::Orphan") }
 
-      assert_equal "ReaderFixtures::Orphan has an RBS signature, but no Ruby class is loaded with that name",
-                   error.message
+      expected = ["ReaderFixtures::Orphan has an RBS signature, but no Ruby class is loaded with that name",
+                  "",
+                  "    #{others}:#{line_of.call("class Orphan")}",
+                  "    class Orphan",
+                  "          ^^^^^^"].join("\n")
+
+      assert_equal expected, error.message
     end
 
     it "raises BootError for a class whose Ruby constant isn't a class" do
@@ -318,20 +339,28 @@ describe Skyward::Core::Types::Reader do
       expected = types::Unreadable.new(
         type: "Hash[Symbol, untyped]",
         at: "ReaderFixtures::Holder#tags",
-        instead: hash_hint
+        instead: hash_hint,
+        suggestion: nil
       )
 
       assert_equal expected, read("::ReaderFixtures::Holder")
     end
 
     it "reads a tuple as unreadable, suggesting an array or a record" do
-      assert_equal types::Unreadable.new(type: "[ Integer, String ]", at: nil, instead: "Array[T], or a record"),
-                   read("[::Integer, ::String]")
+      expected = types::Unreadable.new(
+        type: "[ Integer, String ]",
+        at: nil,
+        instead: "Array[T], or a record",
+        suggestion: nil
+      )
+
+      assert_equal expected, read("[::Integer, ::String]")
     end
 
     it "reads an interface as unreadable" do
-      assert_equal types::Unreadable.new(type: "ReaderFixtures::_Named", at: nil, instead: record_hint),
-                   read("::ReaderFixtures::_Named")
+      expected = types::Unreadable.new(type: "ReaderFixtures::_Named", at: nil, instead: record_hint, suggestion: nil)
+
+      assert_equal expected, read("::ReaderFixtures::_Named")
     end
 
     it "reads a proc as unreadable" do
@@ -367,7 +396,36 @@ describe Skyward::Core::Types::Reader do
       assert_nil reader.method_type(RBS::TypeName.parse("::ReaderFixtures::API"), :destroy)
     end
 
-    it "raises BootError when RBS can't build the class" do
+    it "raises BootError with an excerpt and a suggestion for a type name RBS can't find" do
+      error = assert_raises(Skyward::Core::BootError) do
+        reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Unknown"), :show)
+      end
+
+      expected = ["Can't read the RBS signatures: Could not find Integr",
+                  "",
+                  "    #{others}:#{line_of.call("-> Integr")}",
+                  "    def show: () -> Integr",
+                  "                    ^^^^^^",
+                  "Did you mean Integer?"].join("\n")
+
+      assert_equal expected, error.message
+    end
+
+    it "raises BootError with an excerpt and no suggestion for any other RBS error with a location" do
+      error = assert_raises(Skyward::Core::BootError) do
+        reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Stray"), :show)
+      end
+
+      expected = ["Can't read the RBS signatures: Could not find super class: Absent",
+                  "",
+                  "    #{others}:#{line_of.call("class Stray")}",
+                  "    class Stray < Absent",
+                  "    ^^^^^^^^^^^^^^^^^^^^"].join("\n")
+
+      assert_equal expected, error.message
+    end
+
+    it "raises BootError with RBS's message when its error has no location" do
       error = assert_raises(Skyward::Core::BootError) do
         reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Mismatched"), :to_s)
       end

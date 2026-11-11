@@ -13,4 +13,15 @@ class Skyward::Core::Signatures::Loader
   # @rbs directory: String
   # @rbs return: RBS::DefinitionBuilder
   def load: (String directory) -> RBS::DefinitionBuilder
+
+  private
+
+  # @rbs decl: RBS::DuplicatedDeclarationError::declaration
+  # @rbs return: RBS::Location[untyped, untyped]?
+  def name_location: (RBS::DuplicatedDeclarationError::declaration decl) -> RBS::Location[untyped, untyped]?
+
+  # @rbs message: String
+  # @rbs locations: Array[RBS::Location[untyped, untyped]]
+  # @rbs return: String
+  def failure: (String message, Array[RBS::Location[untyped, untyped]] locations) -> String
 end
