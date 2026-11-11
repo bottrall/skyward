@@ -1,6 +1,6 @@
-# Generated from lib/skyward/orm/members.rb with RBS::Inline
+# Generated from lib/skyward/orm/tables/members.rb with RBS::Inline
 
-module Skyward::ORM::Members
+module Skyward::ORM::Tables::Members
   KEYWORDS: Array[Symbol]
 
   # @rbs row: Class

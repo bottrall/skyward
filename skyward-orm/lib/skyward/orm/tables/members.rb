@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Skyward::ORM::Members
+module Skyward::ORM::Tables::Members
   extend self
 
   KEYWORDS = %i[keyreq key].freeze #: Array[Symbol]

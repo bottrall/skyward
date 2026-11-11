@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../fixtures/tables/tables_fixtures"
+require_relative "../../../fixtures/tables/tables_fixtures"
 
-describe Skyward::ORM::Members do
-  members = Skyward::ORM::Members
+describe Skyward::ORM::Tables::Members do
+  members = Skyward::ORM::Tables::Members
 
   describe ".of" do
     it "is a Data class's members" do

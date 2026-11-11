@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Skyward::ORM::Placeholders
+module Skyward::ORM::Statements::Placeholders
   extend self
 
   # A ? in a string, a quoted name or a comment is the SQL's own, so those

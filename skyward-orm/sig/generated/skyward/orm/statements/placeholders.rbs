@@ -1,6 +1,6 @@
-# Generated from lib/skyward/orm/placeholders.rb with RBS::Inline
+# Generated from lib/skyward/orm/statements/placeholders.rb with RBS::Inline
 
-module Skyward::ORM::Placeholders
+module Skyward::ORM::Statements::Placeholders
   # A ? in a string, a quoted name or a comment is the SQL's own, so those
   # match whole and are kept. SQL escapes a quote by doubling it, which reads
   # here as two strings side by side.

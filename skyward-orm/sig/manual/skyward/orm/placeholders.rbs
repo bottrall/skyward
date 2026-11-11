@@ -1,3 +1,0 @@
-module Skyward::ORM::Placeholders
-  extend ::Skyward::ORM::Placeholders
-end

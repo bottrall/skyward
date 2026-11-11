@@ -28,7 +28,7 @@ class Skyward::ORM::Tables::ColumnTypes
   # @rbs return: Array[Skyward::ORM::Tables::Column]
   def resolve(klass)
     type_name = @reader.type_name(klass)
-    Skyward::ORM::Members.of(klass).map do |name|
+    Skyward::ORM::Tables::Members.of(klass).map do |name|
       returned = @reader.method_type(type_name, name)&.type&.return_type if type_name
       written = returned.to_s.gsub(/(?<!\w)::/, "")
       column = returned ? read(name, returned, written) : column(name, UNTYPED, written)

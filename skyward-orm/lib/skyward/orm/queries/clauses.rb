@@ -346,7 +346,7 @@ module Skyward::ORM::Queries::Clauses
   # @rbs expressions: Hash[Symbol, String]
   # @rbs return: void
   def require_members(row, expressions)
-    members = Skyward::ORM::Members.of(row)
+    members = Skyward::ORM::Tables::Members.of(row)
     unknown = expressions.keys - members
     raise ArgumentError, "#{row} has no member #{unknown.join(", ")} to take an expression" unless unknown.empty?
 
@@ -362,7 +362,7 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: [String, Array[untyped]]
   def statement(database, orders, limit)
     sql, binds = from(database, orders, limit)
-    columns = Skyward::ORM::Members.of(@row).map do |member|
+    columns = Skyward::ORM::Tables::Members.of(@row).map do |member|
       expression = @expressions.fetch(member, nil)
       expression ? "#{expression} AS #{Skyward::ORM::Statements.quote(member)}" : qualified(member)
     end.join(", ")
@@ -459,8 +459,8 @@ module Skyward::ORM::Queries::Clauses
   def fragment(database, fragment, position)
     adapter = database.adapter
     binds = fragment.values.map { |value| adapter.encode(value) }
-    Skyward::ORM::Placeholders.require_scalars(binds, "An SQL condition")
-    sql = Skyward::ORM::Placeholders.replace(fragment.sql, binds.size) do |index|
+    Skyward::ORM::Statements::Placeholders.require_scalars(binds, "An SQL condition")
+    sql = Skyward::ORM::Statements::Placeholders.replace(fragment.sql, binds.size) do |index|
       adapter.placeholder(position + index - 1)
     end
     # A -- comment runs to the end of its line, so the closing parenthesis
