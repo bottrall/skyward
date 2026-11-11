@@ -24,7 +24,8 @@ module Skyward::ORM::Tables::Values
     time: "Time",
     uuid: "uuid",
     int32: "int32",
-    int16: "int16"
+    int16: "int16",
+    json: "Hash[String, untyped]"
   }.freeze #: Hash[Symbol, String]
 
   UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/ #: Regexp
@@ -43,6 +44,13 @@ module Skyward::ORM::Tables::Values
   # @rbs value: untyped
   # @rbs return: String?
   def mismatch(table, column, value)
+    # PostgreSQL compares jsonb by value, but SQLite compares the JSON's text,
+    # so the two would match different rows for anything but NULL.
+    if column.type == :json && !value.nil?
+      return "#{table}.#{column.name} is a #{WRITTEN.fetch(:json)} column, which where matches only to nil. " \
+             "Match its contents with an SQL string."
+    end
+
     refused = candidates(value).reject { |candidate| accepts?(column, candidate) }
     return if refused.empty?
 
@@ -56,12 +64,48 @@ module Skyward::ORM::Tables::Values
   # @rbs value: untyped
   # @rbs return: String?
   def write_mismatch(table, column, value)
+    return json_mismatch(table, column, value) if column.type == :json && !value.nil?
     return if accepts?(column, value) && !value.is_a?(Range)
 
     refusal(table, column, value, UNTYPED_WRITE)
   end
 
   private
+
+  # A row reads back == to the one written only when its JSON holds each value
+  # as it is: a Symbol or a Time would come back a String.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def json_mismatch(table, column, value)
+    return refusal(table, column, value, UNTYPED_WRITE) unless value.is_a?(Hash)
+
+    found = stray(value, column.name.name)
+    return unless found
+
+    refused, at = found
+    "#{refusal(table, column, refused, UNTYPED_WRITE)} #{at}"
+  end
+
+  # The first value JSON doesn't hold as it is, and where it is.
+  # @rbs value: untyped
+  # @rbs path: String
+  # @rbs return: [untyped, String]?
+  def stray(value, path)
+    case value
+    when nil, true, false, Integer, String then nil
+    when Float then [value, "at #{path}"] unless value.finite?
+    when Array then value.each_with_index.lazy.filter_map { |item, index| stray(item, "#{path}[#{index}]") }.first
+    when Hash
+      value.lazy.filter_map do |key, item|
+        if key.is_a?(String) then stray(item, "#{path}[#{key.inspect}]")
+        else [key, "as a key of #{path}"] #: [untyped, String]
+        end
+      end.first
+    else [value, "at #{path}"]
+    end
+  end
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column

@@ -55,17 +55,17 @@ module Skyward::ORM::Migrations::Definitions
 
   # The SQL that follows the column's DEFAULT, or nil when it has none.
   # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs column: Symbol
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String?
   def default(klass, column, adapter)
     defaults = klass.schema.defaults
-    return unless defaults.key?(column)
+    return unless defaults.key?(column.name)
 
-    value = defaults.fetch(column)
+    value = defaults.fetch(column.name)
     case value
     when Skyward::ORM::Tables::SQL then adapter.default_expression(value.expression)
-    else literal(adapter.encode(value))
+    else literal(Skyward::ORM::Statements.encode(adapter, column, value))
     end
   end
 

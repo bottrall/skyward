@@ -22,10 +22,10 @@ module Skyward::ORM::Migrations::Definitions
 
   # The SQL that follows the column's DEFAULT, or nil when it has none.
   # @rbs klass: singleton(Skyward::ORM::Record)
-  # @rbs column: Symbol
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String?
-  def default: (singleton(Skyward::ORM::Record) klass, Symbol column, Skyward::ORM::_Adapter adapter) -> String?
+  def default: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> String?
 
   # The constraint as a column's own, in a column's definition.
   # @rbs constraint: Skyward::ORM::Catalog::Constraint

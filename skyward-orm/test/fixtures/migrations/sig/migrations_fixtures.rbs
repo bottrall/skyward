@@ -46,6 +46,12 @@ module MigrationsFixtures
     attr_reader note: String?
   end
 
+  class Webhook < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader settings: Hash[String, untyped]
+    attr_reader payload: Hash[String, untyped]?
+  end
+
   # payload has no type.
   class Scrap < ::Skyward::ORM::Record
     attr_reader id: Integer

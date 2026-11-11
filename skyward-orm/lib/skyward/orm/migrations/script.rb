@@ -255,7 +255,7 @@ module Skyward::ORM::Migrations::Script
 
     name = column.name
     generated = generated?(klass.schema, column)
-    default = Skyward::ORM::Migrations::Definitions.default(klass, name, adapter)
+    default = Skyward::ORM::Migrations::Definitions.default(klass, column, adapter)
     clauses = [
       ("NOT NULL" unless (typed ? column.nullable : kept&.nullable) || generated),
       ("DEFAULT #{default}" if default),

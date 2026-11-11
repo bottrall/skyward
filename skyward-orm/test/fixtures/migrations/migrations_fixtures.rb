@@ -81,6 +81,15 @@ module MigrationsFixtures
     attr_reader :id, :invited_by
   end
 
+  # A JSON column with a default whose keys PostgreSQL reorders and respaces,
+  # and one without.
+  class Webhook < Skyward::ORM::Record
+    table :webhooks
+    default settings: { "retries" => 3, "it's" => [1.5, nil, { "on" => true }], "ü" => "" }
+
+    attr_reader :id, :settings, :payload
+  end
+
   # The README's rework_todos: notes renamed to details, due_on required, and
   # an index on it.
   def self.rework_todos
