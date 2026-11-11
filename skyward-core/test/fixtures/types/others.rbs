@@ -38,6 +38,10 @@ module ReaderFixtures
     attr_reader second: Todo
   end
 
+  class Price
+    attr_reader amount: BigDecimal
+  end
+
   class Node
     attr_reader next: Node?
   end

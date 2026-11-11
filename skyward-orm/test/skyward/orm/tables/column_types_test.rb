@@ -131,6 +131,11 @@ describe Skyward::ORM::Tables::ColumnTypes do
                    refusal(TablesFixtures::Nested)
     end
 
+    it "refuses a BigDecimal as not a column type yet" do
+      assert_equal "TablesFixtures::Decimal#price is BigDecimal?, which isn't a column type yet. #{column_types}",
+                   refusal(TablesFixtures::Decimal)
+    end
+
     it "refuses a record as not a column type yet" do
       assert_equal "TablesFixtures::Recorded#point is { x: Integer, y: Integer }, which isn't a column type yet. " \
                    "#{column_types}",

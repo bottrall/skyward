@@ -66,6 +66,10 @@ module TablesFixtures
     attr_reader list: List
   end
 
+  class Decimal < ::Skyward::ORM::Record
+    attr_reader price: BigDecimal?
+  end
+
   class Hashed < ::Skyward::ORM::Record
     attr_reader settings: Hash[String, String]
   end

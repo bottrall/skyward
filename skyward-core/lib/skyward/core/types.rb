@@ -2,7 +2,7 @@
 
 module Skyward::Core::Types
   # @rbs!
-  #   type scalar = :integer | :float | :string | :bool | :date | :time | :untyped
+  #   type scalar = :integer | :float | :string | :bool | :date | :time | :decimal | :untyped
   #   type literal = String | Integer | bool | nil
   #   type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union | Refined
   #   type result = t | Unreadable

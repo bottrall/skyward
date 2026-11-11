@@ -1,7 +1,7 @@
 # Generated from lib/skyward/core/types.rb with RBS::Inline
 
 module Skyward::Core::Types
-  type scalar = :integer | :float | :string | :bool | :date | :time | :untyped
+  type scalar = :integer | :float | :string | :bool | :date | :time | :decimal | :untyped
 
   type literal = String | Integer | bool | nil
 
