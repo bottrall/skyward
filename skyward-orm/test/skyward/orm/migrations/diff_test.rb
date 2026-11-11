@@ -318,6 +318,38 @@ describe Skyward::ORM::Migrations::Diff do
       assert_empty edits(nulled).grep(migrations::ChangeDefault)
     end
 
+    describe "for a JSON column" do
+      def redefaulted(default)
+        columns = [[:id, false, nil], [:settings, false, default], [:payload, true, nil]].map do |name, nullable, had|
+          Skyward::ORM::Catalog::Column.new(name:, type: "TEXT", nullable:, default: had)
+        end
+        tables = [Skyward::ORM::Catalog::Table.new(name: :webhooks, columns:, indexes: [], constraints: [])]
+        changes([MigrationsFixtures::Webhook], tables).flat_map(&:edits).grep(Skyward::ORM::Migrations::ChangeDefault)
+      end
+
+      wanted = %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}')
+
+      it "compares the default by value, since PostgreSQL respells jsonb" do
+        assert_empty redefaulted(%('{"ü": "", "it''s": [1.5, null, {"on": true}], "retries": 3}'))
+      end
+
+      it "changes a default whose value differs" do
+        assert_equal [migrations::ChangeDefault.new(column: :settings, from: "'{\"retries\": 4}'", to: wanted)],
+                     redefaulted("'{\"retries\": 4}'")
+      end
+
+      it "changes a default that's an expression, or isn't JSON" do
+        assert_equal(
+          [["(json_object())", wanted], ["'nope'", wanted]],
+          ["(json_object())", "'nope'"].flat_map do |had|
+            redefaulted(had).map do |edit|
+              [edit.from, edit.to]
+            end
+          end
+        )
+      end
+    end
+
     it "drops a constraint its class doesn't declare, and adds one it does" do
       title_check = item_table.constraints.find { |had| had.name == "items_title_check" }
       note_check = catalog::Constraint.new(

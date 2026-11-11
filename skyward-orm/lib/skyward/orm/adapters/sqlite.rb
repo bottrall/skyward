@@ -16,7 +16,8 @@ module Skyward::ORM::Adapters::SQLite
     enum: "TEXT",
     uuid: "TEXT",
     int32: "INTEGER",
-    int16: "INTEGER"
+    int16: "INTEGER",
+    json: "TEXT"
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # Fixed width and UTC, so text order is time order, and to the microsecond,
@@ -166,6 +167,7 @@ module Skyward::ORM::Adapters::SQLite
     when :date then Date.iso8601(value)
     when :time then Time.new(value, in: "UTC")
     when :enum then value.to_sym
+    when :json then JSON.parse(value, freeze: true)
     # Rows are values, so even what the driver returns as it is comes back frozen.
     else value.freeze
     end

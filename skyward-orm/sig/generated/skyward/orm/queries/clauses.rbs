@@ -391,9 +391,9 @@ module Skyward::ORM::Queries::Clauses[R]
 
   # @rbs method: Symbol
   # @rbs sql: String
-  # @rbs values: Array[untyped]
+  # @rbs set: Array[untyped]
   # @rbs return: [String, Array[untyped]]
-  def changing: (Symbol method, String sql, Array[untyped] values) -> [ String, Array[untyped] ]
+  def changing: (Symbol method, String sql, Array[untyped] set) -> [ String, Array[untyped] ]
 
   # @rbs [T] (T | Skyward::ORM::Violation written) -> T
   def unviolated: [T] (T | Skyward::ORM::Violation written) -> T

@@ -85,13 +85,13 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
   describe ".sql_type" do
     it "maps each column type to the README's PostgreSQL type" do
-      types = %i[integer float string bool date time enum uuid int32 int16].to_h do |type|
+      types = %i[integer float string bool date time enum uuid int32 int16 json].to_h do |type|
         [type, postgresql.sql_type(type)]
       end
 
       assert_equal(
         { integer: "bigint", float: "double precision", string: "text", bool: "boolean", date: "date",
-          time: "timestamptz", enum: "text", uuid: "uuid", int32: "integer", int16: "smallint" },
+          time: "timestamptz", enum: "text", uuid: "uuid", int32: "integer", int16: "smallint", json: "jsonb" },
         types
       )
     end
@@ -165,7 +165,8 @@ describe Skyward::ORM::Adapters::PostgreSQL do
         [:enum, "text"],
         [:uuid, "uuid"],
         [:int32, "integer"],
-        [:int16, "smallint"]
+        [:int16, "smallint"],
+        [:json, "jsonb"]
       ]
 
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
@@ -185,8 +186,8 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
 
-    it "accepts uuid and citext for a string, and real for a float" do
-      declared = [[:string, "uuid"], [:string, "citext"], [:float, "real"]]
+    it "accepts uuid and citext for a string, real for a float, and json for a JSON column" do
+      declared = [[:string, "uuid"], [:string, "citext"], [:float, "real"], [:json, "json"]]
 
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
@@ -194,7 +195,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     it "refuses any other type" do
       declared = [[:integer, "text"], [:float, "numeric(10,2)"], [:string, "bytea"], [:bool, "integer"],
                   [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"], [:uuid, "text"],
-                  [:int32, "bigint"], [:int16, "integer"]]
+                  [:int32, "bigint"], [:int16, "integer"], [:json, "text"]]
 
       assert(declared.none? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
@@ -267,6 +268,13 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
     it "reads a symbol" do
       assert_equal :high, postgresql.decode(:enum, "high")
+    end
+
+    it "reads JSON into a Hash, frozen at every level" do
+      read = postgresql.decode(:json, +'{"list": [{"deep": "ü"}]}')
+
+      assert_equal [{ "list" => [{ "deep" => "ü" }] }, true],
+                   [read, [read, read["list"], read["list"][0], read["list"][0]["deep"]].all?(&:frozen?)]
     end
 
     it "freezes a string" do

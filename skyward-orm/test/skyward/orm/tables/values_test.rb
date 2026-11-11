@@ -13,6 +13,26 @@ describe Skyward::ORM::Tables::Values do
   def mismatch(column, value) = Skyward::ORM::Tables::Values.mismatch(TablesFixtures::Todo, column, value)
 
   describe ".mismatch" do
+    describe "on a JSON column" do
+      it "takes nil for a nullable one" do
+        assert_nil mismatch(column(:json, nullable: true), nil)
+      end
+
+      it "refuses nil for one that isn't nullable" do
+        assert_equal "#{todo}.value is Hash[String, untyped], not nil (NilClass)", mismatch(column(:json), nil)
+      end
+
+      it "refuses any other value, since the databases compare JSON differently" do
+        refusal = "#{todo}.value is a Hash[String, untyped] column, which where matches only to nil. " \
+                  "Match its contents with an SQL string."
+
+        assert_equal(
+          [refusal] * 4,
+          [{}, { "a" => 1 }, [nil], {}..{}].map { |value| mismatch(column(:json, nullable: true), value) }
+        )
+      end
+    end
+
     it "checks each element of an array" do
       assert_nil mismatch(column(:integer), [1, 2])
       assert_equal "#{todo}.value is Integer, not \"2\" (String)", mismatch(column(:integer), [1, "2"])
@@ -172,6 +192,59 @@ describe Skyward::ORM::Tables::Values do
 
   describe ".write_mismatch" do
     def write_mismatch(column, value) = Skyward::ORM::Tables::Values.write_mismatch(TablesFixtures::Todo, column, value)
+
+    describe "on a JSON column" do
+      json = "#{todo}.value is Hash[String, untyped]"
+
+      it "takes a Hash with String keys and JSON values at every level" do
+        value = {
+          "nothing" => nil,
+          "flags" => [true, false],
+          "numbers" => [1, 2**70, -0.5, 1e300],
+          "text" => "ü",
+          "nested" => { "list" => [{ "deep" => {} }, []] }
+        }
+
+        assert_nil write_mismatch(column(:json), value)
+      end
+
+      it "takes nil for a nullable one" do
+        assert_nil write_mismatch(column(:json, nullable: true), nil)
+      end
+
+      it "refuses nil for one that isn't nullable" do
+        assert_equal "#{json}, not nil (NilClass)", write_mismatch(column(:json), nil)
+      end
+
+      it "refuses anything but a Hash, writing a nullable one's type with ?" do
+        assert_equal ["#{json}, not [] (Array)", "#{json}?, not \"{}\" (String)"],
+                     [write_mismatch(column(:json), []), write_mismatch(column(:json, nullable: true), "{}")]
+      end
+
+      it "names a key that isn't a String, and where it is" do
+        assert_equal ["#{json}, not :status (Symbol) as a key of value",
+                      "#{json}, not 1 (Integer) as a key of value[\"meta\"][0]"],
+                     [write_mismatch(column(:json), { status: "pending" }),
+                      write_mismatch(column(:json), { "meta" => [{ 1 => "one" }] })]
+      end
+
+      {
+        "a Symbol" => :pending,
+        "a Time" => Time.utc(2026, 11, 11),
+        "a Date" => Date.new(2026, 11, 11),
+        "a Rational" => Rational(1, 3),
+        "NaN" => Float::NAN,
+        "Infinity" => Float::INFINITY,
+        "-Infinity" => -Float::INFINITY
+      }.each do |name, refused|
+        it "refuses #{name}, naming the first value JSON doesn't hold and where it is" do
+          value = { "ok" => 1, "events" => [{ "at" => 1 }, { "at" => refused, "then" => :later }] }
+
+          assert_equal "#{json}, not #{refused.inspect} (#{refused.class}) at value[\"events\"][1][\"at\"]",
+                       write_mismatch(column(:json), value)
+        end
+      end
+    end
 
     it "takes one value its column's type takes" do
       assert_nil write_mismatch(column(:string), "Buy milk")

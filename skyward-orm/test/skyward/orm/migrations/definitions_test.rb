@@ -11,6 +11,8 @@ describe Skyward::ORM::Migrations::Definitions do
 
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
 
+  def column(klass, name) = column_types.columns(klass).find { |column| column.name == name }
+
   def constraint(name, kind, columns, definition, references = nil)
     Skyward::ORM::Catalog::Constraint.new(name:, kind:, columns:, references:, definition:)
   end
@@ -69,13 +71,20 @@ describe Skyward::ORM::Migrations::Definitions do
   describe ".default" do
     it "writes a value as its adapter stores it, an expression as its adapter writes one, and nil for none" do
       found = [
-        definitions.default(fixtures::Todo, :done, Skyward::ORM::Adapters::SQLite),
-        definitions.default(fixtures::Todo, :created_at, Skyward::ORM::Adapters::SQLite),
-        definitions.default(fixtures::Todo, :created_at, Skyward::ORM::Adapters::PostgreSQL),
-        definitions.default(fixtures::Todo, :title, Skyward::ORM::Adapters::SQLite)
+        definitions.default(fixtures::Todo, column(fixtures::Todo, :done), Skyward::ORM::Adapters::SQLite),
+        definitions.default(fixtures::Todo, column(fixtures::Todo, :created_at), Skyward::ORM::Adapters::SQLite),
+        definitions.default(fixtures::Todo, column(fixtures::Todo, :created_at), Skyward::ORM::Adapters::PostgreSQL),
+        definitions.default(fixtures::Todo, column(fixtures::Todo, :title), Skyward::ORM::Adapters::SQLite)
       ]
 
       assert_equal ["0", "(CURRENT_TIMESTAMP)", "CURRENT_TIMESTAMP", nil], found
+    end
+
+    it "writes a JSON column's default as JSON" do
+      settings = column(fixtures::Webhook, :settings)
+
+      assert_equal %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}'),
+                   definitions.default(fixtures::Webhook, settings, Skyward::ORM::Adapters::PostgreSQL)
     end
   end
 

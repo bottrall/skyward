@@ -8,6 +8,7 @@ describe Skyward::ORM::Statements do
     Skyward::Core::Signatures.load(File.expand_path("../../fixtures/tables/sig", __dir__))
   )
   todo = TablesFixtures::Todo
+  webhook = TablesFixtures::Webhook
 
   let(:empty) { TestDatabase.empty }
   let(:adapter) { empty.adapter }
@@ -57,6 +58,18 @@ describe Skyward::ORM::Statements do
       assert_equal "TablesFixtures::Todo.insert needs list_id, title: a column that can't be NULL and has no " \
                    "default needs a value",
                    error.message
+    end
+
+    it "binds a Hash for a JSON column as one value, its JSON" do
+      expected = empty.shown(%(INSERT INTO "webhooks" ("settings", "payload") VALUES (?, ?)), [%({"on":true}), nil])
+
+      assert_equal expected,
+                   Skyward::ORM::Statements.insert(
+                     adapter,
+                     column_types,
+                     webhook,
+                     { settings: { "on" => true }, payload: nil }
+                   )
     end
 
     it "leaves an untyped column to the database, inserting DEFAULT VALUES given no values" do
@@ -165,6 +178,43 @@ describe Skyward::ORM::Statements do
       assert_equal "TablesFixtures::Todo.insert_all row 0 needs list_id: a column that can't be NULL and has no " \
                    "default needs a value",
                    refused([{ title: "Eggs" }, { title: "Milk" }])
+    end
+
+    it "binds a Hash for a JSON column as its JSON, in every row" do
+      rows = [{ settings: { "on" => true } }, { settings: { "on" => false } }]
+
+      assert_equal empty.shown(%(INSERT INTO "webhooks" ("settings") VALUES (?), (?)), [%({"on":true}), %({"on":false})]),
+                   Skyward::ORM::Statements.insert_all(adapter, column_types, webhook, rows)
+    end
+  end
+
+  describe ".binds" do
+    it "encodes each value as its column binds it" do
+      values = { id: 1, settings: { "on" => true }, payload: nil }
+
+      assert_equal [adapter.encode(1), %({"on":true}), nil],
+                   Skyward::ORM::Statements.binds(adapter, column_types, webhook, values)
+    end
+  end
+
+  describe ".encode" do
+    def column(klass, name) = column_types.columns(klass).find { |column| column.name == name }
+
+    it "binds a JSON column's Hash as its JSON, one value" do
+      assert_equal %({"list":[1,{"ü":null}]}),
+                   Skyward::ORM::Statements.encode(
+                     adapter,
+                     column(webhook, :settings),
+                     { "list" => [1, { "ü" => nil }] }
+                   )
+    end
+
+    it "binds a JSON column's nil as NULL" do
+      assert_nil Skyward::ORM::Statements.encode(adapter, column(webhook, :payload), nil)
+    end
+
+    it "encodes any other column's value as the adapter does" do
+      assert_equal adapter.encode(true), Skyward::ORM::Statements.encode(adapter, column(todo, :done), true)
     end
   end
 

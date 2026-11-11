@@ -19,6 +19,8 @@ module Skyward::ORM::Migrations::Diff
   # The columns a foreign key names after its table, if it names any.
   REFERENCED: Regexp
 
+  QUOTED: Regexp
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -78,6 +80,20 @@ module Skyward::ORM::Migrations::Diff
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: Array[Skyward::ORM::Migrations::edit]
   def changed: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::Catalog::Column had, Skyward::ORM::_Adapter adapter) -> Array[Skyward::ORM::Migrations::edit]
+
+  # PostgreSQL respells a jsonb default, as '{"a": 1}' for '{"a":1}', so a JSON
+  # column's default is compared by value.
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs had: String
+  # @rbs wanted: String
+  # @rbs return: bool
+  def same_default?: (Skyward::ORM::Tables::Column column, String had, String wanted) -> bool
+
+  # The value a string literal holds as JSON, in an Array so that JSON's null
+  # isn't taken for no value, or nil when it's an expression or not JSON.
+  # @rbs default: String
+  # @rbs return: [untyped]?
+  def json: (String default) -> [ untyped ]?
 
   # Constraints are matched by name. SQLite can hold one with no name, which
   # matches the one its class declares on the same columns. PostgreSQL rewrites

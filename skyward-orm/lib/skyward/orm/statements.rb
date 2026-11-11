@@ -13,7 +13,7 @@ module Skyward::ORM::Statements
     require_present(table, column_types.columns(table), values.keys, "#{table}.insert")
     return ["INSERT INTO #{quote(table.table_name)} DEFAULT VALUES", []] if values.empty?
 
-    inserting(adapter, table, values.keys, [values])
+    inserting(adapter, column_types, table, values.keys, [values])
   end
 
   # @rbs adapter: Skyward::ORM::_Adapter
@@ -37,7 +37,27 @@ module Skyward::ORM::Statements
     end
     # Every row has row 0's columns by now, so only row 0 can lack one.
     require_present(table, column_types.columns(table), columns, "#{table}.insert_all row 0")
-    inserting(adapter, table, columns, rows)
+    inserting(adapter, column_types, table, columns, rows)
+  end
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: Array[untyped]
+  def binds(adapter, column_types, table, values)
+    columns = by_name(column_types, table)
+    values.map { |name, value| encode(adapter, columns.fetch(name), value) }
+  end
+
+  # Only a column says a Hash is JSON: bound to a ? in SQL, it's refused,
+  # since the driver would spread it across placeholders.
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def encode(adapter, column, value)
+    column.type == :json && !value.nil? ? JSON.generate(value) : adapter.encode(value)
   end
 
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -80,17 +100,19 @@ module Skyward::ORM::Statements
   private
 
   # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Symbol]
   # @rbs rows: Array[Hash[Symbol, untyped]]
   # @rbs return: [String, Array[untyped]]
-  def inserting(adapter, table, columns, rows)
+  def inserting(adapter, column_types, table, columns, rows)
     tuples = Array.new(rows.size * columns.size) { |index| adapter.placeholder(index + 1) }
                   .each_slice(columns.size).map { |placeholders| "(#{placeholders.join(", ")})" }
+    named = by_name(column_types, table)
     [
       "INSERT INTO #{quote(table.table_name)} (#{columns.map { |column| quote(column) }.join(", ")}) " \
       "VALUES #{tuples.join(", ")}",
-      rows.flat_map { |row| row.fetch_values(*columns).map { |value| adapter.encode(value) } }
+      rows.flat_map { |row| columns.map { |column| encode(adapter, named.fetch(column), row.fetch(column)) } }
     ]
   end
 
@@ -125,7 +147,7 @@ module Skyward::ORM::Statements
     refused = unknown(table, values.keys)
     return refused if refused
 
-    columns = column_types.columns(table).to_h { |column| [column.name, column] }
+    columns = by_name(column_types, table)
     values.filter_map { |name, value| yield(columns.fetch(name), value) }.first
   end
 
@@ -178,4 +200,9 @@ module Skyward::ORM::Statements
           "database binds at most #{limit} in one statement. Split the rows, in a Skyward.transaction if they " \
           "must land together."
   end
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: Hash[Symbol, Skyward::ORM::Tables::Column]
+  def by_name(column_types, table) = column_types.columns(table).to_h { |column| [column.name, column] }
 end

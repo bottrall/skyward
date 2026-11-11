@@ -22,6 +22,13 @@ module TablesFixtures
     def overdue?(today = Date.today) = !done && !due_on.nil? && due_on < today
   end
 
+  # A JSON column, and a nullable one.
+  class Webhook < Skyward::ORM::Record
+    table :webhooks
+
+    attr_reader :id, :settings, :payload
+  end
+
   class Typed < Skyward::ORM::Record
     attr_reader :integer,
                 :float,
@@ -34,6 +41,8 @@ module TablesFixtures
                 :or_nil,
                 :aliased,
                 :nullable_enum,
+                :json,
+                :nullable_json,
                 :untyped,
                 :unannotated
   end

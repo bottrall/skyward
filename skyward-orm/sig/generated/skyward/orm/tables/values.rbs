@@ -29,6 +29,20 @@ module Skyward::ORM::Tables::Values
 
   private
 
+  # A row reads back == to the one written only when its JSON holds each value
+  # as it is: a Symbol or a Time would come back a String.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def json_mismatch: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Tables::Column column, untyped value) -> String?
+
+  # The first value JSON doesn't hold as it is, and where it is.
+  # @rbs value: untyped
+  # @rbs path: String
+  # @rbs return: [untyped, String]?
+  def stray: (untyped value, String path) -> [ untyped, String ]?
+
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
