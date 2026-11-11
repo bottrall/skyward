@@ -13,7 +13,8 @@ module Skyward::ORM::Adapters::PostgreSQL
     enum: "text",
     uuid: "uuid",
     int32: "integer",
-    int16: "smallint"
+    int16: "smallint",
+    json: "jsonb"
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # As the catalog spells each type, which compatible? is given.
@@ -27,7 +28,8 @@ module Skyward::ORM::Adapters::PostgreSQL
     enum: ["text", "character varying"],
     uuid: ["uuid"],
     int32: ["integer"],
-    int16: ["smallint"]
+    int16: ["smallint"],
+    json: %w[jsonb json]
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, Array[String]]
 
   # The catalog puts a length or precision in parentheses.
@@ -197,6 +199,7 @@ module Skyward::ORM::Adapters::PostgreSQL
     # A timestamp column's text has no zone, so it's read as the UTC it was written in.
     when :time then Time.new(value, in: "UTC").getutc
     when :enum then value.to_sym
+    when :json then JSON.parse(value, freeze: true)
     else value.freeze
     end
   end

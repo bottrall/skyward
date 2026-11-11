@@ -23,6 +23,8 @@ module Skyward::ORM::Migrations::Diff
   # The columns a foreign key names after its table, if it names any.
   REFERENCED = /\bREFERENCES\s+#{QUALIFIED}\s*(?:\((?<columns>[^)]*)\))?/i #: Regexp
 
+  QUOTED = /\A'((?:[^']|'')*)'\z/ #: Regexp
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -177,15 +179,41 @@ module Skyward::ORM::Migrations::Diff
     name = column.name
     sql_type = adapter.sql_type(column.type)
     retyped = sql_type unless adapter.compatible?(column.type, had.type)
-    default = Skyward::ORM::Migrations::Definitions.default(klass, name, adapter)
+    default = Skyward::ORM::Migrations::Definitions.default(klass, column, adapter)
     # PostgreSQL keeps no default for DEFAULT NULL, which is the same as none.
-    redefaulted = (had.default || NULL) != (default || NULL)
+    redefaulted = !same_default?(column, had.default || NULL, default || NULL)
     renulled = sql_type && had.nullable != column.nullable
     [
       (Skyward::ORM::Migrations::ChangeType.new(column: name, from: had.type, to: retyped) if retyped),
       (Skyward::ORM::Migrations::ChangeDefault.new(column: name, from: had.default, to: default) if redefaulted),
       (Skyward::ORM::Migrations::ChangeNullable.new(column: name, nullable: column.nullable) if renulled)
     ].compact
+  end
+
+  # PostgreSQL respells a jsonb default, as '{"a": 1}' for '{"a":1}', so a JSON
+  # column's default is compared by value.
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs had: String
+  # @rbs wanted: String
+  # @rbs return: bool
+  def same_default?(column, had, wanted)
+    return true if had == wanted
+    return false unless column.type == :json
+
+    decoded = json(had)
+    !decoded.nil? && decoded == json(wanted)
+  end
+
+  # The value a string literal holds as JSON, in an Array so that JSON's null
+  # isn't taken for no value, or nil when it's an expression or not JSON.
+  # @rbs default: String
+  # @rbs return: [untyped]?
+  def json(default)
+    text = default[QUOTED, 1]
+    [JSON.parse(text.gsub("''", "'"))] if text
+  # Other SQL than a migration's may have written a default that isn't JSON.
+  rescue JSON::ParserError
+    nil
   end
 
   # Constraints are matched by name. SQLite can hold one with no name, which

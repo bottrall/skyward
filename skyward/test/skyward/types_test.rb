@@ -47,7 +47,11 @@ describe "Skyward's types" do
         done: true,
         due_on: Date.new(2028, 2, 29),
         due_at:,
-        priority: :high
+        priority: :high,
+        settings: {
+          "retries" => [{ "delay" => 0.5, "limit" => 2**64, "until" => nil, "on" => false, "headers" => {} }],
+          "ünïcode" => "✓"
+        }
       }
 
       # Inserts a row, posts back what the API returned for it, and answers
@@ -73,7 +77,8 @@ describe "Skyward's types" do
           nullable_done: false,
           nullable_due_on: Date.new(1970, 1, 1),
           nullable_due_at: Time.new(1999, 12, 31, 23, 59, Rational("59.999999"), "-03:00"),
-          nullable_priority: :low
+          nullable_priority: :low,
+          nullable_settings: {}
         }
         got, row = round_trip(values.merge(nullables))
 
@@ -97,7 +102,8 @@ describe "Skyward's types" do
         string: { type: "string" },
         bool: { type: "boolean" },
         date: { type: "string", format: "date" },
-        time: { type: "string", format: "date-time" }
+        time: { type: "string", format: "date-time" },
+        json: { type: "object", additionalProperties: {} }
       }
 
       it "agrees with the ORM's columns on each name, type, nullability and enum" do
@@ -132,7 +138,6 @@ describe "Skyward's types" do
     # fails until the list says which gems read it.
     known = {
       "BigDecimal" => [],
-      "Hash[String, untyped]" => %i[api],
       "Hash[String, Integer]" => %i[api],
       "Array[Integer]" => %i[api],
       "{ id: Integer }" => %i[api],

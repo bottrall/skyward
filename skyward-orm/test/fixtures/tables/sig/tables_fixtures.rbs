@@ -18,6 +18,12 @@ module TablesFixtures
     def overdue?: (?Date today) -> bool
   end
 
+  class Webhook < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader settings: Hash[String, untyped]
+    attr_reader payload: Hash[String, untyped]?
+  end
+
   # unannotated has no reader here.
   class Typed < ::Skyward::ORM::Record
     attr_reader integer: Integer
@@ -31,6 +37,8 @@ module TablesFixtures
     attr_reader or_nil: String | nil
     attr_reader aliased: priority
     attr_reader nullable_enum: priority?
+    attr_reader json: Hash[String, untyped]
+    attr_reader nullable_json: Hash[String, untyped]?
     attr_reader untyped: untyped
   end
 

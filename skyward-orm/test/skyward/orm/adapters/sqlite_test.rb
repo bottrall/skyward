@@ -112,13 +112,13 @@ describe Skyward::ORM::Adapters::SQLite do
 
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
-      types = %i[integer float string bool date time enum uuid int32 int16].to_h do |type|
+      types = %i[integer float string bool date time enum uuid int32 int16 json].to_h do |type|
         [type, sqlite.sql_type(type)]
       end
 
       assert_equal(
         { integer: "INTEGER", float: "REAL", string: "TEXT", bool: "INTEGER", date: "TEXT", time: "TEXT",
-          enum: "TEXT", uuid: "TEXT", int32: "INTEGER", int16: "INTEGER" },
+          enum: "TEXT", uuid: "TEXT", int32: "INTEGER", int16: "INTEGER", json: "TEXT" },
         types
       )
     end
@@ -171,7 +171,8 @@ describe Skyward::ORM::Adapters::SQLite do
         [:time, "DATETIME(6)"],
         [:uuid, "varchar(36)"],
         [:int32, "int"],
-        [:int16, "smallint"]
+        [:int16, "smallint"],
+        [:json, "varchar"]
       ]
 
       assert(declared.all? { |type, sql_type| sqlite.compatible?(type, sql_type) })
@@ -179,7 +180,7 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "refuses a declared type with another affinity" do
       declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "BLOB"], [:float, "NUMERIC"],
-                  [:uuid, "BLOB"], [:int32, "TEXT"], [:int16, "REAL"]]
+                  [:uuid, "BLOB"], [:int32, "TEXT"], [:int16, "REAL"], [:json, "JSON"]]
 
       assert(declared.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
     end
@@ -263,6 +264,13 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "reads a symbol" do
       assert_equal :high, sqlite.decode(:enum, "high")
+    end
+
+    it "reads JSON into a Hash, frozen at every level" do
+      read = sqlite.decode(:json, +'{"list":[{"deep":"ü"}]}')
+
+      assert_equal [{ "list" => [{ "deep" => "ü" }] }, true],
+                   [read, [read, read["list"], read["list"][0], read["list"][0]["deep"]].all?(&:frozen?)]
     end
 
     it "passes an integer through" do

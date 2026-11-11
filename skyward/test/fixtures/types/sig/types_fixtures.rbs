@@ -8,6 +8,7 @@ module TypesFixtures
     attr_reader due_on: Date
     attr_reader due_at: Time
     attr_reader priority: :low | :high
+    attr_reader settings: Hash[String, untyped]
     attr_reader nullable_count: Integer?
     attr_reader nullable_ratio: Float?
     attr_reader nullable_title: String?
@@ -15,6 +16,7 @@ module TypesFixtures
     attr_reader nullable_due_on: Date?
     attr_reader nullable_due_at: Time?
     attr_reader nullable_priority: (:low | :high)?
+    attr_reader nullable_settings: Hash[String, untyped]?
   end
 
   class EverythingAPI < ::Skyward::API

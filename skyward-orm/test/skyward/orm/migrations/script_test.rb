@@ -95,6 +95,17 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write([create(fixtures::Member)])
     end
 
+    it "writes a JSON column as jsonb on PostgreSQL and TEXT on SQLite, with its default as JSON" do
+      default = %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}')
+      columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Webhook)], adapter).lines[2..3].join }
+
+      assert_equal [
+        "  settings  jsonb NOT NULL DEFAULT #{default},\n  payload   jsonb\n",
+        "  settings  TEXT    NOT NULL DEFAULT #{default},\n  payload   TEXT\n"
+      ],
+                   columns
+    end
+
     it "quotes a default its adapter passes through as its text" do
       assert_match(/^  joined_on +date +NOT NULL DEFAULT '2026-10-18',$/, write([create(fixtures::Member)], postgres))
     end
@@ -351,6 +362,17 @@ describe Skyward::ORM::Migrations::Script do
         migrate(section(created, :down))
 
         assert_equal [%i[notes rank], []], [notes, adapter.tables(connection)]
+      end
+
+      it "creates a JSON column, and then finds nothing to change, its default included" do
+        diff = lambda do
+          Skyward::ORM::Migrations::Diff.changes(
+            [fixtures::Webhook], column_types, adapter.tables(connection), adapter, ->(*) { true }
+          )
+        end
+        migrate(section(diff.call, :up))
+
+        assert_empty diff.call
       end
 
       it "names a check, so its violation names it" do

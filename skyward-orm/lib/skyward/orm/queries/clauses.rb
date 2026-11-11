@@ -623,14 +623,15 @@ module Skyward::ORM::Queries::Clauses
     raise ArgumentError, "#{@table} update needs a column to set, such as update(done: true)" if values.empty?
 
     database = @session.database
-    Skyward::ORM::Statements.require_values(database.column_types, @table, values)
+    column_types = database.column_types
+    Skyward::ORM::Statements.require_values(column_types, @table, values)
     assignments = values.keys.each.with_index(1).map do |column, position|
       "#{Skyward::ORM::Statements.quote(column)} = #{database.adapter.placeholder(position)}"
     end
     changing(
       :update,
       "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(", ")}",
-      values.values
+      Skyward::ORM::Statements.binds(database.adapter, column_types, @table, values)
     )
   end
 
@@ -639,13 +640,12 @@ module Skyward::ORM::Queries::Clauses
 
   # @rbs method: Symbol
   # @rbs sql: String
-  # @rbs values: Array[untyped]
+  # @rbs set: Array[untyped]
   # @rbs return: [String, Array[untyped]]
-  def changing(method, sql, values)
+  def changing(method, sql, set)
     require_writable(method)
-    database = @session.database
-    where, binds = filter(database, values.size + 1)
-    [[sql, where].compact.join(" "), [*values.map { |value| database.adapter.encode(value) }, *binds]]
+    where, binds = filter(@session.database, set.size + 1)
+    [[sql, where].compact.join(" "), [*set, *binds]]
   end
 
   # @rbs [T] (T | Skyward::ORM::Violation written) -> T

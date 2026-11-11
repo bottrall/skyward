@@ -225,6 +225,28 @@ describe Skyward::ORM::Record do
         assert_empty(traced { assert_raises(ArgumentError) { todo.insert(list_id: 1, title: ["c"]) } })
       end
 
+      describe "into a JSON column" do
+        webhook = TablesFixtures::Webhook
+
+        before do
+          json = empty.adapter.sql_type(:json)
+          connection.execute(
+            "CREATE TABLE webhooks (id #{empty.primary_key}, settings #{json} NOT NULL, payload #{json})"
+          )
+        end
+
+        it "binds a Hash as one value, and reads it back ==" do
+          settings = { "retries" => 3, "hooks" => [{ "url" => "ü", "at" => 1.5 }, nil, false], "big" => 2**70,
+                       "{}" => {} }
+
+          assert_equal [1, webhook.new(id: 1, settings:, payload: nil)], [webhook.insert(settings:), webhook.all.first]
+        end
+
+        it "refuses a value JSON doesn't hold before any SQL runs" do
+          assert_empty(traced { assert_raises(ArgumentError) { webhook.insert(settings: { "status" => :pending }) } })
+        end
+      end
+
       violations.each do |kind, (violation, sql, written)|
         it "returns a #{kind} violation, with the database's message" do
           todo.insert(list_id: 1, title: "Buy milk")

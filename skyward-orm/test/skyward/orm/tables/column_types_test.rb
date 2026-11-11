@@ -9,8 +9,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
     Skyward::Core::Signatures.load(signatures),
     refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS
   )
-  column_types = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16 or a union of symbols, " \
-                 "any of them nullable, or untyped."
+  column_types = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16, a union of symbols " \
+                 "or Hash[String, untyped], any of them nullable, or untyped."
 
   counting_reader = Class.new do
     attr_reader :reads
@@ -74,6 +74,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
         column(:or_nil, :string, nullable: true),
         column(:aliased, :enum, symbols: %i[low normal high]),
         column(:nullable_enum, :enum, nullable: true, symbols: %i[low normal high]),
+        column(:json, :json),
+        column(:nullable_json, :json, nullable: true),
         column(:untyped, :untyped),
         column(:unannotated, :untyped)
       ]
@@ -153,9 +155,9 @@ describe Skyward::ORM::Tables::ColumnTypes do
                    refusal(TablesFixtures::Listed)
     end
 
-    it "refuses a hash as not a column type yet" do
-      assert_equal "TablesFixtures::Hashed#settings is Hash[String, String], which isn't a column type yet. " \
-                   "#{column_types}",
+    it "refuses a hash of anything but untyped, pointing at Hash[String, untyped]" do
+      assert_equal "TablesFixtures::Hashed#settings is Hash[String, String], which isn't a column type. " \
+                   "A Hash column is Hash[String, untyped], holding any JSON.",
                    refusal(TablesFixtures::Hashed)
     end
 

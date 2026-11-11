@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "date"
+require "json"
 require "skyward/core"
 require "zeitwerk"
 require_relative "orm/version"

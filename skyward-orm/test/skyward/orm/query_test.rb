@@ -130,6 +130,20 @@ describe Skyward::ORM::Query do
       )
     end
 
+    it "binds a Hash for a JSON column as one value, its JSON, and sets it" do
+      json = adapter.sql_type(:json)
+      connection.execute("CREATE TABLE webhooks (id #{adapter.sql_type(:integer)}, settings #{json}, payload #{json})")
+      connection.execute(%(INSERT INTO webhooks VALUES (1, '{}', NULL)))
+      webhooks = Skyward::ORM::Query.new(TablesFixtures::Webhook, session)
+      sent = traced { webhooks.where(id: 1).update(settings: { "on" => [true] }, payload: nil) }
+
+      assert_equal [
+        empty.shown(%(UPDATE "webhooks" SET "settings" = ?, "payload" = ? WHERE "id" = ?), [%({"on":[true]}), nil, 1]),
+        [TablesFixtures::Webhook.new(id: 1, settings: { "on" => [true] }, payload: nil)]
+      ],
+                   [sent.first, webhooks.to_a]
+    end
+
     it "returns 0 when no row matches" do
       assert_equal 0, query.where(id: 3).update(done: true)
     end
