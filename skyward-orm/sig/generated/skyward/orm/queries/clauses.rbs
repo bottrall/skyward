@@ -12,6 +12,8 @@ module Skyward::ORM::Queries::Clauses[R]
 
   type scope = :all | :start | :narrowed
 
+  type parts = [ singleton(Skyward::ORM::Record), Array[Join], scope, Array[condition], Array[[ Symbol, direction ]], Array[Symbol], Integer?, Integer? ]
+
   DIRECTIONS: Array[direction]
 
   class Comparison < Data
@@ -165,6 +167,10 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs return: self
   def offset: (Integer count) -> self
 
+  # @rbs other: Skyward::ORM::Query[untyped]
+  # @rbs return: self
+  def merge: (Skyward::ORM::Query[untyped] other) -> self
+
   # Steep ties the row class to S only through its new, so the query keeps it
   # as the Class it is.
   # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
@@ -200,6 +206,11 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs return: [String, Array[untyped]]
   def to_sql: () -> [ String, Array[untyped] ]
 
+  # rbs-inline writes a protected method as public, so Steep would let an app
+  # call this, though Ruby won't.
+  # @rbs return: parts
+  def parts: () -> parts
+
   private
 
   # Steep can't tie the class it builds to self, or the row class to S, so
@@ -222,6 +233,22 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs on: Hash[Symbol, Symbol]
   # @rbs return: Join
   def joined: (String keyword, singleton(Skyward::ORM::Record) table, Hash[Symbol, Symbol] on) -> Join
+
+  # @rbs other: untyped
+  # @rbs return: void
+  def require_query: (untyped other) -> void
+
+  # Two scopes that each join a table the same way compose, so an identical
+  # join is kept once.
+  # @rbs joins: Array[Join]
+  # @rbs return: Array[Join]
+  def merged_joins: (Array[Join] joins) -> Array[Join]
+
+  # Merging only ever narrows, so every row may be changed only when both
+  # queries said so with an explicit all.
+  # @rbs scope: scope
+  # @rbs return: scope
+  def merged_scope: (scope scope) -> scope
 
   # @rbs sql: String?
   # @rbs values: Array[untyped]
@@ -337,6 +364,12 @@ module Skyward::ORM::Queries::Clauses[R]
 
   # @rbs return: Array[singleton(Skyward::ORM::Record)]
   def tables: () -> Array[singleton(Skyward::ORM::Record)]
+
+  # A table that's in a query twice needs an alias to tell the two apart,
+  # which a query can't give it.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: bool
+  def present?: (singleton(Skyward::ORM::Record) table) -> bool
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs return: void

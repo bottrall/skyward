@@ -676,6 +676,129 @@ describe Skyward::ORM::Queries::Clauses do
     end
   end
 
+  describe "#merge" do
+    title = TablesFixtures::TodoTitle
+    open_count = TablesFixtures::OpenCount
+
+    let(:all) { Skyward::ORM::Query.new(todo, session, scope: :all) }
+
+    it "returns a new frozen query, leaving both it was made from as they were" do
+      other = query.where(done: false)
+      merged = query.merge(other)
+
+      assert_equal [true, [select, []], empty.shown(%(#{select} WHERE "done" = ?), [false])],
+                   [merged.frozen?, query.to_sql, other.to_sql]
+    end
+
+    it "runs the README's Todo.where(list_id: 3).merge(Todo.open)" do
+      insert(milk.with(list_id: 3), eggs.with(list_id: 3), milk.with(id: 3, list_id: 4))
+      merged = query.where(list_id: 3).merge(query.where(done: false).order(created_at: :desc))
+
+      assert_equal [empty.shown(%(#{select} WHERE "list_id" = ? AND "done" = ? ORDER BY "created_at" DESC), [3, false]),
+                    [milk.with(list_id: 3)]],
+                   [merged.to_sql, merged.to_a]
+    end
+
+    it "keeps a projection one, with its row class and expressions" do
+      merged = query.into(open_count, open: "count(*)").merge(query.where(done: false).group(:list_id))
+      sql = %(SELECT "list_id", count(*) AS "open" FROM "todos" WHERE "done" = ? GROUP BY "list_id")
+
+      assert_equal [Skyward::ORM::Projection, empty.shown(sql, [false])], [merged.class, merged.to_sql]
+    end
+
+    it "refuses a projection, whose row class would have nowhere to go" do
+      error = assert_raises(ArgumentError) { query.merge(query.into(title)) }
+
+      assert_equal "TablesFixtures::Todo can't merge a projection, whose row class and expressions would have " \
+                   "nowhere to go. Merge the query before its into.",
+                   error.message
+    end
+
+    it "refuses anything that isn't a query" do
+      error = assert_raises(ArgumentError) { query.merge(:open) }
+
+      assert_equal "TablesFixtures::Todo can't merge :open, which isn't a query", error.message
+    end
+
+    it "refuses a query of a different table class, naming both" do
+      error = assert_raises(ArgumentError) { query.merge(Skyward::ORM::Query.new(list, session)) }
+
+      assert_equal "TablesFixtures::Todo can't merge a query of TablesFixtures::List, a different table class",
+                   error.message
+    end
+
+    it "adds the other's joins after its own, qualifying the other's columns" do
+      merged = query.join(list, list_id: :id).merge(query.join(notes, id: :id).where(done: false).order(:title))
+      notes_join = %(JOIN "notes" ON "todos"."id" = "notes"."id")
+      sql = %(#{joined} #{notes_join} WHERE "todos"."done" = ? ORDER BY "todos"."title" ASC)
+
+      assert_equal empty.shown(sql, [false]), merged.to_sql
+    end
+
+    it "keeps a join both have once" do
+      assert_equal [joined, []], query.join(list, list_id: :id).merge(query.join(list, list_id: :id)).to_sql
+    end
+
+    it "refuses a different join of a table already in the query" do
+      errors = [query.left_join(list, list_id: :id), query.join(list, title: :name)].map do |other|
+        assert_raises(ArgumentError) { query.join(list, list_id: :id).merge(other) }.message
+      end
+
+      assert_equal ["TablesFixtures::Todo can't merge a different join of TablesFixtures::List, " \
+                    "since lists is already in the query"] * 2,
+                   errors
+    end
+
+    it "joins the other's conditions with AND, after its own" do
+      assert_equal empty.shown(%(#{select} WHERE "list_id" = ? AND NOT ("done" = ?)), [3, true]),
+                   query.where(list_id: 3).merge(query.exclude(done: true)).to_sql
+    end
+
+    it "groups an or on either side in parentheses" do
+      merged = [
+        query.where(list_id: 3).merge(query.where(done: false).or(priority: :high)),
+        query.where(done: false).or(priority: :high).merge(query.where(list_id: 3))
+      ]
+
+      expected = [
+        empty.shown(%(#{select} WHERE "list_id" = ? AND ("done" = ? OR "priority" = ?)), [3, false, "high"]),
+        empty.shown(%(#{select} WHERE ("done" = ? OR "priority" = ?) AND "list_id" = ?), [false, "high", 3])
+      ]
+
+      assert_equal expected, merged.map(&:to_sql)
+    end
+
+    it "is grouped in parentheses by a later or, which joins to everything before it" do
+      assert_equal empty.shown(%(#{select} WHERE ("list_id" = ? AND "done" = ?) OR "priority" = ?), [3, false, "high"]),
+                   query.where(list_id: 3).merge(query.where(done: false)).or(priority: :high).to_sql
+    end
+
+    describe "with numbered placeholders" do
+      let(:adapter) { numbered }
+
+      it "numbers the SQL strings on both sides in order" do
+        merged = query.where("title = ?", "Buy milk").merge(query.where(done: false).where("priority = ?", "high"))
+
+        assert_equal [%(#{select} WHERE (title = $1) AND "done" = $2 AND (priority = $3)),
+                      ["Buy milk", adapter.encode(false), "high"]],
+                     merged.to_sql
+      end
+    end
+
+    it "appends the other's order and group to its own" do
+      assert_equal [%(#{select} GROUP BY "list_id", "done" ORDER BY "title" ASC, "created_at" DESC), []],
+                   query.order(:title).group(:list_id).merge(query.order(created_at: :desc).group(:done)).to_sql
+    end
+
+    it "takes the other's limit and offset when it has them, and keeps its own otherwise" do
+      page = query.limit(5).offset(10)
+
+      assert_equal [empty.shown(%(#{select} LIMIT ? OFFSET ?), [20, 10]),
+                    empty.shown(%(#{select} LIMIT ? OFFSET ?), [5, 40])],
+                   [page.merge(query.limit(20)).to_sql, page.merge(query.offset(40)).to_sql]
+    end
+  end
+
   describe "#into" do
     title = TablesFixtures::TodoTitle
     open_count = TablesFixtures::OpenCount
