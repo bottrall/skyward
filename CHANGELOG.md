@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.3.0](https://github.com/bottrall/skyward/compare/v0.2.0...v0.3.0) (2026-11-11)
+
+
+### Features
+
+* **api:** regenerate sig/generated on save under skyward serve ([#163](https://github.com/bottrall/skyward/issues/163)) ([f8f79b4](https://github.com/bottrall/skyward/commit/f8f79b4d6686b139d6b6086c760ed62b8a7fb17c)), closes [#162](https://github.com/bottrall/skyward/issues/162)
+* **core:** keep sig/generated current for every command that reads types ([#150](https://github.com/bottrall/skyward/issues/150)) ([2105424](https://github.com/bottrall/skyward/commit/21054242fdf8e8e90ea67204507320b6758a07a0)), closes [#145](https://github.com/bottrall/skyward/issues/145)
+* **examples:** move the todos example onto the ORM ([#133](https://github.com/bottrall/skyward/issues/133)) ([d616e61](https://github.com/bottrall/skyward/commit/d616e615190061c82e1d3cd90b01db2633e71bb6)), closes [#66](https://github.com/bottrall/skyward/issues/66)
+* **examples:** split the todos example into SQLite and PostgreSQL apps ([#138](https://github.com/bottrall/skyward/issues/138)) ([3ce3be1](https://github.com/bottrall/skyward/commit/3ce3be1bb01de3a19741c948a23c487716641184)), closes [#137](https://github.com/bottrall/skyward/issues/137)
+* **orm:** add a delete that returns a violation ([#130](https://github.com/bottrall/skyward/issues/130)) ([2bf5d8a](https://github.com/bottrall/skyward/commit/2bf5d8a2a8a7c581a14b1592ac54719b11be1a4f)), closes [#58](https://github.com/bottrall/skyward/issues/58)
+* **orm:** add empty migrations ([#116](https://github.com/bottrall/skyward/issues/116)) ([243b3fc](https://github.com/bottrall/skyward/commit/243b3fcb51294fbbbf1de100d20d5802dbda8167)), closes [#62](https://github.com/bottrall/skyward/issues/62)
+* **orm:** add insert, insert!, update, update! and delete! with RETURNING ([#129](https://github.com/bottrall/skyward/issues/129)) ([9e40ca1](https://github.com/bottrall/skyward/commit/9e40ca1c197a7af3b9d6d72e0e3cc78da9151231)), closes [#57](https://github.com/bottrall/skyward/issues/57)
+* **orm:** add into projections ([#125](https://github.com/bottrall/skyward/issues/125)) ([4c8e335](https://github.com/bottrall/skyward/commit/4c8e3354672cf42288bbeb317ca6da8fe52dfd21)), closes [#51](https://github.com/bottrall/skyward/issues/51)
+* **orm:** add join and left_join ([#126](https://github.com/bottrall/skyward/issues/126)) ([824fe78](https://github.com/bottrall/skyward/commit/824fe7871e313e0a5cc75dbe47eabd61e8eb00ac))
+* **orm:** add limit, offset and exists? ([#120](https://github.com/bottrall/skyward/issues/120)) ([026b885](https://github.com/bottrall/skyward/commit/026b885ebc7b07f8c0be2c8d970e6ac0c0fb6f5f))
+* **orm:** add ranges, SQL strings, exclude and or ([#124](https://github.com/bottrall/skyward/issues/124)) ([797efd6](https://github.com/bottrall/skyward/commit/797efd6cd022c42ac2322d541e30f7e067497d42))
+* **orm:** add skyward rollback and skyward status ([#127](https://github.com/bottrall/skyward/issues/127)) ([a0eb1dd](https://github.com/bottrall/skyward/commit/a0eb1dd41bb13900ebb0a8f495083c363d6bfb1a)), closes [#64](https://github.com/bottrall/skyward/issues/64)
+* **orm:** add Skyward::ORM::Transactional ([#119](https://github.com/bottrall/skyward/issues/119)) ([9182f6f](https://github.com/bottrall/skyward/commit/9182f6fca0feaa1e9d788e2e40d6b92fbf384a4a)), closes [#59](https://github.com/bottrall/skyward/issues/59)
+* **orm:** add Skyward.query for raw SQL ([#118](https://github.com/bottrall/skyward/issues/118)) ([c6d534b](https://github.com/bottrall/skyward/commit/c6d534b7b89501922387fca5231de184c328f142)), closes [#55](https://github.com/bottrall/skyward/issues/55)
+* **orm:** add the adapter seam, with a SQLite adapter ([#112](https://github.com/bottrall/skyward/issues/112)) ([9e7f59f](https://github.com/bottrall/skyward/commit/9e7f59fb376a66e2c55ec53279381b658f2bf237)), closes [#46](https://github.com/bottrall/skyward/issues/46)
+* **orm:** add the PostgreSQL adapter ([#128](https://github.com/bottrall/skyward/issues/128)) ([eb77ef1](https://github.com/bottrall/skyward/commit/eb77ef114a4d704e25f22d3e511c77233dbd9ea1))
+* **orm:** check the schema at connect ([#114](https://github.com/bottrall/skyward/issues/114)) ([f2e8068](https://github.com/bottrall/skyward/commit/f2e80681df3a9f4f5833f1138cceff2713ecaff9))
+* **orm:** check values against column types when a query is built ([#121](https://github.com/bottrall/skyward/issues/121)) ([53d5341](https://github.com/bottrall/skyward/commit/53d53414964cb8c0c7e9d4b0ba4c71db55f69d8e)), closes [#56](https://github.com/bottrall/skyward/issues/56)
+* **orm:** declare tables, with rows as frozen values ([#110](https://github.com/bottrall/skyward/issues/110)) ([0368eee](https://github.com/bottrall/skyward/commit/0368eeedbeb6d6682dd645e3044bfb72ecd9c313)), closes [#45](https://github.com/bottrall/skyward/issues/45)
+* **orm:** generate migrations for drops, changes, indexes and constraints ([#122](https://github.com/bottrall/skyward/issues/122)) ([7623dc8](https://github.com/bottrall/skyward/commit/7623dc8212305f85beb3a529218571f85174ae4f))
+* **orm:** generate migrations for new tables and columns ([#113](https://github.com/bottrall/skyward/issues/113)) ([31f1f89](https://github.com/bottrall/skyward/commit/31f1f8922ee4934f2a18890571c6d8a90404fedc))
+* **orm:** pool connections, with transactions held per fiber ([#115](https://github.com/bottrall/skyward/issues/115)) ([268cb70](https://github.com/bottrall/skyward/commit/268cb70161f54204c97a90cf9a06e47825a9ad16))
+* **orm:** query with where, order, group, first, count and find_by ([#117](https://github.com/bottrall/skyward/issues/117)) ([3d322d2](https://github.com/bottrall/skyward/commit/3d322d2ddcdf466d4227d83bc88337240f4978b0))
+* **orm:** return nothing from writes unless into asks for rows ([#151](https://github.com/bottrall/skyward/issues/151)) ([adb8a30](https://github.com/bottrall/skyward/commit/adb8a30c84987b5aadaa9f2ce64f09ac017b8ec8)), closes [#144](https://github.com/bottrall/skyward/issues/144)
+* **orm:** run migrations with a lock and checksums ([#123](https://github.com/bottrall/skyward/issues/123)) ([85125aa](https://github.com/bottrall/skyward/commit/85125aa6d80ea426ae2771813634967b8713ceaf))
+* **skyward:** add skyward new ([#134](https://github.com/bottrall/skyward/issues/134)) ([f07637f](https://github.com/bottrall/skyward/commit/f07637f5ebc4e09aec2be002972639bbb37b798a)), closes [#67](https://github.com/bottrall/skyward/issues/67)
+* **skyward:** make skyward new write a blank app ([#152](https://github.com/bottrall/skyward/issues/152)) ([c041473](https://github.com/bottrall/skyward/commit/c041473269548d3fe0c41c3d66e159a10716dbf5)), closes [#147](https://github.com/bottrall/skyward/issues/147)
+
+
+### Bug Fixes
+
+* **api,orm:** refuse non-finite Floats where they can't round-trip ([#156](https://github.com/bottrall/skyward/issues/156)) ([0e7e865](https://github.com/bottrall/skyward/commit/0e7e86539ac62269aa0d2b22b59947abfd4def8b)), closes [#132](https://github.com/bottrall/skyward/issues/132)
+* **orm:** accept uuid, citext and real columns when checking the schema ([#161](https://github.com/bottrall/skyward/issues/161)) ([310eb6e](https://github.com/bottrall/skyward/commit/310eb6e2491bde700d74c6d47eecd10d50a0be62)), closes [#159](https://github.com/bottrall/skyward/issues/159)
+* **orm:** roll back a transaction interrupted right after BEGIN ([#160](https://github.com/bottrall/skyward/issues/160)) ([2c617d1](https://github.com/bottrall/skyward/commit/2c617d1979cf41b449dba3975e7e0bccc15c04f3)), closes [#141](https://github.com/bottrall/skyward/issues/141)
+* **skyward:** put Falcon in the generated app's default gem group ([#149](https://github.com/bottrall/skyward/issues/149)) ([04ec1a6](https://github.com/bottrall/skyward/commit/04ec1a6949752fbd1fe9ba694c677094ce979624)), closes [#146](https://github.com/bottrall/skyward/issues/146)
+* **skyward:** run skyward new's bundle install outside the outer bundle ([#155](https://github.com/bottrall/skyward/issues/155)) ([23cb8eb](https://github.com/bottrall/skyward/commit/23cb8ebc27f5a60b9e5583422aa011626d2d09ac)), closes [#135](https://github.com/bottrall/skyward/issues/135)
+
 ## [0.2.0](https://github.com/bottrall/skyward/compare/v0.1.0...v0.2.0) (2026-11-08)
 
 
