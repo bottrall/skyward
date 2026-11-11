@@ -7,7 +7,7 @@ module Skyward::ORM::Migrations::Versions
   # never been migrated doesn't have the table yet.
   TABLE = :schema_migrations #: Symbol
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs return: Hash[String, String]
   def checksums(database)
     return {} unless database.tables.any? { |table| table.name == TABLE }

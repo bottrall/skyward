@@ -12,7 +12,7 @@ describe Skyward::ORM::Migrations::Versions do
   let(:connection) { empty.connect }
   # Lazy, so it reads the schema a test has made.
   let(:database) do
-    Skyward::ORM::Connection::Database.new(
+    Skyward::ORM::Database.new(
       empty.adapter,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,

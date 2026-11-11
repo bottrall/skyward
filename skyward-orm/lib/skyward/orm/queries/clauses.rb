@@ -420,7 +420,7 @@ module Skyward::ORM::Queries::Clauses
     raise ArgumentError, "#{@table} has no column #{unread.join(", ")}, so #{row} needs an expression for it"
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
@@ -433,7 +433,7 @@ module Skyward::ORM::Queries::Clauses
     ["SELECT #{columns} #{sql}", binds]
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
@@ -465,7 +465,7 @@ module Skyward::ORM::Queries::Clauses
 
   # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
   # start after them.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs position: Integer
   # @rbs return: [String?, Array[untyped]]
   def filter(database, position)
@@ -473,7 +473,7 @@ module Skyward::ORM::Queries::Clauses
     [("WHERE #{clauses}" unless @conditions.empty?), binds]
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -486,7 +486,7 @@ module Skyward::ORM::Queries::Clauses
     [clauses.join(" AND "), binds]
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs condition: condition
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -502,7 +502,7 @@ module Skyward::ORM::Queries::Clauses
     end
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs comparison: Comparison
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -516,7 +516,7 @@ module Skyward::ORM::Queries::Clauses
     end
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs fragment: Fragment
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -535,7 +535,7 @@ module Skyward::ORM::Queries::Clauses
   # NOT of an unknown is unknown, so a row whose column is NULL would be left
   # out, though it doesn't match. An untyped column may hold NULL, and an SQL
   # string's columns can't be known.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -553,7 +553,7 @@ module Skyward::ORM::Queries::Clauses
     [kept.empty? ? "NOT (#{sql})" : "(NOT (#{sql})#{kept})", binds]
   end
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
@@ -563,7 +563,7 @@ module Skyward::ORM::Queries::Clauses
   end
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs name: String
   # @rbs values: Array[untyped]
   # @rbs position: Integer
@@ -603,7 +603,7 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: bool
   def present?(table) = tables.any? { |present| present.table_name == table.table_name }
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs return: void
   def prepare(database) = tables.each { |table| database.prepare(table) }
 

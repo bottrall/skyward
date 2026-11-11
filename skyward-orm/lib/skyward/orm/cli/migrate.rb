@@ -15,7 +15,7 @@ module Skyward::ORM::CLI::Migrate
 
   private
 
-  # @rbs (Skyward::ORM::Connection::Database database, directory: String, out: _Writer, kernel: singleton(Kernel),
+  # @rbs (Skyward::ORM::Database database, directory: String, out: _Writer, kernel: singleton(Kernel),
   #   discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
   def migrate(database, directory:, out:, kernel:, discover:)
     runner = Skyward::ORM::Migrations::Runner

@@ -69,7 +69,7 @@ describe Skyward::ORM::Query do
   let(:session) do
     Skyward::ORM::Connection::Session.new.tap do |session|
       session.connect(
-        Skyward::ORM::Connection::Database.new(
+        Skyward::ORM::Database.new(
           adapter,
           Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Recording.new(connection:, sent:) }),
           Skyward::ORM::Tables::ColumnTypes.new(reader),

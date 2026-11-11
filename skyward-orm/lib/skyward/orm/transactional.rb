@@ -4,7 +4,7 @@
 module Skyward::ORM::Transactional
   # @rbs return: void
   def before_setup
-    Skyward::ORM::Connection::SESSION.database.hold
+    Skyward::ORM::Connection::SESSION.hold
     super
   end
 
@@ -13,6 +13,6 @@ module Skyward::ORM::Transactional
   def after_teardown
     super
   ensure
-    Skyward::ORM::Connection::SESSION.database.release
+    Skyward::ORM::Connection::SESSION.release
   end
 end

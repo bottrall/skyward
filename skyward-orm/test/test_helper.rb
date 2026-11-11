@@ -4,6 +4,7 @@ require "fileutils"
 require "minitest/autorun"
 require "skyward/orm"
 require "tmpdir"
+require "uri"
 
 # The database the suite's tests of behaviour every database shares run on.
 # TEST_DATABASE picks it: sqlite, the default, or postgresql, at
@@ -79,10 +80,13 @@ module TestDatabase
     CREATE SCHEMA public;
   SQL
 
-  def empty(kind = ENV.fetch("TEST_DATABASE", "sqlite"))
+  # second: true empties another database, for a test that switches between
+  # two: on SQLite another file, as every call gives, and on PostgreSQL one
+  # beside TEST_POSTGRES_URL's, created the first time.
+  def empty(kind = ENV.fetch("TEST_DATABASE", "sqlite"), second: false)
     url = case kind
           when "sqlite" then "sqlite://#{File.join(Dir.mktmpdir(nil, DIRECTORY), "test.db")}"
-          when "postgresql" then reset(postgres_url)
+          when "postgresql" then reset(second ? beside(postgres_url) : postgres_url)
           else raise ArgumentError, "TEST_DATABASE is sqlite or postgresql, not #{kind.inspect}"
           end
     adapter, location = Skyward::ORM::Adapters.resolve(
@@ -99,6 +103,20 @@ module TestDatabase
     ENV.fetch("TEST_POSTGRES_URL") do
       raise "Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how."
     end
+  end
+
+  def beside(url)
+    require "pg"
+    uri = URI(url)
+    name = "#{uri.path.delete_prefix("/")}_second"
+    connection = PG.connect(url)
+    if connection.exec_params("SELECT 1 FROM pg_database WHERE datname = $1", [name]).ntuples.zero?
+      connection.exec("CREATE DATABASE #{connection.quote_ident(name)}")
+    end
+    uri.path = "/#{name}"
+    uri.to_s
+  ensure
+    connection&.close
   end
 
   def reset(url)

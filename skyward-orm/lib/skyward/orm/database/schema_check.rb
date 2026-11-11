@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Skyward::ORM::Connection::Database::SchemaCheck
+module Skyward::ORM::Database::SchemaCheck
   extend self
 
   # @rbs!

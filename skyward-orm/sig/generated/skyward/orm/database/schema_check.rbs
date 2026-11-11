@@ -1,6 +1,6 @@
-# Generated from lib/skyward/orm/connection/database/schema_check.rb with RBS::Inline
+# Generated from lib/skyward/orm/database/schema_check.rb with RBS::Inline
 
-module Skyward::ORM::Connection::Database::SchemaCheck
+module Skyward::ORM::Database::SchemaCheck
   type problem = [ String, String, String ]
 
   MIGRATE: String

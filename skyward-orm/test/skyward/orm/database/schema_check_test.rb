@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../../../fixtures/tables/tables_fixtures"
+require_relative "../../../fixtures/tables/tables_fixtures"
 
-describe Skyward::ORM::Connection::Database::SchemaCheck do
+describe Skyward::ORM::Database::SchemaCheck do
   migrate = "Run `skyward migrate`, or `skyward migration` if you haven't generated one."
 
   def declared(name, type, nullable: false)
@@ -19,7 +19,7 @@ describe Skyward::ORM::Connection::Database::SchemaCheck do
   end
 
   def mismatch(columns, tables)
-    Skyward::ORM::Connection::Database::SchemaCheck.mismatch(
+    Skyward::ORM::Database::SchemaCheck.mismatch(
       TablesFixtures::Todo,
       columns,
       tables,

@@ -285,17 +285,17 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs return: void
   def require_members: (Class row, Hash[Symbol, String] expressions) -> void
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
-  def statement: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+  def statement: (Skyward::ORM::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
-  def from: (Skyward::ORM::Connection::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+  def from: (Skyward::ORM::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
 
   # @rbs join: Join
   # @rbs return: String
@@ -303,57 +303,57 @@ module Skyward::ORM::Queries::Clauses[R]
 
   # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
   # start after them.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs position: Integer
   # @rbs return: [String?, Array[untyped]]
-  def filter: (Skyward::ORM::Connection::Database database, Integer position) -> [ String?, Array[untyped] ]
+  def filter: (Skyward::ORM::Database database, Integer position) -> [ String?, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def conjunction: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  def conjunction: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs condition: condition
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def render: (Skyward::ORM::Connection::Database database, condition condition, Integer position) -> [ String, Array[untyped] ]
+  def render: (Skyward::ORM::Database database, condition condition, Integer position) -> [ String, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs comparison: Comparison
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def comparison: (Skyward::ORM::Connection::Database database, Comparison comparison, Integer position) -> [ String, Array[untyped] ]
+  def comparison: (Skyward::ORM::Database database, Comparison comparison, Integer position) -> [ String, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs fragment: Fragment
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def fragment: (Skyward::ORM::Connection::Database database, Fragment fragment, Integer position) -> [ String, Array[untyped] ]
+  def fragment: (Skyward::ORM::Database database, Fragment fragment, Integer position) -> [ String, Array[untyped] ]
 
   # NOT of an unknown is unknown, so a row whose column is NULL would be left
   # out, though it doesn't match. An untyped column may hold NULL, and an SQL
   # string's columns can't be known.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def negation: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  def negation: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs conditions: Array[condition]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def alternative: (Skyward::ORM::Connection::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  def alternative: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs name: String
   # @rbs values: Array[untyped]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def within: (Skyward::ORM::Connection::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
+  def within: (Skyward::ORM::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
 
   # Steep can't tie the row class to R, so the rows are untyped here and each
   # public method types them.
@@ -371,9 +371,9 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs return: bool
   def present?: (singleton(Skyward::ORM::Record) table) -> bool
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs return: void
-  def prepare: (Skyward::ORM::Connection::Database database) -> void
+  def prepare: (Skyward::ORM::Database database) -> void
 
   # Once a query has a join, a column's name could be in more than one table,
   # so each is qualified with its own.
