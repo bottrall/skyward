@@ -140,6 +140,11 @@ describe Skyward::API::CLI::Serve do
       nil
     end
 
+    # What serve.ru runs on a thread every interval, run when the test says.
+    let(:background) { [] }
+
+    def every(interval, &tick) = background << [interval, tick]
+
     def app(
       files = { "hello.rb" => hello("/hello"), "sig/hello.rbs" => signature, "config.ru" => config("/") },
       generate: method(:regenerate)
@@ -155,7 +160,8 @@ describe Skyward::API::CLI::Serve do
           apis: -> { ObjectSpace.each_object(Skyward::API.singleton_class).to_a },
           features: $LOADED_FEATURES,
           loaders: -> { registered_loaders },
-          generate:
+          generate:,
+          every: method(:every)
         )
       end
     end
@@ -218,11 +224,7 @@ describe Skyward::API::CLI::Serve do
       end
     end
 
-    it "regenerates sig/generated when it starts" do
-      app { assert_equal [:generated], generations }
-    end
-
-    it "regenerates sig/generated before a reload that a .rb file is among the changes of, and loads its types" do
+    it "regenerates sig/generated before a reload, and loads its types" do
       # As rbs-inline would, from the edited hello.rb.
       generate = lambda do
         write("sig/hello.rbs", signature(keyword: "?name: String"))
@@ -235,25 +237,21 @@ describe Skyward::API::CLI::Serve do
       end
     end
 
-    it "doesn't regenerate for a reload of .rbs files and config.ru alone" do
-      app do |served|
-        edit("sig/hello.rbs", signature)
-        edit("config.ru", config("/v2"))
-        status(served, "/v2/hello")
+    it "regenerates sig/generated every half second in the background, without a request" do
+      app do
+        edit("hello.rb", hello("/hi"))
+        interval, tick = background.first
+        tick.call
 
-        assert_equal [:generated], generations
+        assert_equal [0.5, %i[generated generated]], [interval, generations]
       end
     end
 
-    it "answers with the development 500 when sig/generated can't be regenerated, until the next change" do
-      failure = "rbs-inline couldn't regenerate sig/generated:\nhello.rb: can't read\n"
-      failures = [failure]
-      app(generate: -> { failures.shift }) do |served|
-        response = served.call({ "REQUEST_METHOD" => "GET", "PATH_INFO" => "/hello" })
-        edit("hello.rb", hello("/hello"))
+    it "runs nothing in the background without rbs-inline, and still reloads" do
+      app(generate: nil) do |served|
+        edit("hello.rb", hello("/hi"))
 
-        assert_equal [500, "Skyward::Core::BootError: #{failure}", 200],
-                     [response.first, JSON.parse(response.last.first)["detail"], status(served, "/hello")]
+        assert_equal [200, []], [status(served, "/hi"), background]
       end
     end
 
