@@ -7,6 +7,8 @@ module Skyward::ORM::Migrations::Diff
 
   NULL = "NULL" #: String
 
+  RENAMABLE = %i[foreign_key unique].freeze #: Array[Skyward::ORM::Catalog::constraint_kind]
+
   # A name as SQLite or PostgreSQL writes it, quoted or not.
   NAME = /"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|[\p{L}_][\p{L}\p{N}_$]*/ #: Regexp
   # A name with its schema, if it has one.
@@ -93,13 +95,15 @@ module Skyward::ORM::Migrations::Diff
     kept_indexes, kept_constraints = kept(klass, columns, table, tables)
     compared = table.with(indexes: table.indexes - kept_indexes, constraints: table.constraints - kept_constraints)
     dropped_indexes, added_indexes = indexes(klass, compared, renamed)
-    dropped_constraints, added_constraints = constraints(klass, columns, compared, renamed, new_columns)
+    dropped_constraints, renamed_constraints, added_constraints =
+      constraints(klass, columns, compared, renamed, new_columns)
     dropped_columns = removed.reject { |column| renamed.key?(column.name) }
     edits = [
       *dropped_indexes,
       *dropped_constraints,
       *dropped_columns.map { |column| Skyward::ORM::Migrations::DropColumn.new(column:) },
       *renamed.map { |from, to| Skyward::ORM::Migrations::RenameColumn.new(from:, to:) },
+      *renamed_constraints,
       *new_columns.map { |column| Skyward::ORM::Migrations::AddColumn.new(column:) },
       *columns.flat_map do |column|
         found = table.columns.find { |kept| renamed.fetch(kept.name, kept.name) == column.name }
@@ -133,23 +137,33 @@ module Skyward::ORM::Migrations::Diff
     ]
   end
 
-  # The constraints to drop and to add, compared as indexes are. A new
-  # column's own constraints are part of its definition.
+  # The constraints to drop, to rename and to add, compared as indexes are. A
+  # foreign key or unique constraint the class declares that the table has
+  # under another name is renamed, from the first one if it has two, and the
+  # other is dropped. A new column's own constraints are part of its definition.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
   #   Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns)
-  #   -> [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit]]
+  #   -> [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit],
+  #   Array[Skyward::ORM::Migrations::edit]]
   def constraints(klass, columns, table, renamed, new_columns)
     wanted = Skyward::ORM::Migrations::Definitions.constraints(klass, columns)
     pairs = table.constraints.map do |constraint|
       [constraint, constraint.with(columns: moved(constraint.columns, renamed))]
     end #: Array[[Skyward::ORM::Catalog::Constraint, Skyward::ORM::Catalog::Constraint]]
-    moved = pairs.map(&:last)
-    dropped = pairs.reject { |_, constraint| wanted.any? { |want| same?(constraint, want) } }
-    added = wanted.reject do |want|
-      moved.any? { |constraint| same?(constraint, want) } || inline?(want, new_columns)
+    unmatched = pairs.reject { |_, constraint| wanted.any? { |want| same?(constraint, want) } }
+    missing = wanted.reject { |want| pairs.any? { |_, constraint| same?(constraint, want) } }
+    renames = missing.filter_map do |want|
+      from = unmatched.find { |_, constraint| renamed?(constraint, want) }&.first&.name
+      to = want.name
+      Skyward::ORM::Migrations::RenameConstraint.new(from:, to:) if from && to
+    end
+    dropped = unmatched.reject { |constraint, _| renames.any? { |rename| rename.from == constraint.name } }
+    added = missing.reject do |want|
+      renames.any? { |rename| rename.to == want.name } || inline?(want, new_columns)
     end
     [
       dropped.map { |constraint, _| Skyward::ORM::Migrations::DropConstraint.new(constraint:) },
+      renames,
       added.map { |constraint| Skyward::ORM::Migrations::AddConstraint.new(constraint:) }
     ]
   end
@@ -217,18 +231,28 @@ module Skyward::ORM::Migrations::Diff
   end
 
   # Constraints are matched by name. SQLite can hold one with no name, which
-  # matches the one its class declares on the same columns. PostgreSQL rewrites
-  # a check's expression, and puts it on every column it mentions, so a check
-  # is matched by its name alone. A reference is also matched by what it does
-  # ON DELETE.
+  # matches the one its class declares that does what it does. PostgreSQL
+  # rewrites a check's expression, and puts it on every column it mentions, so
+  # a check is matched by its name alone.
   # @rbs had: Skyward::ORM::Catalog::Constraint
   # @rbs wanted: Skyward::ORM::Catalog::Constraint
   # @rbs return: bool
   def same?(had, wanted)
     name = had.name
-    same_columns = had.columns == wanted.columns && had.references == wanted.references &&
-                   on_delete(had) == on_delete(wanted)
-    had.kind == wanted.kind && (name ? name == wanted.name && (had.kind == :check || same_columns) : same_columns)
+    had.kind == wanted.kind &&
+      (name ? name == wanted.name && (had.kind == :check || alike?(had, wanted)) : alike?(had, wanted))
+  end
+
+  # @rbs had: Skyward::ORM::Catalog::Constraint
+  # @rbs wanted: Skyward::ORM::Catalog::Constraint
+  # @rbs return: bool
+  def renamed?(had, wanted) = RENAMABLE.include?(had.kind) && had.kind == wanted.kind && alike?(had, wanted)
+
+  # @rbs had: Skyward::ORM::Catalog::Constraint
+  # @rbs wanted: Skyward::ORM::Catalog::Constraint
+  # @rbs return: bool
+  def alike?(had, wanted)
+    had.columns == wanted.columns && had.references == wanted.references && on_delete(had) == on_delete(wanted)
   end
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint

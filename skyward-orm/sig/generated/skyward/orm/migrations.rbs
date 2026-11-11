@@ -3,5 +3,5 @@
 module Skyward::ORM::Migrations
   type change = CreateTable | AlterTable
 
-  type edit = AddColumn | DropColumn | RenameColumn | ChangeType | ChangeNullable | ChangeDefault | AddConstraint | DropConstraint | AddIndex | DropIndex
+  type edit = AddColumn | DropColumn | RenameColumn | ChangeType | ChangeNullable | ChangeDefault | AddConstraint | DropConstraint | RenameConstraint | AddIndex | DropIndex
 end

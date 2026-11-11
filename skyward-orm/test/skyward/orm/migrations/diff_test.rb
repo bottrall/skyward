@@ -229,16 +229,11 @@ describe Skyward::ORM::Migrations::Diff do
       yes.push(%i[owner owner_id])
       found = edits(changed::Item, tables)
 
-      assert_equal(
-        [
-          [migrations::DropConstraint, "items_owner_fkey"],
-          [migrations::RenameColumn, :owner],
-          [migrations::AddConstraint, "items_owner_id_fkey"]
-        ],
-        found.map do |edit|
-          [edit.class, edit.is_a?(migrations::RenameColumn) ? edit.from : edit.constraint.name]
-        end
-      )
+      assert_equal [
+        migrations::RenameColumn.new(from: :owner, to: :owner_id),
+        migrations::RenameConstraint.new(from: "items_owner_fkey", to: "items_owner_id_fkey")
+      ],
+                   found
     end
 
     it "changes the type of a column whose type isn't compatible, but not one whose type is" do
@@ -395,6 +390,56 @@ describe Skyward::ORM::Migrations::Diff do
       end
 
       assert_empty edits(changed::Item, tables)
+    end
+
+    it "renames a foreign key or unique constraint that does what the class's does under another name" do
+      names = { "items_owner_id_fkey" => "fk_rails_0123456789", "items_code_key" => "index_items_on_code" }
+      tables = items do |had|
+        had.with(
+          constraints: had.constraints.map do |constraint|
+            constraint.with(name: names.fetch(constraint.name, constraint.name))
+          end
+        )
+      end
+
+      assert_equal [
+        migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "items_owner_id_fkey"),
+        migrations::RenameConstraint.new(from: "index_items_on_code", to: "items_code_key")
+      ],
+                   edits(changed::Item, tables)
+    end
+
+    it "renames the first of two that do what the class's does and drops the other, as it drops one beside its own" do
+      fkey = item_table.constraints.find { |constraint| constraint.name == "items_owner_id_fkey" }
+      first, second = %w[fk_rails_first fk_rails_second].map { |name| fkey.with(name:) }
+      renamed = items { |had| had.with(constraints: [*(had.constraints - [fkey]), first, second]) }
+      named = items { |had| had.with(constraints: [*had.constraints, first]) }
+
+      assert_equal [
+        [
+          migrations::DropConstraint.new(constraint: second),
+          migrations::RenameConstraint.new(from: "fk_rails_first", to: "items_owner_id_fkey")
+        ],
+        [migrations::DropConstraint.new(constraint: first)]
+      ],
+                   [edits(changed::Item, renamed), edits(changed::Item, named)]
+    end
+
+    it "drops a check under another name and adds the class's, since its expression can't be compared" do
+      check = item_table.constraints.find { |constraint| constraint.name == "items_title_check" }
+      tables = items do |had|
+        had.with(
+          constraints: had.constraints.map do |constraint|
+            constraint == check ? constraint.with(name: "title_length") : constraint
+          end
+        )
+      end
+
+      assert_equal [
+        migrations::DropConstraint.new(constraint: check.with(name: "title_length")),
+        migrations::AddConstraint.new(constraint: check)
+      ],
+                   edits(changed::Item, tables)
     end
 
     it "matches a constraint with no name, as SQLite can have, by its kind and columns" do
