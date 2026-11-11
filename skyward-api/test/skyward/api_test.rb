@@ -5,6 +5,7 @@ require "test_helper"
 # rack-cors expects the server to have loaded Rack already.
 require "rack"
 require "rack/cors"
+require "stringio"
 require "tmpdir"
 require_relative "../fixtures/boot/boot_fixtures"
 
@@ -315,6 +316,30 @@ describe Skyward do
           response = client.get("/letters")
 
           assert_equal ["application/json", %w[a b c]], [response.headers["content-type"], response.json]
+        end
+      end
+
+      describe "with a Rack triple from an untyped endpoint" do
+        let(:body) { StringIO.new("Hello") }
+        let(:client) do
+          Skyward::API::Test.client(
+            Skyward.app(signatures:, logger: nil) do |builder|
+              builder.mount BootFixtures::UnsignedRacking.new(body)
+            end
+          )
+        end
+
+        it "sends it as given, with the request ID" do
+          response = client.get("/", headers: { "X-Request-Id" => "abc-123" })
+          headers = { "content-type" => "text/plain", "x-request-id" => "abc-123" }
+
+          assert_equal [200, headers, "Hello"], [response.status, response.headers, response.body]
+        end
+
+        it "closes the body it drops for HEAD" do
+          response = client.head("/")
+
+          assert_equal ["", true], [response.body, body.closed?]
         end
       end
     end

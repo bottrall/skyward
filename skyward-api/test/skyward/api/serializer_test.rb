@@ -151,6 +151,34 @@ describe Skyward::API::Serializer do
         assert_equal [201, json, ['{"tags":["low"]}']], serializer(untyped).call(created)
       end
 
+      describe "a Rack triple" do
+        it "answers it as given, with a body that responds to each or call and any status from 100 to 599" do
+          triples = [
+            [200, { "content-type" => "text/plain" }, ["hi"]],
+            [100, {}, ->(stream) { stream.write("Hello") }],
+            [599, {}, []]
+          ]
+
+          assert_equal(triples.map(&:object_id), triples.map { |triple| serializer(untyped).call(triple).object_id })
+        end
+
+        it "answers one from an untyped member of a union as given" do
+          triple = [200, { "content-type" => "text/plain" }, ["hi"]]
+
+          assert_same triple, serializer(todo, untyped).call(triple)
+        end
+
+        it "answers anything but an Array of a status, a Hash and a body Rack can send as JSON" do
+          values = [[99, {}, []], [600, {}, []], [200.0, {}, []], [200, [], []], [200, {}, "hi"], [200, {}],
+                    [200, {}, [], []]]
+
+          assert_equal(
+            values.map { |value| [200, json, [JSON.generate(value)]] },
+            values.map { |value| serializer(untyped).call(value) }
+          )
+        end
+      end
+
       it "answers anything else with a 200, as untyped" do
         assert_equal [200, json, ['{"done":true}']], serializer(untyped).call({ done: true })
       end

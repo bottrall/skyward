@@ -43,7 +43,7 @@ class Skyward::API::Serializer
   # @rbs return: Writers::Writer
   def compile: (Skyward::API::Routing::Router::returned member) -> Writers::Writer
 
-  # Untyped code can return any response value.
+  # Untyped code can return any response value, or a Rack triple.
   # @rbs return: Writers::Writer
   def untyped: () -> Writers::Writer
 
@@ -61,6 +61,18 @@ class Skyward::API::Serializer
 
   # @rbs return: Writers::Writer
   def rack: () -> Writers::Writer
+
+  # Nothing typed says an untyped value is a triple, so it must have a status HTTP has and a body Rack can send.
+  # @rbs return: Writers::Writer
+  def untyped_rack: () -> Writers::Writer
+
+  # @rbs fits: ^(untyped) -> bool
+  # @rbs return: Writers::Writer
+  def rack_writer: (^(untyped) -> bool fits) -> Writers::Writer
+
+  # @rbs given: untyped
+  # @rbs return: bool
+  def triple?: (untyped given) -> bool
 
   # @rbs problem: Problem
   # @rbs given: untyped
