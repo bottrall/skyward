@@ -126,6 +126,12 @@ describe Skyward::ORM::Projection do
                    [error.message, statements]
     end
 
+    it "refuses a query merged with a narrowed one" do
+      assert_equal "TablesFixtures::Todo can't insert through a query with conditions. " \
+                   "Start from TablesFixtures::Todo.into, with nothing else on it.",
+                   assert_raises(ArgumentError) { query.into(title).merge(query.exclude).insert(**milk.to_h) }.message
+    end
+
     it "refuses an exclude, or a where given nothing, which leave no conditions but narrow the query" do
       errors = [all.exclude.into(title), all.where.into(title)].map do |projected|
         assert_raises(ArgumentError) { projected.insert(**milk.to_h) }.message
@@ -252,6 +258,10 @@ describe Skyward::ORM::Projection do
     it "deletes every row of an explicit all, returning them" do
       assert_equal [title.new(id: 1, title: "Buy milk"), title.new(id: 2, title: "Buy eggs")],
                    all.into(title).delete.sort_by(&:id)
+    end
+
+    it "refuses every row of a query merged with an explicit all, which isn't one itself" do
+      assert_match(/no conditions/, assert_raises(ArgumentError) { query.into(title).merge(all).delete }.message)
     end
 
     it "refuses what a query's delete refuses" do

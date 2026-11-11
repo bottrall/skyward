@@ -29,4 +29,9 @@ module WritesFixtures
     def delete_into_row: () -> (Array[Id] | Violation)
     def delete_into_table!: () -> Array[Todo]
   end
+
+  module Merges
+    def merge: () -> Query[Todo]
+    def merge_into_row: () -> Projection[Id]
+  end
 end

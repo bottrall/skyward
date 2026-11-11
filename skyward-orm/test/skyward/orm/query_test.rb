@@ -326,6 +326,19 @@ describe Skyward::ORM::Query do
       assert_raises(ArgumentError) { all.exclude.delete }
     end
 
+    it "refuses a merge unless both sides are an explicit all that nothing narrowed" do
+      all = Skyward::ORM::Query.new(todo, session, scope: :all)
+      merged = [all.merge(all.where), all.where.merge(all), all.merge(query)]
+
+      assert(merged.all? { |each| assert_raises(ArgumentError) { each.delete }.message.include?("no conditions") })
+    end
+
+    it "deletes every row of two explicit alls merged" do
+      all = Skyward::ORM::Query.new(todo, session, scope: :all)
+
+      assert_equal [2, []], [all.merge(all).delete, query.to_a]
+    end
+
     it "returns the violation of a row another restricts" do
       restricted = violations.fetch(:foreign_key).fetch(0)
 

@@ -46,7 +46,8 @@ end
   end
 end
 
-# Pins the type each of Skyward ORM's writes returns, as an app's code sees it.
+# Pins the type each of Skyward ORM's writes returns, and the query merge
+# returns, as an app's code sees it.
 target :orm_writes do
   unreferenced!
 
