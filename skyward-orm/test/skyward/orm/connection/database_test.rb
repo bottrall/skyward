@@ -24,6 +24,20 @@ describe Skyward::ORM::Connection::Database do
     def sql_type(type) = @adapter.sql_type(type)
   end
 
+  faulty = Data.define(:connection, :statement, :reached) do
+    def initialize(connection:, statement:, reached: true) = super
+
+    def execute(sql, binds = [])
+      return connection.execute(sql, binds) unless sql == statement
+
+      connection.execute(sql, binds) if reached
+      raise IOError, "raised at #{sql}"
+    end
+
+    # So the pool never rolls back what the database left open: that's the pool's own test's concern.
+    def transaction_active? = false
+  end
+
   let(:empty) { TestDatabase.empty }
   let(:connection) do
     empty.connect.tap do |connection|
@@ -161,6 +175,59 @@ describe Skyward::ORM::Connection::Database do
       assert_equal [["Home"], ["Work"]], names
     end
 
+    it "names each savepoint by its depth" do
+      sent = []
+      database = pooled(-> { TestDatabase::Recording.new(connection:, sent:) })
+      database.transaction { database.transaction { database.transaction { :done } } }
+
+      assert_equal ["BEGIN", "SAVEPOINT skyward_1", "SAVEPOINT skyward_2", "RELEASE SAVEPOINT skyward_2",
+                    "RELEASE SAVEPOINT skyward_1", "COMMIT"],
+                   sent.map(&:first)
+    end
+
+    it "rolls back when interrupted just after its BEGIN reached the database" do
+      interrupted = faulty.new(connection:, statement: "BEGIN")
+      error = assert_raises(IOError) { pooled(-> { interrupted }).transaction { :begun } }
+
+      assert_equal ["raised at BEGIN", false], [error.message, connection.transaction_active?]
+    end
+
+    it "rolls a nested one back when interrupted just after its savepoint reached the database" do
+      sent = []
+      interrupted = faulty.new(
+        connection: TestDatabase::Recording.new(connection:, sent:),
+        statement: "SAVEPOINT skyward_1"
+      )
+      database = pooled(-> { interrupted })
+      error = database.transaction { assert_raises(IOError) { database.transaction { :begun } } }
+
+      assert_equal ["raised at SAVEPOINT skyward_1",
+                    ["BEGIN", "SAVEPOINT skyward_1", "ROLLBACK TO SAVEPOINT skyward_1", "RELEASE SAVEPOINT skyward_1",
+                     "COMMIT"]],
+                   [error.message, sent.map(&:first)]
+    end
+
+    it "raises the start's own error when it never reached the database, which then refuses to roll back" do
+      interrupted = faulty.new(connection:, statement: "BEGIN", reached: false)
+      error = assert_raises(IOError) { pooled(-> { interrupted }).transaction { :begun } }
+
+      assert_equal "raised at BEGIN", error.message
+    end
+
+    it "keeps the enclosing savepoint's writes, and raises the start's own error, when a savepoint never reached " \
+       "the database" do
+      database = pooled(-> { faulty.new(connection:, statement: "SAVEPOINT skyward_3", reached: false) })
+      error = database.transaction do
+        database.transaction do
+          insert(database, "Work")
+          # Rescued two levels up, so the level between rolls back what PostgreSQL's refused rollback aborted.
+          assert_raises(IOError) { database.transaction { database.transaction { :begun } } }
+        end
+      end
+
+      assert_equal ["raised at SAVEPOINT skyward_3", [["Home"], ["Work"]]], [error.message, names(database)]
+    end
+
     it "commits, and returns the block's value" do
       value = database.transaction do
         insert(database, "Work")
@@ -203,6 +270,13 @@ describe Skyward::ORM::Connection::Database do
       end
 
       assert_equal %i[foreign_key begun], [database.violation(error, :shares)&.kind, database.transaction { :begun }]
+    end
+
+    it "raises a rollback that fails once the transaction has begun" do
+      lost = faulty.new(connection:, statement: "ROLLBACK")
+      error = assert_raises(IOError) { pooled(-> { lost }).transaction { raise "failed" } }
+
+      assert_equal "raised at ROLLBACK", error.message
     end
 
     it "leaves the fiber outside a transaction afterwards, even when the block raises" do
@@ -355,14 +429,8 @@ describe Skyward::ORM::Connection::Database do
       assert_same(connection, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
     end
 
-    it "returns the connection even when the rollback fails" do
-      lost = Data.define(:connection) do
-        def execute(sql, binds = [])
-          raise IOError, "connection lost" if sql == "ROLLBACK"
-
-          connection.execute(sql, binds)
-        end
-      end.new(connection:)
+    it "returns the connection even when its rollback raises" do
+      lost = faulty.new(connection:, statement: "ROLLBACK")
       database = Skyward::ORM::Connection::Database.new(
         adapter, Skyward::ORM::Connection::Pool.new(1, -> { lost }), column_types, [], check: false
       )

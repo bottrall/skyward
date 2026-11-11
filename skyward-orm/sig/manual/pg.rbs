@@ -6,12 +6,15 @@ module PG
   PG_DIAG_TABLE_NAME: Integer
   PG_DIAG_COLUMN_NAME: Integer
   PG_DIAG_CONSTRAINT_NAME: Integer
+  PQTRANS_IDLE: Integer
 
   def self.connect: (String url) -> Connection
 
   class Connection
     def exec: (String sql) -> Result
     def exec_params: [T] (String sql, Array[untyped] params) { (Result result) -> T } -> T
+    def transaction_status: () -> Integer
+    def close: () -> void
   end
 
   class Result

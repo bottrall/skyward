@@ -7,6 +7,8 @@ module Skyward::ORM
     def execute_batch: (String sql) -> void
     # The rows the latest INSERT, UPDATE or DELETE that execute ran changed.
     def changes: () -> Integer
+    def transaction_active?: () -> bool
+    def close: () -> void
   end
 
   # Everything that differs between databases: Adapters::SQLite and Adapters::PostgreSQL.

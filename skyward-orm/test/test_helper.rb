@@ -62,6 +62,8 @@ module TestDatabase
     end
 
     def changes = connection.changes
+
+    def transaction_active? = connection.transaction_active?
   end
 
   DIRECTORY = Dir.mktmpdir("skyward-orm-test")

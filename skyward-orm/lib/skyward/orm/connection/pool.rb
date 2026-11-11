@@ -4,7 +4,7 @@ class Skyward::ORM::Connection::Pool
   # @rbs @size: Integer
   # @rbs @opener: ^() -> Skyward::ORM::_Connection
   # @rbs @timeout: Integer | Float
-  # @rbs @idle: Thread::Queue[Skyward::ORM::_Connection]
+  # @rbs @idle: Thread::Queue[Skyward::ORM::_Connection | :vacant]
   # @rbs @opened: Integer
   # @rbs @mutex: Thread::Mutex
 
@@ -35,20 +35,58 @@ class Skyward::ORM::Connection::Pool
   # scheduler, so under Falcon a fiber waiting for a connection lets others run.
   # @rbs return: Skyward::ORM::_Connection
   def checkout
-    @idle.pop(timeout: 0) || open || @idle.pop(timeout: @timeout) || raise(
+    take(@idle.pop(timeout: 0)) || open || take(@idle.pop(timeout: @timeout)) || raise(
       Skyward::ORM::PoolTimeout,
       "Skyward ORM waited #{@timeout} seconds for a database connection, but all #{@size} in its pool " \
       "stayed in use. Pass Skyward.connect a larger pool:, or hold each connection for less time."
     )
   end
 
+  # A connection can still come back mid-transaction when an exception also
+  # interrupts its rollback. This runs in #with's ensure, so a rollback or
+  # close that fails raises nothing to replace the block's own exception.
   # @rbs connection: Skyward::ORM::_Connection
   # @rbs return: void
   def checkin(connection)
-    @idle.push(connection)
+    if reusable?(connection)
+      @idle.push(connection)
+    else
+      @idle.push(:vacant)
+      connection.close
+    end
+  rescue StandardError
+    nil
   end
 
   private
+
+  # @rbs connection: Skyward::ORM::_Connection
+  # @rbs return: bool
+  def reusable?(connection)
+    return true unless connection.transaction_active?
+
+    connection.execute("ROLLBACK")
+    !connection.transaction_active?
+  rescue StandardError
+    false
+  end
+
+  # @rbs slot: Skyward::ORM::_Connection | :vacant | nil
+  # @rbs return: Skyward::ORM::_Connection?
+  def take(slot)
+    case slot
+    when :vacant then fill
+    else slot
+    end
+  end
+
+  # @rbs return: Skyward::ORM::_Connection
+  def fill
+    @opener.call
+  rescue StandardError
+    @idle.push(:vacant)
+    raise
+  end
 
   # The place is taken under the lock but the connection opened outside it, so a
   # slow connect holds up no other checkout.

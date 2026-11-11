@@ -4,7 +4,8 @@ class Skyward::ORM::Connection::Database
   Held = Data.define(
     :connection, #: Skyward::ORM::_Connection
     :fiber, #: Fiber
-    :transaction #: bool
+    :transaction, #: bool
+    :depth #: Integer
   )
 
   Statements = Data.define(
@@ -14,15 +15,6 @@ class Skyward::ORM::Connection::Database
   )
 
   TRANSACTION = Statements.new(start: "BEGIN", commit: ["COMMIT"], rollback: ["ROLLBACK"]) #: Statements
-
-  # A savepoint is released even when it's rolled back to, so the innermost of
-  # this name is always the block's own: SQLite and PostgreSQL both take a
-  # repeated name to mean the innermost.
-  SAVEPOINT = Statements.new(
-    start: "SAVEPOINT skyward",
-    commit: ["RELEASE SAVEPOINT skyward"],
-    rollback: ["ROLLBACK TO SAVEPOINT skyward", "RELEASE SAVEPOINT skyward"]
-  ) #: Statements
 
   FOREIGN = "this transaction belongs to another fiber; start your own, or return the result to the block" #: String
 
@@ -65,9 +57,9 @@ class Skyward::ORM::Connection::Database
   # @rbs [T] () { () -> T } -> T
   def transaction(&block)
     held = Fiber[@key] #: Held?
-    return atomically(held.connection, SAVEPOINT, &block) if held && owned?(held)
+    return atomically(held.connection, held.depth + 1, &block) if held && owned?(held)
 
-    @pool.with { |connection| atomically(connection, TRANSACTION, &block) }
+    @pool.with { |connection| atomically(connection, 0, &block) }
   end
 
   # @rbs return: bool
@@ -82,7 +74,7 @@ class Skyward::ORM::Connection::Database
   # @rbs return: void
   def hold
     connection = @pool.checkout
-    Fiber[@key] = Held.new(connection:, fiber: Fiber.current, transaction: false)
+    Fiber[@key] = Held.new(connection:, fiber: Fiber.current, transaction: false, depth: 0)
     connection.execute(TRANSACTION.start)
   end
 
@@ -248,21 +240,40 @@ class Skyward::ORM::Connection::Database
   end
 
   # Rolled back in ensure rather than rescue, so a block left by throw or a
-  # killed thread rolls back too, and so does a commit that fails.
-  # @rbs [T] (Skyward::ORM::_Connection connection, Statements statements) { () -> T } -> T
-  def atomically(connection, statements)
-    within(Held.new(connection:, fiber: Fiber.current, transaction: true)) do
-      connection.execute(statements.start)
+  # killed thread rolls back too, and so does a commit that fails, and a start
+  # an exception interrupts once it has reached the database.
+  # @rbs [T] (Skyward::ORM::_Connection connection, Integer depth) { () -> T } -> T
+  def atomically(connection, depth)
+    statements = statements(depth)
+    within(Held.new(connection:, fiber: Fiber.current, transaction: true, depth:)) do
+      started = false
       settled = false
       begin
+        connection.execute(statements.start)
+        started = true
         result = yield
         ending(statements, result).each { |sql| connection.execute(sql) }
         settled = true
         result
       ensure
-        statements.rollback.each { |sql| connection.execute(sql) } unless settled
+        undo(connection, statements, started) unless settled
       end
     end
+  end
+
+  # Each savepoint is named by its depth, so rolling back one whose start never
+  # reached the database can't roll back the one enclosing it instead.
+  # @rbs depth: Integer
+  # @rbs return: Statements
+  def statements(depth)
+    return TRANSACTION if depth.zero?
+
+    name = "skyward_#{depth}"
+    Statements.new(
+      start: "SAVEPOINT #{name}",
+      commit: ["RELEASE SAVEPOINT #{name}"],
+      rollback: ["ROLLBACK TO SAVEPOINT #{name}", "RELEASE SAVEPOINT #{name}"]
+    )
   end
 
   # Untyped, because Steep narrows a generic result to the violation it's
@@ -271,6 +282,21 @@ class Skyward::ORM::Connection::Database
   # @rbs result: untyped
   # @rbs return: Array[String]
   def ending(statements, result) = result.is_a?(Skyward::ORM::Violation) ? statements.rollback : statements.commit
+
+  # A start that raised may not have reached the database, which then refuses
+  # to roll back, so that refusal gives way to the start's own error. On
+  # PostgreSQL a savepoint's refusal leaves the enclosing transaction aborted
+  # until that too rolls back, which is accepted: the start's error rolls it
+  # back unless a block rescues it and carries on.
+  # @rbs connection: Skyward::ORM::_Connection
+  # @rbs statements: Statements
+  # @rbs started: bool
+  # @rbs return: void
+  def undo(connection, statements, started)
+    statements.rollback.each { |sql| connection.execute(sql) }
+  rescue StandardError
+    raise if started
+  end
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs row: Class
