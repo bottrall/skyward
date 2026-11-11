@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# Steep checks each method against its signature, so each write's result type
-# is pinned here with no annotation at its call.
+# Steep checks each method against its signature, so each write's result type,
+# and the query merge returns, is pinned here with no annotation at its call.
 module WritesFixtures
   class Todo < Skyward::ORM::Record
     table :todos
@@ -40,5 +40,11 @@ module WritesFixtures
     def delete_into_row = Todo.where(done: true).into(Id).delete
 
     def delete_into_table! = Todo.where(done: true).into(Todo).delete!
+  end
+
+  module Merges
+    def merge = Todo.where(done: false).merge(Todo.order(:id))
+
+    def merge_into_row = Todo.into(Id).merge(Todo.where(done: false))
   end
 end

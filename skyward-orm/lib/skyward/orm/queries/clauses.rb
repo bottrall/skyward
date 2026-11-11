@@ -10,6 +10,8 @@ module Skyward::ORM::Queries::Clauses
   #   type direction = :asc | :desc
   #   type condition = Comparison | Fragment | Negation | Disjunction
   #   type scope = :all | :start | :narrowed
+  #   type parts = [singleton(Skyward::ORM::Record), Array[Join], scope, Array[condition],
+  #                 Array[[Symbol, direction]], Array[Symbol], Integer?, Integer?]
 
   DIRECTIONS = %i[asc desc].freeze #: Array[direction]
 
@@ -160,6 +162,24 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: self
   def offset(count) = with(offset: require_count(:offset, count))
 
+  # @rbs other: Skyward::ORM::Query[untyped]
+  # @rbs return: self
+  def merge(other)
+    require_query(other)
+    table, joins, scope, conditions, orders, groups, limit, offset = other.parts
+    raise ArgumentError, "#{@table} can't merge a query of #{table}, a different table class" unless table == @table
+
+    with(
+      joins: merged_joins(joins),
+      scope: merged_scope(scope),
+      conditions: [*@conditions, *conditions],
+      orders: [*@orders, *orders],
+      groups: [*@groups, *groups],
+      limit: limit || @limit,
+      offset: offset || @offset
+    )
+  end
+
   # Steep ties the row class to S only through its new, so the query keeps it
   # as the Class it is.
   # @rbs [S] (Skyward::ORM::_Row[S] row, **String expressions) -> Skyward::ORM::Projection[S]
@@ -220,6 +240,13 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: [String, Array[untyped]]
   def to_sql = statement(@session.database, @orders, @limit)
 
+  protected
+
+  # rbs-inline writes a protected method as public, so Steep would let an app
+  # call this, though Ruby won't.
+  # @rbs return: parts
+  def parts = [@table, @joins, @scope, @conditions, @orders, @groups, @limit, @offset]
+
   private
 
   # Steep can't tie the class it builds to self, or the row class to S, so
@@ -260,9 +287,7 @@ module Skyward::ORM::Queries::Clauses
     unless table.is_a?(Class) && table < Skyward::ORM::Record && table.schema.table
       raise ArgumentError, "#{@table} can't join #{table.inspect}, which isn't a table class"
     end
-    # A table that's in a query twice needs an alias to tell the two apart,
-    # which a query can't give it.
-    if tables.any? { |present| present.table_name == table.table_name }
+    if present?(table)
       raise ArgumentError, "#{@table} can't join #{table}, since #{table.table_name} is already in the query"
     end
     raise ArgumentError, "#{@table} can't join #{table} on nothing. Give it columns, such as list_id: :id" if on.empty?
@@ -270,6 +295,45 @@ module Skyward::ORM::Queries::Clauses
     Skyward::ORM::Statements.require_columns(@table, on.keys)
     Skyward::ORM::Statements.require_columns(table, on.values)
     Join.new(keyword:, table:, on:)
+  end
+
+  # @rbs other: untyped
+  # @rbs return: void
+  def require_query(other)
+    if other.is_a?(Skyward::ORM::Projection)
+      raise ArgumentError,
+            "#{@table} can't merge a projection, whose row class and expressions would have nowhere to go. " \
+            "Merge the query before its into."
+    end
+    return if other.is_a?(Skyward::ORM::Query)
+
+    raise ArgumentError, "#{@table} can't merge #{other.inspect}, which isn't a query"
+  end
+
+  # Two scopes that each join a table the same way compose, so an identical
+  # join is kept once.
+  # @rbs joins: Array[Join]
+  # @rbs return: Array[Join]
+  def merged_joins(joins)
+    added = joins - @joins
+    conflict = added.find { |join| present?(join.table) }
+    if conflict
+      raise ArgumentError,
+            "#{@table} can't merge a different join of #{conflict.table}, " \
+            "since #{conflict.table.table_name} is already in the query"
+    end
+
+    [*@joins, *added]
+  end
+
+  # Merging only ever narrows, so every row may be changed only when both
+  # queries said so with an explicit all.
+  # @rbs scope: scope
+  # @rbs return: scope
+  def merged_scope(scope)
+    return :narrowed if [@scope, scope].include?(:narrowed)
+
+    @scope == :all && scope == :all ? :all : :start
   end
 
   # @rbs sql: String?
@@ -532,6 +596,12 @@ module Skyward::ORM::Queries::Clauses
 
   # @rbs return: Array[singleton(Skyward::ORM::Record)]
   def tables = [@table, *@joins.map(&:table)]
+
+  # A table that's in a query twice needs an alias to tell the two apart,
+  # which a query can't give it.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: bool
+  def present?(table) = tables.any? { |present| present.table_name == table.table_name }
 
   # @rbs database: Skyward::ORM::Connection::Database
   # @rbs return: void
