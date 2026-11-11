@@ -104,6 +104,12 @@ module Skyward::API::Serializer::Writers
   # @rbs return: String
   def time: (Time value) -> String
 
+  # A String, so a client that reads JSON numbers as doubles keeps every digit,
+  # and "F" so it never has an exponent.
+  # @rbs value: BigDecimal
+  # @rbs return: String
+  def decimal: (BigDecimal value) -> String
+
   # @rbs value: untyped
   # @rbs at: String
   # @rbs return: untyped

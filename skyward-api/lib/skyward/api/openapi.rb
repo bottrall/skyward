@@ -36,6 +36,7 @@ module Skyward::API::OpenAPI
     bool: { type: "boolean" },
     date: { type: "string", format: "date" },
     time: { type: "string", format: "date-time" },
+    decimal: { type: "string", format: "decimal" },
     untyped: {} #: schema
   }.freeze #: Hash[Skyward::Core::Types::scalar, schema]
 

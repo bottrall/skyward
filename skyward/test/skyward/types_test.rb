@@ -137,7 +137,7 @@ describe "Skyward's types" do
     # Teaching either gem a type moves it in or out of this list, so the test
     # fails until the list says which gems read it.
     known = {
-      "BigDecimal" => [],
+      "BigDecimal" => %i[api],
       "Hash[String, Integer]" => %i[api],
       "Array[Integer]" => %i[api],
       "{ id: Integer }" => %i[api],

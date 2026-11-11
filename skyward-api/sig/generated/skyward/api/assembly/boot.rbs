@@ -206,18 +206,6 @@ module Skyward::API::Assembly::Boot
   # @rbs return: String?
   def untyped_parts: (Skyward::API::Routing::Router::Endpoint endpoint, RBS::Types::Function function) -> String?
 
-  # Skyward API can't coerce or write a BigDecimal yet, so it refuses one
-  # wherever it's reached, as it does a type it can't read.
-  # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs type: RBS::Types::t
-  # @rbs return: Skyward::Core::Types::result
-  def read_type: (Skyward::Core::Types::Reader reader, RBS::Types::t type) -> Skyward::Core::Types::result
-
-  # @rbs type: Skyward::Core::Types::result
-  # @rbs at: String?
-  # @rbs return: Skyward::Core::Types::Unreadable?
-  def decimal: (Skyward::Core::Types::result type, String? at) -> Skyward::Core::Types::Unreadable?
-
   # @rbs subject: String
   # @rbs type: Skyward::Core::Types::Unreadable
   # @rbs return: String

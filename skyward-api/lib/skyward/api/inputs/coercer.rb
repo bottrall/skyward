@@ -38,9 +38,14 @@ module Skyward::API::Inputs::Coercer
   # none of them.
   MISFIT = Invalid.new(errors: [Error.new(at: "", message: "doesn't fit")]) #: Invalid
 
-  # INTEGER, DATE and TIME match a String's bytes, because a path parameter
-  # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
+  # INTEGER, DECIMAL, DATE and TIME match a String's bytes, because a path
+  # parameter can be any bytes, and Regexp#match raises on a String that isn't
+  # UTF-8.
   INTEGER = /\A-?\d+\z/ #: Regexp
+
+  # No exponent, NaN or Infinity: "1e1000000000" is short, but written without
+  # an exponent it's a billion digits long.
+  DECIMAL = /\A-?\d+(?:\.\d+)?\z/ #: Regexp
 
   BOOLEANS = { "true" => true, "false" => false, "1" => true, "0" => false }.freeze #: Hash[String, bool]
 
@@ -60,10 +65,15 @@ module Skyward::API::Inputs::Coercer
     bool: "bool",
     date: "Date",
     time: "Time",
+    decimal: "BigDecimal",
     untyped: "untyped"
   }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
-  FORMATS = { date: "Date (YYYY-MM-DD)", time: "Time (ISO 8601)" }.freeze #: Hash[Skyward::Core::Types::scalar, String]
+  FORMATS = {
+    date: "Date (YYYY-MM-DD)",
+    time: "Time (ISO 8601)",
+    decimal: 'BigDecimal (a decimal string, such as "12.50")'
+  }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
   # A Hash[String, T] says its keys are Strings, so an untyped value it holds
   # keeps the JSON's String keys at every level.
@@ -158,6 +168,7 @@ module Skyward::API::Inputs::Coercer
     when :string then ->(raw) { Ok.new(value: raw) if raw.is_a?(String) }
     when :date then ->(raw) { date(raw) }
     when :time then ->(raw) { time(raw) }
+    when :decimal then ->(raw) { decimal(raw) }
     else ->(raw) { Ok.new(value: strings ? last(raw) : symbolized(raw)) }
     end
   end
@@ -235,6 +246,14 @@ module Skyward::API::Inputs::Coercer
     on = day.value
     seconds = Rational("#{second}.#{fraction || 0}")
     Ok.new(value: Time.new(on.year, on.month, on.day, hour.to_i, minute.to_i, seconds, zone))
+  end
+
+  # A JSON number isn't one, because JSON.parse has already made it a Float,
+  # which may have lost digits.
+  # @rbs raw: untyped
+  # @rbs return: Ok?
+  def decimal(raw)
+    Ok.new(value: BigDecimal(raw)) if raw.is_a?(String) && DECIMAL.match?(raw.b)
   end
 
   # @rbs value: Skyward::Core::Types::literal
