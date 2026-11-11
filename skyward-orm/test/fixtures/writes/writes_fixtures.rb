@@ -23,6 +23,16 @@ module WritesFixtures
 
     def insert_into_row! = Todo.into(Id).insert!(title: "Buy milk")
 
+    def insert_all = Todo.insert_all([{ title: "Eggs" }, { title: "Milk" }])
+
+    def insert_all! = Todo.insert_all!([{ title: "Eggs" }, { title: "Milk" }])
+
+    def insert_all_into_table = Todo.into(Todo).insert_all([{ title: "Eggs" }, { title: "Milk" }])
+
+    def insert_all_into_row = Todo.into(Id).insert_all([{ title: "Eggs" }, { title: "Milk" }])
+
+    def insert_all_into_row! = Todo.into(Id).insert_all!([{ title: "Eggs" }, { title: "Milk" }])
+
     def update(id) = Todo.where(id:).update(done: true)
 
     def update!(id) = Todo.where(id:).update!(done: true)

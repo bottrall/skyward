@@ -104,6 +104,12 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs (Integer _position) -> String
   def placeholder(_position) = "?"
 
+  # SQLITE_MAX_VARIABLE_NUMBER's default since 3.32. A SQLite built with a
+  # lower one refuses with its own error, since the sqlite3 gem doesn't expose
+  # sqlite3_limit to read it.
+  # @rbs return: Integer
+  def bind_limit = 32_766
+
   # SQLite takes an OFFSET only after a LIMIT, and a negative one is no limit.
   # @rbs return: String
   def unlimited = "LIMIT -1"

@@ -21,6 +21,21 @@ class Skyward::ORM::Projection
   # @rbs return: R
   def insert!(**values) = unviolated(insert(**values))
 
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def insert_all(rows)
+    require_insertable
+    return [] if rows.empty?
+
+    database = @session.database
+    sql, binds = Skyward::ORM::Statements.insert_all(database.adapter, database.column_types, @table, rows)
+    returning(sql, binds)
+  end
+
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Array[R]
+  def insert_all!(rows) = unviolated(insert_all(rows))
+
   # @rbs **values: untyped
   # @rbs return: Array[R] | Skyward::ORM::Violation
   def update(**values)
@@ -43,8 +58,8 @@ class Skyward::ORM::Projection
 
   private
 
-  # An INSERT writes one row and takes none of a query's clauses, so the query
-  # can only say what comes back.
+  # An INSERT takes none of a query's clauses, so the query can only say what
+  # comes back.
   # @rbs return: void
   def require_insertable
     refused = [("conditions" if @scope == :narrowed), *clauses].compact

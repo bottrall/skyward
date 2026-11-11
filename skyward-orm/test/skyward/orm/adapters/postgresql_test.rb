@@ -71,6 +71,12 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
   end
 
+  describe ".bind_limit" do
+    it "is the most parameters the protocol counts" do
+      assert_equal 65_535, postgresql.bind_limit
+    end
+  end
+
   describe ".unlimited" do
     it "is nothing, since an OFFSET needs no LIMIT before it" do
       assert_nil postgresql.unlimited

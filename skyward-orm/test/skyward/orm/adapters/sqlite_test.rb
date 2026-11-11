@@ -98,6 +98,12 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".bind_limit" do
+    it "is SQLite's default most variables" do
+      assert_equal 32_766, sqlite.bind_limit
+    end
+  end
+
   describe ".unlimited" do
     it "is LIMIT -1, which SQLite needs before an OFFSET" do
       assert_equal [[3]], sqlite.connect(":memory:").execute("SELECT 3 #{sqlite.unlimited} OFFSET 0")

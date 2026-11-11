@@ -12,6 +12,14 @@ class Skyward::ORM::Projection[R]
   # @rbs return: R
   def insert!: (**untyped values) -> R
 
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Array[R] | Skyward::ORM::Violation
+  def insert_all: (Array[Hash[Symbol, untyped]] rows) -> (Array[R] | Skyward::ORM::Violation)
+
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Array[R]
+  def insert_all!: (Array[Hash[Symbol, untyped]] rows) -> Array[R]
+
   # @rbs **values: untyped
   # @rbs return: Array[R] | Skyward::ORM::Violation
   def update: (**untyped values) -> (Array[R] | Skyward::ORM::Violation)
@@ -28,8 +36,8 @@ class Skyward::ORM::Projection[R]
 
   private
 
-  # An INSERT writes one row and takes none of a query's clauses, so the query
-  # can only say what comes back.
+  # An INSERT takes none of a query's clauses, so the query can only say what
+  # comes back.
   # @rbs return: void
   def require_insertable: () -> void
 

@@ -19,6 +19,11 @@ module WritesFixtures
     def insert_into_table: () -> (Todo | Violation)
     def insert_into_row: () -> (Id | Violation)
     def insert_into_row!: () -> Id
+    def insert_all: () -> (Integer | Violation)
+    def insert_all!: () -> Integer
+    def insert_all_into_table: () -> (Array[Todo] | Violation)
+    def insert_all_into_row: () -> (Array[Id] | Violation)
+    def insert_all_into_row!: () -> Array[Id]
     def update: (Integer id) -> (Integer | Violation)
     def update!: (Integer id) -> Integer
     def update_into_row: (Integer id) -> (Array[Id] | Violation)
