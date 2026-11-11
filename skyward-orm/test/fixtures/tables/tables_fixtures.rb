@@ -29,6 +29,13 @@ module TablesFixtures
     attr_reader :id, :settings, :payload
   end
 
+  # search is a column the database generates.
+  class Searched < Skyward::ORM::Record
+    table :searches
+
+    attr_reader :id, :title, :search
+  end
+
   class Typed < Skyward::ORM::Record
     attr_reader :integer,
                 :float,

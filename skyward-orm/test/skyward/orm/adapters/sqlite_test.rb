@@ -309,14 +309,36 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "reads each column's declared type, nullability and default, with a primary key never null" do
       expected = [
-        catalog::Column.new(name: :id, type: "INTEGER", nullable: false, default: nil),
-        catalog::Column.new(name: :list_id, type: "INTEGER", nullable: false, default: nil),
-        catalog::Column.new(name: :title, type: "varchar(200)", nullable: false, default: nil),
-        catalog::Column.new(name: :done, type: "INTEGER", nullable: false, default: "0"),
-        catalog::Column.new(name: :code, type: "TEXT", nullable: true, default: nil)
+        catalog::Column.new(name: :id, type: "INTEGER", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(name: :list_id, type: "INTEGER", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(name: :title, type: "varchar(200)", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(name: :done, type: "INTEGER", nullable: false, default: "0", generated: nil),
+        catalog::Column.new(name: :code, type: "TEXT", nullable: true, default: nil, generated: nil)
       ]
 
       assert_equal expected, table(:todos).columns
+    end
+
+    it "reads a generated column, stored or virtual, with its expression and no default" do
+      connection.execute(<<~SQL)
+        CREATE TABLE searches (
+          title TEXT NOT NULL,
+          search TEXT NOT NULL GENERATED ALWAYS AS (lower(title)) STORED,
+          length INTEGER AS (length(title)) VIRTUAL
+        )
+      SQL
+      expected = [
+        catalog::Column.new(name: :search, type: "TEXT", nullable: false, default: nil, generated: "lower(title)"),
+        catalog::Column.new(name: :length, type: "INTEGER", nullable: true, default: nil, generated: "length(title)")
+      ]
+
+      assert_equal expected, table(:searches).columns.drop(1)
+    end
+
+    it "leaves out a virtual table's hidden columns" do
+      connection.execute("CREATE VIRTUAL TABLE notes USING fts5(body)")
+
+      assert_equal [:body], table(:notes).columns.map(&:name)
     end
 
     it "reads a default as a migration writes it, with an expression back in its parentheses" do

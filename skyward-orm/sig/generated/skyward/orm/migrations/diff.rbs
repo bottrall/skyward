@@ -73,7 +73,8 @@ module Skyward::ORM::Migrations::Diff
   #   Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Hash[Symbol, Symbol]
   def renames: (Symbol table, Array[Skyward::ORM::Catalog::Column] removed, Array[Skyward::ORM::Tables::Column] added, Skyward::ORM::_Adapter adapter, ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Hash[Symbol, Symbol]
 
-  # An untyped column has no type or nullability to compare.
+  # An untyped column has no type or nullability to compare, and a generated
+  # one no default.
   # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs had: Skyward::ORM::Catalog::Column

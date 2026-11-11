@@ -221,7 +221,7 @@ describe Skyward::ORM::Migrations::Script do
     end
 
     describe "where a database alters a table in place, as PostgreSQL does" do
-      note = catalog::Column.new(name: :note, type: "text", nullable: false, default: "'none'")
+      note = catalog::Column.new(name: :note, type: "text", nullable: false, default: "'none'", generated: nil)
       check = catalog::Constraint.new(
         name: "todos_title_check", kind: :check, columns: [:title], references: nil, definition: "CHECK (title <> '')"
       )
@@ -457,6 +457,50 @@ describe Skyward::ORM::Migrations::Script do
       end
 
       class_exec(&running)
+
+      it "refuses to rebuild a table with a generated column, which the rebuild would lose" do
+        connection.execute(
+          "CREATE TABLE scraps (id INTEGER, payload BLOB NOT NULL, " \
+          "low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)"
+        )
+        scraps = sqlite.tables(connection).fetch(0)
+        both = scraps.with(
+          columns: [
+            *scraps.columns,
+            catalog::Column.new(name: :up, type: "TEXT", nullable: true, default: nil, generated: "upper(payload)")
+          ]
+        )
+        keyed = migrations::AddConstraint.new(
+          constraint: catalog::Constraint.new(
+            name: "scraps_pkey", kind: :primary_key, columns: [:id], references: nil, definition: "PRIMARY KEY (id)"
+          )
+        )
+        error = assert_raises(Skyward::Core::BootError) do
+          write([alter(fixtures::Scrap, [keyed], table: scraps), alter(fixtures::Scrap, [keyed], table: both)])
+        end
+
+        assert_equal <<~MESSAGE.chomp, error.message
+          Changing table :scraps rebuilds it, which would lose its generated column low. Write this migration yourself with `skyward migration --empty`.
+          Changing table :scraps rebuilds it, which would lose its generated columns low, up. Write this migration yourself with `skyward migration --empty`.
+        MESSAGE
+      end
+
+      it "alters a table with a generated column in place, where it doesn't rebuild it" do
+        connection.execute(
+          "CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT, " \
+          "low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)"
+        )
+        scraps = sqlite.tables(connection).fetch(0)
+        dropped = migrations::DropColumn.new(column: scraps.columns.fetch(2))
+
+        assert_equal <<~SQL, write([alter(fixtures::Scrap, [dropped], table: scraps)])
+          ALTER TABLE scraps DROP COLUMN old;
+
+          -- down
+          -- scraps.old comes back empty: dropping it lost its data
+          ALTER TABLE scraps ADD COLUMN old TEXT;
+        SQL
+      end
 
       it "keeps the rows that reference a table it rebuilds, whatever they do ON DELETE" do
         items
