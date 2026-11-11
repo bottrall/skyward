@@ -174,6 +174,12 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
 
+    it "accepts uuid and citext for a string, and real for a float" do
+      declared = [[:string, "uuid"], [:string, "citext"], [:float, "real"]]
+
+      assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
+    end
+
     it "refuses any other type" do
       declared = [[:integer, "text"], [:float, "numeric(10,2)"], [:string, "bytea"], [:bool, "integer"],
                   [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"]]

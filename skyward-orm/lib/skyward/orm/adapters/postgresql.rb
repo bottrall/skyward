@@ -16,8 +16,8 @@ module Skyward::ORM::Adapters::PostgreSQL
   # As the catalog spells each type, which compatible? is given.
   COMPATIBLE = {
     integer: %w[bigint integer smallint],
-    float: ["double precision"],
-    string: ["text", "character varying"],
+    float: ["double precision", "real"],
+    string: ["text", "character varying", "uuid", "citext"],
     bool: ["boolean"],
     date: ["date"],
     time: ["timestamp with time zone", "timestamp without time zone"],
