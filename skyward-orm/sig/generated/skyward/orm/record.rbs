@@ -58,6 +58,14 @@ class Skyward::ORM::Record
   # @rbs return: Integer
   def self.insert!: (**untyped values) -> Integer
 
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Integer | Skyward::ORM::Violation
+  def self.insert_all: (Array[Hash[Symbol, untyped]] rows) -> (Integer | Skyward::ORM::Violation)
+
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Integer
+  def self.insert_all!: (Array[Hash[Symbol, untyped]] rows) -> Integer
+
   # @rbs return: Array[Symbol]
   def self.members: () -> Array[Symbol]
 

@@ -8,6 +8,13 @@ module Skyward::ORM::Statements
   # @rbs return: [String, Array[untyped]]
   def insert: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
 
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: [String, Array[untyped]]
+  def insert_all: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Array[Hash[Symbol, untyped]] rows) -> [ String, Array[untyped] ]
+
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Symbol]
   # @rbs return: void
@@ -36,18 +43,51 @@ module Skyward::ORM::Statements
 
   private
 
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Symbol]
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: [String, Array[untyped]]
+  def inserting: (Skyward::ORM::_Adapter adapter, singleton(Skyward::ORM::Record) table, Array[Symbol] columns, Array[Hash[Symbol, untyped]] rows) -> [ String, Array[untyped] ]
+
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Symbol]
+  # @rbs return: String?
+  def unknown: (singleton(Skyward::ORM::Record) table, Array[Symbol] columns) -> String?
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs values: Hash[Symbol, untyped]
+  # @rbs return: String?
+  def unwritable: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> String?
+
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
   # @rbs &: (Skyward::ORM::Tables::Column column, untyped value) -> String?
-  # @rbs return: void
-  def refuse: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) { (Skyward::ORM::Tables::Column column, untyped value) -> String? } -> void
+  # @rbs return: String?
+  def refusal: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) { (Skyward::ORM::Tables::Column column, untyped value) -> String? } -> String?
 
   # An untyped column's nullability is unknown, so it's left to the database,
   # like a column the class doesn't declare.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Skyward::ORM::Tables::Column]
   # @rbs given: Array[Symbol]
+  # @rbs subject: String
   # @rbs return: void
-  def require_present: (singleton(Skyward::ORM::Record) table, Array[Skyward::ORM::Tables::Column] columns, Array[Symbol] given) -> void
+  def require_present: (singleton(Skyward::ORM::Record) table, Array[Skyward::ORM::Tables::Column] columns, Array[Symbol] given, String subject) -> void
+
+  # Matched as sets, since each row's values are read in the first row's order.
+  # @rbs subject: String
+  # @rbs columns: Array[Symbol]
+  # @rbs given: Array[Symbol]
+  # @rbs return: void
+  def require_alike: (String subject, Array[Symbol] columns, Array[Symbol] given) -> void
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs rows: Integer
+  # @rbs columns: Integer
+  # @rbs return: void
+  def require_bindable: (Skyward::ORM::_Adapter adapter, singleton(Skyward::ORM::Record) table, Integer rows, Integer columns) -> void
 end

@@ -131,6 +131,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String
   def placeholder(position) = "$#{position}"
 
+  # The protocol counts a statement's parameters in 16 bits.
+  # @rbs return: Integer
+  def bind_limit = 65_535
+
   # PostgreSQL takes an OFFSET with no LIMIT before it.
   # @rbs return: String?
   def unlimited = nil

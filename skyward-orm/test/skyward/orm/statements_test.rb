@@ -70,6 +70,104 @@ describe Skyward::ORM::Statements do
     end
   end
 
+  describe ".insert_all" do
+    eggs = { list_id: 1, title: "Eggs" }
+    milk = { list_id: 1, title: "Milk" }
+
+    def refused(rows) = assert_raises(ArgumentError) { insert_all(rows) }.message
+
+    def insert_all(rows) = Skyward::ORM::Statements.insert_all(adapter, column_types, TablesFixtures::Todo, rows)
+
+    it "inserts every row in one statement, reading each row's values in the first row's order" do
+      expected = empty.shown(
+        %(INSERT INTO "todos" ("list_id", "title") VALUES (?, ?), (?, ?)), [1, "Eggs", 1, "Milk"]
+      )
+
+      assert_equal expected, insert_all([eggs, { title: "Milk", list_id: 1 }])
+    end
+
+    describe "with numbered placeholders" do
+      let(:adapter) { numbered }
+
+      it "numbers each value's placeholder on from the row before" do
+        sql, = insert_all([eggs, milk])
+
+        assert_equal %(INSERT INTO "todos" ("list_id", "title") VALUES ($1, $2), ($3, $4)), sql
+      end
+    end
+
+    it "refuses a row with no columns, which only insert can write as a row of defaults" do
+      assert_equal "TablesFixtures::Todo.insert_all row 0 has no columns. " \
+                   "Use TablesFixtures::Todo.insert for a row of defaults.",
+                   refused([{}, {}])
+    end
+
+    describe "with a limit on bound values" do
+      let(:adapter) do
+        limiting = empty.adapter
+        Module.new do
+          extend limiting
+
+          def self.bind_limit = 4
+        end
+      end
+
+      it "binds as many values as the limit" do
+        _, binds = insert_all([eggs, milk])
+
+        assert_equal 4, binds.size
+      end
+
+      it "refuses more values than the limit, saying to split the rows" do
+        assert_equal "TablesFixtures::Todo.insert_all binds 6 values, 2 for each of 3 rows, but the database binds " \
+                     "at most 4 in one statement. Split the rows, in a Skyward.transaction if they must land " \
+                     "together.",
+                     refused([eggs, milk, eggs])
+      end
+    end
+
+    it "refuses a row with columns the first row doesn't have, or without some it has, naming each" do
+      messages = [
+        refused([eggs, { **milk, done: true }]),
+        refused([eggs, eggs, { title: "Milk" }]),
+        refused([eggs, { title: "Milk", done: true }])
+      ]
+
+      expected = [
+        "TablesFixtures::Todo.insert_all row 1 has done, unlike row 0: every row needs the same columns",
+        "TablesFixtures::Todo.insert_all row 2 lacks list_id, unlike row 0: every row needs the same columns",
+        "TablesFixtures::Todo.insert_all row 1 has done and lacks list_id, unlike row 0: every row needs the same " \
+        "columns"
+      ]
+
+      assert_equal expected, messages
+    end
+
+    it "refuses a column the class doesn't have, naming the row" do
+      assert_equal "TablesFixtures::Todo.insert_all row 0: TablesFixtures::Todo has no column dnoe. " \
+                   "Did you mean done?",
+                   refused([{ **eggs, dnoe: true }, { **milk, dnoe: true }])
+    end
+
+    it "refuses a value its column's type doesn't take, an Array and a Range included, naming the row" do
+      messages = ["yes", [true], true..true].map { |done| refused([{ **eggs, done: true }, { **milk, done: }]) }
+
+      expected = [
+        %(TablesFixtures::Todo.insert_all row 1: TablesFixtures::Todo.done is bool, not "yes" (String)),
+        %(TablesFixtures::Todo.insert_all row 1: TablesFixtures::Todo.done is bool, not [true] (Array)),
+        %(TablesFixtures::Todo.insert_all row 1: TablesFixtures::Todo.done is bool, not true..true (Range))
+      ]
+
+      assert_equal expected, messages
+    end
+
+    it "refuses to leave out a column that can't be NULL and has no default, naming the row" do
+      assert_equal "TablesFixtures::Todo.insert_all row 0 needs list_id: a column that can't be NULL and has no " \
+                   "default needs a value",
+                   refused([{ title: "Eggs" }, { title: "Milk" }])
+    end
+  end
+
   describe ".require_columns" do
     it "passes columns the table has" do
       assert_nil Skyward::ORM::Statements.require_columns(todo, %i[title done])

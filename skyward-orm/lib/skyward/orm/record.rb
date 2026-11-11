@@ -71,6 +71,26 @@ class Skyward::ORM::Record
     end
   end
 
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Integer | Skyward::ORM::Violation
+  def self.insert_all(rows)
+    return 0 if rows.empty?
+
+    database = Skyward::ORM::Connection::SESSION.database
+    sql, binds = Skyward::ORM::Statements.insert_all(database.adapter, database.column_types, self, rows)
+    database.write(self, sql, binds)
+  end
+
+  # @rbs rows: Array[Hash[Symbol, untyped]]
+  # @rbs return: Integer
+  def self.insert_all!(rows)
+    written = insert_all(rows)
+    case written
+    when Skyward::ORM::Violation then raise Skyward::ORM::ViolationError, written
+    else written
+    end
+  end
+
   # @rbs return: Array[Symbol]
   def self.members = schema.columns
 

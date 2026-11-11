@@ -263,6 +263,81 @@ describe Skyward::ORM::Record do
         end
       end
     end
+
+    describe ".insert_all" do
+      rows = [{ list_id: 1, title: "Buy milk" }, { list_id: 1, title: "Buy eggs" }]
+
+      it "inserts each row with the database's defaults, and returns how many rows it inserted" do
+        inserted = todo.insert_all(rows)
+
+        assert_equal [2, [milk, milk.with(id: 2, title: "Buy eggs")]], [inserted, todo.order(:id).to_a]
+      end
+
+      it "runs one INSERT, returning nothing" do
+        assert_equal(
+          [empty.shown(
+            %(INSERT INTO "todos" ("list_id", "title") VALUES (?, ?), (?, ?)),
+            [1, "Buy milk", 1, "Buy eggs"]
+          )],
+          traced { todo.insert_all(rows) }
+        )
+      end
+
+      it "returns 0 for no rows, without touching the database" do
+        inserted = nil
+        statements = traced { inserted = todo.insert_all([]) }
+
+        assert_equal [0, []], [inserted, statements]
+      end
+
+      it "refuses a row its insert would refuse before any SQL runs" do
+        assert_empty(traced { assert_raises(ArgumentError) { todo.insert_all([*rows, { list_id: 1 }]) } })
+      end
+
+      violations.each do |kind, (violation, sql, written)|
+        it "returns a #{kind} violation, with the database's message" do
+          todo.insert(list_id: 1, title: "Buy milk")
+          table, values = breaking.fetch(kind)
+
+          assert_equal empty.violated(violation, sql, written), table.insert_all([values])
+        end
+      end
+
+      it "inserts no row when any row breaks a constraint" do
+        todo.insert_all([{ list_id: 1, title: "Buy eggs" }, { list_id: 9, title: "Buy rice" }])
+
+        assert_equal 0, todo.all.count
+      end
+
+      describe "with the check on" do
+        let(:check) { true }
+
+        it "checks its table class before inserting" do
+          notes = Class.new(Skyward::ORM::Record) do
+            table :notes
+            attr_reader :id
+          end
+
+          assert_raises(Skyward::ORM::SchemaMismatch) { notes.insert_all([{ id: 1 }]) }
+        end
+      end
+    end
+
+    describe ".insert_all!" do
+      it "returns how many rows it inserted" do
+        assert_equal 2, todo.insert_all!([{ list_id: 1, title: "Buy milk" }, { list_id: 1, title: "Buy eggs" }])
+      end
+
+      violations.each do |kind, (violation, sql, written)|
+        it "raises a #{kind} violation" do
+          todo.insert(list_id: 1, title: "Buy milk")
+          table, values = breaking.fetch(kind)
+          error = assert_raises(Skyward::ORM::ViolationError) { table.insert_all!([values]) }
+
+          assert_equal empty.violated(violation, sql, written), error.violation
+        end
+      end
+    end
   end
 
   describe ".members" do

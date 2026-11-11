@@ -180,6 +180,72 @@ describe Skyward::ORM::Projection do
     end
   end
 
+  describe "#insert_all" do
+    it "inserts the rows in one statement, and returns them as the table class, returning every column" do
+      inserted = nil
+      statements = traced { inserted = all.into(todo).insert_all([milk.to_h, eggs.to_h]) }
+      shown = empty.shown(
+        %(INSERT INTO "todos" (#{columns}) VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?) RETURNING #{columns}),
+        [*milk.to_h.values, *eggs.to_h.values]
+      )
+
+      assert_equal [[shown], [milk, eggs]], [statements, inserted.sort_by(&:id)]
+    end
+
+    it "returns the rows as the row class, returning only its members" do
+      inserted = nil
+      statements = traced { inserted = all.into(title).insert_all([milk.to_h, eggs.to_h]) }
+      expected = [title.new(id: 1, title: "Buy milk"), title.new(id: 2, title: "Buy eggs")]
+
+      assert_equal [expected, %(RETURNING "id", "title")], [inserted.sort_by(&:id), statements.dig(0, 0)[/RETURNING.*/]]
+    end
+
+    it "returns no rows for no rows, without touching the database" do
+      inserted = nil
+      statements = traced { inserted = query.into(title).insert_all([]) }
+
+      assert_equal [[], []], [inserted, statements]
+    end
+
+    it "checks its rows as a table class's insert_all does" do
+      error = assert_raises(ArgumentError) do
+        all.into(title).insert_all([{ list_id: 1, title: "Buy milk", dnoe: true }])
+      end
+
+      assert_equal "TablesFixtures::Todo.insert_all row 0: TablesFixtures::Todo has no column dnoe. " \
+                   "Did you mean done?",
+                   error.message
+    end
+
+    it "refuses what insert refuses, even given no rows" do
+      error = assert_raises(ArgumentError) { query.where(id: 1).into(title).insert_all([]) }
+
+      assert_equal "TablesFixtures::Todo can't insert through a query with conditions. " \
+                   "Start from TablesFixtures::Todo.into, with nothing else on it.",
+                   error.message
+    end
+
+    it "returns a violation, with the database's message, inserting no row" do
+      lists = Skyward::ORM::Query.new(list, session, scope: :all).into(list)
+
+      assert_equal [empty.violated(*unique), 2],
+                   [lists.insert_all([{ id: 4, name: "Away" }, { id: 3, name: "Home" }]), lists.count]
+    end
+  end
+
+  describe "#insert_all!" do
+    it "returns the rows it inserted" do
+      assert_equal [title.new(id: 1, title: "Buy milk")], all.into(title).insert_all!([milk.to_h])
+    end
+
+    it "raises the violation insert_all returns" do
+      lists = Skyward::ORM::Query.new(list, session, scope: :all).into(list)
+      error = assert_raises(Skyward::ORM::ViolationError) { lists.insert_all!([{ id: 3, name: "Home" }]) }
+
+      assert_equal empty.violated(*unique), error.violation
+    end
+  end
+
   describe "#update" do
     before { insert(milk, eggs) }
 
