@@ -2,7 +2,9 @@
 
 module Skyward::ORM::Migrations
   # A table that differs from its class: the class's columns, the table as the
-  # database has it, and each difference, in the order the migration makes them.
+  # database has it, each difference, in the order the migration makes them,
+  # and the indexes and constraints the table keeps because the class can't
+  # declare them.
   class AlterTable < Data
     attr_reader klass(): singleton(Skyward::ORM::Record)
 
@@ -12,11 +14,15 @@ module Skyward::ORM::Migrations
 
     attr_reader edits(): Array[edit]
 
-    def self.new: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Array[edit] edits) -> instance
-                | (klass: singleton(Skyward::ORM::Record), columns: Array[Skyward::ORM::Tables::Column], table: Skyward::ORM::Catalog::Table, edits: Array[edit]) -> instance
+    attr_reader kept_indexes(): Array[Skyward::ORM::Catalog::Index]
 
-    def self.members: () -> [ :klass, :columns, :table, :edits ]
+    attr_reader kept_constraints(): Array[Skyward::ORM::Catalog::Constraint]
 
-    def members: () -> [ :klass, :columns, :table, :edits ]
+    def self.new: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Array[edit] edits, Array[Skyward::ORM::Catalog::Index] kept_indexes, Array[Skyward::ORM::Catalog::Constraint] kept_constraints) -> instance
+                | (klass: singleton(Skyward::ORM::Record), columns: Array[Skyward::ORM::Tables::Column], table: Skyward::ORM::Catalog::Table, edits: Array[edit], kept_indexes: Array[Skyward::ORM::Catalog::Index], kept_constraints: Array[Skyward::ORM::Catalog::Constraint]) -> instance
+
+    def self.members: () -> [ :klass, :columns, :table, :edits, :kept_indexes, :kept_constraints ]
+
+    def members: () -> [ :klass, :columns, :table, :edits, :kept_indexes, :kept_constraints ]
   end
 end

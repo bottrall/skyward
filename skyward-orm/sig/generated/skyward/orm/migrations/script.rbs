@@ -42,11 +42,12 @@ module Skyward::ORM::Migrations::Script
   # @rbs return: String
   def backward: (Skyward::ORM::Migrations::AlterTable change, Skyward::ORM::Migrations::edit edit) -> String
 
-  # SQLite rebuilds the table as its class has it: create the new one, copy
-  # the rows of each column it keeps, drop the old one, rename the new one and
-  # recreate its indexes. Dropping a table another one references would run
-  # that one's ON DELETE, so `skyward migrate` turns SQLite's foreign keys off
-  # around each migration, and checks them before it commits.
+  # SQLite rebuilds the table as its class has it, with what it keeps that the
+  # class can't declare: create the new one, copy the rows of each column it
+  # keeps, drop the old one, rename the new one and recreate its indexes.
+  # Dropping a table another one references would run that one's ON DELETE,
+  # so `skyward migrate` turns SQLite's foreign keys off around each
+  # migration, and checks them before it commits.
   # @rbs change: Skyward::ORM::Migrations::AlterTable
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
@@ -69,10 +70,16 @@ module Skyward::ORM::Migrations::Script
 
   # Columns line up as a person would write them. A generated key's type runs
   # on into its identity clause, so it doesn't set the width. A rebuild keeps
-  # the type an untyped column has.
+  # the type an untyped column has, and the constraints the class can't declare.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
-  #   Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept) -> String
-  def create_table: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept) -> String
+  #   Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept,
+  #   Array[Skyward::ORM::Catalog::Constraint] undeclared) -> String
+  def create_table: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept, Array[Skyward::ORM::Catalog::Constraint] undeclared) -> String
+
+  # SQLite can hold a constraint with no name.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def table_constraint: (Skyward::ORM::Catalog::Constraint constraint) -> String
 
   # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs return: String

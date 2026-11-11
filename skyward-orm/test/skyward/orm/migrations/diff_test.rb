@@ -70,6 +70,40 @@ describe Skyward::ORM::Migrations::Diff do
     table.with(columns: table.columns.map { |column| column.with(name: renames.fetch(column.name, column.name)) })
   end
 
+  def index(name, columns, definition, unique: false)
+    Skyward::ORM::Catalog::Index.new(name:, columns:, unique:, definition:)
+  end
+
+  def constraint(name, kind, columns, definition, references = nil)
+    Skyward::ORM::Catalog::Constraint.new(name:, kind:, columns:, references:, definition:)
+  end
+
+  def items_with(indexes: [], constraints: [])
+    items { |had| had.with(indexes: [*had.indexes, *indexes], constraints: [*had.constraints, *constraints]) }
+  end
+
+  # The owners and items tables made for Item on the database, with unique
+  # indexes on owners for a foreign key to reference, the table constraints
+  # given in items's CREATE TABLE, and then the SQL run.
+  def made(kind, constraints, sql)
+    database = TestDatabase.empty(kind)
+    adapter = database.adapter
+    connection = database.connect
+    created = [ChangesFixtures::Owner, ChangesFixtures::Item].map do |klass|
+      Skyward::ORM::Migrations::CreateTable.new(klass:, columns: changes_types.columns(klass))
+    end
+    up = Skyward::ORM::Migrations::Script.write(created, adapter).split("-- down\n").fetch(0)
+    keys = "CREATE UNIQUE INDEX owners_id_name_index ON owners (id, name);\n" \
+           "CREATE UNIQUE INDEX owners_name_index ON owners (name);\n"
+    connection.execute_batch(
+      up.sub(/(CREATE TABLE items \(.*?)\n\);/m) do
+        "#{keys}#{[Regexp.last_match(1), *constraints].join(",\n  ")}\n);"
+      end
+    )
+    connection.execute_batch(sql)
+    [adapter, adapter.tables(connection)]
+  end
+
   describe ".changes" do
     it "checks each class's declarations name its columns" do
       broken = Class.new(Skyward::ORM::Record) do
@@ -348,10 +382,122 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [[], replaced], [edits(changed::Item, tables), reindexed]
     end
 
-    it "drops a unique index, which a class can't declare" do
-      tables = items { |had| had.with(indexes: had.indexes.map { |index| index.with(unique: true) }) }
+    it "leaves alone an index on an expression, with a WHERE, unique, by another method or with INCLUDE" do
+      tables = items_with(
+        indexes: [
+          index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))"),
+          index("items_noted_index", [:id], "CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL"),
+          index("items_title_index", [:title], "CREATE UNIQUE INDEX items_title_index ON items (title)", unique: true),
+          index("items_hashed_index", [:title], "CREATE INDEX items_hashed_index ON public.items USING hash (title)"),
+          index(
+            "items_covering_index",
+            [:code],
+            "CREATE INDEX items_covering_index ON public.items USING btree (code) INCLUDE (title)"
+          )
+        ]
+      )
 
-      assert_equal [migrations::DropIndex, migrations::AddIndex], edits(changed::Item, tables).map(&:class)
+      assert_empty edits(changed::Item, tables)
+    end
+
+    it "still compares a plain index, however a database writes it, and adds one only a kept index covers" do
+      plain = item_table.indexes.fetch(0)
+      written = [
+        "CREATE INDEX items_owner_id_index ON public.items USING btree (owner_id)",
+        'CREATE INDEX IF NOT EXISTS "items_owner_id_index" ON "main"."items" ("owner_id")'
+      ]
+      matched = written.map do |definition|
+        edits(changed::Item, items { |had| had.with(indexes: [plain.with(definition:)]) })
+      end
+      covering = index(
+        "items_owner_title_index",
+        [:owner_id],
+        "CREATE INDEX items_owner_title_index ON items (owner_id, lower(title))"
+      )
+      covered = edits(changed::Item, items { |had| had.with(indexes: [covering]) })
+
+      assert_equal [[[], []], [migrations::AddIndex.new(index: plain)]], [matched, covered]
+    end
+
+    it "leaves alone a check on no column or on more than one, and a foreign key on more than one column or to a " \
+       "column that isn't its table's primary key" do
+      tables = items_with(
+        constraints: [
+          constraint("items_true_check", :check, [], "CHECK (1 = 1)"),
+          constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))"),
+          constraint(
+            "items_owner_title_fkey",
+            :foreign_key,
+            %i[owner_id title],
+            "FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)",
+            :owners
+          ),
+          constraint("items_code_fkey", :foreign_key, [:code], "FOREIGN KEY (code) REFERENCES owners(name)", :owners),
+          constraint("items_gone_fkey", :foreign_key, [:note], "FOREIGN KEY (note) REFERENCES gone (id)", :gone)
+        ]
+      )
+
+      assert_empty edits(changed::Item, tables)
+    end
+
+    it "still compares a foreign key that names its table's primary key" do
+      named = ["REFERENCES owners(id) ON DELETE CASCADE", 'REFERENCES "public"."owners" ("id") ON DELETE CASCADE']
+      found = named.map do |references|
+        tables = items do |had|
+          had.with(
+            constraints: had.constraints.map do |constraint|
+              next constraint unless constraint.kind == :foreign_key
+
+              constraint.with(definition: "FOREIGN KEY (owner_id) #{references}")
+            end
+          )
+        end
+        edits(changed::Restricted, tables).map(&:class)
+      end
+
+      assert_equal [[migrations::DropConstraint, migrations::AddConstraint]] * 2, found
+    end
+
+    it "keeps on the change what the table keeps, for a rebuild" do
+      expression = index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))")
+      pair = constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))")
+      change = changes(
+        [changed::Owner, changed::Unchecked],
+        items_with(indexes: [expression], constraints: [pair]),
+        types: changes_types
+      ).fetch(0)
+
+      assert_equal [[expression], [pair], [migrations::DropConstraint]],
+                   [change.kept_indexes, change.kept_constraints, change.edits.map(&:class)]
+    end
+
+    {
+      "sqlite" => [],
+      "postgresql" => [
+        "CREATE INDEX items_hashed_index ON items USING hash (title)",
+        "CREATE INDEX items_covering_index ON items (code) INCLUDE (title)"
+      ]
+    }.each do |kind, only|
+      it "leaves alone what Item can't declare on #{kind}, as the database reads it back" do
+        constraints = [
+          "CONSTRAINT items_pair_check CHECK (rank < length(title))",
+          "CONSTRAINT items_true_check CHECK (1 = 1)",
+          "CONSTRAINT items_owner_title_fkey FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)",
+          "CONSTRAINT items_code_fkey FOREIGN KEY (code) REFERENCES owners (name)"
+        ]
+        sql = [
+          "CREATE INDEX items_lower_title_index ON items (lower(title))",
+          "CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL",
+          "CREATE UNIQUE INDEX items_title_index ON items (title)",
+          *only
+        ]
+        adapter, tables = made(kind, constraints, sql.map { |statement| "#{statement};\n" }.join)
+        found = Skyward::ORM::Migrations::Diff.changes(
+          [changed::Owner, changed::Item], changes_types, tables, adapter, rename
+        )
+
+        assert_empty found
+      end
     end
 
     it "drops what a column has before the column, and adds what a column needs after it" do
@@ -402,6 +548,34 @@ describe Skyward::ORM::Migrations::Diff do
 
       assert_equal [[], catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil), []],
                    [created, notes, matches.call]
+    end
+  end
+
+  describe ".kept" do
+    def kept(tables)
+      item = ChangesFixtures::Item
+      Skyward::ORM::Migrations::Diff.kept(
+        item, changes_types.columns(item), tables.find { |table| table.name == :items }, tables
+      )
+    end
+
+    it "has the indexes and constraints the table has that the class can't declare" do
+      expression = index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))")
+      pair = constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))")
+
+      assert_equal [[expression], [pair]], kept(items_with(indexes: [expression], constraints: [pair]))
+    end
+
+    it "doesn't keep a check the class declares, which PostgreSQL puts on every column it mentions" do
+      tables = items do |had|
+        had.with(
+          constraints: had.constraints.map do |constraint|
+            constraint.name == "items_title_check" ? constraint.with(columns: %i[title code]) : constraint
+          end
+        )
+      end
+
+      assert_equal [[], []], kept(tables)
     end
   end
 end

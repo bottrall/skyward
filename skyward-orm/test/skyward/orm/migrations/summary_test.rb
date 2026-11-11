@@ -24,7 +24,14 @@ describe Skyward::ORM::Migrations::Summary do
   # A summary needs only the class and its edits.
   def alter(klass, edits)
     table = Skyward::ORM::Catalog::Table.new(name: klass.table_name, columns: [], indexes: [], constraints: [])
-    Skyward::ORM::Migrations::AlterTable.new(klass:, columns: [], table:, edits:)
+    Skyward::ORM::Migrations::AlterTable.new(
+      klass:,
+      columns: [],
+      table:,
+      edits:,
+      kept_indexes: [],
+      kept_constraints: []
+    )
   end
 
   def text(changes, adapter = Skyward::ORM::Adapters::SQLite) = Skyward::ORM::Migrations::Summary.text(changes, adapter)
@@ -105,7 +112,7 @@ describe Skyward::ORM::Migrations::Summary do
       )
       edits = [
         migrations::DropIndex.new(
-          index: catalog::Index.new(name: "todos_slug_index", columns: [], unique: true, definition: "")
+          index: catalog::Index.new(name: "todos_slug_index", columns: [:slug], unique: false, definition: "")
         ),
         migrations::DropConstraint.new(constraint: check.with(name: nil, kind: :unique, columns: %i[list_id title])),
         migrations::DropConstraint.new(constraint: check.with(name: "todos_pkey", kind: :primary_key, columns: [:id])),
@@ -127,7 +134,7 @@ describe Skyward::ORM::Migrations::Summary do
       ]
       expected = <<~TEXT
         TablesFixtures::Todo differs from the todos table:
-          - todos_slug_index    unique index on an expression
+          - todos_slug_index    index (slug)
           - unnamed             unique (list_id, title)
           - todos_pkey          primary key (id)
           - note                text NULL

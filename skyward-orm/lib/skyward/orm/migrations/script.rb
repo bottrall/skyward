@@ -24,7 +24,7 @@ module Skyward::ORM::Migrations::Script
     case change
     when Skyward::ORM::Migrations::CreateTable
       klass = change.klass
-      "#{create_table(klass, change.columns, adapter, klass.table_name, {})}#{indexes(klass)}"
+      "#{create_table(klass, change.columns, adapter, klass.table_name, {}, [])}#{indexes(klass)}"
     else
       return rebuild(change, adapter) unless in_place?(change, adapter)
 
@@ -109,11 +109,12 @@ module Skyward::ORM::Migrations::Script
     end
   end
 
-  # SQLite rebuilds the table as its class has it: create the new one, copy
-  # the rows of each column it keeps, drop the old one, rename the new one and
-  # recreate its indexes. Dropping a table another one references would run
-  # that one's ON DELETE, so `skyward migrate` turns SQLite's foreign keys off
-  # around each migration, and checks them before it commits.
+  # SQLite rebuilds the table as its class has it, with what it keeps that the
+  # class can't declare: create the new one, copy the rows of each column it
+  # keeps, drop the old one, rename the new one and recreate its indexes.
+  # Dropping a table another one references would run that one's ON DELETE,
+  # so `skyward migrate` turns SQLite's foreign keys off around each
+  # migration, and checks them before it commits.
   # @rbs change: Skyward::ORM::Migrations::AlterTable
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
@@ -131,9 +132,10 @@ module Skyward::ORM::Migrations::Script
     end
     [
       *todos,
-      create_table(klass, change.columns, adapter, :"#{table}_new", kept),
+      create_table(klass, change.columns, adapter, :"#{table}_new", kept, change.kept_constraints),
       copy(table, copied.map(&:name), copied.map { |column| kept.fetch(column.name).name }),
-      indexes(klass)
+      indexes(klass),
+      *change.kept_indexes.map { |index| "#{index.definition};\n" }
     ].join
   end
 
@@ -155,9 +157,7 @@ module Skyward::ORM::Migrations::Script
       *had.columns.map do |column|
         "#{column.name.name.ljust(name_width)}  #{column.type.ljust(type_width)} #{clauses(column)}".rstrip
       end,
-      *had.constraints.map do |constraint|
-        "#{"CONSTRAINT #{constraint.name} " if constraint.name}#{constraint.definition}"
-      end
+      *had.constraints.map { |constraint| table_constraint(constraint) }
     ]
     [
       *restored,
@@ -190,10 +190,11 @@ module Skyward::ORM::Migrations::Script
 
   # Columns line up as a person would write them. A generated key's type runs
   # on into its identity clause, so it doesn't set the width. A rebuild keeps
-  # the type an untyped column has.
+  # the type an untyped column has, and the constraints the class can't declare.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
-  #   Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept) -> String
-  def create_table(klass, columns, adapter, name, kept)
+  #   Skyward::ORM::_Adapter adapter, Symbol name, Hash[Symbol, Skyward::ORM::Catalog::Column] kept,
+  #   Array[Skyward::ORM::Catalog::Constraint] undeclared) -> String
+  def create_table(klass, columns, adapter, name, kept, undeclared)
     schema = klass.schema
     constraints = Skyward::ORM::Migrations::Definitions.constraints(klass, columns)
     name_width = columns.map { |column| column.name.length }.max || 0
@@ -208,8 +209,9 @@ module Skyward::ORM::Migrations::Script
       spec, clauses = found
       [true, "#{column.name.name.ljust(name_width)}  #{spec.ljust(type_width)} #{clauses}".rstrip]
     end #: Array[[bool, String]]
-    table_constraints = constraints.reject { |constraint| constraint.columns.one? }.map do |constraint|
-      [true, "CONSTRAINT #{constraint.name} #{constraint.definition}"]
+    multi_column = constraints.reject { |constraint| constraint.columns.one? }
+    table_constraints = [*multi_column, *undeclared].map do |constraint|
+      [true, table_constraint(constraint)]
     end #: Array[[bool, String]]
     entries = [*lines, *table_constraints]
     last = entries.rindex { |definition, _| definition }
@@ -218,6 +220,11 @@ module Skyward::ORM::Migrations::Script
     end
     ["CREATE TABLE #{name} (\n", *body, ");\n"].join
   end
+
+  # SQLite can hold a constraint with no name.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def table_constraint(constraint) = "#{"CONSTRAINT #{constraint.name} " if constraint.name}#{constraint.definition}"
 
   # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs return: String

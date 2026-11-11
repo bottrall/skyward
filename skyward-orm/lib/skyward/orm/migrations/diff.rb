@@ -7,6 +7,22 @@ module Skyward::ORM::Migrations::Diff
 
   NULL = "NULL" #: String
 
+  # A name as SQLite or PostgreSQL writes it, quoted or not.
+  NAME = /"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|[\p{L}_][\p{L}\p{N}_$]*/ #: Regexp
+  # A name with its schema, if it has one.
+  QUALIFIED = /(?:#{NAME}\s*\.\s*)?#{NAME}/ #: Regexp
+
+  # An index a class can declare: on columns alone, by PostgreSQL's btree,
+  # with no WHERE or INCLUDE, and not unique, since a class makes that only as
+  # a unique constraint.
+  PLAIN_INDEX = /
+    \A\s*CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?#{QUALIFIED}\s+ON\s+#{QUALIFIED}\s*(?:USING\s+btree\s*)?
+    \(\s*#{NAME}(?:\s*,\s*#{NAME})*\s*\)\s*\z
+  /ix #: Regexp
+
+  # The columns a foreign key names after its table, if it names any.
+  REFERENCED = /\bREFERENCES\s+#{QUALIFIED}\s*(?:\((?<columns>[^)]*)\))?/i #: Regexp
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -23,9 +39,27 @@ module Skyward::ORM::Migrations::Diff
     end
     altered = sorted.filter_map do |klass|
       table = existing[klass.table_name]
-      altered(klass, column_types.columns(klass), table, adapter, rename) if table
+      altered(klass, column_types.columns(klass), table, tables, adapter, rename) if table
     end
     [*parents_first(created), *altered]
+  end
+
+  # The indexes and constraints the table has that the class can't declare,
+  # which the diff neither drops nor adds. PostgreSQL puts a check on every
+  # column it mentions, so one the class declares is matched by its name first.
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs table: Skyward::ORM::Catalog::Table
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: [Array[Skyward::ORM::Catalog::Index], Array[Skyward::ORM::Catalog::Constraint]]
+  def kept(klass, columns, table, tables)
+    wanted = Skyward::ORM::Migrations::Definitions.constraints(klass, columns)
+    [
+      table.indexes.reject { |index| index.definition.match?(PLAIN_INDEX) },
+      table.constraints.reject do |constraint|
+        declarable?(constraint, tables) || wanted.any? { |want| same?(constraint, want) }
+      end
+    ]
   end
 
   private
@@ -45,17 +79,19 @@ module Skyward::ORM::Migrations::Diff
   # Indexes and constraints go before the columns they're on, and come back
   # after the columns they need.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
-  #   Skyward::ORM::Catalog::Table table, Skyward::ORM::_Adapter adapter,
+  #   Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter,
   #   ^(Symbol table, Symbol from, Symbol to) -> bool rename) -> Skyward::ORM::Migrations::AlterTable?
-  def altered(klass, columns, table, adapter, rename)
+  def altered(klass, columns, table, tables, adapter, rename)
     names = columns.map(&:name)
     had = table.columns.map(&:name)
     added = columns.reject { |column| had.include?(column.name) }
     removed = table.columns.reject { |column| names.include?(column.name) }
     renamed = renames(klass.table_name, removed, added, adapter, rename)
     new_columns = added.reject { |column| renamed.value?(column.name) }
-    dropped_indexes, added_indexes = indexes(klass, table, renamed)
-    dropped_constraints, added_constraints = constraints(klass, columns, table, renamed, new_columns)
+    kept_indexes, kept_constraints = kept(klass, columns, table, tables)
+    compared = table.with(indexes: table.indexes - kept_indexes, constraints: table.constraints - kept_constraints)
+    dropped_indexes, added_indexes = indexes(klass, compared, renamed)
+    dropped_constraints, added_constraints = constraints(klass, columns, compared, renamed, new_columns)
     dropped_columns = removed.reject { |column| renamed.key?(column.name) }
     edits = [
       *dropped_indexes,
@@ -70,7 +106,9 @@ module Skyward::ORM::Migrations::Diff
       *added_constraints,
       *added_indexes
     ] #: Array[Skyward::ORM::Migrations::edit]
-    Skyward::ORM::Migrations::AlterTable.new(klass:, columns:, table:, edits:) unless edits.empty?
+    return if edits.empty?
+
+    Skyward::ORM::Migrations::AlterTable.new(klass:, columns:, table:, edits:, kept_indexes:, kept_constraints:)
   end
 
   # The indexes to drop and to add. One is compared by the columns it will
@@ -177,7 +215,32 @@ module Skyward::ORM::Migrations::Diff
   # @rbs had: Skyward::ORM::Catalog::Index
   # @rbs wanted: Skyward::ORM::Catalog::Index
   # @rbs return: bool
-  def same_index?(had, wanted) = !had.unique && had.columns == wanted.columns
+  def same_index?(had, wanted) = had.columns == wanted.columns
+
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: bool
+  def declarable?(constraint, tables)
+    case constraint.kind
+    when :primary_key, :unique then true
+    when :check then constraint.columns.one?
+    else constraint.columns.one? && to_primary_key?(constraint, tables)
+    end
+  end
+
+  # A reference that names no columns is to its table's primary key.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: bool
+  def to_primary_key?(constraint, tables)
+    named = constraint.definition[REFERENCED, :columns]
+    return true unless named
+
+    parent = tables.find { |table| table.name == constraint.references }
+    key = parent&.constraints&.find { |candidate| candidate.kind == :primary_key }
+    names = named.scan(NAME) #: Array[String]
+    names.map { |name| name.delete("\"`[]").to_sym } == key&.columns
+  end
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint
   # @rbs added: Array[Skyward::ORM::Tables::Column]

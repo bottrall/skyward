@@ -28,9 +28,11 @@ module Skyward::ORM::CLI::Status
       Skyward::ORM::Migrations::Runner.read(File.join(directory, Skyward::ORM::Migrations::Directory::PATH)),
       Skyward::ORM::Migrations::Versions.checksums(database)
     )
-    changes = Skyward::ORM::Migrations::Diff.changes(classes, database.column_types, tables, adapter, UNASKED)
+    column_types = database.column_types
+    changes = Skyward::ORM::Migrations::Diff.changes(classes, column_types, tables, adapter, UNASKED)
+    kept = status.kept(classes, column_types, tables)
     unowned = status.unowned(tables, classes)
-    out.write(status.text(migrations, changes, unowned, adapter))
+    out.write(status.text(migrations, changes, kept, unowned, adapter))
     kernel.exit(1) unless status.clean?(migrations, changes, unowned)
   end
 end
