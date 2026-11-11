@@ -15,7 +15,8 @@ describe Skyward::ORM::Migrations::Script do
   postgres = Skyward::ORM::Adapters::PostgreSQL
   readers = %w[migrations tables changes].to_h do |name|
     signatures = File.expand_path("../../../fixtures/#{name}/sig", __dir__)
-    [name, Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))]
+    builder = Skyward::Core::Signatures.load(signatures)
+    [name, Skyward::Core::Types::Reader.new(builder, refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS)]
   end
 
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
@@ -108,6 +109,60 @@ describe Skyward::ORM::Migrations::Script do
       SQL
 
       assert_equal expected, write([create(fixtures::Scrap)])
+    end
+
+    it "numbers an int32 or int16 primary key, and gives a uuid one its default, in PostgreSQL's types" do
+      expected = <<~SQL
+        CREATE TABLE counters (
+          id    integer GENERATED ALWAYS AS IDENTITY CONSTRAINT counters_pkey PRIMARY KEY,
+          hits  smallint NOT NULL
+        );
+
+        CREATE TABLE tallies (
+          id  smallint GENERATED ALWAYS AS IDENTITY CONSTRAINT tallies_pkey PRIMARY KEY
+        );
+
+        CREATE TABLE visits (
+          id          uuid NOT NULL DEFAULT gen_random_uuid() CONSTRAINT visits_pkey PRIMARY KEY,
+          invited_by  uuid
+        );
+
+        -- down
+        DROP TABLE visits;
+        DROP TABLE tallies;
+        DROP TABLE counters;
+      SQL
+
+      created = [fixtures::Counter, fixtures::Tally, fixtures::Visit].map { |klass| create(klass) }
+
+      assert_equal expected, write(created, postgres)
+    end
+
+    it "writes them in SQLite's types, where an INTEGER PRIMARY KEY numbers its rows" do
+      expected = <<~SQL
+        CREATE TABLE counters (
+          id    INTEGER CONSTRAINT counters_pkey PRIMARY KEY,
+          hits  INTEGER NOT NULL
+        );
+
+        CREATE TABLE tallies (
+          id  INTEGER CONSTRAINT tallies_pkey PRIMARY KEY
+        );
+
+        CREATE TABLE visits (
+          id          TEXT NOT NULL DEFAULT (gen_random_uuid()) CONSTRAINT visits_pkey PRIMARY KEY,
+          invited_by  TEXT
+        );
+
+        -- down
+        DROP TABLE visits;
+        DROP TABLE tallies;
+        DROP TABLE counters;
+      SQL
+
+      created = [fixtures::Counter, fixtures::Tally, fixtures::Visit].map { |klass| create(klass) }
+
+      assert_equal expected, write(created)
     end
 
     it "adds columns, asking for a type, or a default for a required column with none" do
@@ -328,6 +383,14 @@ describe Skyward::ORM::Migrations::Script do
 
         assert_equal [["two"]], connection.execute("SELECT remark FROM items")
       end
+
+      it "numbers an int32 or int16 primary key" do
+        migrate(section([create(fixtures::Counter), create(fixtures::Tally)], :up))
+        ids = ["INSERT INTO counters (hits) VALUES (1) RETURNING id", "INSERT INTO tallies DEFAULT VALUES RETURNING id"]
+              .map { |sql| adapter.decode(:int32, connection.execute(sql).dig(0, 0)) }
+
+        assert_equal [1, 1], ids
+      end
     end
 
     describe "on PostgreSQL" do
@@ -342,6 +405,13 @@ describe Skyward::ORM::Migrations::Script do
       end
 
       class_exec(&running)
+
+      it "fills a uuid primary key from its default" do
+        migrate(section([create(fixtures::Visit)], :up))
+        id = connection.execute("INSERT INTO visits DEFAULT VALUES RETURNING id").dig(0, 0)
+
+        assert_match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/, id)
+      end
     end
 
     describe "on SQLite" do

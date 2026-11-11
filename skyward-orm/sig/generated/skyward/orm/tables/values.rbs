@@ -5,6 +5,10 @@ module Skyward::ORM::Tables::Values
 
   WRITTEN: Hash[Symbol, String]
 
+  UUID: Regexp
+
+  RANGES: Hash[Symbol, Range[Integer]]
+
   UNTYPED: String
 
   UNTYPED_WRITE: String
@@ -41,6 +45,13 @@ module Skyward::ORM::Tables::Values
   # @rbs value: untyped
   # @rbs return: bool
   def accepts?: (Skyward::ORM::Tables::Column column, untyped value) -> bool
+
+  # A value of the right class that the column can't store would only fail in
+  # the database, with an error that doesn't name the column.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: bool
+  def holds?: (Skyward::ORM::Tables::column_type type, untyped value) -> bool
 
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs untyped: String

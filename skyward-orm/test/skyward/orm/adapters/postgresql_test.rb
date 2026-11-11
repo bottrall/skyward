@@ -79,11 +79,13 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
   describe ".sql_type" do
     it "maps each column type to the README's PostgreSQL type" do
-      types = %i[integer float string bool date time enum].to_h { |type| [type, postgresql.sql_type(type)] }
+      types = %i[integer float string bool date time enum uuid int32 int16].to_h do |type|
+        [type, postgresql.sql_type(type)]
+      end
 
       assert_equal(
         { integer: "bigint", float: "double precision", string: "text", bool: "boolean", date: "date",
-          time: "timestamptz", enum: "text" },
+          time: "timestamptz", enum: "text", uuid: "uuid", int32: "integer", int16: "smallint" },
         types
       )
     end
@@ -154,7 +156,10 @@ describe Skyward::ORM::Adapters::PostgreSQL do
         [:bool, "boolean"],
         [:date, "date"],
         [:time, "timestamp with time zone"],
-        [:enum, "text"]
+        [:enum, "text"],
+        [:uuid, "uuid"],
+        [:int32, "integer"],
+        [:int16, "smallint"]
       ]
 
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
@@ -182,7 +187,8 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
     it "refuses any other type" do
       declared = [[:integer, "text"], [:float, "numeric(10,2)"], [:string, "bytea"], [:bool, "integer"],
-                  [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"]]
+                  [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"], [:uuid, "text"],
+                  [:int32, "bigint"], [:int16, "integer"]]
 
       assert(declared.none? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
@@ -214,6 +220,11 @@ describe Skyward::ORM::Adapters::PostgreSQL do
   describe ".decode" do
     it "reads an integer" do
       assert_equal 42, postgresql.decode(:integer, "42")
+    end
+
+    it "reads an int32 and an int16 as Integers" do
+      assert_equal [2_147_483_647, -32_768],
+                   [postgresql.decode(:int32, "2147483647"), postgresql.decode(:int16, "-32768")]
     end
 
     it "reads a float" do
@@ -274,6 +285,17 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       end
 
       assert_equal [time.floor(6), time.floor(6), *written.drop(2)], read
+    end
+
+    it "reads back what was written to a uuid, an integer and a smallint column, as a String and Integers" do
+      connection.execute("CREATE TABLE refined (id uuid, logins integer, rank smallint)")
+      written = ["0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f", 2_147_483_647, -32_768]
+      connection.execute("INSERT INTO refined VALUES ($1, $2, $3)", written.map { |value| postgresql.encode(value) })
+      read = connection.execute("SELECT * FROM refined").fetch(0).zip(%i[uuid int32 int16]).map do |value, type|
+        postgresql.decode(type, value)
+      end
+
+      assert_equal written, read
     end
   end
 

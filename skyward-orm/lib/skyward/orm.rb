@@ -24,7 +24,8 @@ module Skyward
   # @rbs check: bool
   # @rbs return: ORM::Connection::Database
   def self.connect(url, signatures: "sig", pool: 5, check: ORM::Connection::SESSION.check?)
-    column_types = ORM::Tables::ColumnTypes.new(Core::Types::Reader.new(Core::Signatures.load(signatures)))
+    reader = Core::Types::Reader.new(Core::Signatures.load(signatures), refinements: ORM::Tables::ColumnTypes::REFINEMENTS)
+    column_types = ORM::Tables::ColumnTypes.new(reader)
     adapter, location = ORM::Adapters.resolve(
       url,
       schemes: ORM::Adapters::SCHEMES,

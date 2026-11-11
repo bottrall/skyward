@@ -1,6 +1,9 @@
 # Generated from lib/skyward/orm/migrations/script.rb with RBS::Inline
 
 module Skyward::ORM::Migrations::Script
+  # The column types of a primary key the database numbers.
+  NUMBERED: Array[Skyward::ORM::Tables::column_type]
+
   # @rbs changes: Array[Skyward::ORM::Migrations::change]
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String

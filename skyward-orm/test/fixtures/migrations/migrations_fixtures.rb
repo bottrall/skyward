@@ -59,6 +59,28 @@ module MigrationsFixtures
     attr_reader :id, :payload
   end
 
+  # Numbered by an int32 primary key.
+  class Counter < Skyward::ORM::Record
+    table :counters
+
+    attr_reader :id, :hits
+  end
+
+  # Numbered by an int16 primary key.
+  class Tally < Skyward::ORM::Record
+    table :tallies
+
+    attr_reader :id
+  end
+
+  # Keyed by a uuid its default fills.
+  class Visit < Skyward::ORM::Record
+    table :visits
+    default id: Skyward.sql("gen_random_uuid()")
+
+    attr_reader :id, :invited_by
+  end
+
   # The README's rework_todos: notes renamed to details, due_on required, and
   # an index on it.
   def self.rework_todos

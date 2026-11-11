@@ -5,8 +5,11 @@ require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Tables::ColumnTypes do
   signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
-  reader = Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
-  column_types = "A column is Integer, Float, String, bool, Date, Time or a union of symbols, " \
+  reader = Skyward::Core::Types::Reader.new(
+    Skyward::Core::Signatures.load(signatures),
+    refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS
+  )
+  column_types = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16 or a union of symbols, " \
                  "any of them nullable, or untyped."
 
   counting_reader = Class.new do
@@ -76,6 +79,17 @@ describe Skyward::ORM::Tables::ColumnTypes do
       ]
 
       assert_equal expected, types.columns(TablesFixtures::Typed)
+    end
+
+    it "maps each of Skyward ORM's aliases to the column type it names" do
+      expected = [
+        column(:id, :uuid),
+        column(:logins, :int32),
+        column(:rank, :int16),
+        column(:invited_by, :uuid, nullable: true)
+      ]
+
+      assert_equal expected, types.columns(TablesFixtures::Refined)
     end
 
     it "resolves a row class's members, untyped where its signature has no reader" do

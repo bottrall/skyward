@@ -10,7 +10,10 @@ module Skyward::ORM::Adapters::PostgreSQL
     bool: "boolean",
     date: "date",
     time: "timestamptz",
-    enum: "text"
+    enum: "text",
+    uuid: "uuid",
+    int32: "integer",
+    int16: "smallint"
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # As the catalog spells each type, which compatible? is given.
@@ -21,7 +24,10 @@ module Skyward::ORM::Adapters::PostgreSQL
     bool: ["boolean"],
     date: ["date"],
     time: ["timestamp with time zone", "timestamp without time zone"],
-    enum: ["text", "character varying"]
+    enum: ["text", "character varying"],
+    uuid: ["uuid"],
+    int32: ["integer"],
+    int16: ["smallint"]
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, Array[String]]
 
   # The catalog puts a length or precision in parentheses.
@@ -180,7 +186,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: untyped
   def decode(type, value)
     case type
-    when :integer then Integer(value, 10)
+    when :integer, :int32, :int16 then Integer(value, 10)
     when :float then SPECIAL_FLOATS.fetch(value) { Float(value) }
     when :bool then value == TRUE_TEXT
     when :date then Date.iso8601(value)

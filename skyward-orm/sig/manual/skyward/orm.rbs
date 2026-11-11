@@ -1,4 +1,10 @@
 module Skyward::ORM
+  # Column types Steep reads as their base type, and Skyward ORM as the SQL
+  # type a column of them stores.
+  type uuid = String
+  type int32 = Integer
+  type int16 = Integer
+
   # Each adapter's connection: SQLite3::Database, and Adapters::PostgreSQL::Connection.
   interface _Connection
     def execute: (String sql, ?Array[untyped] binds) -> Array[Array[untyped]]
