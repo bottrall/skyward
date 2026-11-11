@@ -65,6 +65,13 @@ module Skyward::API::Inputs::Coercer
 
   FORMATS = { date: "Date (YYYY-MM-DD)", time: "Time (ISO 8601)" }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
+  # A Hash[String, T] says its keys are Strings, so an untyped value it holds
+  # keeps the JSON's String keys at every level.
+  AS_PARSED = [
+    Skyward::Core::Types::Scalar.new(name: :untyped),
+    Skyward::Core::Types::Nullable.new(type: Skyward::Core::Types::Scalar.new(name: :untyped))
+  ].freeze #: Array[Skyward::Core::Types::t]
+
   # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
@@ -113,7 +120,9 @@ module Skyward::API::Inputs::Coercer
     when Skyward::Core::Types::Enum then enum(type.symbols, expected)
     when Skyward::Core::Types::Nullable then nullable(build(type.type, strings, member, unions))
     when Skyward::Core::Types::ArrayOf then array(build(type.type, strings, member, unions), strings, limit, expected)
-    when Skyward::Core::Types::HashOf then hash_of(build(type.type, strings, member, unions), limit, expected)
+    when Skyward::Core::Types::HashOf
+      value = AS_PARSED.include?(type.type) ? as_parsed : build(type.type, strings, member, unions)
+      hash_of(value, limit, expected)
     when Skyward::Core::Types::Record then object(fields(type, strings, member, unions), limit, expected, &:itself)
     when Skyward::Core::Types::Named
       klass = type.klass
@@ -158,6 +167,9 @@ module Skyward::API::Inputs::Coercer
   # @rbs raw: String | Array[String]
   # @rbs return: String?
   def last(raw) = raw.is_a?(Array) ? raw.last : raw
+
+  # @rbs return: coercer
+  def as_parsed = ->(raw, _at, _seen) { Ok.new(value: raw) }
 
   # @rbs raw: untyped
   # @rbs return: untyped

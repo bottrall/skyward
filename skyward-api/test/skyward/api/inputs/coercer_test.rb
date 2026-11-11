@@ -259,6 +259,12 @@ describe Skyward::API::Inputs::Coercer do
         assert_equal ok([1, 2]), coerce(integers, %w[1 2], strings: true)
       end
 
+      it "gives an untyped item Symbol keys at every level" do
+        untyped = types::ArrayOf.new(type: types::Scalar.new(name: :untyped))
+
+        assert_equal ok([{ theme: { dark: true } }]), coerce(untyped, [{ "theme" => { "dark" => true } }])
+      end
+
       it "takes one value from a path or query as a one-item array" do
         assert_equal ok([1]), coerce(integers, "1", strings: true)
       end
@@ -313,6 +319,40 @@ describe Skyward::API::Inputs::Coercer do
 
       it "accepts an empty object" do
         assert_equal ok({}), coerce(lists, {})
+      end
+
+      describe "of untyped" do
+        let(:settings) { { "theme" => { "dark" => true }, "tags" => [{ "id" => 1 }] } }
+        let(:untyped) { types::Scalar.new(name: :untyped) }
+        let(:held) { types::HashOf.new(type: untyped) }
+
+        it "keeps String keys at every level" do
+          assert_equal ok(settings), coerce(held, settings)
+        end
+
+        it "keeps String keys at every level of a nullable value, and takes null" do
+          nullable = types::HashOf.new(type: types::Nullable.new(type: untyped))
+
+          assert_equal ok(settings.merge("none" => nil)), coerce(nullable, settings.merge("none" => nil))
+        end
+
+        it "keeps String keys at every level in a record's field" do
+          record = types::Record.new(fields: [types::Field.new(name: :settings, type: held, required: true)])
+
+          assert_equal ok({ settings: }), coerce(record, { "settings" => settings })
+        end
+
+        it "keeps String keys at every level in a class's reader" do
+          klass = Data.define(:settings)
+          fields = [types::Field.new(name: :settings, type: held, required: true)]
+          named = types::Named.new(name: "Account", klass:, fields:)
+
+          assert_equal ok(klass.new(settings:)), coerce(named, { "settings" => settings })
+        end
+
+        it "keeps String keys at every level in an Array's item" do
+          assert_equal ok([settings]), coerce(types::ArrayOf.new(type: held), [settings])
+        end
       end
 
       it "refuses anything but an object" do

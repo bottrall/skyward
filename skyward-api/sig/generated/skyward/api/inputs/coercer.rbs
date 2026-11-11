@@ -72,6 +72,10 @@ module Skyward::API::Inputs::Coercer
 
   FORMATS: Hash[Skyward::Core::Types::scalar, String]
 
+  # A Hash[String, T] says its keys are Strings, so an untyped value it holds
+  # keeps the JSON's String keys at every level.
+  AS_PARSED: Array[Skyward::Core::Types::t]
+
   # Path and query values are Strings, so with strings: true a coercer parses them.
   # @rbs type: Skyward::Core::Types::t
   # @rbs strings: bool
@@ -121,6 +125,9 @@ module Skyward::API::Inputs::Coercer
   # @rbs raw: String | Array[String]
   # @rbs return: String?
   def last: (String | Array[String] raw) -> String?
+
+  # @rbs return: coercer
+  def as_parsed: () -> coercer
 
   # @rbs raw: untyped
   # @rbs return: untyped
