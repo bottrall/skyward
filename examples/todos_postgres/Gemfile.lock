@@ -1,22 +1,22 @@
 PATH
   remote: ../../skyward-api
   specs:
-    skyward-api (0.2.0)
-      skyward-core (= 0.2.0)
+    skyward-api (0.3.0)
+      skyward-core (= 0.3.0)
       zeitwerk (~> 2.8)
 
 PATH
   remote: ../../skyward-core
   specs:
-    skyward-core (0.2.0)
+    skyward-core (0.3.0)
       rbs (~> 4.2)
       zeitwerk (~> 2.8)
 
 PATH
   remote: ../../skyward-orm
   specs:
-    skyward-orm (0.2.0)
-      skyward-core (= 0.2.0)
+    skyward-orm (0.3.0)
+      skyward-core (= 0.3.0)
       zeitwerk (~> 2.8)
 
 GEM
@@ -275,9 +275,9 @@ CHECKSUMS
   rbs-inline (0.14.0) sha256=eaf47b46690d63acddab1f6804c9cc205a4bc78e637cfc421a0b1239874ef51c
   samovar (2.5.1) sha256=8a9fc41eb8868084f0321eb41678c485cfbc7d282fb306c0be67c3284b1d2394
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
-  skyward-api (0.2.0)
-  skyward-core (0.2.0)
-  skyward-orm (0.2.0)
+  skyward-api (0.3.0)
+  skyward-core (0.3.0)
+  skyward-orm (0.3.0)
   steep (2.1.0) sha256=1daf53573283b0e6d404a7273cca41fe5c15b14ece05167934f5ffc179e171d9
   string-format (0.2.0) sha256=bc981c14116b061f12134549f32fa2d61a17b5a35dd6fd36596c21722a789af6
   strscan (3.1.8) sha256=aae2db611a225559f21ffbb71765c9a4e60fd262534a9ea84f4f11c7f32f679e
