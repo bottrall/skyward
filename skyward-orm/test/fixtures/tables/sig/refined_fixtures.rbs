@@ -1,0 +1,10 @@
+use Skyward::ORM::*
+
+module TablesFixtures
+  class Refined < ::Skyward::ORM::Record
+    attr_reader id: uuid
+    attr_reader logins: int32
+    attr_reader rank: int16
+    attr_reader invited_by: uuid?
+  end
+end

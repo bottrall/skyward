@@ -9,7 +9,10 @@ module Skyward::ORM::Tables::Values
     string: [String],
     bool: [TrueClass, FalseClass],
     date: [Date],
-    time: [Time]
+    time: [Time],
+    uuid: [String],
+    int32: [Integer],
+    int16: [Integer]
   }.freeze #: Hash[Symbol, Array[Module]]
 
   WRITTEN = {
@@ -18,8 +21,18 @@ module Skyward::ORM::Tables::Values
     string: "String",
     bool: "bool",
     date: "Date",
-    time: "Time"
+    time: "Time",
+    uuid: "uuid",
+    int32: "int32",
+    int16: "int16"
   }.freeze #: Hash[Symbol, String]
+
+  UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/ #: Regexp
+
+  RANGES = {
+    int32: -(2**31)...(2**31),
+    int16: -(2**15)...(2**15)
+  }.freeze #: Hash[Symbol, Range[Integer]]
 
   UNTYPED = "untyped, which takes any value but a Hash or a nested Array" #: String
 
@@ -82,8 +95,22 @@ module Skyward::ORM::Tables::Values
     # A DateTime is a Date, but it encodes with its time, so it never equals a
     # stored date.
     elsif value.is_a?(DateTime) then false
+    else ACCEPTED.fetch(column.type).any? { |klass| value.is_a?(klass) } && holds?(column.type, value)
+    end
+  end
+
+  # A value of the right class that the column can't store would only fail in
+  # the database, with an error that doesn't name the column.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: bool
+  def holds?(type, value)
+    case type
     # SQLite stores NaN as NULL.
-    else ACCEPTED.fetch(column.type).any? { |klass| value.is_a?(klass) } && !(value.is_a?(Float) && value.nan?)
+    when :float then !(value.is_a?(Float) && value.nan?)
+    when :uuid then UUID.match?(value)
+    when :int32, :int16 then RANGES.fetch(type).cover?(value)
+    else true
     end
   end
 

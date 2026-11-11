@@ -46,6 +46,12 @@ describe Skyward do
       assert_equal :normal, database.decoder(todo, priority, []).call(["normal"]).priority
     end
 
+    it "reads Skyward ORM's aliases as the column types they name" do
+      database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
+
+      assert_equal %i[uuid int32 int16 uuid], database.column_types.columns(TablesFixtures::Refined).map(&:type)
+    end
+
     it "opens up to pool: connections" do
       database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), pool: 2, check: false)
       outer, inner = database.connection { |first| database.connection { |second| [first, second] } }

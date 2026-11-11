@@ -50,4 +50,18 @@ module MigrationsFixtures
   class Scrap < ::Skyward::ORM::Record
     attr_reader id: Integer
   end
+
+  class Counter < ::Skyward::ORM::Record
+    attr_reader id: ::Skyward::ORM::int32
+    attr_reader hits: ::Skyward::ORM::int16
+  end
+
+  class Tally < ::Skyward::ORM::Record
+    attr_reader id: ::Skyward::ORM::int16
+  end
+
+  class Visit < ::Skyward::ORM::Record
+    attr_reader id: ::Skyward::ORM::uuid
+    attr_reader invited_by: ::Skyward::ORM::uuid?
+  end
 end

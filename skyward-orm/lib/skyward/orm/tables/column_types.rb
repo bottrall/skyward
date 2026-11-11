@@ -6,8 +6,15 @@ class Skyward::ORM::Tables::ColumnTypes
 
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
-  COLUMN_TYPES = "A column is Integer, Float, String, bool, Date, Time or a union of symbols, " \
+  COLUMN_TYPES = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16 or a union of symbols, " \
                  "any of them nullable, or untyped." #: String
+
+  # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
+  REFINEMENTS = {
+    "::Skyward::ORM::uuid" => :uuid,
+    "::Skyward::ORM::int32" => :int32,
+    "::Skyward::ORM::int16" => :int16
+  }.freeze #: Hash[String, Skyward::ORM::Tables::refinement]
 
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: void
@@ -63,6 +70,10 @@ class Skyward::ORM::Tables::ColumnTypes
       Skyward::ORM::Tables::Column.new(name:, type: carried.name, nullable:, symbols: [])
     when Skyward::Core::Types::Enum
       Skyward::ORM::Tables::Column.new(name:, type: :enum, nullable:, symbols: carried.symbols)
+    when Skyward::Core::Types::Refined
+      # The reader refines only the aliases in REFINEMENTS.
+      type = carried.as #: Skyward::ORM::Tables::refinement
+      Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [])
     when Skyward::Core::Types::Unreadable
       "can't be read: Skyward ORM doesn't read #{carried.type}#{", at #{carried.at}" if carried.at}. #{COLUMN_TYPES}"
     when Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf,

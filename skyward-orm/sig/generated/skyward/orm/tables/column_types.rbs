@@ -9,6 +9,9 @@ class Skyward::ORM::Tables::ColumnTypes
 
   COLUMN_TYPES: String
 
+  # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
+  REFINEMENTS: Hash[String, Skyward::ORM::Tables::refinement]
+
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: void
   def initialize: (Skyward::Core::Types::Reader reader) -> void

@@ -96,7 +96,10 @@ describe Skyward::ORM::Tables::Values do
       string: ["String", "Buy milk", :buy_milk],
       bool: ["bool", false, 0],
       date: ["Date", Date.new(2026, 10, 20), Time.utc(2026, 10, 20)],
-      time: ["Time", Time.utc(2026, 10, 18, 9, 30), Date.new(2026, 10, 18)]
+      time: ["Time", Time.utc(2026, 10, 18, 9, 30), Date.new(2026, 10, 18)],
+      uuid: ["uuid", "0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f", :id],
+      int32: ["int32", 1, 1.0],
+      int16: ["int16", 1, "1"]
     }.each do |type, (written, taken, refused)|
       describe "on a #{written} column" do
         it "takes #{taken.inspect}" do
@@ -136,6 +139,35 @@ describe Skyward::ORM::Tables::Values do
 
       assert_equal "#{todo}.value is Date, not #{date_time.inspect} (DateTime)", mismatch(column(:date), date_time)
     end
+
+    it "takes a uuid in upper case" do
+      assert_nil mismatch(column(:uuid), "0B9D5F2E-7C4A-4E1B-9F3D-2A6C8E0B1D4F")
+    end
+
+    it "refuses a String that isn't a uuid's 8-4-4-4-12 hex digits for a uuid column" do
+      refused = %W[nope 0b9d5f2e7c4a4e1b9f3d2a6c8e0b1d4f 0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4g
+                   0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f\n]
+
+      assert_equal(
+        refused.map { |value| "#{todo}.value is uuid, not #{value.inspect} (String)" },
+        refused.map { |value| mismatch(column(:uuid), value) }
+      )
+    end
+
+    {
+      int32: [-2_147_483_648, 2_147_483_647],
+      int16: [-32_768, 32_767]
+    }.each do |type, (least, most)|
+      it "takes an #{type} from #{least} to #{most}" do
+        assert_nil mismatch(column(type), [least, most])
+      end
+
+      it "refuses an #{type} outside #{least} to #{most}" do
+        assert_equal ["#{todo}.value is #{type}, not #{least - 1} (Integer)",
+                      "#{todo}.value is #{type}, not #{most + 1} (Integer)"],
+                     [mismatch(column(type), least - 1), mismatch(column(type), most + 1)]
+      end
+    end
   end
 
   describe ".write_mismatch" do
@@ -159,6 +191,10 @@ describe Skyward::ORM::Tables::Values do
 
     it "refuses a Range, whose ends the type would take" do
       assert_equal "#{todo}.value is String, not \"x\"..\"y\" (Range)", write_mismatch(column(:string), "x".."y")
+    end
+
+    it "refuses a value its column can't hold" do
+      assert_equal "#{todo}.value is int16, not 32768 (Integer)", write_mismatch(column(:int16), 32_768)
     end
 
     describe "on an untyped column" do

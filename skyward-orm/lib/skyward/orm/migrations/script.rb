@@ -3,6 +3,9 @@
 module Skyward::ORM::Migrations::Script
   extend self
 
+  # The column types of a primary key the database numbers.
+  NUMBERED = %i[integer int32 int16].freeze #: Array[Skyward::ORM::Tables::column_type]
+
   # @rbs changes: Array[Skyward::ORM::Migrations::change]
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
@@ -258,7 +261,7 @@ module Skyward::ORM::Migrations::Script
   # @rbs schema: Skyward::ORM::Tables::Schema
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: bool
-  def generated?(schema, column) = schema.primary_key == column.name && column.type == :integer
+  def generated?(schema, column) = schema.primary_key == column.name && NUMBERED.include?(column.type)
 
   # A column as the database has it.
   # @rbs column: Skyward::ORM::Catalog::Column

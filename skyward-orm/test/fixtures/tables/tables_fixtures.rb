@@ -78,6 +78,11 @@ module TablesFixtures
   Pair = Class.new
   Node = Class.new
 
+  # Its columns are typed with Skyward ORM's aliases.
+  class Refined < Skyward::ORM::Record
+    attr_reader :id, :logins, :rank, :invited_by
+  end
+
   # Unsigned has no RBS declaration.
   class Unsigned < Skyward::ORM::Record
     attr_reader :id

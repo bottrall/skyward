@@ -106,11 +106,13 @@ describe Skyward::ORM::Adapters::SQLite do
 
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
-      types = %i[integer float string bool date time enum].to_h { |type| [type, sqlite.sql_type(type)] }
+      types = %i[integer float string bool date time enum uuid int32 int16].to_h do |type|
+        [type, sqlite.sql_type(type)]
+      end
 
       assert_equal(
         { integer: "INTEGER", float: "REAL", string: "TEXT", bool: "INTEGER", date: "TEXT", time: "TEXT",
-          enum: "TEXT" },
+          enum: "TEXT", uuid: "TEXT", int32: "INTEGER", int16: "INTEGER" },
         types
       )
     end
@@ -160,14 +162,18 @@ describe Skyward::ORM::Adapters::SQLite do
         [:bool, "BOOLEAN"],
         [:date, "DATE"],
         [:time, "DATETIME"],
-        [:time, "DATETIME(6)"]
+        [:time, "DATETIME(6)"],
+        [:uuid, "varchar(36)"],
+        [:int32, "int"],
+        [:int16, "smallint"]
       ]
 
       assert(declared.all? { |type, sql_type| sqlite.compatible?(type, sql_type) })
     end
 
     it "refuses a declared type with another affinity" do
-      declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "BLOB"], [:float, "NUMERIC"]]
+      declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "BLOB"], [:float, "NUMERIC"],
+                  [:uuid, "BLOB"], [:int32, "TEXT"], [:int16, "REAL"]]
 
       assert(declared.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
     end
@@ -267,6 +273,20 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "passes an untyped value through, frozen" do
       assert_predicate sqlite.decode(:untyped, +"Milk"), :frozen?
+    end
+
+    it "reads back what was written to a uuid, an int32 and an int16 column, as a frozen String and Integers" do
+      connection.execute(
+        "CREATE TABLE refined (id #{sqlite.sql_type(:uuid)}, logins #{sqlite.sql_type(:int32)}, " \
+        "rank #{sqlite.sql_type(:int16)})"
+      )
+      written = ["0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f", 2_147_483_647, -32_768]
+      connection.execute("INSERT INTO refined VALUES (?, ?, ?)", written.map { |value| sqlite.encode(value) })
+      read = connection.execute("SELECT * FROM refined").fetch(0).zip(%i[uuid int32 int16]).map do |value, type|
+        sqlite.decode(type, value)
+      end
+
+      assert_equal [written, true], [read, read.fetch(0).frozen?]
     end
   end
 

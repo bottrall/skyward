@@ -13,7 +13,10 @@ module Skyward::ORM::Adapters::SQLite
     bool: "INTEGER",
     date: "TEXT",
     time: "TEXT",
-    enum: "TEXT"
+    enum: "TEXT",
+    uuid: "TEXT",
+    int32: "INTEGER",
+    int16: "INTEGER"
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # Fixed width and UTC, so text order is time order, and to the microsecond,
