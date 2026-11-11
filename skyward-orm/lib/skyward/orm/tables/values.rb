@@ -82,7 +82,8 @@ module Skyward::ORM::Tables::Values
     # A DateTime is a Date, but it encodes with its time, so it never equals a
     # stored date.
     elsif value.is_a?(DateTime) then false
-    else ACCEPTED.fetch(column.type).any? { |klass| value.is_a?(klass) }
+    # SQLite stores NaN as NULL.
+    else ACCEPTED.fetch(column.type).any? { |klass| value.is_a?(klass) } && !(value.is_a?(Float) && value.nan?)
     end
   end
 
