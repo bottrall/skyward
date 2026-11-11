@@ -147,11 +147,13 @@ module Skyward::Core::Types
 
     attr_reader instead(): String
 
-    def self.new: (String type, String? at, String instead) -> instance
-                | (type: String, at: String?, instead: String) -> instance
+    attr_reader suggestion(): String?
 
-    def self.members: () -> [ :type, :at, :instead ]
+    def self.new: (String type, String? at, String instead, String? suggestion) -> instance
+                | (type: String, at: String?, instead: String, suggestion: String?) -> instance
 
-    def members: () -> [ :type, :at, :instead ]
+    def self.members: () -> [ :type, :at, :instead, :suggestion ]
+
+    def members: () -> [ :type, :at, :instead, :suggestion ]
   end
 end

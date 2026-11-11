@@ -1,0 +1,4 @@
+class Foo = String
+
+class Foo
+end

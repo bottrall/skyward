@@ -29,6 +29,21 @@ class Skyward::Core::Types::Reader
 
   private
 
+  # @rbs error: RBS::DefinitionError
+  # @rbs return: String
+  def definition_failure: (RBS::DefinitionError error) -> String
+
+  # @rbs message: String
+  # @rbs location: RBS::Location[untyped, untyped]?
+  # @rbs suggestion: String?
+  # @rbs return: String
+  def explain: (String message, RBS::Location[untyped, untyped]? location, ?String? suggestion) -> String
+
+  # Only a declared name of the same kind, as `String` and not `string` for `Strng`.
+  # @rbs type_name: RBS::TypeName
+  # @rbs return: String?
+  def closest: (RBS::TypeName type_name) -> String?
+
   # @rbs type: RBS::Types::t
   # @rbs path: Array[String]
   # @rbs return: Skyward::Core::Types::result
@@ -79,9 +94,9 @@ class Skyward::Core::Types::Reader
   # @rbs return: Array[RBS::AST::Members::AttrReader]
   def declared_public_readers: (RBS::AST::Declarations::Class decl) -> Array[RBS::AST::Members::AttrReader]
 
-  # @rbs name: String
+  # @rbs type_name: RBS::TypeName
   # @rbs return: Class
-  def ruby_class: (String name) -> Class
+  def ruby_class: (RBS::TypeName type_name) -> Class
 
   # @rbs name: String
   # @rbs path: Array[String]
@@ -105,8 +120,9 @@ class Skyward::Core::Types::Reader
 
   # @rbs type: RBS::Types::t
   # @rbs instead: String
+  # @rbs suggestion: String?
   # @rbs return: Skyward::Core::Types::Unreadable
-  def unreadable: (RBS::Types::t type, ?String instead) -> Skyward::Core::Types::Unreadable
+  def unreadable: (RBS::Types::t type, ?String instead, ?suggestion: String?) -> Skyward::Core::Types::Unreadable
 
   # @rbs (_ToS name) -> String
   def written: (_ToS name) -> String

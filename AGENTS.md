@@ -30,6 +30,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | core | `Skyward::Core::CLI` | the `skyward` executable's registry and dispatch, and finding and running the executables its commands use |
 | core | `Skyward::Core::Signatures` | generating, finding and loading RBS files |
 | core | `Skyward::Core::Types` | turning RBS types into values |
+| core | `Skyward::Core::Diagnostics` | pointing a boot error at its source: excerpts of Ruby and RBS files, and Did you mean suggestions |
 | api | `Skyward::API::Endpoints` | what an API class declares and returns: route declarations and response helpers |
 | api | `Skyward::API::Routing` | matching a request to an endpoint |
 | api | `Skyward::API::Inputs` | reading and coercing an endpoint's keywords |

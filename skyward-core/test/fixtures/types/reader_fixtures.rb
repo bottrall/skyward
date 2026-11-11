@@ -13,4 +13,5 @@ module ReaderFixtures
   Parent = Class.new
   Price = Class.new
   Todo = Class.new
+  Typo = Class.new
 end

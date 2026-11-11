@@ -43,10 +43,44 @@ class Skyward::Core::Types::Reader
   def method_type(type_name, method_name)
     @builder.build_instance(type_name).methods[method_name]&.method_types&.first
   rescue RBS::DefinitionError => e
-    raise Skyward::Core::BootError, "Can't read the RBS signatures: #{e.message}"
+    raise Skyward::Core::BootError, definition_failure(e)
   end
 
   private
+
+  # @rbs error: RBS::DefinitionError
+  # @rbs return: String
+  def definition_failure(error)
+    # Not every RBS error has a location, and those that do share no ancestor.
+    location = error.location if error.respond_to?(:location) # steep:ignore NoMethod
+    case location
+    when RBS::Location
+      message = error.message.delete_prefix("#{RBS::Location.to_string(location)}: ")
+      suggestion = closest(error.type_name) if error.is_a?(RBS::NoTypeFoundError)
+      explain("Can't read the RBS signatures: #{message}", location, suggestion)
+    else "Can't read the RBS signatures: #{error.message}"
+    end
+  end
+
+  # @rbs message: String
+  # @rbs location: RBS::Location[untyped, untyped]?
+  # @rbs suggestion: String?
+  # @rbs return: String
+  def explain(message, location, suggestion = nil)
+    spots = [location].compact.map { |found| Skyward::Core::Diagnostics::Spots.rbs(found) }
+    hint = "Did you mean #{suggestion}?" if suggestion
+    [[message, Skyward::Core::Diagnostics::Excerpt.render(spots)].compact.join("\n\n"), hint].compact.join("\n")
+  end
+
+  # Only a declared name of the same kind, as `String` and not `string` for `Strng`.
+  # @rbs type_name: RBS::TypeName
+  # @rbs return: String?
+  def closest(type_name)
+    env = @builder.env
+    names = [*env.class_decls.keys, *env.class_alias_decls.keys, *env.interface_decls.keys, *env.type_alias_decls.keys]
+    declared = names.select { |name| name.kind == type_name.kind }.map { |name| written(name) }
+    Skyward::Core::Diagnostics::Suggestion.closest(written(type_name), declared)
+  end
 
   # @rbs type: RBS::Types::t
   # @rbs path: Array[String]
@@ -157,10 +191,13 @@ class Skyward::Core::Types::Reader
   # @rbs return: Skyward::Core::Types::result
   def named(type, path)
     readers = public_readers(type.name)
-    return unreadable(type) if readers.empty?
+    if readers.empty?
+      suggestion = closest(type.name) unless @builder.env.module_name?(type.name)
+      return unreadable(type, suggestion:)
+    end
 
     name = written(type.name)
-    klass = ruby_class(name)
+    klass = ruby_class(type.name)
     within = enter(name, path)
     keys = readers.map { |reader| [reader.name, true] } #: Array[[Symbol, bool]]
     results = readers.map { |reader| locate(read_within(reader.type, within), "#{name}##{reader.name}") }
@@ -197,13 +234,16 @@ class Skyward::Core::Types::Reader
     end
   end
 
-  # @rbs name: String
+  # @rbs type_name: RBS::TypeName
   # @rbs return: Class
-  def ruby_class(name)
+  def ruby_class(type_name)
+    name = written(type_name)
     found = Object.const_get(name) if Object.const_defined?(name)
     return found if found.is_a?(Class)
 
-    raise Skyward::Core::BootError, "#{name} has an RBS signature, but no Ruby class is loaded with that name"
+    message = "#{name} has an RBS signature, but no Ruby class is loaded with that name"
+    location = @builder.env.class_entry(type_name, normalized: true)&.primary_decl&.location
+    raise Skyward::Core::BootError, explain(message, location&.[](:name))
   end
 
   # @rbs name: String
@@ -245,9 +285,10 @@ class Skyward::Core::Types::Reader
 
   # @rbs type: RBS::Types::t
   # @rbs instead: String
+  # @rbs suggestion: String?
   # @rbs return: Skyward::Core::Types::Unreadable
-  def unreadable(type, instead = "a record, or a class with public typed attr_readers")
-    Skyward::Core::Types::Unreadable.new(type: written(type), at: nil, instead:)
+  def unreadable(type, instead = "a record, or a class with public typed attr_readers", suggestion: nil)
+    Skyward::Core::Types::Unreadable.new(type: written(type), at: nil, instead:, suggestion:)
   end
 
   # @rbs (_ToS name) -> String

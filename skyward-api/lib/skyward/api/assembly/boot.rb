@@ -457,7 +457,8 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Skyward::API::Routing::Router::Created | Skyward::Core::Types::Unreadable
   def created(type, reader)
     unless type.args.size == 1
-      return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Skyward::API::Responses::Created[T]")
+      instead = "Skyward::API::Responses::Created[T]"
+      return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead:, suggestion: nil)
     end
 
     read = read_type(reader, type.args.fetch(0))
@@ -535,7 +536,9 @@ module Skyward::API::Assembly::Boot
   def decimal(type, at)
     case type
     when Skyward::Core::Types::Scalar
-      Skyward::Core::Types::Unreadable.new(type: "BigDecimal", at:, instead: "Float or String") if type.name == :decimal
+      if type.name == :decimal
+        Skyward::Core::Types::Unreadable.new(type: "BigDecimal", at:, instead: "Float or String", suggestion: nil)
+      end
     when Skyward::Core::Types::Nullable, Skyward::Core::Types::ArrayOf, Skyward::Core::Types::HashOf,
          Skyward::Core::Types::Refined
       decimal(type.type, at)

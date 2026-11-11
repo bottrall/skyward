@@ -1,0 +1,8 @@
+# Generated from lib/skyward/core/diagnostics/suggestion.rb with RBS::Inline
+
+module Skyward::Core::Diagnostics::Suggestion
+  # @rbs name: String
+  # @rbs names: Array[String]
+  # @rbs return: String?
+  def closest: (String name, Array[String] names) -> String?
+end

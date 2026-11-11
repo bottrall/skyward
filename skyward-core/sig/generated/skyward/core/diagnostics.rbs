@@ -1,0 +1,21 @@
+# Generated from lib/skyward/core/diagnostics.rb with RBS::Inline
+
+module Skyward::Core::Diagnostics
+  # The line's text travels with it, so an excerpt never reads the file again.
+  class Spot < Data
+    attr_reader path(): String
+
+    attr_reader line(): Integer
+
+    attr_reader text(): String
+
+    attr_reader columns(): Range[Integer]?
+
+    def self.new: (String path, Integer line, String text, Range[Integer]? columns) -> instance
+                | (path: String, line: Integer, text: String, columns: Range[Integer]?) -> instance
+
+    def self.members: () -> [ :path, :line, :text, :columns ]
+
+    def members: () -> [ :path, :line, :text, :columns ]
+  end
+end
