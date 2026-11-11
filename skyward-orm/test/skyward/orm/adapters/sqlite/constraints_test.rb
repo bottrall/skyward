@@ -131,4 +131,24 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
       assert_empty read("CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)", %i[id title])
     end
   end
+
+  describe ".generated" do
+    def generated(sql) = Skyward::ORM::Adapters::SQLite::Constraints.generated(sql)
+
+    it "reads each generated column's expression as written, stored or virtual, but not an AS inside an expression" do
+      sql = <<~SQL
+        CREATE TABLE todos (
+          title TEXT NOT NULL CHECK (CAST(title AS TEXT) <> ''),
+          "search" TEXT NOT NULL GENERATED ALWAYS AS (lower(title) || ' (' || id || ')') STORED,
+          length INTEGER AS (length(title)) VIRTUAL
+        )
+      SQL
+
+      assert_equal({ search: "lower(title) || ' (' || id || ')'", length: "length(title)" }, generated(sql))
+    end
+
+    it "reads none from a table that has none" do
+      assert_empty generated("CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)")
+    end
+  end
 end

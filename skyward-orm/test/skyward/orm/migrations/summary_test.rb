@@ -102,7 +102,7 @@ describe Skyward::ORM::Migrations::Summary do
     end
 
     it "marks each kind of change, + for added, - for dropped and ~ for changed" do
-      note = catalog::Column.new(name: :note, type: "text", nullable: true, default: nil)
+      note = catalog::Column.new(name: :note, type: "text", nullable: true, default: nil, generated: nil)
       check = catalog::Constraint.new(
         name: "todos_title_check",
         kind: :check,

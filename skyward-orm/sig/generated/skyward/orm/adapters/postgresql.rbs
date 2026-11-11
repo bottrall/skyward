@@ -37,6 +37,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   # The tables an unqualified name finds, as every query names them.
   TABLES: String
 
+  # pg_attrdef holds a generated column's expression as if it were its default.
   COLUMNS: String
 
   # Leaves out the indexes primary keys and unique constraints make, as SQLite's does.

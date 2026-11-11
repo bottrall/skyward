@@ -50,10 +50,12 @@ module Skyward::ORM::Adapters::SQLite
 
   BUSY_TIMEOUT_MS = 5000 #: Integer
 
+  # table_info leaves out generated columns, which table_xinfo marks hidden 2
+  # (virtual) or 3 (stored). Hidden 1 is a virtual table's own hidden column.
   COLUMNS = <<~SQL #: String
     SELECT m.name, m.sql, c.name, c.type, c."notnull", c.pk, c.dflt_value
-    FROM sqlite_schema AS m JOIN pragma_table_info(m.name) AS c
-    WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
+    FROM sqlite_schema AS m JOIN pragma_table_xinfo(m.name) AS c
+    WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\' AND c.hidden <> 1
     ORDER BY m.name, c.cid
   SQL
 
@@ -177,6 +179,8 @@ module Skyward::ORM::Adapters::SQLite
   def tables(connection)
     index_rows = connection.execute(INDEXES).group_by(&:first)
     connection.execute(COLUMNS).group_by(&:first).map do |name, rows|
+      sql = rows.fetch(0).fetch(1)
+      generated = Constraints.generated(sql)
       columns = rows.map do |_, _, column, type, not_null, primary_key, default|
         Skyward::ORM::Catalog::Column.new(
           name: column.to_sym,
@@ -184,14 +188,15 @@ module Skyward::ORM::Adapters::SQLite
           # A primary key column can't hold NULL in practice, though SQLite only
           # enforces it for an INTEGER PRIMARY KEY or a NOT NULL column.
           nullable: not_null.zero? && primary_key.zero?,
-          default: default(default)
+          default: default(default),
+          generated: generated[column.to_sym]
         )
       end
       Skyward::ORM::Catalog::Table.new(
         name: name.to_sym,
         columns:,
         indexes: indexes(index_rows.fetch(name, [])),
-        constraints: Constraints.read(rows.fetch(0).fetch(1), columns.map(&:name))
+        constraints: Constraints.read(sql, columns.map(&:name))
       )
     end
   end

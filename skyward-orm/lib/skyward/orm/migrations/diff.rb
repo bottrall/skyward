@@ -89,7 +89,9 @@ module Skyward::ORM::Migrations::Diff
     names = columns.map(&:name)
     had = table.columns.map(&:name)
     added = columns.reject { |column| had.include?(column.name) }
-    removed = table.columns.reject { |column| names.include?(column.name) }
+    # A generated column is made and changed by a hand-written migration, so one
+    # the class doesn't declare is never dropped.
+    removed = table.columns.reject { |column| column.generated || names.include?(column.name) }
     renamed = renames(klass.table_name, removed, added, adapter, rename)
     new_columns = added.reject { |column| renamed.value?(column.name) }
     kept_indexes, kept_constraints = kept(klass, columns, table, tables)
@@ -183,7 +185,8 @@ module Skyward::ORM::Migrations::Diff
     end
   end
 
-  # An untyped column has no type or nullability to compare.
+  # An untyped column has no type or nullability to compare, and a generated
+  # one no default.
   # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs had: Skyward::ORM::Catalog::Column
@@ -195,7 +198,7 @@ module Skyward::ORM::Migrations::Diff
     retyped = sql_type unless adapter.compatible?(column.type, had.type)
     default = Skyward::ORM::Migrations::Definitions.default(klass, column, adapter)
     # PostgreSQL keeps no default for DEFAULT NULL, which is the same as none.
-    redefaulted = !same_default?(column, had.default || NULL, default || NULL)
+    redefaulted = !had.generated && !same_default?(column, had.default || NULL, default || NULL)
     renulled = sql_type && had.nullable != column.nullable
     [
       (Skyward::ORM::Migrations::ChangeType.new(column: name, from: had.type, to: retyped) if retyped),

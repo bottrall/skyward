@@ -10,12 +10,34 @@ module Skyward::ORM::Migrations::Script
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
   def write(changes, adapter)
+    refuse_rebuilding_generated(changes, adapter)
     up = changes.map { |change| up(change, adapter) }.join("\n")
     down = changes.reverse.map { |change| down(change, adapter) }.join
     "#{up}\n-- down\n#{down}"
   end
 
   private
+
+  # A rebuild makes the table from its class, which can't say how the database
+  # generates a column, and the catalog keeps only a generated column's
+  # expression, not whether it's STORED, so the rebuild can't carry one over.
+  # @rbs changes: Array[Skyward::ORM::Migrations::change]
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: void
+  def refuse_rebuilding_generated(changes, adapter)
+    problems = changes.filter_map do |change|
+      case change
+      when Skyward::ORM::Migrations::AlterTable
+        generated = change.table.columns.select(&:generated).map(&:name)
+        next if generated.empty? || in_place?(change, adapter)
+
+        "Changing table :#{change.table.name} rebuilds it, which would lose its generated " \
+          "#{generated.one? ? "column" : "columns"} #{generated.join(", ")}. " \
+          "Write this migration yourself with `skyward migration --empty`."
+      end
+    end
+    raise Skyward::Core::BootError, problems.join("\n") unless problems.empty?
+  end
 
   # @rbs change: Skyward::ORM::Migrations::change
   # @rbs adapter: Skyward::ORM::_Adapter

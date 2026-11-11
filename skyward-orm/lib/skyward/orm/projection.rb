@@ -9,7 +9,9 @@ class Skyward::ORM::Projection
   def insert(**values)
     require_insertable
     database = @session.database
-    sql, binds = Skyward::ORM::Statements.insert(database.adapter, database.column_types, @table, values)
+    sql, binds = Skyward::ORM::Statements.insert(
+      database.adapter, database.column_types, database.tables, @table, values
+    )
     written = returning(sql, binds)
     case written
     when Skyward::ORM::Violation then written
@@ -28,7 +30,9 @@ class Skyward::ORM::Projection
     return [] if rows.empty?
 
     database = @session.database
-    sql, binds = Skyward::ORM::Statements.insert_all(database.adapter, database.column_types, @table, rows)
+    sql, binds = Skyward::ORM::Statements.insert_all(
+      database.adapter, database.column_types, database.tables, @table, rows
+    )
     returning(sql, binds)
   end
 

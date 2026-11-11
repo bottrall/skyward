@@ -318,14 +318,29 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
     it "reads each column's type and nullability, and no default for an identity column" do
       expected = [
-        catalog::Column.new(name: :id, type: "bigint", nullable: false, default: nil),
-        catalog::Column.new(name: :list_id, type: "bigint", nullable: false, default: nil),
-        catalog::Column.new(name: :title, type: "text", nullable: false, default: nil),
-        catalog::Column.new(name: :due_at, type: "timestamp(3) with time zone", nullable: true, default: nil),
-        catalog::Column.new(name: :code, type: "text", nullable: true, default: nil)
+        catalog::Column.new(name: :id, type: "bigint", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(name: :list_id, type: "bigint", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(name: :title, type: "text", nullable: false, default: nil, generated: nil),
+        catalog::Column.new(
+          name: :due_at,
+          type: "timestamp(3) with time zone",
+          nullable: true,
+          default: nil,
+          generated: nil
+        ),
+        catalog::Column.new(name: :code, type: "text", nullable: true, default: nil, generated: nil)
       ]
 
       assert_equal expected, table(:todos).columns
+    end
+
+    it "reads a generated column's expression, and no default, which PostgreSQL keeps as its default" do
+      connection.execute("CREATE TABLE searches (title text, search text GENERATED ALWAYS AS (lower(title)) STORED)")
+      expected = catalog::Column.new(
+        name: :search, type: "text", nullable: true, default: nil, generated: "lower(title)"
+      )
+
+      assert_equal expected, table(:searches).columns.fetch(1)
     end
 
     it "reads each default as a migration writes it, without the cast PostgreSQL reads a literal back with" do

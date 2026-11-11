@@ -624,7 +624,7 @@ module Skyward::ORM::Queries::Clauses
 
     database = @session.database
     column_types = database.column_types
-    Skyward::ORM::Statements.require_values(column_types, @table, values)
+    Skyward::ORM::Statements.require_values(column_types, database.tables, @table, values)
     assignments = values.keys.each.with_index(1).map do |column, position|
       "#{Skyward::ORM::Statements.quote(column)} = #{database.adapter.placeholder(position)}"
     end
