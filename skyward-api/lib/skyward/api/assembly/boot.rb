@@ -536,7 +536,9 @@ module Skyward::API::Assembly::Boot
   def decimal(type, at)
     case type
     when Skyward::Core::Types::Scalar
-      Skyward::Core::Types::Unreadable.new(type: "BigDecimal", at:, instead: "Float or String") if type.name == :decimal
+      if type.name == :decimal
+        Skyward::Core::Types::Unreadable.new(type: "BigDecimal", at:, instead: "Float or String", suggestion: nil)
+      end
     when Skyward::Core::Types::Nullable, Skyward::Core::Types::ArrayOf, Skyward::Core::Types::HashOf,
          Skyward::Core::Types::Refined
       decimal(type.type, at)
