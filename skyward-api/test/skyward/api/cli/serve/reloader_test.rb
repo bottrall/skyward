@@ -5,29 +5,41 @@ require "test_helper"
 describe Skyward::API::CLI::Serve::Reloader do
   let(:fake_world) do
     Class.new do
-      attr_accessor :now, :files
-      attr_reader :loads, :watches, :changes
+      attr_accessor :now, :files, :failures
+      attr_reader :loads, :watches, :log
 
       def initialize(loads)
         @now = 0.0
         @files = { "app.rb" => Time.at(0) }
         @pending = loads
+        @failures = []
         @loads = 0
         @watches = 0
-        @changes = []
+        @log = []
       end
 
       def watch
         @watches += 1
-        @files
+        case @files
+        when Exception then raise @files
+        else @files
+        end
       end
 
-      def load(changed)
+      def load
         @loads += 1
-        @changes << changed
+        @log << :load
         case (result = @pending.shift)
         when Exception then raise result
         when Thread::Queue then result.pop
+        else result
+        end
+      end
+
+      def generate
+        @log << :generate
+        case (result = @failures.shift)
+        when Exception then raise result
         else result
         end
       end
@@ -49,11 +61,14 @@ describe Skyward::API::CLI::Serve::Reloader do
     Skyward::API::CLI::Serve::Reloader.new(
       watch: world.method(:watch),
       load: world.method(:load),
+      generate: world.method(:generate),
       clock: -> { world.now }
     )
   end
 
   def body(reloader) = reloader.call(env).last.first
+
+  def detail(reloader) = JSON.parse(body(reloader))["detail"]
 
   describe "#call" do
     it "serves the app it loads when it's created" do
@@ -114,15 +129,46 @@ describe Skyward::API::CLI::Serve::Reloader do
       assert_equal "second", body(served)
     end
 
-    it "loads first with every file it watches, then with each file changed, added or removed" do
+    it "regenerates sig/generated before it loads, when it's created and once a .rb file changed" do
       world = world_with(app("first"), app("second"))
-      world.files = { "app.rb" => Time.at(0), "config.ru" => Time.at(0), "old.rb" => Time.at(0) }
       served = reloader(world)
-      world.now = 1.0
-      world.files = { "app.rb" => Time.at(0), "config.ru" => Time.at(1), "new.rb" => Time.at(0) }
+      world.change
       body(served)
 
-      assert_equal [%w[app.rb config.ru old.rb], %w[config.ru new.rb old.rb]], world.changes.map(&:sort)
+      assert_equal %i[generate load generate load], world.log
+    end
+
+    it "regenerates once a .rb file is added or removed" do
+      world = world_with(app("first"), app("second"), app("third"))
+      served = reloader(world)
+      world.now = 1.0
+      world.files = { "app.rb" => Time.at(0), "new.rb" => Time.at(0) }
+      body(served)
+      world.now = 2.0
+      world.files = { "new.rb" => Time.at(0) }
+      body(served)
+
+      assert_equal %i[generate load generate load generate load], world.log
+    end
+
+    it "doesn't regenerate without a .rb file among the changes" do
+      world = world_with(app("first"), app("second"))
+      world.files = { "config.ru" => Time.at(0) }
+      served = reloader(world)
+      world.change
+      body(served)
+
+      assert_equal %i[load load], world.log
+    end
+
+    it "answers with the development 500 carrying rbs-inline's output, without loading, when it can't regenerate" do
+      failure = "rbs-inline couldn't regenerate sig/generated:\napp.rb: can't read\n"
+      world = world_with(app("first"))
+      world.failures = [failure]
+      problem = JSON.parse(body(reloader(world)))
+
+      assert_equal ["Skyward::Core::BootError: #{failure}", [], 0],
+                   [problem["detail"], problem["backtrace"], world.loads]
     end
 
     it "answers a failed load with a 500 problem showing the error" do
@@ -145,9 +191,7 @@ describe Skyward::API::CLI::Serve::Reloader do
     end
 
     it "shows a message that isn't valid UTF-8 with its bad bytes replaced" do
-      body = reloader(world_with(RuntimeError.new(+"bad \xFF byte"))).call(env).last.first
-
-      assert_equal "RuntimeError: bad � byte", JSON.parse(body)["detail"]
+      assert_equal "RuntimeError: bad � byte", detail(reloader(world_with(RuntimeError.new(+"bad \xFF byte"))))
     end
 
     it "answers a failed load with an empty body for HEAD" do
@@ -170,6 +214,78 @@ describe Skyward::API::CLI::Serve::Reloader do
       world.change
 
       assert_equal "third", body(served)
+    end
+  end
+
+  describe "#regenerate" do
+    it "regenerates sig/generated once a .rb file changed, and leaves the reload to the next request" do
+      world = world_with(app("first"), app("second"))
+      served = reloader(world)
+      world.change
+      served.regenerate
+      regenerated = world.log.dup
+
+      assert_equal [%i[generate load generate], "second", %i[generate load generate load]],
+                   [regenerated, body(served), world.log]
+    end
+
+    it "doesn't regenerate when no .rb file changed" do
+      world = world_with(app("first"))
+      world.files = { "app.rb" => Time.at(0), "sig/app.rbs" => Time.at(0) }
+      served = reloader(world)
+      world.files = { "app.rb" => Time.at(0), "sig/app.rbs" => Time.at(1) }
+      served.regenerate
+
+      assert_equal %i[generate load], world.log
+    end
+
+    it "has the next request answer with the development 500 when it can't regenerate" do
+      world = world_with(app("first"), app("second"))
+      world.failures = [nil, "rbs-inline couldn't regenerate sig/generated:\napp.rb: can't read\n"]
+      served = reloader(world)
+      world.change
+      served.regenerate
+
+      assert_equal "Skyward::Core::BootError: rbs-inline couldn't regenerate sig/generated:\napp.rb: can't read\n",
+                   detail(served)
+    end
+
+    it "has the next reload regenerate again when regenerating raised, and answer with its error" do
+      world = world_with(app("first"), app("second"))
+      world.failures = [nil, Errno::EACCES.new("sig/generated"), Errno::EACCES.new("sig/generated")]
+      served = reloader(world)
+      world.change
+      served.regenerate
+
+      assert_equal ["Errno::EACCES: Permission denied - sig/generated", %i[generate load generate generate]],
+                   [detail(served), world.log]
+    end
+
+    it "keeps working after a file is removed while it's watched" do
+      world = world_with(app("first"))
+      served = reloader(world)
+      world.files = Errno::ENOENT.new("app.rb")
+      served.regenerate
+      world.files = { "app.rb" => Time.at(1) }
+      served.regenerate
+
+      assert_equal %i[generate load generate], world.log
+    end
+
+    it "waits for a reload in progress, then doesn't regenerate what it regenerated" do
+      gate = Thread::Queue.new
+      world = world_with(app("first"), gate)
+      served = reloader(world)
+      world.change
+      reloading = Thread.new { body(served) }
+      Thread.pass while reloading.status == "run"
+      regenerating = Thread.new { served.regenerate }
+      Thread.pass while regenerating.status == "run"
+      waited = regenerating.status
+      gate << app("second")
+      [reloading, regenerating].each(&:join)
+
+      assert_equal ["sleep", %i[generate load generate load]], [waited, world.log]
     end
   end
 end

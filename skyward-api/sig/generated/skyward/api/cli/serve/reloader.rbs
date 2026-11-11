@@ -3,25 +3,32 @@
 class Skyward::API::CLI::Serve::Reloader
   INTERVAL: Float
 
-  @watch: ^() -> Hash[String, Time]
+  @app: Skyward::API::_RackApp
 
-  @load: ^(Array[String] changed) -> Skyward::API::_RackApp
+  @failure: String?
 
-  @clock: ^() -> Float
-
-  @mutex: Thread::Mutex
-
-  @checked_at: Float
+  @sources: Hash[String, Time]
 
   @files: Hash[String, Time]
 
-  @app: Skyward::API::_RackApp
+  @checked_at: Float
+
+  @mutex: Thread::Mutex
+
+  @clock: ^() -> Float
+
+  @generate: ^() -> String?
+
+  @load: ^() -> Skyward::API::_RackApp
+
+  @watch: ^() -> Hash[String, Time]
 
   # @rbs watch: ^() -> Hash[String, Time]
-  # @rbs load: ^(Array[String] changed) -> Skyward::API::_RackApp
+  # @rbs load: ^() -> Skyward::API::_RackApp
+  # @rbs generate: ^() -> String?
   # @rbs clock: ^() -> Float
   # @rbs return: void
-  def initialize: (watch: ^() -> Hash[String, Time], load: ^(Array[String] changed) -> Skyward::API::_RackApp, clock: ^() -> Float) -> void
+  def initialize: (watch: ^() -> Hash[String, Time], load: ^() -> Skyward::API::_RackApp, generate: ^() -> String?, clock: ^() -> Float) -> void
 
   # The app is taken under the lock but called outside it, so a request in
   # flight finishes on the app it started with.
@@ -29,14 +36,27 @@ class Skyward::API::CLI::Serve::Reloader
   # @rbs return: Skyward::API::rack_response
   def call: (Hash[String, untyped] env) -> Skyward::API::rack_response
 
+  # Leaves the reload to the next request, which still sees the change.
+  # @rbs return: void
+  def regenerate: () -> void
+
   private
 
   # @rbs return: Skyward::API::_RackApp
   def current: () -> Skyward::API::_RackApp
 
-  # @rbs changed: Array[String]
   # @rbs return: Skyward::API::_RackApp
-  def attempt: (Array[String] changed) -> Skyward::API::_RackApp
+  def attempt: () -> Skyward::API::_RackApp
+
+  # Runs rbs-inline once for the .rb files as they are, whether regenerate or
+  # a reload sees them first.
+  # @rbs files: Hash[String, Time]
+  # @rbs return: String?
+  def generate: (Hash[String, Time] files) -> String?
+
+  # @rbs error: Exception
+  # @rbs return: Skyward::API::_RackApp
+  def failed: (Exception error) -> Skyward::API::_RackApp
 
   # The development 500 that Skyward::API::Middleware::Rescue answers, without a request
   # ID: the app that assigns them is the one that failed to load.

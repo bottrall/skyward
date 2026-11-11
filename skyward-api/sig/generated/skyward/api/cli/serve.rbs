@@ -18,15 +18,17 @@ module Skyward::API::CLI::Serve
   # @rbs return: void
   def run: (String directory, env: Hash[String, String], falcon: String?, kernel: singleton(Kernel)) -> void
 
+  # Without rbs-inline, generate is nil, and sig/generated is used as it is.
   # @rbs directory: String
   # @rbs build: ^(String config) -> Skyward::API::_RackApp
   # @rbs clock: ^() -> Float
   # @rbs apis: ^() -> Array[singleton(Skyward::API)]
   # @rbs features: Array[String]
   # @rbs loaders: ^() -> Array[Zeitwerk::Loader]
-  # @rbs generate: ^() -> String?
+  # @rbs generate: (^() -> String?)?
+  # @rbs every: ^(Float interval) { () -> void } -> void
   # @rbs return: Reloader
-  def reloader: (String directory, build: ^(String config) -> Skyward::API::_RackApp, clock: ^() -> Float, apis: ^() -> Array[singleton(Skyward::API)], features: Array[String], loaders: ^() -> Array[Zeitwerk::Loader], generate: ^() -> String?) -> Reloader
+  def reloader: (String directory, build: ^(String config) -> Skyward::API::_RackApp, clock: ^() -> Float, apis: ^() -> Array[singleton(Skyward::API)], features: Array[String], loaders: ^() -> Array[Zeitwerk::Loader], generate: (^() -> String?)?, every: ^(Float interval) { () -> void } -> void) -> Reloader
 
   # @rbs directory: String
   # @rbs return: Hash[String, Time]

@@ -45,28 +45,29 @@ module Skyward::API::CLI::Serve
     )
   end
 
+  # Without rbs-inline, generate is nil, and sig/generated is used as it is.
   # @rbs directory: String
   # @rbs build: ^(String config) -> Skyward::API::_RackApp
   # @rbs clock: ^() -> Float
   # @rbs apis: ^() -> Array[singleton(Skyward::API)]
   # @rbs features: Array[String]
   # @rbs loaders: ^() -> Array[Zeitwerk::Loader]
-  # @rbs generate: ^() -> String?
+  # @rbs generate: (^() -> String?)?
+  # @rbs every: ^(Float interval) { () -> void } -> void
   # @rbs return: Reloader
-  def reloader(directory, build:, clock:, apis:, features:, loaders:, generate:)
-    Reloader.new(
+  def reloader(directory, build:, clock:, apis:, features:, loaders:, generate:, every:)
+    reloader = Reloader.new(
       watch: -> { watch(directory) },
-      load: lambda do |changed|
-        # Regenerating writes only the .rbs files that changed, which bring
-        # one more reload, of .rbs files alone, so it doesn't loop.
-        failure = generate.call if changed.any? { |file| file.end_with?(".rb") }
-        raise Skyward::Core::BootError, failure if failure
-
+      load: lambda do
         unload(directory, apis: apis.call, features:, loaders: loaders.call)
         build.call(File.join(directory, CONFIG))
       end,
+      generate: generate || -> {},
       clock:
     )
+    # So the editor's Steep checks the types just written, before any request.
+    every.call(Reloader::INTERVAL) { reloader.regenerate } if generate
+    reloader
   end
 
   # @rbs directory: String
