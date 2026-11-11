@@ -183,8 +183,9 @@ describe Skyward::ORM::Statements do
     it "binds a Hash for a JSON column as its JSON, in every row" do
       rows = [{ settings: { "on" => true } }, { settings: { "on" => false } }]
 
-      assert_equal empty.shown(%(INSERT INTO "webhooks" ("settings") VALUES (?), (?)), [%({"on":true}), %({"on":false})]),
-                   Skyward::ORM::Statements.insert_all(adapter, column_types, webhook, rows)
+      expected = empty.shown(%(INSERT INTO "webhooks" ("settings") VALUES (?), (?)), [%({"on":true}), %({"on":false})])
+
+      assert_equal expected, Skyward::ORM::Statements.insert_all(adapter, column_types, webhook, rows)
     end
   end
 
