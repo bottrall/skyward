@@ -30,12 +30,13 @@ describe Skyward::Generator::CLI::New do
       end
     end.new(bundled)
   end
+  let(:env) { { "PATH" => "/usr/bin" } }
   let(:out) { StringIO.new }
   let(:directory) { Dir.mktmpdir("skyward-new") }
 
   after { FileUtils.rm_rf(directory) }
 
-  def run_new(*args) = Skyward::Generator::CLI::New.run(args, directory:, out:, kernel:)
+  def run_new(*args) = Skyward::Generator::CLI::New.run(args, directory:, env:, out:, kernel:)
 
   def written
     root = File.join(directory, "todos")
@@ -106,9 +107,9 @@ describe Skyward::Generator::CLI::New do
       assert_equal [[], next_step], [kernel.calls, out.string.lines.last]
     end
 
-    it "installs the gems in the app's directory, then says what's next" do
+    it "installs the gems in the app's directory with only the environment it's given, then says what's next" do
       run_new("todos")
-      bundle = [:system, "bundle", "install", { chdir: File.join(directory, "todos") }]
+      bundle = [:system, env, "bundle", "install", { chdir: File.join(directory, "todos"), unsetenv_others: true }]
 
       assert_equal [[bundle], next_step], [kernel.calls, out.string.lines.last]
     end

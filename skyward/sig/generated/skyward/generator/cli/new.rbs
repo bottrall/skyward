@@ -7,8 +7,9 @@ module Skyward::Generator::CLI::New
   # once camelized.
   NAME: Regexp
 
-  # @rbs (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
-  def run: (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel)) -> void
+  # @rbs (Array[String] args, directory: String, env: Hash[String, String], out: _Writer,
+  #       kernel: singleton(Kernel)) -> void
+  def run: (Array[String] args, directory: String, env: Hash[String, String], out: _Writer, kernel: singleton(Kernel)) -> void
 
   private
 
