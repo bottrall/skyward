@@ -613,6 +613,10 @@ describe Skyward::API::OpenAPI do
         assert_equal todo_ref, returned(todo)
       end
 
+      it "maps a refined type as the type it refines" do
+        assert_equal({ "type" => "string" }, returned(types::Refined.new(type: string, as: :uuid)))
+      end
+
       it "maps a union to oneOf its members" do
         assert_equal(
           { "oneOf" => [{ "type" => "integer" }, todo_ref] },

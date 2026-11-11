@@ -262,6 +262,14 @@ describe Skyward::API::Serializer::Writers do
         assert_equal %w[a b], write(union, %w[a b])
       end
     end
+
+    describe "a refined type" do
+      it "writes and is named as the type it refines" do
+        refined = writer(types::Refined.new(type: string, as: :uuid))
+
+        assert_equal %w[a String], [refined.write.call("a", ""), refined.name]
+      end
+    end
   end
 
   describe ".union" do

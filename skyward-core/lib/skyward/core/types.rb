@@ -4,7 +4,7 @@ module Skyward::Core::Types
   # @rbs!
   #   type scalar = :integer | :float | :string | :bool | :date | :time | :untyped
   #   type literal = String | Integer | bool | nil
-  #   type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union
+  #   type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union | Refined
   #   type result = t | Unreadable
 
   Scalar = Data.define(
@@ -49,6 +49,11 @@ module Skyward::Core::Types
 
   Union = Data.define(
     :types #: Array[t]
+  )
+
+  Refined = Data.define(
+    :type, #: t
+    :as #: Symbol
   )
 
   Unreadable = Data.define(

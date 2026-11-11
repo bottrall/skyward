@@ -113,6 +113,46 @@ describe Skyward::Core::Types::Reader do
                    error.message
     end
 
+    describe "with refinements" do
+      refining = Skyward::Core::Types::Reader.new(
+        builder,
+        refinements: { "::ReaderFixtures::uuid" => :uuid, "::ReaderFixtures::list" => :list }
+      )
+      uuid = types::Refined.new(type: string, as: :uuid)
+
+      define_method(:read) { |source| refining.read(RBS::Parser.parse_type(source)) }
+
+      it "reads a refined alias as refined" do
+        assert_equal uuid, read("::ReaderFixtures::uuid")
+      end
+
+      it "reads a refined alias through another alias of it" do
+        assert_equal uuid, read("::ReaderFixtures::user_id")
+      end
+
+      it "reads a refined alias inside T?, Array[T] and a record" do
+        assert_equal(
+          [types::Nullable.new(type: uuid),
+           types::ArrayOf.new(type: uuid),
+           types::Record.new(fields: [types::Field.new(name: :id, type: uuid, required: true)])],
+          ["::ReaderFixtures::uuid?", "::Array[::ReaderFixtures::uuid]", "{ id: ::ReaderFixtures::uuid }"]
+            .map { |source| read(source) }
+        )
+      end
+
+      it "reads a refined alias of an unreadable type as unreadable" do
+        assert_instance_of types::Unreadable, read("::ReaderFixtures::list[[::Integer]]")
+      end
+
+      it "expands an alias it doesn't refine" do
+        assert_equal priority, read("::ReaderFixtures::priority")
+      end
+    end
+
+    it "expands every alias without refinements" do
+      assert_equal string, read("::ReaderFixtures::user_id")
+    end
+
     it "reads a record's fields in written order" do
       fields = [
         types::Field.new(name: :page, type: integer, required: false),

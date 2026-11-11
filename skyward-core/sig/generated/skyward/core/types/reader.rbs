@@ -1,6 +1,8 @@
 # Generated from lib/skyward/core/types/reader.rb with RBS::Inline
 
 class Skyward::Core::Types::Reader
+  @refinements: Hash[String, Symbol]
+
   @builder: RBS::DefinitionBuilder
 
   SCALARS: Hash[String, Skyward::Core::Types::scalar]
@@ -8,8 +10,9 @@ class Skyward::Core::Types::Reader
   NIL_LITERAL: Skyward::Core::Types::Literal
 
   # @rbs builder: RBS::DefinitionBuilder
+  # @rbs refinements: Hash[String, Symbol]
   # @rbs return: void
-  def initialize: (RBS::DefinitionBuilder builder) -> void
+  def initialize: (RBS::DefinitionBuilder builder, ?refinements: Hash[String, Symbol]) -> void
 
   # @rbs type: RBS::Types::t
   # @rbs return: Skyward::Core::Types::result
