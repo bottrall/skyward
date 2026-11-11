@@ -36,6 +36,12 @@ module Skyward::ORM::Adapters::SQLite
   TRIGGER = 1811 #: Integer
   RESTRICTED = "FOREIGN KEY constraint failed" #: String
 
+  # Types whose values keep their meaning under NUMERIC affinity, which Rails
+  # gives BOOLEAN, DATE and DATETIME. A boolean is already a number, and a date
+  # or time is never a well-formed number, so none is converted. A String or a
+  # BigDecimal would be: NUMERIC turns "1.10" into 1.1.
+  NUMERIC_SAFE = %i[bool date time].freeze #: Array[Skyward::ORM::Tables::column_type]
+
   UNIQUE_KINDS = %i[unique primary_key].freeze #: Array[Skyward::ORM::Catalog::constraint_kind]
 
   BUSY_TIMEOUT_MS = 5000 #: Integer
@@ -118,13 +124,15 @@ module Skyward::ORM::Adapters::SQLite
   def default_expression(expression) = "(#{expression})"
 
   # SQLite stores a value by its column's affinity, which it reads from the
-  # declared type, so any declared type with the same affinity is compatible.
+  # declared type, so any declared type with the same affinity is compatible,
+  # and for NUMERIC_SAFE types, NUMERIC as well.
   # @rbs type: Skyward::ORM::Tables::column_type
   # @rbs sql_type: String
   # @rbs return: bool
   def compatible?(type, sql_type)
     expected = SQL_TYPES[type]
-    expected.nil? || affinity(sql_type) == affinity(expected)
+    declared = affinity(sql_type)
+    expected.nil? || declared == affinity(expected) || (declared == :numeric && NUMERIC_SAFE.include?(type))
   end
 
   # @rbs value: untyped

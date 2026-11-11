@@ -21,6 +21,12 @@ module Skyward::ORM::Adapters::SQLite
 
   RESTRICTED: String
 
+  # Types whose values keep their meaning under NUMERIC affinity, which Rails
+  # gives BOOLEAN, DATE and DATETIME. A boolean is already a number, and a date
+  # or time is never a well-formed number, so none is converted. A String or a
+  # BigDecimal would be: NUMERIC turns "1.10" into 1.1.
+  NUMERIC_SAFE: Array[Skyward::ORM::Tables::column_type]
+
   UNIQUE_KINDS: Array[Skyward::ORM::Catalog::constraint_kind]
 
   BUSY_TIMEOUT_MS: Integer
@@ -77,7 +83,8 @@ module Skyward::ORM::Adapters::SQLite
   def default_expression: (String expression) -> String
 
   # SQLite stores a value by its column's affinity, which it reads from the
-  # declared type, so any declared type with the same affinity is compatible.
+  # declared type, so any declared type with the same affinity is compatible,
+  # and for NUMERIC_SAFE types, NUMERIC as well.
   # @rbs type: Skyward::ORM::Tables::column_type
   # @rbs sql_type: String
   # @rbs return: bool

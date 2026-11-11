@@ -216,6 +216,23 @@ describe Skyward::ORM::Migrations::Diff do
                    edits(changed::Retyped, tables)
     end
 
+    it "leaves a bool, Date or Time column declared BOOLEAN, DATE or DATETIME as it is" do
+      connection = Skyward::ORM::Adapters::SQLite.connect(":memory:")
+      created = [fixtures::List, fixtures::Todo].map do |klass|
+        migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
+      end
+      sql = migrations::Script.write(created, Skyward::ORM::Adapters::SQLite)
+      connection.execute_batch(sql.split("-- down\n").fetch(0))
+      declared = { done: "BOOLEAN", due_on: "DATE", created_at: "DATETIME(6)" }
+      tables = Skyward::ORM::Adapters::SQLite.tables(connection).map do |table|
+        next table unless table.name == :todos
+
+        table.with(columns: table.columns.map { |column| column.with(type: declared.fetch(column.name, column.type)) })
+      end
+
+      assert_empty changes([fixtures::List, fixtures::Todo], tables)
+    end
+
     it "makes a column required, or nullable, as its class says" do
       tables = items do |had|
         had.with(columns: had.columns.map { |column| column.name == :title ? column.with(nullable: true) : column })
