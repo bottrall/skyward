@@ -106,6 +106,7 @@ module Skyward::ORM::Migrations::Script
     when Skyward::ORM::Migrations::ChangeDefault then default(table, edit.column, edit.to)
     when Skyward::ORM::Migrations::AddConstraint then add_constraint(table, edit.constraint)
     when Skyward::ORM::Migrations::DropConstraint then drop_constraint(table, edit.constraint)
+    when Skyward::ORM::Migrations::RenameConstraint then rename_constraint(table, edit.from, edit.to)
     when Skyward::ORM::Migrations::AddIndex then "#{edit.index.definition};\n"
     else "DROP INDEX #{edit.index.name};\n"
     end
@@ -126,6 +127,7 @@ module Skyward::ORM::Migrations::Script
     when Skyward::ORM::Migrations::ChangeDefault then default(table, edit.column, edit.from)
     when Skyward::ORM::Migrations::AddConstraint then drop_constraint(table, edit.constraint)
     when Skyward::ORM::Migrations::DropConstraint then add_constraint(table, edit.constraint)
+    when Skyward::ORM::Migrations::RenameConstraint then rename_constraint(table, edit.to, edit.from)
     when Skyward::ORM::Migrations::AddIndex then "DROP INDEX #{edit.index.name};\n"
     else "#{edit.index.definition};\n"
     end
@@ -346,6 +348,12 @@ module Skyward::ORM::Migrations::Script
   # @rbs constraint: Skyward::ORM::Catalog::Constraint
   # @rbs return: String
   def drop_constraint(table, constraint) = "ALTER TABLE #{table} DROP CONSTRAINT #{constraint.name};\n"
+
+  # @rbs table: Symbol
+  # @rbs from: String
+  # @rbs to: String
+  # @rbs return: String
+  def rename_constraint(table, from, to) = "ALTER TABLE #{table} RENAME CONSTRAINT #{from} TO #{to};\n"
 
   # The rows a table already has need a value for a new required column.
   # @rbs klass: singleton(Skyward::ORM::Record)

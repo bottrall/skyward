@@ -47,6 +47,7 @@ module Skyward::ORM::Migrations::Summary
     when Skyward::ORM::Migrations::AddConstraint then ["+", edit.constraint.name.to_s, constraint(edit.constraint)]
     when Skyward::ORM::Migrations::DropConstraint then ["-", edit.constraint.name || "unnamed",
                                                         constraint(edit.constraint)]
+    when Skyward::ORM::Migrations::RenameConstraint then ["~", edit.to, "renamed from #{edit.from}"]
     when Skyward::ORM::Migrations::AddIndex then ["+", edit.index.name, index(edit.index)]
     else ["-", edit.index.name, index(edit.index)]
     end

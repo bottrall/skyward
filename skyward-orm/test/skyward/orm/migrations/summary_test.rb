@@ -118,6 +118,7 @@ describe Skyward::ORM::Migrations::Summary do
         migrations::DropConstraint.new(constraint: check.with(name: "todos_pkey", kind: :primary_key, columns: [:id])),
         migrations::DropColumn.new(column: note),
         migrations::DropColumn.new(column: note.with(name: :raw, type: "", nullable: false)),
+        migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "todos_list_id_fkey"),
         migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
         migrations::ChangeNullable.new(column: :title, nullable: true),
         migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
@@ -139,6 +140,7 @@ describe Skyward::ORM::Migrations::Summary do
           - todos_pkey          primary key (id)
           - note                text NULL
           - raw                 NOT NULL
+          ~ todos_list_id_fkey  renamed from fk_rails_0123456789
           ~ rank                text, was integer
           ~ title               NULL, was NOT NULL
           ~ done                DEFAULT false, was no default

@@ -4,5 +4,5 @@ module Skyward::ORM::Migrations
   # @rbs!
   #   type change = CreateTable | AlterTable
   #   type edit = AddColumn | DropColumn | RenameColumn | ChangeType | ChangeNullable | ChangeDefault
-  #             | AddConstraint | DropConstraint | AddIndex | DropIndex
+  #             | AddConstraint | DropConstraint | RenameConstraint | AddIndex | DropIndex
 end

@@ -238,6 +238,7 @@ describe Skyward::ORM::Migrations::Script do
           migrations::DropConstraint.new(constraint: check),
           migrations::DropColumn.new(column: note),
           migrations::RenameColumn.new(from: :due, to: :due_on),
+          migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "todos_list_id_fkey"),
           migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
           migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
           migrations::ChangeNullable.new(column: :title, nullable: false),
@@ -249,6 +250,7 @@ describe Skyward::ORM::Migrations::Script do
           ALTER TABLE todos DROP CONSTRAINT todos_title_check;
           ALTER TABLE todos DROP COLUMN note;
           ALTER TABLE todos RENAME COLUMN due TO due_on;
+          ALTER TABLE todos RENAME CONSTRAINT fk_rails_0123456789 TO todos_list_id_fkey;
           ALTER TABLE todos ALTER COLUMN rank TYPE text USING rank::text;
           ALTER TABLE todos ALTER COLUMN done SET DEFAULT false;
           -- TODO: backfill the NULLs in todos.title before it becomes NOT NULL
@@ -262,6 +264,7 @@ describe Skyward::ORM::Migrations::Script do
           ALTER TABLE todos ALTER COLUMN title DROP NOT NULL;
           ALTER TABLE todos ALTER COLUMN done DROP DEFAULT;
           ALTER TABLE todos ALTER COLUMN rank TYPE integer USING rank::integer;
+          ALTER TABLE todos RENAME CONSTRAINT todos_list_id_fkey TO fk_rails_0123456789;
           ALTER TABLE todos RENAME COLUMN due_on TO due;
           -- todos.note comes back empty: dropping it lost its data
           ALTER TABLE todos ADD COLUMN note text NOT NULL DEFAULT 'none';
@@ -339,6 +342,8 @@ describe Skyward::ORM::Migrations::Script do
 
       def rows = connection.execute("SELECT owner_id, title, code FROM items")
 
+      def constraint_names = schema.find { |table| table.name == :items }&.constraints.to_a.filter_map(&:name)
+
       def items
         migrate(section(diff([ChangesFixtures::Owner, ChangesFixtures::Item]), :up))
         connection.execute("INSERT INTO owners (name) VALUES ('Ann')")
@@ -399,6 +404,26 @@ describe Skyward::ORM::Migrations::Script do
 
           assert_equal [[[], kept], had, []], [matched, schema, diff([changed::Owner, changed::Item])]
         end
+      end
+
+      it "renames a foreign key and a unique constraint under other names, and renames them back" do
+        names = { "items_owner_id_fkey" => "fk_rails_0123456789", "items_code_key" => "index_items_on_code" }
+        migrate(section(diff([changed::Owner, changed::Item]), :up).gsub(Regexp.union(names.keys), names))
+        had = schema
+        before = constraint_names
+        changes = diff([changed::Owner, changed::Item])
+        migrate(section(changes, :up))
+        after = constraint_names
+        matched = diff([changed::Owner, changed::Item])
+        migrate(section(changes, :down))
+
+        assert_equal [
+          %w[fk_rails_0123456789 index_items_on_code items_pkey items_status_check items_title_check],
+          %w[items_code_key items_owner_id_fkey items_pkey items_status_check items_title_check],
+          [],
+          had
+        ],
+                     [before, after, matched, schema]
       end
 
       it "keeps a renamed column's data" do

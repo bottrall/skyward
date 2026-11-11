@@ -1,0 +1,16 @@
+# Generated from lib/skyward/orm/migrations/rename_constraint.rb with RBS::Inline
+
+module Skyward::ORM::Migrations
+  class RenameConstraint < Data
+    attr_reader from(): String
+
+    attr_reader to(): String
+
+    def self.new: (String from, String to) -> instance
+                | (from: String, to: String) -> instance
+
+    def self.members: () -> [ :from, :to ]
+
+    def members: () -> [ :from, :to ]
+  end
+end

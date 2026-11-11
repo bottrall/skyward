@@ -151,6 +151,12 @@ module Skyward::ORM::Migrations::Script
   # @rbs return: String
   def drop_constraint: (Symbol table, Skyward::ORM::Catalog::Constraint constraint) -> String
 
+  # @rbs table: Symbol
+  # @rbs from: String
+  # @rbs to: String
+  # @rbs return: String
+  def rename_constraint: (Symbol table, String from, String to) -> String
+
   # The rows a table already has need a value for a new required column.
   # @rbs klass: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column

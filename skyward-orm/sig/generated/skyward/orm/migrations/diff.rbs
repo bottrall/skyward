@@ -5,6 +5,8 @@ module Skyward::ORM::Migrations::Diff
 
   NULL: String
 
+  RENAMABLE: Array[Skyward::ORM::Catalog::constraint_kind]
+
   # A name as SQLite or PostgreSQL writes it, quoted or not.
   NAME: Regexp
 
@@ -60,12 +62,15 @@ module Skyward::ORM::Migrations::Diff
   # @rbs return: [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit]]
   def indexes: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed) -> [ Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit] ]
 
-  # The constraints to drop and to add, compared as indexes are. A new
-  # column's own constraints are part of its definition.
+  # The constraints to drop, to rename and to add, compared as indexes are. A
+  # foreign key or unique constraint the class declares that the table has
+  # under another name is renamed, from the first one if it has two, and the
+  # other is dropped. A new column's own constraints are part of its definition.
   # @rbs (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns,
   #   Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns)
-  #   -> [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit]]
-  def constraints: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns) -> [ Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit] ]
+  #   -> [Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit],
+  #   Array[Skyward::ORM::Migrations::edit]]
+  def constraints: (singleton(Skyward::ORM::Record) klass, Array[Skyward::ORM::Tables::Column] columns, Skyward::ORM::Catalog::Table table, Hash[Symbol, Symbol] renamed, Array[Skyward::ORM::Tables::Column] new_columns) -> [ Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit], Array[Skyward::ORM::Migrations::edit] ]
 
   # Each column that went is asked about each new one of a compatible type, in
   # order, until one is a rename. A column it renames to isn't asked about again.
@@ -97,14 +102,23 @@ module Skyward::ORM::Migrations::Diff
   def json: (String default) -> [ untyped ]?
 
   # Constraints are matched by name. SQLite can hold one with no name, which
-  # matches the one its class declares on the same columns. PostgreSQL rewrites
-  # a check's expression, and puts it on every column it mentions, so a check
-  # is matched by its name alone. A reference is also matched by what it does
-  # ON DELETE.
+  # matches the one its class declares that does what it does. PostgreSQL
+  # rewrites a check's expression, and puts it on every column it mentions, so
+  # a check is matched by its name alone.
   # @rbs had: Skyward::ORM::Catalog::Constraint
   # @rbs wanted: Skyward::ORM::Catalog::Constraint
   # @rbs return: bool
   def same?: (Skyward::ORM::Catalog::Constraint had, Skyward::ORM::Catalog::Constraint wanted) -> bool
+
+  # @rbs had: Skyward::ORM::Catalog::Constraint
+  # @rbs wanted: Skyward::ORM::Catalog::Constraint
+  # @rbs return: bool
+  def renamed?: (Skyward::ORM::Catalog::Constraint had, Skyward::ORM::Catalog::Constraint wanted) -> bool
+
+  # @rbs had: Skyward::ORM::Catalog::Constraint
+  # @rbs wanted: Skyward::ORM::Catalog::Constraint
+  # @rbs return: bool
+  def alike?: (Skyward::ORM::Catalog::Constraint had, Skyward::ORM::Catalog::Constraint wanted) -> bool
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint
   # @rbs return: String
