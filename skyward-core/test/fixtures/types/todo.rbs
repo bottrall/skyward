@@ -4,6 +4,8 @@ module ReaderFixtures
   type list[T] = Array[T]
   type key = String
   type tree = { children: Array[tree] }
+  type uuid = String
+  type user_id = uuid
 
   class Todo
     attr_reader id: Integer

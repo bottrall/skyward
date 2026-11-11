@@ -32,6 +32,7 @@ module Skyward::API::Serializer::Writers
     when Skyward::Core::Types::Record then record(type.fields)
     when Skyward::Core::Types::Named then named(type)
     when Skyward::Core::Types::Union then union(type.types.map { |member| writer(member) })
+    when Skyward::Core::Types::Refined then writer(type.type)
     end
   end
 

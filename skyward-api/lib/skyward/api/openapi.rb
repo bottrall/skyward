@@ -345,6 +345,7 @@ module Skyward::API::OpenAPI
     when Skyward::Core::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
     when Skyward::Core::Types::Record then object(type.fields, form, names)
     when Skyward::Core::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
+    when Skyward::Core::Types::Refined then schema(type.type, form, names)
     else { oneOf: type.types.map { |member| schema(member, form, names) } }
     end
   end

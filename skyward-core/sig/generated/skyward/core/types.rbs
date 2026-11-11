@@ -5,7 +5,7 @@ module Skyward::Core::Types
 
   type literal = String | Integer | bool | nil
 
-  type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union
+  type t = Scalar | Literal | Enum | Nullable | ArrayOf | HashOf | Record | Named | Union | Refined
 
   type result = t | Unreadable
 
@@ -125,6 +125,19 @@ module Skyward::Core::Types
     def self.members: () -> [ :types ]
 
     def members: () -> [ :types ]
+  end
+
+  class Refined < Data
+    attr_reader type(): t
+
+    attr_reader as(): Symbol
+
+    def self.new: (t type, Symbol as) -> instance
+                | (type: t, as: Symbol) -> instance
+
+    def self.members: () -> [ :type, :as ]
+
+    def members: () -> [ :type, :as ]
   end
 
   class Unreadable < Data

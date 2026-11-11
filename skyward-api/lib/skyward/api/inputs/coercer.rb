@@ -118,6 +118,7 @@ module Skyward::API::Inputs::Coercer
     when Skyward::Core::Types::Named
       klass = type.klass
       object(fields(type, strings, member, unions), limit, expected) { |values| klass.new(**values) }
+    when Skyward::Core::Types::Refined then build(type.type, strings, member, unions)
     # Equal unions share one coercer, which is what lets one remember its results.
     else unions[[type, member]] ||= union(type.types.map { |one| build(one, strings, true, unions) }, member, expected)
     end
@@ -411,6 +412,7 @@ module Skyward::API::Inputs::Coercer
       fields = type.fields.map { |field| "#{"?" unless field.required}#{field.name}: #{written(field.type)}" }
       "{ #{fields.join(", ")} }"
     when Skyward::Core::Types::Named then type.name
+    when Skyward::Core::Types::Refined then written(type.type)
     else type.types.map { |member| written(member) }.join(" | ")
     end
   end

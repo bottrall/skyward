@@ -2,6 +2,7 @@
 
 class Skyward::Core::Types::Reader
   # @rbs @builder: RBS::DefinitionBuilder
+  # @rbs @refinements: Hash[String, Symbol]
 
   SCALARS = {
     "::Integer" => :integer,
@@ -14,9 +15,11 @@ class Skyward::Core::Types::Reader
   NIL_LITERAL = Skyward::Core::Types::Literal.new(value: nil) #: Skyward::Core::Types::Literal
 
   # @rbs builder: RBS::DefinitionBuilder
+  # @rbs refinements: Hash[String, Symbol]
   # @rbs return: void
-  def initialize(builder)
+  def initialize(builder, refinements: {})
     @builder = builder
+    @refinements = refinements
   end
 
   # @rbs type: RBS::Types::t
@@ -100,7 +103,14 @@ class Skyward::Core::Types::Reader
   # @rbs path: Array[String]
   # @rbs return: Skyward::Core::Types::result
   def alias_type(type, path)
-    read_within(@builder.expand_alias2(type.name, type.args), enter(written(type), path))
+    expanded = read_within(@builder.expand_alias2(type.name, type.args), enter(written(type), path))
+    as = @refinements.fetch(type.name.to_s, nil)
+    return expanded unless as
+
+    case expanded
+    when Skyward::Core::Types::Unreadable then expanded
+    else Skyward::Core::Types::Refined.new(type: expanded, as:)
+    end
   end
 
   # @rbs type: RBS::Types::Record

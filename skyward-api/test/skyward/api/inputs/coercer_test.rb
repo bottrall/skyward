@@ -417,6 +417,12 @@ describe Skyward::API::Inputs::Coercer do
       end
     end
 
+    describe "a refined type" do
+      it "coerces as the type it refines" do
+        assert_equal ok(Date.new(2026, 10, 18)), coerce(types::Refined.new(type: date, as: :day), "2026-10-18")
+      end
+    end
+
     describe "a union" do
       let(:union) { types::Union.new(types: [integer, string]) }
 
@@ -603,6 +609,12 @@ describe Skyward::API::Inputs::Coercer do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Enum.new(symbols: [:low])))
 
         assert_equal mismatch("expected Array[:low?], got 1"), coerce(nullable, 1)
+      end
+
+      it "write a refined type as the type it refines" do
+        refined = types::ArrayOf.new(type: types::Refined.new(type: string, as: :uuid))
+
+        assert_equal mismatch("expected Array[String], got 1"), coerce(refined, 1)
       end
     end
   end
