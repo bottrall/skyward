@@ -1,8 +1,9 @@
 # The collection's signatures leave out the errors, whose extended result codes
 # classify a violation, extended_result_codes=, which turns those codes on,
 # busy_handler_timeout=, which waits on a lock without holding the GVL,
-# execute2, which returns a result's column names, and execute_batch, which
-# runs a migration.
+# execute2, which returns a result's column names, execute_batch, which runs a
+# migration, and transaction_active? and close, with which the pool finds a
+# connection that comes back mid-transaction, and closes one it can't roll back.
 module SQLite3
   class Exception < ::StandardError
     def code: () -> Integer
@@ -16,5 +17,7 @@ module SQLite3
     def busy_handler_timeout=: (Integer milliseconds) -> void
     def execute2: (String sql, *untyped bind_vars) -> Array[Array[untyped]]
     def execute_batch: (String sql) -> void
+    def transaction_active?: () -> bool
+    def close: () -> void
   end
 end

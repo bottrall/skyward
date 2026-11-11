@@ -39,4 +39,14 @@ class Skyward::ORM::Adapters::PostgreSQL::Connection
   def execute_batch(sql)
     @connection.exec(sql).clear
   end
+
+  # Anything but idle counts, so a connection left mid-command or broken isn't
+  # reused either.
+  # @rbs return: bool
+  def transaction_active? = @connection.transaction_status != PG::PQTRANS_IDLE
+
+  # @rbs return: void
+  def close
+    @connection.close
+  end
 end

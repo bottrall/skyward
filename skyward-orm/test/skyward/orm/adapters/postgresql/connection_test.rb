@@ -48,4 +48,24 @@ describe Skyward::ORM::Adapters::PostgreSQL::Connection do
       assert_equal [["Home"]], connection.execute("SELECT name FROM lists")
     end
   end
+
+  describe "#transaction_active?" do
+    it "is false when the session is idle" do
+      refute_predicate connection, :transaction_active?
+    end
+
+    it "is true inside a transaction" do
+      connection.execute("BEGIN")
+
+      assert_predicate connection, :transaction_active?
+    end
+  end
+
+  describe "#close" do
+    it "ends the session" do
+      connection.close
+
+      assert_raises(PG::ConnectionBad) { connection.execute("SELECT 1") }
+    end
+  end
 end
