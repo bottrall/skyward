@@ -331,9 +331,9 @@ class Skyward::ORM::Connection::Database
   # @rbs values: Array[untyped]
   # @rbs return: [Array[Symbol], Array[Array[untyped]]]
   def run(sql, values)
-    statement = Skyward::ORM::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
+    statement = Skyward::ORM::Statements::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
     binds = values.map { |value| @adapter.encode(value) }
-    Skyward::ORM::Placeholders.require_scalars(binds, "Skyward.query")
+    Skyward::ORM::Statements::Placeholders.require_scalars(binds, "Skyward.query")
     result = connection { |checked_out| checked_out.execute2(statement, *binds) }
     [result.fetch(0).map(&:to_sym), result.drop(1)]
   rescue StandardError => e

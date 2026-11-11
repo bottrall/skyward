@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-describe Skyward::ORM::Placeholders do
-  def numbered(sql, count) = Skyward::ORM::Placeholders.replace(sql, count) { |position| "$#{position}" }
+describe Skyward::ORM::Statements::Placeholders do
+  def numbered(sql, count) = Skyward::ORM::Statements::Placeholders.replace(sql, count) { |position| "$#{position}" }
 
   describe ".replace" do
     it "replaces each ? with the placeholder for its position, from 1" do
@@ -46,17 +46,17 @@ describe Skyward::ORM::Placeholders do
 
   describe ".require_scalars" do
     it "passes scalars" do
-      assert_silent { Skyward::ORM::Placeholders.require_scalars([1, "a", nil], "The SQL") }
+      assert_silent { Skyward::ORM::Statements::Placeholders.require_scalars([1, "a", nil], "The SQL") }
     end
 
     it "refuses an Array, naming its position" do
-      error = assert_raises(ArgumentError) { Skyward::ORM::Placeholders.require_scalars([1, [2, 3]], "The SQL") }
+      error = assert_raises(ArgumentError) { Skyward::ORM::Statements::Placeholders.require_scalars([1, [2, 3]], "The SQL") }
 
       assert_equal "The SQL binds one value to each ?, but value 2 is an Array", error.message
     end
 
     it "refuses a Hash, naming its position" do
-      error = assert_raises(ArgumentError) { Skyward::ORM::Placeholders.require_scalars([{ a: 1 }], "The SQL") }
+      error = assert_raises(ArgumentError) { Skyward::ORM::Statements::Placeholders.require_scalars([{ a: 1 }], "The SQL") }
 
       assert_equal "The SQL binds one value to each ?, but value 1 is a Hash", error.message
     end

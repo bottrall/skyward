@@ -61,7 +61,7 @@ class Skyward::ORM::Projection
   # @rbs binds: Array[untyped]
   # @rbs return: Array[untyped] | Skyward::ORM::Violation
   def returning(sql, binds)
-    returned = Skyward::ORM::Statements.returning(Skyward::ORM::Members.of(@row))
+    returned = Skyward::ORM::Statements.returning(Skyward::ORM::Tables::Members.of(@row))
     @session.database.write_returning(@table, @row, "#{sql} #{returned}", binds)
   end
 end

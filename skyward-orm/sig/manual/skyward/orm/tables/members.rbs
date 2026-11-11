@@ -1,0 +1,3 @@
+module Skyward::ORM::Tables::Members
+  extend ::Skyward::ORM::Tables::Members
+end
