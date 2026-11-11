@@ -89,7 +89,7 @@ module Skyward::API::Serializer::Writers
     when :bool then checked("bool", ->(value) { [true, false].include?(value) }, ->(value, _) { value })
     when :date then checked("Date", ->(value) { value.is_a?(Date) }, ->(value, _) { date(value) })
     when :time then checked("Time", ->(value) { value.is_a?(Time) }, ->(value, _) { time(value) })
-    when :untyped then Writer.new(name: "untyped", fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
+    else Writer.new(name: "untyped", fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
     end
   end
 

@@ -311,7 +311,7 @@ module Skyward::API::Assembly::Boot
     provider = providers[name]
     return provided(name, type, provider) if provider
 
-    read = reader.read(type)
+    read = read_type(reader, type)
     case read
     when Skyward::Core::Types::Unreadable then unreadable("The type of `#{name}:`", read)
     else
@@ -412,7 +412,7 @@ module Skyward::API::Assembly::Boot
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs return: Array[Skyward::API::Routing::Router::returned] | String
   def returns(type, reader)
-    read = parts(type).map { |part| response(part, reader) || reader.read(part) }
+    read = parts(type).map { |part| response(part, reader) || read_type(reader, part) }
     unreadable = read.find { |member| member.is_a?(Skyward::Core::Types::Unreadable) }
     return unreadable("The return type", unreadable) if unreadable.is_a?(Skyward::Core::Types::Unreadable)
 
@@ -460,7 +460,7 @@ module Skyward::API::Assembly::Boot
       return Skyward::Core::Types::Unreadable.new(type: written(type.to_s), at: nil, instead: "Skyward::API::Responses::Created[T]")
     end
 
-    read = reader.read(type.args.fetch(0))
+    read = read_type(reader, type.args.fetch(0))
     case read
     when Skyward::Core::Types::Unreadable then read
     else Skyward::API::Routing::Router::Created.new(type: read)
@@ -517,6 +517,33 @@ module Skyward::API::Assembly::Boot
     listed = rest.empty? ? last : "#{rest.join(", ")} and #{last}"
     "Its signature leaves #{listed} untyped, but strict: true refuses an untyped endpoint. " \
       "Give #{found.one? ? "it" : "each"} a type."
+  end
+
+  # Skyward API can't coerce or write a BigDecimal yet, so it refuses one
+  # wherever it's reached, as it does a type it can't read.
+  # @rbs reader: Skyward::Core::Types::Reader
+  # @rbs type: RBS::Types::t
+  # @rbs return: Skyward::Core::Types::result
+  def read_type(reader, type)
+    read = reader.read(type)
+    decimal(read, nil) || read
+  end
+
+  # @rbs type: Skyward::Core::Types::result
+  # @rbs at: String?
+  # @rbs return: Skyward::Core::Types::Unreadable?
+  def decimal(type, at)
+    case type
+    when Skyward::Core::Types::Scalar
+      Skyward::Core::Types::Unreadable.new(type: "BigDecimal", at:, instead: "Float or String") if type.name == :decimal
+    when Skyward::Core::Types::Nullable, Skyward::Core::Types::ArrayOf, Skyward::Core::Types::HashOf,
+         Skyward::Core::Types::Refined
+      decimal(type.type, at)
+    when Skyward::Core::Types::Union then type.types.lazy.filter_map { |member| decimal(member, at) }.first
+    when Skyward::Core::Types::Record then type.fields.lazy.filter_map { |field| decimal(field.type, at) }.first
+    when Skyward::Core::Types::Named
+      type.fields.lazy.filter_map { |field| decimal(field.type, "#{type.name}##{field.name}") }.first
+    end
   end
 
   # @rbs subject: String

@@ -171,11 +171,6 @@ describe "Skyward's types" do
             attr_reader name: String
           end
         end
-
-        # Skyward Core doesn't load bigdecimal's signatures, so it's declared
-        # here, for each gem to judge the type rather than fail to find it.
-        class BigDecimal
-        end
       RBS
       api = boots? { Skyward.app(signatures:, logger: nil) { |builder| builder.mount TypesFixtures::Body.new } }
       orm = boots? do

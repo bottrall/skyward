@@ -63,6 +63,10 @@ module TablesFixtures
     attr_reader :list
   end
 
+  class Decimal < Skyward::ORM::Record
+    attr_reader :price
+  end
+
   class Hashed < Skyward::ORM::Record
     attr_reader :settings
   end

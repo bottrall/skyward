@@ -6,6 +6,8 @@ class Skyward::ORM::Tables::ColumnTypes
 
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
+  DECIMAL = Skyward::Core::Types::Scalar.new(name: :decimal) #: Skyward::Core::Types::Scalar
+
   COLUMN_TYPES = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16 or a union of symbols, " \
                  "any of them nullable, or untyped." #: String
 
@@ -66,6 +68,9 @@ class Skyward::ORM::Tables::ColumnTypes
     nullable = read.is_a?(Skyward::Core::Types::Nullable)
     carried = read.is_a?(Skyward::Core::Types::Nullable) ? read.type : read
     case carried
+    when DECIMAL, Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf,
+         Skyward::Core::Types::HashOf
+      "is #{written}, which isn't a column type yet. #{COLUMN_TYPES}"
     when Skyward::Core::Types::Scalar
       Skyward::ORM::Tables::Column.new(name:, type: carried.name, nullable:, symbols: [])
     when Skyward::Core::Types::Enum
@@ -76,9 +81,6 @@ class Skyward::ORM::Tables::ColumnTypes
       Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [])
     when Skyward::Core::Types::Unreadable
       "can't be read: Skyward ORM doesn't read #{carried.type}#{", at #{carried.at}" if carried.at}. #{COLUMN_TYPES}"
-    when Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf,
-         Skyward::Core::Types::HashOf
-      "is #{written}, which isn't a column type yet. #{COLUMN_TYPES}"
     else "is #{written}, which isn't a column type. #{COLUMN_TYPES}"
     end
   end

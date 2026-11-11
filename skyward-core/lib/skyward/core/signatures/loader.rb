@@ -21,7 +21,7 @@ class Skyward::Core::Signatures::Loader
   def load(directory)
     loader = RBS::EnvironmentLoader.new
     [directory, *@gems].each { |path| loader.add(path: Pathname(path)) }
-    %w[date time].each { |library| loader.add(library:, version: nil) }
+    %w[date time bigdecimal].each { |library| loader.add(library:, version: nil) }
     env = RBS::Environment.from_loader(loader).resolve_type_names
     # RBS otherwise defers this conflict until a definition is built, past boot.
     env.validate_type_params

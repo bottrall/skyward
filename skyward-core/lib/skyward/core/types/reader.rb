@@ -9,7 +9,8 @@ class Skyward::Core::Types::Reader
     "::Float" => :float,
     "::String" => :string,
     "::Date" => :date,
-    "::Time" => :time
+    "::Time" => :time,
+    "::BigDecimal" => :decimal
   }.freeze #: Hash[String, Skyward::Core::Types::scalar]
 
   NIL_LITERAL = Skyward::Core::Types::Literal.new(value: nil) #: Skyward::Core::Types::Literal

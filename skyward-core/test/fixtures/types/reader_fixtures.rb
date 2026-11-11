@@ -11,5 +11,6 @@ module ReaderFixtures
   Outer = Class.new
   Pair = Class.new
   Parent = Class.new
+  Price = Class.new
   Todo = Class.new
 end

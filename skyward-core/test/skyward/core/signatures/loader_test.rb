@@ -49,6 +49,10 @@ describe Skyward::Core::Signatures::Loader do
       assert_includes loader.load(app).build_singleton(RBS::TypeName.parse("::Time")).methods, :parse
     end
 
+    it "includes the bigdecimal library" do
+      assert loader.load(app).env.class_decl?(RBS::TypeName.parse("::BigDecimal"))
+    end
+
     it "raises BootError naming the file and line that doesn't parse" do
       error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, "broken")) }
 

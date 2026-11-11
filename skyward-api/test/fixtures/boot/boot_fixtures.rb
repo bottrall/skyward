@@ -9,6 +9,7 @@ module BootFixtures
   Draft = Data.define(:title, :priority, :due_on)
   Holder = Class.new
   Node = Class.new
+  Price = Class.new
 
   Hello = Class.new(Skyward::API) do
     get "/:name", to: :greet
@@ -194,6 +195,24 @@ module BootFixtures
     def index(range:) = { range: }
   end
 
+  DecimalQuery = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index(over: nil) = { over: }
+  end
+
+  DecimalBody = Class.new(Skyward::API) do
+    post "/", to: :create
+
+    def create(body:) = body
+  end
+
+  DecimalUnion = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index = {}
+  end
+
   HashBody = Class.new(Skyward::API) do
     post "/", to: :create
 
@@ -268,6 +287,12 @@ module BootFixtures
     get "/", to: :index
 
     def index(request:) = { request: }
+  end
+
+  DecimalReturn = Class.new(Skyward::API) do
+    get "/", to: :index
+
+    def index = []
   end
 
   HashReturn = Class.new(Skyward::API) do
@@ -360,6 +385,12 @@ module BootFixtures
     post "/", to: :create
 
     def create = created({})
+  end
+
+  CreatedDecimal = Class.new(Skyward::API) do
+    post "/", to: :create
+
+    def create = created(0)
   end
 
   CreatedBare = Class.new(Skyward::API) do

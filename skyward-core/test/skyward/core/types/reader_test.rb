@@ -166,10 +166,25 @@ describe Skyward::Core::Types::Reader do
       assert_nil read("{ id: [::Integer] }").at
     end
 
-    it "reads Integer, Float, String, Date and Time as scalars" do
+    it "reads Integer, Float, String, Date, Time and BigDecimal as scalars" do
       assert_equal(
-        %i[integer float string date time],
-        %w[::Integer ::Float ::String ::Date ::Time].map { |source| read(source).name }
+        %i[integer float string date time decimal],
+        %w[::Integer ::Float ::String ::Date ::Time ::BigDecimal].map { |source| read(source).name }
+      )
+    end
+
+    it "reads BigDecimal inside T?, Array[T], Hash[String, T], a record and a class" do
+      decimal = types::Scalar.new(name: :decimal)
+      amount = [types::Field.new(name: :amount, type: decimal, required: true)]
+
+      assert_equal(
+        [types::Nullable.new(type: decimal),
+         types::ArrayOf.new(type: decimal),
+         types::HashOf.new(type: decimal),
+         types::Record.new(fields: amount),
+         types::Named.new(name: "ReaderFixtures::Price", klass: ReaderFixtures::Price, fields: amount)],
+        ["::BigDecimal?", "::Array[::BigDecimal]", "::Hash[::String, ::BigDecimal]", "{ amount: ::BigDecimal }",
+         "::ReaderFixtures::Price"].map { |source| read(source) }
       )
     end
 
