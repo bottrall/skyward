@@ -436,36 +436,6 @@ describe Skyward::API::Assembly::Boot do
                      refusal([BootFixtures::HashBody.new, "/"])
       end
 
-      describe "BigDecimal" do
-        it "refuses a keyword typed BigDecimal, nullable or not" do
-          assert_equal "BootFixtures::DecimalQuery#index (GET /)\n  " \
-                       "The type of `over:` can't be read: Skyward API doesn't read BigDecimal. " \
-                       "Use Float or String instead.",
-                       refusal([BootFixtures::DecimalQuery.new, "/"])
-        end
-
-        it "refuses BigDecimal in a member of a union" do
-          assert_equal "BootFixtures::DecimalUnion#index (GET /)\n  " \
-                       "The return type can't be read: Skyward API doesn't read BigDecimal. " \
-                       "Use Float or String instead.",
-                       refusal([BootFixtures::DecimalUnion.new, "/"])
-        end
-
-        it "refuses BigDecimal in a record's field" do
-          assert_match(
-            /The return type can't be read: Skyward API doesn't read BigDecimal\./,
-            refusal([BootFixtures::DecimalReturn.new, "/"])
-          )
-        end
-
-        it "names the class and reader where it found BigDecimal" do
-          assert_match(
-            /doesn't read BigDecimal, at BootFixtures::Price#amount\./,
-            refusal([BootFixtures::DecimalBody.new, "/"])
-          )
-        end
-      end
-
       it "refuses an array in the path" do
         assert_equal "BootFixtures::ArrayPath#show (GET /:ids)\n  " \
                      "`ids:` comes from the path, which can't carry an array. " \
@@ -602,13 +572,6 @@ describe Skyward::API::Assembly::Boot do
                      "The return type can't be read: Skyward API doesn't read Skyward::API::Responses::Created. " \
                      "Use Skyward::API::Responses::Created[T] instead.",
                      refusal([BootFixtures::CreatedBare.new, "/"])
-      end
-
-      it "refuses a Created of a BigDecimal" do
-        assert_equal "BootFixtures::CreatedDecimal#create (POST /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read BigDecimal. " \
-                     "Use Float or String instead.",
-                     refusal([BootFixtures::CreatedDecimal.new, "/"])
       end
 
       it "refuses a Created whose value's type can't be read" do

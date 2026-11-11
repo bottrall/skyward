@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "bigdecimal"
 require "securerandom"
 require "skyward/core"
 require "zeitwerk"

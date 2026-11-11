@@ -57,9 +57,14 @@ module Skyward::API::Inputs::Coercer
   # none of them.
   MISFIT: Invalid
 
-  # INTEGER, DATE and TIME match a String's bytes, because a path parameter
-  # can be any bytes, and Regexp#match raises on a String that isn't UTF-8.
+  # INTEGER, DECIMAL, DATE and TIME match a String's bytes, because a path
+  # parameter can be any bytes, and Regexp#match raises on a String that isn't
+  # UTF-8.
   INTEGER: Regexp
+
+  # No exponent, NaN or Infinity: "1e1000000000" is short, but written without
+  # an exponent it's a billion digits long.
+  DECIMAL: Regexp
 
   BOOLEANS: Hash[String, bool]
 
@@ -155,6 +160,12 @@ module Skyward::API::Inputs::Coercer
   # @rbs raw: untyped
   # @rbs return: Ok?
   def time: (untyped raw) -> Ok?
+
+  # A JSON number isn't one, because JSON.parse has already made it a Float,
+  # which may have lost digits.
+  # @rbs raw: untyped
+  # @rbs return: Ok?
+  def decimal: (untyped raw) -> Ok?
 
   # @rbs value: Skyward::Core::Types::literal
   # @rbs strings: bool

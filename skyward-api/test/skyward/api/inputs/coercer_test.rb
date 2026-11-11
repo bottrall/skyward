@@ -11,6 +11,7 @@ describe Skyward::API::Inputs::Coercer do
   bool = types::Scalar.new(name: :bool)
   date = types::Scalar.new(name: :date)
   time = types::Scalar.new(name: :time)
+  decimal = types::Scalar.new(name: :decimal)
   priority = types::Enum.new(symbols: %i[low normal high])
 
   def coerce(type, raw, strings: false) = Skyward::API::Inputs::Coercer.compile(type, strings:).call(raw, "body")
@@ -177,6 +178,44 @@ describe Skyward::API::Inputs::Coercer do
       it "refuses a day that doesn't exist" do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-02-30T09:30:00Z"'),
                      coerce(time, "2026-02-30T09:30:00Z")
+      end
+    end
+
+    describe "BigDecimal" do
+      expected = 'expected BigDecimal (a decimal string, such as "12.50")'
+
+      it "parses a decimal string as a BigDecimal, the same in a path, a query and a body" do
+        raws = %w[12.50 -3 0.001]
+        parsed = [true, false].flat_map { |strings| raws.map { |raw| coerce(decimal, raw, strings:).value } }
+
+        assert_equal(
+          [[BigDecimal, "12.5"], [BigDecimal, "-3.0"], [BigDecimal, "0.001"]] * 2,
+          parsed.map { |value| [value.class, value.to_s("F")] }
+        )
+      end
+
+      it "refuses a JSON number, which JSON.parse has already made a Float" do
+        assert_equal mismatch("#{expected}, got 12.5"), coerce(decimal, 12.5)
+      end
+
+      it "refuses an exponent, NaN, Infinity and an empty string" do
+        refused = ["1e3", "NaN", "Infinity", ""].map { |raw| coerce(decimal, raw, strings: true) }
+
+        assert_equal(['"1e3"', '"NaN"', '"Infinity"', '""'].map { |got| mismatch("#{expected}, got #{got}") }, refused)
+      end
+
+      it "refuses a sign other than a leading -, a space, and a point without digits on both sides" do
+        refused = ["+1", "- 1", ".5", "1.", " 1"].map { |raw| coerce(decimal, raw).class }
+
+        assert_equal [Skyward::API::Inputs::Coercer::Invalid] * 5, refused
+      end
+
+      it "refuses bytes that aren't UTF-8" do
+        assert_equal mismatch("#{expected}, got \"1\u{FFFD}\""), coerce(decimal, "1\xE9", strings: true)
+      end
+
+      it "is named BigDecimal inside another type" do
+        assert_equal mismatch('expected Array[BigDecimal], got "1"'), coerce(types::ArrayOf.new(type: decimal), "1")
       end
     end
 

@@ -538,12 +538,13 @@ describe Skyward::API::OpenAPI do
 
     describe "schemas" do
       it "maps each scalar" do
-        written = %i[integer float string bool date time untyped].map do |name|
+        written = %i[integer float string bool date time decimal untyped].map do |name|
           returned(types::Scalar.new(name:))
         end
 
         assert_equal [{ "type" => "integer" }, { "type" => "number" }, { "type" => "string" }, { "type" => "boolean" },
-                      { "type" => "string", "format" => "date" }, { "type" => "string", "format" => "date-time" }, {}],
+                      { "type" => "string", "format" => "date" }, { "type" => "string", "format" => "date-time" },
+                      { "type" => "string", "format" => "decimal" }, {}],
                      written
       end
 
@@ -563,6 +564,12 @@ describe Skyward::API::OpenAPI do
         nullable = types::Nullable.new(type: types::Scalar.new(name: :date))
 
         assert_equal({ "type" => %w[string null], "format" => "date" }, returned(nullable))
+      end
+
+      it "makes a nullable BigDecimal a string or null, keeping its format" do
+        nullable = types::Nullable.new(type: types::Scalar.new(name: :decimal))
+
+        assert_equal({ "type" => %w[string null], "format" => "decimal" }, returned(nullable))
       end
 
       it "makes a nullable enum null too, with anyOf" do

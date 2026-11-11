@@ -7,6 +7,7 @@ describe Skyward::API::Serializer::Writers do
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
   untyped = types::Scalar.new(name: :untyped)
+  decimal = types::Scalar.new(name: :decimal)
   priority = types::Enum.new(symbols: %i[low high])
 
   user = Data.define(:id, :name, :password_hash) do
@@ -48,16 +49,24 @@ describe Skyward::API::Serializer::Writers do
         assert_equal "2026-10-18T09:30:00.123456Z", write(types::Scalar.new(name: :time), time)
       end
 
-      it "names each by its RBS type" do
-        names = %i[integer float string bool date time untyped].map { |name| writer(types::Scalar.new(name:)).name }
+      it "writes a BigDecimal as its decimal string, never with an exponent" do
+        written = %w[12.50 100 -0.001 1e30].map { |raw| write(decimal, BigDecimal(raw)) }
 
-        assert_equal %w[Integer Float String bool Date Time untyped], names
+        assert_equal ["12.5", "100.0", "-0.001", "1#{"0" * 30}.0"], written
+      end
+
+      it "names each by its RBS type" do
+        names = %i[integer float string bool date time decimal untyped].map do |name|
+          writer(types::Scalar.new(name:)).name
+        end
+
+        assert_equal %w[Integer Float String bool Date Time BigDecimal untyped], names
       end
 
       it "fits only a value of its class" do
-        given = { integer: 1.0, float: 1, string: :ship, bool: nil, date: Time.now, time: Date.today }
+        given = { integer: 1.0, float: 1, string: :ship, bool: nil, date: Time.now, time: Date.today, decimal: 1.5 }
 
-        assert_equal([false] * 6, given.map { |name, value| writer(types::Scalar.new(name:)).fits.call(value) })
+        assert_equal([false] * 7, given.map { |name, value| writer(types::Scalar.new(name:)).fits.call(value) })
       end
 
       it "doesn't fit a Float that isn't finite, which JSON can't write" do
@@ -70,14 +79,23 @@ describe Skyward::API::Serializer::Writers do
         )
       end
 
+      it "doesn't fit a BigDecimal that isn't finite, which JSON can't write" do
+        values = %w[Infinity -Infinity NaN].map { |raw| BigDecimal(raw) }
+
+        assert_equal(
+          %w[Infinity -Infinity NaN].map { |got| misfit("", "BigDecimal", got) },
+          values.map { |value| write(decimal, value) }
+        )
+      end
+
       it "answers a value that doesn't fit with a misfit naming the type and the value" do
         assert_equal misfit("", "Integer", "nil"), write(integer, nil)
       end
 
       it "names a value that doesn't fit by its class unless it's a scalar, so a message never carries its content" do
-        got = ["secret", Object.new, :ship, 1.5, true].map { |value| write(integer, value).got }
+        got = ["secret", Object.new, :ship, 1.5, BigDecimal("2.5"), true].map { |value| write(integer, value).got }
 
-        assert_equal ["String", "Object", ":ship", "1.5", "true"], got
+        assert_equal ["String", "Object", ":ship", "1.5", "2.5", "true"], got
       end
     end
 
@@ -91,6 +109,14 @@ describe Skyward::API::Serializer::Writers do
         expected = [nil, true, 42, 1.5, "Ship it", "low", "2026-10-18", "2026-10-18T09:30:00.000000Z"]
 
         assert_equal(expected, values.map { |value| write(untyped, value) })
+      end
+
+      it "writes a BigDecimal as its decimal string" do
+        assert_equal "12.5", write(untyped, BigDecimal("12.50"))
+      end
+
+      it "answers a BigDecimal that isn't finite with a misfit where it was found" do
+        assert_equal misfit(".total", "BigDecimal", "NaN"), write(untyped, { total: BigDecimal("NaN") })
       end
 
       it "writes a Hash and an Array recursively" do

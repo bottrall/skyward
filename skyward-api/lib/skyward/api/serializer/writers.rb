@@ -89,7 +89,9 @@ module Skyward::API::Serializer::Writers
     when :bool then checked("bool", ->(value) { [true, false].include?(value) }, ->(value, _) { value })
     when :date then checked("Date", ->(value) { value.is_a?(Date) }, ->(value, _) { date(value) })
     when :time then checked("Time", ->(value) { value.is_a?(Time) }, ->(value, _) { time(value) })
-    else Writer.new(name: "untyped", fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
+    when :decimal
+      checked("BigDecimal", ->(value) { value.is_a?(BigDecimal) && value.finite? }, ->(value, _) { decimal(value) })
+    when :untyped then Writer.new(name: "untyped", fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
     end
   end
 
@@ -189,6 +191,12 @@ module Skyward::API::Serializer::Writers
   # @rbs return: String
   def time(value) = value.getutc.iso8601(6)
 
+  # A String, so a client that reads JSON numbers as doubles keeps every digit,
+  # and "F" so it never has an exponent.
+  # @rbs value: BigDecimal
+  # @rbs return: String
+  def decimal(value) = value.to_s("F")
+
   # @rbs value: untyped
   # @rbs at: String
   # @rbs return: untyped
@@ -198,6 +206,7 @@ module Skyward::API::Serializer::Writers
     when Symbol then value.name
     when Date then date(value)
     when Time then time(value)
+    when BigDecimal then value.finite? ? decimal(value) : misfit("BigDecimal", value, at)
     when Hash then object(value.map { |key, item| [key, untyped(item, "#{at}.#{key}")] })
     when Array then items(value.each_with_index.map { |item, index| untyped(item, "#{at}[#{index}]") })
     else value.respond_to?(:to_h) ? untyped(value.to_h, at) : misfit("something with to_h", value, at)
@@ -224,6 +233,7 @@ module Skyward::API::Serializer::Writers
     got =
       case value
       when nil, true, false, Symbol, Integer, Float then value.inspect
+      when BigDecimal then decimal(value)
       else value.class.inspect
       end
     Misfit.new(at:, expected:, got:)
