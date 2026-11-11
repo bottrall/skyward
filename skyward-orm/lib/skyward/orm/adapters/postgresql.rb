@@ -76,8 +76,11 @@ module Skyward::ORM::Adapters::PostgreSQL
   TABLES = "t.relkind IN ('r', 'p') AND t.relnamespace <> 'pg_catalog'::regnamespace " \
            "AND pg_table_is_visible(t.oid)" #: String
 
+  # pg_attrdef holds a generated column's expression as if it were its default.
   COLUMNS = <<~SQL.freeze #: String
-    SELECT t.relname, a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, pg_get_expr(d.adbin, d.adrelid)
+    SELECT t.relname, a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull,
+      CASE WHEN a.attgenerated = '' THEN pg_get_expr(d.adbin, d.adrelid) END,
+      CASE WHEN a.attgenerated <> '' THEN pg_get_expr(d.adbin, d.adrelid) END
     FROM pg_catalog.pg_class AS t
     JOIN pg_catalog.pg_attribute AS a ON a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
     LEFT JOIN pg_catalog.pg_attrdef AS d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
@@ -211,9 +214,9 @@ module Skyward::ORM::Adapters::PostgreSQL
     connection.execute(COLUMNS).group_by(&:first).map do |name, rows|
       Skyward::ORM::Catalog::Table.new(
         name: name.to_sym,
-        columns: rows.map do |_, column, type, not_null, default|
+        columns: rows.map do |_, column, type, not_null, default, generated|
           Skyward::ORM::Catalog::Column.new(
-            name: column.to_sym, type:, nullable: not_null != TRUE_TEXT, default: default(default)
+            name: column.to_sym, type:, nullable: not_null != TRUE_TEXT, default: default(default), generated:
           )
         end,
         indexes: indexes(index_rows.fetch(name, [])),

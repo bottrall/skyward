@@ -31,6 +31,8 @@ module Skyward::ORM::Adapters::SQLite
 
   BUSY_TIMEOUT_MS: Integer
 
+  # table_info leaves out generated columns, which table_xinfo marks hidden 2
+  # (virtual) or 3 (stored). Hidden 1 is a virtual table's own hidden column.
   COLUMNS: String
 
   INDEXES: String

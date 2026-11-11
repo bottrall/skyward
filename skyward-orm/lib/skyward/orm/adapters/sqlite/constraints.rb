@@ -45,6 +45,24 @@ module Skyward::ORM::Adapters::SQLite::Constraints
   # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
   def read(sql, columns) = definitions(sql).flat_map { |definition| constraints(sql, definition, columns) }
 
+  # SQLite's grammar makes GENERATED ALWAYS AS a column constraint, and
+  # table_xinfo doesn't give its expression, so that's read from here too.
+  # @rbs sql: String
+  # @rbs return: Hash[Symbol, String]
+  def generated(sql)
+    definitions(sql).filter_map do |definition|
+      tokens = definition.map(&:first)
+      as = definition.each_index.find do |index|
+        index.positive? && definition.fetch(index).last.zero? && word(tokens.fetch(index)) == "AS"
+      end
+      next unless as
+
+      # The parenthesized tokens end with the closing parenthesis.
+      expression = first_parenthesized(definition.drop(as + 1))
+      [tokens.fetch(0)[1].to_sym, text(sql, expression.take(expression.size - 1))]
+    end.to_h
+  end
+
   private
 
   # The scan covers every character, since its last alternative matches any

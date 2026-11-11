@@ -37,7 +37,7 @@ describe Skyward::ORM::Migrations::Diff do
     Skyward::ORM::Catalog::Table.new(
       name:,
       columns: columns.map do |column|
-        Skyward::ORM::Catalog::Column.new(name: column, type: "TEXT", nullable: true, default: nil)
+        Skyward::ORM::Catalog::Column.new(name: column, type: "TEXT", nullable: true, default: nil, generated: nil)
       end,
       indexes: [],
       constraints: []
@@ -178,6 +178,16 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [migrations::DropColumn.new(column: note)], edits(changed::Dropped)
     end
 
+    it "never drops a generated column its class doesn't declare, or asks if it was renamed" do
+      tables = items do |had|
+        had.with(columns: had.columns.map { |column| column.name == :note ? column.with(generated: "title") : column })
+      end
+
+      found = edits(changed::Renamed, tables)
+
+      assert_equal [[migrations::AddColumn.new(column: column(changed::Renamed, :remark))], []], [found, asked]
+    end
+
     it "asks whether a column that went was renamed to a new one of a compatible type, and renames it on yes" do
       yes.push(%i[note remark])
       found = edits(changed::Renamed)
@@ -309,6 +319,18 @@ describe Skyward::ORM::Migrations::Diff do
                    edits(changed::Redefaulted, tables)
     end
 
+    it "doesn't compare a generated column's default" do
+      tables = items do |had|
+        had.with(
+          columns: had.columns.map do |column|
+            column.name == :status ? column.with(default: nil, generated: "'open'") : column
+          end
+        )
+      end
+
+      assert_empty edits(changed::Item, tables)
+    end
+
     it "takes a DEFAULT NULL as no default, since PostgreSQL keeps none for it" do
       nulled = changed.item do
         default note: nil
@@ -321,7 +343,7 @@ describe Skyward::ORM::Migrations::Diff do
     describe "for a JSON column" do
       def redefaulted(default)
         columns = [[:id, false, nil], [:settings, false, default], [:payload, true, nil]].map do |name, nullable, had|
-          Skyward::ORM::Catalog::Column.new(name:, type: "TEXT", nullable:, default: had)
+          Skyward::ORM::Catalog::Column.new(name:, type: "TEXT", nullable:, default: had, generated: nil)
         end
         tables = [Skyward::ORM::Catalog::Table.new(name: :webhooks, columns:, indexes: [], constraints: [])]
         changes([MigrationsFixtures::Webhook], tables).flat_map(&:edits).grep(Skyward::ORM::Migrations::ChangeDefault)
@@ -540,7 +562,7 @@ describe Skyward::ORM::Migrations::Diff do
         references: nil,
         definition: "CHECK (code <> '')"
       )
-      gone = catalog::Column.new(name: :gone, type: "TEXT", nullable: true, default: nil)
+      gone = catalog::Column.new(name: :gone, type: "TEXT", nullable: true, default: nil, generated: nil)
       changed_columns = { title: { nullable: true }, rank: { default: "0" } }
       tables = items do |had|
         had.with(
@@ -578,8 +600,9 @@ describe Skyward::ORM::Migrations::Diff do
       notes = postgresql.tables(connection).find { |table| table.name == :todos }&.columns&.last
       connection.execute_batch(add_notes.fetch(1))
 
-      assert_equal [[], catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil), []],
-                   [created, notes, matches.call]
+      expected = catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil, generated: nil)
+
+      assert_equal [[], expected, []], [created, notes, matches.call]
     end
   end
 

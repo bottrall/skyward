@@ -3,17 +3,19 @@
 module Skyward::ORM::Statements
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
   # @rbs return: [String, Array[untyped]]
-  def insert: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
+  def insert: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
 
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs rows: Array[Hash[Symbol, untyped]]
   # @rbs return: [String, Array[untyped]]
-  def insert_all: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Array[Hash[Symbol, untyped]] rows) -> [ String, Array[untyped] ]
+  def insert_all: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, singleton(Skyward::ORM::Record) table, Array[Hash[Symbol, untyped]] rows) -> [ String, Array[untyped] ]
 
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
@@ -42,10 +44,11 @@ module Skyward::ORM::Statements
   def require_conditions: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] conditions) -> void
 
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
   # @rbs return: void
-  def require_values: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> void
+  def require_values: (Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> void
 
   # @rbs columns: Array[Symbol]
   # @rbs return: String
@@ -71,11 +74,17 @@ module Skyward::ORM::Statements
   # @rbs return: String?
   def unknown: (singleton(Skyward::ORM::Record) table, Array[Symbol] columns) -> String?
 
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: Array[Symbol]
+  def generated: (Array[Skyward::ORM::Catalog::Table] tables, singleton(Skyward::ORM::Record) table) -> Array[Symbol]
+
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs generated: Array[Symbol]
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
   # @rbs return: String?
-  def unwritable: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> String?
+  def unwritable: (Skyward::ORM::Tables::ColumnTypes column_types, Array[Symbol] generated, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> String?
 
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -89,9 +98,10 @@ module Skyward::ORM::Statements
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Skyward::ORM::Tables::Column]
   # @rbs given: Array[Symbol]
+  # @rbs generated: Array[Symbol]
   # @rbs subject: String
   # @rbs return: void
-  def require_present: (singleton(Skyward::ORM::Record) table, Array[Skyward::ORM::Tables::Column] columns, Array[Symbol] given, String subject) -> void
+  def require_present: (singleton(Skyward::ORM::Record) table, Array[Skyward::ORM::Tables::Column] columns, Array[Symbol] given, Array[Symbol] generated, String subject) -> void
 
   # Matched as sets, since each row's values are read in the first row's order.
   # @rbs subject: String

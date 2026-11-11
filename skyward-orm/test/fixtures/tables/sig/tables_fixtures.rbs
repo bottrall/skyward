@@ -24,6 +24,12 @@ module TablesFixtures
     attr_reader payload: Hash[String, untyped]?
   end
 
+  class Searched < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader title: String
+    attr_reader search: String
+  end
+
   # unannotated has no reader here.
   class Typed < ::Skyward::ORM::Record
     attr_reader integer: Integer

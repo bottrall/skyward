@@ -11,6 +11,14 @@ module Skyward::ORM::Migrations::Script
 
   private
 
+  # A rebuild makes the table from its class, which can't say how the database
+  # generates a column, and the catalog keeps only a generated column's
+  # expression, not whether it's STORED, so the rebuild can't carry one over.
+  # @rbs changes: Array[Skyward::ORM::Migrations::change]
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs return: void
+  def refuse_rebuilding_generated: (Array[Skyward::ORM::Migrations::change] changes, Skyward::ORM::_Adapter adapter) -> void
+
   # @rbs change: Skyward::ORM::Migrations::change
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String

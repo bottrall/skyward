@@ -7,6 +7,7 @@ module Skyward::ORM::Catalog
     :nullable, #: bool
     # The SQL that follows DEFAULT, as a migration writes it, so a class's
     # default compares with it as text.
-    :default #: String?
+    :default, #: String?
+    :generated #: String?
   )
 end
