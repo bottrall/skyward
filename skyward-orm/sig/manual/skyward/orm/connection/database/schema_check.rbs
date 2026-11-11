@@ -1,3 +1,0 @@
-module Skyward::ORM::Connection::Database::SchemaCheck
-  extend ::Skyward::ORM::Connection::Database::SchemaCheck
-end

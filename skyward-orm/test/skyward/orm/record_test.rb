@@ -99,7 +99,7 @@ describe Skyward::ORM::Record do
 
     before do
       session.connect(
-        Skyward::ORM::Connection::Database.new(
+        Skyward::ORM::Database.new(
           empty.adapter,
           Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Recording.new(connection:, sent:) }),
           Skyward::ORM::Tables::ColumnTypes.new(reader),

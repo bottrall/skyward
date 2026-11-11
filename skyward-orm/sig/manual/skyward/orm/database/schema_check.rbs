@@ -1,0 +1,3 @@
+module Skyward::ORM::Database::SchemaCheck
+  extend ::Skyward::ORM::Database::SchemaCheck
+end

@@ -42,7 +42,7 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 | orm | `Skyward::ORM::Tables` | what a table class declares and the rows it builds: its schema, its column types and its rows' methods |
 | orm | `Skyward::ORM::Catalog` | the database's schema as an adapter reads it: its tables, columns, indexes and constraints |
 | orm | `Skyward::ORM::Adapters` | what differs between databases: each adapter's connection, SQL types, codec, schema reads and violations |
-| orm | `Skyward::ORM::Connection` | the database `Skyward.connect` opens, and the session that holds it for every query |
+| orm | `Skyward::ORM::Connection` | the session that holds the current database, and the pool |
 | orm | `Skyward::ORM::Statements` | the SQL that queries and writes share: quoted names, columns checked against a table class, and the `INSERT` a table class writes |
 | orm | `Skyward::ORM::Queries` | what `Query` and `Projection` share: a query's clauses, the SQL built from them and the reads that run it |
 | orm | `Skyward::ORM::Migrations` | generating, writing, running and reporting migrations: the diff between table classes and the catalog, its edits and their SQL, and the versions table |

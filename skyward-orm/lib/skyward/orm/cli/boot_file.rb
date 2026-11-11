@@ -8,7 +8,7 @@ module Skyward::ORM::CLI::BootFile
   # @rbs directory: String
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs generate: ^() -> String?
-  # @rbs return: Skyward::ORM::Connection::Database | String
+  # @rbs return: Skyward::ORM::Database | String
   def load(directory, session, generate)
     path = File.join(directory, FILE)
     unless File.file?(path)
@@ -29,7 +29,7 @@ module Skyward::ORM::CLI::BootFile
   # @rbs session: Skyward::ORM::Connection::Session
   # @rbs kernel: singleton(Kernel)
   # @rbs generate: ^() -> String?
-  # @rbs &: (Skyward::ORM::Connection::Database) -> void
+  # @rbs &: (Skyward::ORM::Database) -> void
   # @rbs return: void
   def boot(directory, session, kernel, generate, &)
     database = session.without_check { load(directory, session, generate) }

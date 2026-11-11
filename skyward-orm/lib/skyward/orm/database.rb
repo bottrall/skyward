@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Skyward::ORM::Connection::Database
+class Skyward::ORM::Database
   Held = Data.define(
     :connection, #: Skyward::ORM::_Connection
     :fiber, #: Fiber

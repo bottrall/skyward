@@ -76,4 +76,23 @@ describe Skyward::ORM::Transactional do
       assert_empty names.call
     end
   end
+
+  describe "with a second database" do
+    let(:second) { TestDatabase.empty(second: true) }
+    let(:switched) { Skyward.connect(second.url, signatures:, check: false, default: false) }
+
+    before { switched.execute("CREATE TABLE lists (id #{second.primary_key}, name TEXT)") }
+
+    it "rolls back writes through Skyward.using with the test, and the default's too" do
+      database = switched
+      run_test do
+        define_method(:example) do
+          insert.call("Home")
+          Skyward.using(database) { insert.call("Work") }
+        end
+      end
+
+      assert_equal [[], []], [names.call, Skyward.using(switched) { names.call }]
+    end
+  end
 end

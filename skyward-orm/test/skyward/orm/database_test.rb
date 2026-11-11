@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../../../fixtures/tables/tables_fixtures"
+require_relative "../../fixtures/tables/tables_fixtures"
 
-describe Skyward::ORM::Connection::Database do
-  signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
+describe Skyward::ORM::Database do
+  signatures = File.expand_path("../../fixtures/tables/sig", __dir__)
   reader = Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
   refused = Skyward::ORM::Violation.new(kind: :check, constraint: nil, columns: [], message: "refused")
   foreign = "this transaction belongs to another fiber; start your own, or return the result to the block"
@@ -55,7 +55,7 @@ describe Skyward::ORM::Connection::Database do
   let(:check) { true }
   let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
   let(:database) do
-    Skyward::ORM::Connection::Database.new(
+    Skyward::ORM::Database.new(
       adapter,
       Skyward::ORM::Connection::Pool.new(1, -> { connection }),
       column_types,
@@ -72,19 +72,13 @@ describe Skyward::ORM::Connection::Database do
   end
 
   def mismatch(table)
-    Skyward::ORM::Connection::Database::SchemaCheck.mismatch(
+    Skyward::ORM::Database::SchemaCheck.mismatch(
       table, column_types.columns(table), adapter.tables(connection), adapter
     )
   end
 
   def pooled(opener)
-    Skyward::ORM::Connection::Database.new(
-      adapter,
-      Skyward::ORM::Connection::Pool.new(2, opener),
-      column_types,
-      [],
-      check: false
-    )
+    Skyward::ORM::Database.new(adapter, Skyward::ORM::Connection::Pool.new(2, opener), column_types, [], check: false)
   end
 
   def insert(database, name)
@@ -431,7 +425,7 @@ describe Skyward::ORM::Connection::Database do
 
     it "returns the connection even when its rollback raises" do
       lost = faulty.new(connection:, statement: "ROLLBACK")
-      database = Skyward::ORM::Connection::Database.new(
+      database = Skyward::ORM::Database.new(
         adapter, Skyward::ORM::Connection::Pool.new(1, -> { lost }), column_types, [], check: false
       )
       database.hold

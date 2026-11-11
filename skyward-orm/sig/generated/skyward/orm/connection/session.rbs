@@ -1,19 +1,39 @@
 # Generated from lib/skyward/orm/connection/session.rb with RBS::Inline
 
 class Skyward::ORM::Connection::Session
-  @database: Skyward::ORM::Connection::Database?
+  @database: Skyward::ORM::Database?
 
   @check: bool
+
+  @current: Symbol
+
+  @holding: Symbol
 
   # @rbs return: void
   def initialize: () -> void
 
-  # @rbs database: Skyward::ORM::Connection::Database
-  # @rbs return: Skyward::ORM::Connection::Database
-  def connect: (Skyward::ORM::Connection::Database database) -> Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
+  # @rbs return: Skyward::ORM::Database
+  def connect: (Skyward::ORM::Database database) -> Skyward::ORM::Database
 
-  # @rbs return: Skyward::ORM::Connection::Database
-  def database: () -> Skyward::ORM::Connection::Database
+  # @rbs return: Skyward::ORM::Database
+  def database: () -> Skyward::ORM::Database
+
+  # Fiber storage is copied into the fibers and threads a fiber starts, so
+  # those it starts in the block inherit the switch.
+  # @rbs [T] (Skyward::ORM::Database database) { () -> T } -> T
+  def using: [T] (Skyward::ORM::Database database) { () -> T } -> T
+
+  # A transaction on the current database, for a test, and on each database
+  # its fiber switches to, until #release rolls them all back. The holding is
+  # kept before the database holds, so #release finds one that took a
+  # connection and then raised.
+  # @rbs return: void
+  def hold: () -> void
+
+  # Nothing is held when #hold raised before it could find a database.
+  # @rbs return: void
+  def release: () -> void
 
   # @rbs return: bool
   def check?: () -> bool
@@ -22,4 +42,18 @@ class Skyward::ORM::Connection::Session
   # fixes a schema that doesn't match, and its boot.rb connects with the default.
   # @rbs [T] () { () -> T } -> T
   def without_check: [T] () { () -> T } -> T
+
+  private
+
+  # Only the fiber that holds: the holding is fiber-local rather than in fiber
+  # storage, so a fiber or thread it starts doesn't inherit it, since nothing
+  # would release what one held.
+  # @rbs database: Skyward::ORM::Database
+  # @rbs return: void
+  def hold_also: (Skyward::ORM::Database database) -> void
+
+  # Each database is released even when one before it raises.
+  # @rbs databases: Array[Skyward::ORM::Database]
+  # @rbs return: void
+  def release_each: (Array[Skyward::ORM::Database] databases) -> void
 end

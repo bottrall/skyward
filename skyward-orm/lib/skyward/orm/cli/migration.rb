@@ -47,7 +47,7 @@ module Skyward::ORM::CLI::Migration
   # change twice, so a pending one stops it. With no terminal to ask whether a
   # column was renamed, it stops rather than guess, since a guess of no drops
   # the column's data.
-  # @rbs (String name, Skyward::ORM::Connection::Database database, directory: String, time: Time, input: IO,
+  # @rbs (String name, Skyward::ORM::Database database, directory: String, time: Time, input: IO,
   #   out: _Writer, kernel: singleton(Kernel), discover: ^() -> Array[singleton(Skyward::ORM::Record)]) -> void
   def write(name, database, directory:, time:, input:, out:, kernel:, discover:)
     ran = Skyward::ORM::Migrations::Versions.checksums(database).keys

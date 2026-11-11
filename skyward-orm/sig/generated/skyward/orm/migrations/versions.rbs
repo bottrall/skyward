@@ -5,7 +5,7 @@ module Skyward::ORM::Migrations::Versions
   # never been migrated doesn't have the table yet.
   TABLE: Symbol
 
-  # @rbs database: Skyward::ORM::Connection::Database
+  # @rbs database: Skyward::ORM::Database
   # @rbs return: Hash[String, String]
-  def checksums: (Skyward::ORM::Connection::Database database) -> Hash[String, String]
+  def checksums: (Skyward::ORM::Database database) -> Hash[String, String]
 end

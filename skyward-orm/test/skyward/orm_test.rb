@@ -89,6 +89,27 @@ describe Skyward do
     end
 
     # Its own process too, for the same reason.
+    it "checks a database it doesn't keep" do
+      script = <<~RUBY
+        require "skyward/orm"
+
+        class Note < Skyward::ORM::Record
+          table :notes
+          attr_reader :id
+        end
+
+        begin
+          Skyward.connect(#{empty.url.inspect}, signatures: #{File.expand_path("missing", __dir__).inspect}, default: false)
+        rescue Skyward::ORM::SchemaMismatch => e
+          puts e.message.lines.first
+        end
+      RUBY
+      output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+      assert_equal ["Note doesn't match the notes table\n", 0], [output, status.exitstatus]
+    end
+
+    # Its own process too, for the same reason.
     it "doesn't keep a database that doesn't match" do
       signatures = File.expand_path("missing", __dir__).inspect
       script = <<~RUBY
@@ -109,6 +130,93 @@ describe Skyward do
       output, status = Open3.capture2e(Gem.ruby, "-e", script)
 
       assert_equal ["true\n", 0], [output, status.exitstatus]
+    end
+
+    it "returns a database without keeping it with default: false" do
+      kept = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
+      database = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false, default: false)
+
+      assert_equal [Skyward::ORM::Database, kept], [database.class, Skyward::ORM::Connection::SESSION.database]
+    end
+  end
+
+  describe ".using" do
+    list = TablesFixtures::List
+
+    let(:second) { TestDatabase.empty(second: true) }
+    let(:switched) { Skyward.connect(second.url, signatures: File.join(fixtures, "sig"), check: false, default: false) }
+
+    before do
+      Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
+      create = "CREATE TABLE lists (id #{empty.primary_key}, name TEXT NOT NULL)"
+      Skyward.query(create)
+      switched.execute(create)
+    end
+
+    it "runs the block's queries, writes and raw SQL on the database, and returns the block's value" do
+      read = Skyward.using(switched) do
+        list.insert(name: "Work")
+        [list.all.map(&:name), Skyward.query("SELECT name FROM lists")]
+      end
+
+      assert_equal [[["Work"], [{ name: "Work" }]], []], [read, Skyward.query("SELECT name FROM lists")]
+    end
+
+    it "runs a query built outside the block on the database current when it runs" do
+      query = list.all
+      Skyward.using(switched) { list.insert(name: "Work") }
+
+      assert_equal [["Work"], []], [Skyward.using(switched) { query.map(&:name) }, query.map(&:name)]
+    end
+
+    it "opens transactions on the database, apart from one around the block" do
+      seen = Skyward.transaction do
+        inside = Skyward.using(switched) { [Skyward.transaction?, Skyward.transaction { Skyward.transaction? }] }
+        [inside, Skyward.transaction?]
+      end
+
+      assert_equal [[false, true], true], seen
+    end
+
+    it "keeps the database's writes when a transaction around the block rolls back" do
+      assert_raises(IOError) do
+        Skyward.transaction do
+          Skyward.using(switched) { list.insert(name: "Work") }
+          list.insert(name: "Home")
+          raise IOError
+        end
+      end
+
+      assert_equal [["Work"], []], [Skyward.using(switched) { list.all.map(&:name) }, list.all.map(&:name)]
+    end
+
+    # Its own process, so no table class is loaded for the migration's check to compare.
+    it "migrates the database" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "20261001000000_create_notes.sql"), "CREATE TABLE notes (id INTEGER);\n")
+        script = <<~RUBY
+          require "skyward/orm"
+
+          Skyward.connect(#{empty.url.inspect}, signatures: #{directory.inspect}, check: false)
+          switched = Skyward.connect(#{second.url.inspect}, signatures: #{directory.inspect}, check: false, default: false)
+          p Skyward.using(switched) { Skyward.migrate(#{directory.inspect}) }, Skyward.migrate(#{directory.inspect})
+        RUBY
+        output, status = Open3.capture2e(Gem.ruby, "-e", script)
+
+        assert_equal [%(["20261001000000"]\n["20261001000000"]\n), 0], [output, status.exitstatus]
+      end
+    end
+
+    it "refuses anything but a database" do
+      error = assert_raises(ArgumentError) { Skyward.using(second.url) { nil } }
+
+      assert_equal "Skyward.using takes a database Skyward.connect returned, not a String", error.message
+    end
+
+    it "refuses no block" do
+      error = assert_raises(ArgumentError) { Skyward.using(switched) }
+
+      assert_equal "Skyward.using takes a block to run on the database", error.message
     end
   end
 

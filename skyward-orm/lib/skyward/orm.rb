@@ -22,8 +22,9 @@ module Skyward
   # @rbs signatures: String
   # @rbs pool: Integer
   # @rbs check: bool
-  # @rbs return: ORM::Connection::Database
-  def self.connect(url, signatures: "sig", pool: 5, check: ORM::Connection::SESSION.check?)
+  # @rbs default: bool
+  # @rbs return: ORM::Database
+  def self.connect(url, signatures: "sig", pool: 5, check: ORM::Connection::SESSION.check?, default: true)
     reader = Core::Types::Reader.new(Core::Signatures.load(signatures), refinements: ORM::Tables::ColumnTypes::REFINEMENTS)
     column_types = ORM::Tables::ColumnTypes.new(reader)
     adapter, location = ORM::Adapters.resolve(
@@ -33,9 +34,20 @@ module Skyward
     )
     connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), -> { adapter.connect(location) })
     tables = connections.with { |connection| adapter.tables(connection) }
-    database = ORM::Connection::Database.new(adapter, connections, column_types, tables, check:)
+    database = ORM::Database.new(adapter, connections, column_types, tables, check:)
     database.check(ORM::Tables::Loaded.table_classes(ORM::Record)) if check
-    ORM::Connection::SESSION.connect(database)
+    default ? ORM::Connection::SESSION.connect(database) : database
+  end
+
+  # @rbs [T] (ORM::Database database) { () -> T } -> T
+  def self.using(database, &)
+    # Steep knows database is one, but untyped code can pass anything.
+    unless database.is_a?(ORM::Database) # steep:ignore UnreachableBranch
+      raise ArgumentError, "Skyward.using takes a database Skyward.connect returned, not a #{database.class}"
+    end
+    raise ArgumentError, "Skyward.using takes a block to run on the database" unless block_given?
+
+    ORM::Connection::SESSION.using(database, &)
   end
 
   # @rbs [T] () { () -> T } -> T

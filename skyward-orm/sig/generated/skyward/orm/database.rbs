@@ -1,6 +1,6 @@
-# Generated from lib/skyward/orm/connection/database.rb with RBS::Inline
+# Generated from lib/skyward/orm/database.rb with RBS::Inline
 
-class Skyward::ORM::Connection::Database
+class Skyward::ORM::Database
   class Held < Data
     attr_reader connection(): Skyward::ORM::_Connection
 
