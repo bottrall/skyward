@@ -142,4 +142,106 @@ describe "skyward/orm/commands.rb" do
       end
     end
   end
+
+  describe "scaffold" do
+    nothing = ["Every table matches its class. Nothing to write.\n", 0]
+
+    # rbs-inline isn't in this bundle, so the class's signature is written from
+    # its #: comments, as rbs-inline would write it.
+    def signature(source)
+      uses = source.scan(/^# @rbs (use .*)$/).map { |(use)| "#{use}\n" }
+      readers = source.scan(/^  attr_reader :(\w+) +#: (.*)$/).map { |name, type| "  attr_reader #{name}: #{type}\n" }
+      [*uses, "class #{source[/^class (\w+)/, 1]} < ::Skyward::ORM::Record\n", *readers, "end\n"].join
+    end
+
+    # Todo's class goes, and the scaffolded one takes its place.
+    def replace_todo(directory)
+      File.delete(File.join(directory, "app/todo.rb"))
+      app_rbs = File.join(directory, "sig/app.rbs")
+      File.write(app_rbs, File.read(app_rbs)[/\Aclass List\b.*?^end\n/m])
+      output, status = skyward("scaffold", "todos", chdir: directory)
+      File.write(File.join(directory, "app/todo.rb"), output)
+      File.write(File.join(directory, "sig/todo.rbs"), signature(output))
+      status
+    end
+
+    it "prints a class that leaves skyward migration nothing to write, and skyward status nothing to report, for a " \
+       "table a generated migration created" do
+      app do |directory|
+        skyward("migration", "create_todos", chdir: directory)
+        skyward("migrate", chdir: directory)
+
+        assert_equal [0, nothing, 0],
+                     [replace_todo(directory), skyward("migration", "again", chdir: directory),
+                      skyward("status", chdir: directory).last]
+      end
+    end
+
+    it "prints a class that leaves skyward migration nothing to write, and skyward status nothing to report, for a " \
+       "table written by hand, with PostgreSQL's default constraint names" do
+      app do |directory|
+        adapter = empty.adapter
+        integer, text, date, bool, time = %i[integer string date bool time].map { |type| adapter.sql_type(type) }
+        FileUtils.mkdir_p(File.join(directory, "db/migrate"))
+        File.write(File.join(directory, "db/migrate/20261001000000_by_hand.sql"), <<~SQL)
+          CREATE TABLE lists (id #{empty.primary_key}, name #{text} NOT NULL);
+          CREATE TABLE todos (
+            id #{empty.primary_key},
+            list_id #{integer} NOT NULL REFERENCES lists ON DELETE CASCADE,
+            title #{text} NOT NULL CHECK (length(title) BETWEEN 1 AND 200),
+            priority #{text} NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high')),
+            due_on #{date},
+            done #{bool} NOT NULL DEFAULT #{Skyward::ORM::Migrations::Definitions.literal(adapter.encode(false))},
+            created_at #{time} NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX todos_list_id_done_idx ON todos (list_id, done);
+        SQL
+        skyward("migrate", chdir: directory)
+
+        assert_equal [0, nothing, 0],
+                     [replace_todo(directory), skyward("migration", "again", chdir: directory),
+                      skyward("status", chdir: directory).last]
+      end
+    end
+
+    describe "on SQLite" do
+      let(:empty) { TestDatabase.empty("sqlite") }
+
+      it "prints a class whose defaults skyward migration rewrites once, where no value writes one back as SQLite " \
+         "keeps it, and then has nothing to write" do
+        app do |directory|
+          FileUtils.mkdir_p(File.join(directory, "db/migrate"))
+          File.write(File.join(directory, "db/migrate/20261001000000_by_hand.sql"), <<~SQL)
+            CREATE TABLE lists (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+            CREATE TABLE todos (
+              id INTEGER PRIMARY KEY,
+              estimate NUMERIC NOT NULL DEFAULT (1.50),
+              done BOOLEAN NOT NULL DEFAULT TRUE,
+              created_at DATETIME NOT NULL DEFAULT '2026-01-02 03:04:05'
+            );
+          SQL
+          skyward("migrate", chdir: directory)
+          replace_todo(directory)
+          output, status = skyward("migration", "rewrite_defaults", chdir: directory)
+          skyward("migrate", chdir: directory)
+          rewritten = <<~TEXT
+            Todo differs from the todos table:
+              ~ estimate    DEFAULT 1.5, was DEFAULT 1.50
+              ~ done        DEFAULT 1, was DEFAULT TRUE
+              ~ created_at  DEFAULT '2026-01-02 03:04:05.000000', was DEFAULT '2026-01-02 03:04:05'
+            Wrote db/migrate/TIMESTAMP_rewrite_defaults.sql. Review it, then run `skyward migrate`.
+          TEXT
+
+          assert_equal [[rewritten, 0], nothing],
+                       [[output.sub(/\d{14}/, "TIMESTAMP"), status], skyward("migration", "again", chdir: directory)]
+        end
+      end
+    end
+
+    it "shows how to use it, and exits 1, without a table" do
+      app do |directory|
+        assert_equal ["#{Skyward::ORM::CLI::Scaffold::USAGE}\n", 1], skyward("scaffold", chdir: directory)
+      end
+    end
+  end
 end

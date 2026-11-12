@@ -119,7 +119,7 @@ describe Skyward::ORM::Migrations::Status do
     end
 
     it "follows with how each class differs from the database, as skyward migration says, then what each table " \
-       "keeps, then each table with no class" do
+       "keeps, then each table with no class, and how to scaffold one" do
       expected = <<~TEXT
         Migrations:
           20261001000000_create_a.sql  pending
@@ -130,6 +130,7 @@ describe Skyward::ORM::Migrations::Status do
         These tables have no class, so `skyward migration` leaves them alone:
           legacy
           old_todos
+        Run `skyward scaffold TABLE` to print a class for one.
       TEXT
       kept = [[list, %w[lists_lower_name_index unnamed]]]
 
