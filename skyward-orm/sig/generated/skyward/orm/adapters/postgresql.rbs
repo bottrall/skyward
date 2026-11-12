@@ -19,8 +19,9 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   TRAILING_ZEROS: Regexp
 
-  # PostgreSQL reads a literal default back cast to its type, as 'normal'::text,
-  # and quotes a number that isn't a plain integer or decimal, as '-1'::integer.
+  # PostgreSQL reads a literal default back cast to its type, as 'normal'::text
+  # or '{}'::text[], and quotes a number that isn't a plain integer or decimal,
+  # as '-1'::integer.
   CAST: Regexp
 
   NUMERIC: Regexp
@@ -32,6 +33,8 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   # Each value comes back as text, and a boolean as t or f.
   TRUE_TEXT: String
+
+  FALSE_TEXT: String
 
   VIOLATIONS: Hash[String, Skyward::ORM::violation_kind]
 
@@ -78,9 +81,9 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String?
   def unlimited: () -> String?
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String?
-  def sql_type: (Skyward::ORM::Tables::column_type type) -> String?
+  def sql_type: (Skyward::ORM::Tables::Column column) -> String?
 
   # @rbs return: String?
   def identity: () -> String?
@@ -105,10 +108,14 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String
   def default_expression: (String expression) -> String
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs default: String
+  # @rbs return: String
+  def catalog_default: (String default) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs sql_type: String
   # @rbs return: bool
-  def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
+  def compatible?: (Skyward::ORM::Tables::Column column, String sql_type) -> bool
 
   # PostgreSQL compares numeric as it is.
   # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
@@ -123,10 +130,17 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: untyped
   def encode: (untyped value) -> untyped
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # The encoder quotes each item that needs it, the string NULL included. A
+  # boolean is written as PostgreSQL writes one back, so a default reads back
+  # as it was written.
+  # @rbs items: Array[untyped]
+  # @rbs return: String
+  def encode_array: (Array[untyped] items) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
-  def decode: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+  def decode: (Skyward::ORM::Tables::Column column, untyped value) -> untyped
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
   def tables: (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
@@ -137,6 +151,16 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   private
 
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs sql_type: String
+  # @rbs return: bool
+  def accepts?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def scalar: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+
   # @rbs rows: Array[Array[untyped]]
   # @rbs return: Array[Skyward::ORM::Catalog::Index]
   def indexes: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Index]
@@ -144,10 +168,6 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs rows: Array[Array[untyped]]
   # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
   def constraints: (Array[Array[untyped]] rows) -> Array[Skyward::ORM::Catalog::Constraint]
-
-  # @rbs expression: String?
-  # @rbs return: String?
-  def default: (String? expression) -> String?
 
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]
   # @rbs table: String?

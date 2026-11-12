@@ -53,7 +53,16 @@ describe "Skyward's types" do
         settings: {
           "retries" => [{ "delay" => 0.5, "limit" => 2**64, "until" => nil, "on" => false, "headers" => {} }],
           "ünïcode" => "✓"
-        }
+        },
+        counts: [-42, 2**62],
+        ratios: [0.1, -2.5e-8],
+        amounts: [BigDecimal("12345678901234567890.123456789"), BigDecimal("-0.5")],
+        # The characters PostgreSQL's array text quotes, and the string it reads as NULL unquoted.
+        titles: ["a,b", "say \"hi\"", "{braced}", "back\\slash", "NULL", "", "Ünïcode"],
+        flags: [true, false],
+        due_ons: [Date.new(2028, 2, 29), Date.new(1970, 1, 1)],
+        due_ats: [due_at],
+        priorities: %i[high low]
       }
 
       # Inserts a row, posts back what the API returned for it, and answers
@@ -81,7 +90,8 @@ describe "Skyward's types" do
           nullable_due_on: Date.new(1970, 1, 1),
           nullable_due_at: Time.new(1999, 12, 31, 23, 59, Rational("59.999999"), "-03:00"),
           nullable_priority: :low,
-          nullable_settings: {}
+          nullable_settings: {},
+          nullable_titles: []
         }
         got, row = round_trip(values.merge(nullables))
 
@@ -113,8 +123,13 @@ describe "Skyward's types" do
       it "agrees with the ORM's columns on each name, type, nullability and enum" do
         component = client.get("/openapi.json").json.dig(:components, :schemas, :"TypesFixtures.Everything")
         columns = database.column_types.columns(TypesFixtures::Everything)
+        enum = ->(column) { { type: "string", enum: column.symbols.map(&:name) } }
         expected = columns.to_h do |column|
-          type = documented.fetch(column.type) { { type: "string", enum: column.symbols.map(&:name) } }
+          type = if column.type == :array
+                   { type: "array", items: documented.fetch(column.element) { enum.call(column) } }
+                 else
+                   documented.fetch(column.type) { enum.call(column) }
+                 end
           schema = if !column.nullable then type
                    elsif column.type == :enum then { anyOf: [type, { type: "null" }] }
                    else type.merge(type: [type.fetch(:type), "null"])
@@ -142,7 +157,6 @@ describe "Skyward's types" do
     # fails until the list says which gems read it.
     known = {
       "Hash[String, Integer]" => %i[api],
-      "Array[Integer]" => %i[api],
       "{ id: Integer }" => %i[api],
       "TypesFixtures::Item" => %i[api],
       "TypesFixtures::Item | TypesFixtures::Tag" => %i[api],

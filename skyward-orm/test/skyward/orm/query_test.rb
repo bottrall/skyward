@@ -51,7 +51,7 @@ describe Skyward::ORM::Query do
   let(:check) { false }
   let(:connection) do
     types = empty.adapter
-    integer = types.sql_type(:integer)
+    integer, date, bool, time = %i[integer date bool time].map { |type| types.sql_type(TestDatabase.column(type)) }
     empty.connect.tap do |connection|
       connection.execute("CREATE TABLE lists (id #{integer} PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
       connection.execute("INSERT INTO lists VALUES (1, 'Home'), (2, 'Work')")
@@ -60,8 +60,7 @@ describe Skyward::ORM::Query do
         "CREATE TABLE todos (id #{integer} PRIMARY KEY, " \
         "list_id #{integer} CONSTRAINT todos_list_id_fkey REFERENCES lists ON DELETE RESTRICT, " \
         "title TEXT NOT NULL CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200), " \
-        "priority TEXT, due_on #{types.sql_type(:date)}, done #{types.sql_type(:bool)}, " \
-        "created_at #{types.sql_type(:time)})"
+        "priority TEXT, due_on #{date}, done #{bool}, created_at #{time})"
       )
       connection.execute(
         "CREATE TABLE searches (id #{integer} PRIMARY KEY, title TEXT NOT NULL, " \
@@ -135,8 +134,9 @@ describe Skyward::ORM::Query do
     end
 
     it "binds a Hash for a JSON column as one value, its JSON, and sets it" do
-      json = adapter.sql_type(:json)
-      connection.execute("CREATE TABLE webhooks (id #{adapter.sql_type(:integer)}, settings #{json}, payload #{json})")
+      json = adapter.sql_type(TestDatabase.column(:json))
+      integer = adapter.sql_type(TestDatabase.column(:integer))
+      connection.execute("CREATE TABLE webhooks (id #{integer}, settings #{json}, payload #{json})")
       connection.execute(%(INSERT INTO webhooks VALUES (1, '{}', NULL)))
       webhooks = Skyward::ORM::Query.new(TablesFixtures::Webhook, session)
       sent = traced { webhooks.where(id: 1).update(settings: { "on" => [true] }, payload: nil) }
@@ -146,6 +146,30 @@ describe Skyward::ORM::Query do
         [TablesFixtures::Webhook.new(id: 1, settings: { "on" => [true] }, payload: nil)]
       ],
                    [sent.first, webhooks.to_a]
+    end
+
+    it "binds an Array for an Array column as one value, and sets it" do
+      columns = %i[integer float decimal string bool date time].map do |element|
+        "#{element}s #{adapter.sql_type(TestDatabase.column(:array, element:))}"
+      end
+      strings = adapter.sql_type(TestDatabase.column(:array, element: :string))
+      connection.execute(
+        "CREATE TABLE arrays (id #{adapter.sql_type(TestDatabase.column(:integer))}, #{columns.join(", ")}, " \
+        "weekdays #{strings}, tags #{strings})"
+      )
+      connection.execute("INSERT INTO arrays (id) VALUES (1)")
+      arrays = Skyward::ORM::Query.new(TablesFixtures::Arrayed, session)
+      sent = traced { arrays.where(id: 1).update(strings: ["a,b", ""], weekdays: %i[mon fri], tags: nil) }
+      encoded = [["a,b", ""], %w[mon fri]].map { |items| adapter.encode_array(items) }
+
+      assert_equal [
+        empty.shown(
+          %(UPDATE "arrays" SET "strings" = ?, "weekdays" = ?, "tags" = ? WHERE "id" = ?),
+          [*encoded, nil, 1]
+        ),
+        [[["a,b", ""], %i[mon fri], nil]]
+      ],
+                   [sent.first, arrays.map { |row| [row.strings, row.weekdays, row.tags] }]
     end
 
     it "returns 0 when no row matches" do

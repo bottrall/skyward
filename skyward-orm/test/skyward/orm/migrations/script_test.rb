@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "pg"
 require "sqlite3"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 require_relative "../../../fixtures/tables/tables_fixtures"
@@ -112,6 +113,36 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal [
         "  price     numeric NOT NULL DEFAULT 1.5,\n  fee       numeric NOT NULL DEFAULT -2.0,\n  discount  numeric\n",
         "  price     TEXT    NOT NULL DEFAULT 1.5,\n  fee       TEXT    NOT NULL DEFAULT -2.0,\n  discount  TEXT\n"
+      ],
+                   columns
+    end
+
+    it "writes an Array column as its element's type with [] on PostgreSQL and TEXT on SQLite, with its default" do
+      columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Shelf)], adapter).lines[2..10].join }
+
+      assert_equal [
+        <<~PG.gsub(/^/, "  "),
+          integers  bigint[]           NOT NULL DEFAULT '{}',
+          floats    double precision[] NOT NULL DEFAULT '{1.0e+20,-1.5}',
+          decimals  numeric[]          NOT NULL DEFAULT '{2.0,0.5}',
+          strings   text[]             NOT NULL DEFAULT '{it''s,"a,b","say \\"hi\\"","NULL",""}',
+          bools     boolean[]          NOT NULL DEFAULT '{t,f}',
+          dates     date[]             NOT NULL DEFAULT '{2026-10-18}',
+          times     timestamptz[]      NOT NULL DEFAULT '{"2026-10-18 09:30:00.5+00"}',
+          weekdays  text[]             NOT NULL DEFAULT '{mon}',
+          tags      text[]
+        PG
+        <<~SQLITE.gsub(/^/, "  ")
+          integers  TEXT    NOT NULL DEFAULT '[]',
+          floats    TEXT    NOT NULL DEFAULT '[1e+20,-1.5]',
+          decimals  TEXT    NOT NULL DEFAULT '["2.0","0.5"]',
+          strings   TEXT    NOT NULL DEFAULT '["it''s","a,b","say \\"hi\\"","NULL",""]',
+          bools     TEXT    NOT NULL DEFAULT '[true,false]',
+          dates     TEXT    NOT NULL DEFAULT '["2026-10-18"]',
+          times     TEXT    NOT NULL DEFAULT '["2026-10-18 09:30:00.500000"]',
+          weekdays  TEXT    NOT NULL DEFAULT '["mon"]',
+          tags      TEXT
+        SQLITE
       ],
                    columns
     end
@@ -390,6 +421,17 @@ describe Skyward::ORM::Migrations::Script do
         assert_empty diff.call
       end
 
+      it "creates Array columns, and then finds nothing to change, their defaults included" do
+        diff = lambda do
+          Skyward::ORM::Migrations::Diff.changes(
+            [fixtures::Shelf], column_types, adapter.tables(connection), adapter, ->(*) { true }
+          )
+        end
+        migrate(section(diff.call, :up))
+
+        assert_empty diff.call
+      end
+
       it "creates BigDecimal columns, and then finds nothing to change, their defaults included" do
         diff = lambda do
           Skyward::ORM::Migrations::Diff.changes(
@@ -457,7 +499,7 @@ describe Skyward::ORM::Migrations::Script do
       it "numbers an int32 or int16 primary key" do
         migrate(section([create(fixtures::Counter), create(fixtures::Tally)], :up))
         ids = ["INSERT INTO counters (hits) VALUES (1) RETURNING id", "INSERT INTO tallies DEFAULT VALUES RETURNING id"]
-              .map { |sql| adapter.decode(:int32, connection.execute(sql).dig(0, 0)) }
+              .map { |sql| adapter.decode(TestDatabase.column(:int32), connection.execute(sql).dig(0, 0)) }
 
         assert_equal [1, 1], ids
       end

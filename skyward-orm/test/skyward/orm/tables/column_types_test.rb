@@ -10,7 +10,9 @@ describe Skyward::ORM::Tables::ColumnTypes do
     refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS
   )
   column_types = "A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, " \
-                 "a union of symbols or Hash[String, untyped], any of them nullable, or untyped."
+                 "a union of symbols, Hash[String, untyped] or Array[T], any of them nullable, or untyped."
+  elements = "An Array column is Array[T], where T is Integer, Float, BigDecimal, String, bool, Date, Time " \
+             "or a union of symbols, and isn't nullable."
   fixtures = File.expand_path("../../../fixtures/tables/tables_fixtures.rb", __dir__).delete_prefix("#{Dir.pwd}/")
   source = File.readlines(fixtures, chomp: true)
 
@@ -40,8 +42,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
 
   let(:types) { Skyward::ORM::Tables::ColumnTypes.new(reader) }
 
-  def column(name, type, nullable: false, symbols: [])
-    Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols:)
+  def column(name, type, nullable: false, symbols: [], element: nil)
+    Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols:, element:)
   end
 
   def refusal(klass)
@@ -105,6 +107,17 @@ describe Skyward::ORM::Tables::ColumnTypes do
       assert_equal expected, types.columns(TablesFixtures::Refined)
     end
 
+    it "maps an Array of each element type, keeping a symbol union's symbols, and a nullable one" do
+      expected = [
+        column(:id, :integer),
+        *%i[integer float decimal string bool date time].map { |element| column(:"#{element}s", :array, element:) },
+        column(:weekdays, :array, element: :enum, symbols: %i[mon tue wed thu fri]),
+        column(:tags, :array, nullable: true, element: :string)
+      ]
+
+      assert_equal expected, types.columns(TablesFixtures::Arrayed)
+    end
+
     it "resolves a row class's members, untyped where its signature has no reader" do
       expected = [column(:title, :string), column(:due_on, :date), column(:note, :untyped)]
 
@@ -156,10 +169,25 @@ describe Skyward::ORM::Tables::ColumnTypes do
                    refusal(TablesFixtures::Classed)
     end
 
-    it "refuses an array as not a column type yet" do
-      assert_equal "TablesFixtures::Listed#tags is Array[String]?, which isn't a column type yet. #{column_types}" \
-                   "#{excerpt(TablesFixtures::Listed, ":tags")}",
-                   refusal(TablesFixtures::Listed)
+    {
+      "an Array of a nullable type" => [TablesFixtures::Listed, :tags, "Array[String?]"],
+      "an Array of Arrays" => [TablesFixtures::Grid, :rows, "Array[Array[Integer]]"],
+      "an Array of untyped" => [TablesFixtures::Loose, :items, "Array[untyped]"],
+      "an Array of a Hash" => [TablesFixtures::Documented, :documents, "Array[Hash[String, untyped]]"],
+      "an Array of a record" => [TablesFixtures::Plotted, :coordinates, "Array[{ x: Integer, y: Integer }]"],
+      "an Array of a class" => [TablesFixtures::Grouped, :lists, "Array[TablesFixtures::List]"]
+    }.each do |refused, (klass, name, written)|
+      it "refuses #{refused}, saying what an element can be" do
+        assert_equal "#{klass}##{name} is #{written}, which isn't a column type. #{elements}" \
+                     "#{excerpt(klass, ":#{name}")}",
+                     refusal(klass)
+      end
+    end
+
+    it "refuses an Array of one of Skyward ORM's aliases as not a column type yet" do
+      assert_equal "TablesFixtures::Identified#ids is Array[Skyward::ORM::uuid], which isn't a column type yet. " \
+                   "#{elements}#{excerpt(TablesFixtures::Identified, ":ids")}",
+                   refusal(TablesFixtures::Identified)
     end
 
     it "refuses a hash of anything but untyped, pointing at Hash[String, untyped]" do

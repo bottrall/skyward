@@ -40,9 +40,9 @@ module Skyward::ORM::Database::SchemaCheck
 
     stored = "#{table.name}.#{name}"
     declared = "#{klass}##{name}"
-    type = "#{stored} is #{found.type}, but #{declared} needs #{adapter.sql_type(column.type)}."
+    type = "#{stored} is #{found.type}, but #{declared} needs #{adapter.sql_type(column)}."
     [
-      (type unless adapter.compatible?(column.type, found.type)),
+      (type unless adapter.compatible?(column, found.type)),
       (nullability(stored, declared, found.nullable) unless found.nullable == column.nullable)
     ].compact.map { |problem| [name.to_s, problem, "#{MIGRATE} Or change #{declared}'s type to match."] }
   end

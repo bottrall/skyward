@@ -14,6 +14,10 @@ module Skyward::ORM::Migrations::Runner
 
   DOWN = /^[ \t]*-- down[ \t]*$/ #: Regexp
 
+  RAN_AT = Skyward::ORM::Tables::Column.new(
+    name: :ran_at, type: :time, nullable: false, symbols: [], element: nil
+  ) #: Skyward::ORM::Tables::Column
+
   # @rbs path: String
   # @rbs return: Array[Migration]
   def read(path)
@@ -150,7 +154,7 @@ module Skyward::ORM::Migrations::Runner
     begin
       connection.execute(
         "CREATE TABLE IF NOT EXISTS #{TABLE} (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
-        "ran_at #{adapter.sql_type(:time)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+        "ran_at #{adapter.sql_type(RAN_AT)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
       )
       connection.execute("COMMIT")
       settled = true

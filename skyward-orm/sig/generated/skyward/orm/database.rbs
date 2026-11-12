@@ -207,10 +207,9 @@ class Skyward::ORM::Database
   def build: (singleton(Skyward::ORM::Record) table, Class row, Array[Symbol] expressed) -> ^(Array[untyped]) -> untyped
 
   # @rbs row: Class
-  # @rbs members: Array[Symbol]
-  # @rbs types: Array[Skyward::ORM::Tables::column_type]
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
   # @rbs return: ^(Array[untyped]) -> untyped
-  def compile: (Class row, Array[Symbol] members, Array[Skyward::ORM::Tables::column_type] types) -> ^(Array[untyped]) -> untyped
+  def compile: (Class row, Array[Skyward::ORM::Tables::Column] columns) -> ^(Array[untyped]) -> untyped
 
   # Raw SQL returns rows, with no room for a violation, so one raises.
   # @rbs sql: String

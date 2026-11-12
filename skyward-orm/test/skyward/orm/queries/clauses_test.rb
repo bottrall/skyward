@@ -33,13 +33,12 @@ describe Skyward::ORM::Queries::Clauses do
   let(:connection) do
     types = empty.adapter
     definitions = Skyward::ORM::Tables::ColumnTypes.new(reader).columns(todo).map do |column|
-      "#{column.name} #{types.sql_type(column.type)}"
+      "#{column.name} #{types.sql_type(column)}"
     end
     empty.connect.tap do |connection|
       connection.execute("CREATE TABLE todos (#{definitions.join(", ")}, PRIMARY KEY (id))")
-      connection.execute(
-        "CREATE TABLE lists (id #{types.sql_type(:integer)} PRIMARY KEY, name #{types.sql_type(:string)} NOT NULL)"
-      )
+      integer, string = %i[integer string].map { |type| types.sql_type(TestDatabase.column(type)) }
+      connection.execute("CREATE TABLE lists (id #{integer} PRIMARY KEY, name #{string} NOT NULL)")
     end
   end
   let(:sent) { [] }
@@ -78,10 +77,10 @@ describe Skyward::ORM::Queries::Clauses do
   let(:home) { list.new(id: 1, name: "Home") }
   # Prices whose text sorts 10.5 and 100 before 9.
   let(:products) do
-    decimal = adapter.sql_type(:decimal)
+    decimal = adapter.sql_type(TestDatabase.column(:decimal))
     connection.execute(
-      "CREATE TABLE products (id #{adapter.sql_type(:integer)} PRIMARY KEY, price #{decimal} NOT NULL, " \
-      "discount #{decimal})"
+      "CREATE TABLE products (id #{adapter.sql_type(TestDatabase.column(:integer))} PRIMARY KEY, " \
+      "price #{decimal} NOT NULL, discount #{decimal})"
     )
     prices = %w[10.5 9 100 2].map { |price| BigDecimal(price) }
     insert(*prices.each.with_index(1).map { |price, id| product.new(id:, price:, discount: nil) })
@@ -294,6 +293,15 @@ describe Skyward::ORM::Queries::Clauses do
                    query.where(priority: %i[high normal]).to_sql
     end
 
+    it "matches an Array column only to nil, refusing an Array, which could mean IN or the whole Array" do
+      arrays = Skyward::ORM::Query.new(TablesFixtures::Arrayed, session)
+      error = assert_raises(ArgumentError) { arrays.where(tags: %w[milk]) }
+
+      assert_equal [%(WHERE "tags" IS NULL), "TablesFixtures::Arrayed.tags is an Array column, which where matches " \
+                                             "only to nil. Match its contents with an SQL string."],
+                   [arrays.where(tags: nil).to_sql.first[/WHERE.*/], error.message]
+    end
+
     it "matches nothing with an empty array, without IN ()" do
       assert_equal [%(#{select} WHERE 1 = 0), []], query.where(id: []).to_sql
     end
@@ -452,6 +460,13 @@ describe Skyward::ORM::Queries::Clauses do
 
     it "negates IS NULL, leaving out only the NULL rows" do
       assert_equal [%(#{select} WHERE NOT ("due_on" IS NULL)), []], query.exclude(due_on: nil).to_sql
+    end
+
+    it "takes only nil for an Array column, as where does" do
+      arrays = Skyward::ORM::Query.new(TablesFixtures::Arrayed, session)
+
+      assert_equal %(WHERE NOT ("tags" IS NULL)), arrays.exclude(tags: nil).to_sql.first[/WHERE.*/]
+      assert_raises(ArgumentError) { arrays.exclude(tags: []) }
     end
 
     it "negates several conditions together, joined with AND to the conditions before it" do

@@ -237,7 +237,7 @@ describe Skyward do
         lock = execution(adapter.begin_migration)
         unlock = [adapter.end_migration].compact.map { |sql| execution(sql) }
         create = "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
-                 "ran_at #{adapter.sql_type(:time)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+                 "ran_at #{adapter.sql_type(TestDatabase.column(:time))} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         pending = shown("SELECT 1 FROM schema_migrations WHERE version = ?", migration.version)
         record = shown(
           "INSERT INTO schema_migrations (version, checksum) VALUES (?, ?)",
@@ -375,7 +375,7 @@ describe Skyward do
   describe ".query" do
     before do
       Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false)
-      due_on, done = %i[date bool].map { |type| empty.adapter.sql_type(type) }
+      due_on, done = %i[date bool].map { |type| empty.adapter.sql_type(TestDatabase.column(type)) }
       Skyward.query("CREATE TABLE todos (title TEXT NOT NULL, due_on #{due_on}, done #{done} NOT NULL)")
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Milk", Date.new(2026, 10, 1), false)
       Skyward.query("INSERT INTO todos VALUES (?, ?, ?)", "Eggs", Date.today + 1, false)

@@ -28,4 +28,16 @@ module PG
   class Error < StandardError
     def result: () -> Result?
   end
+
+  module TextEncoder
+    class Array
+      def encode: (::Array[untyped] value) -> String
+    end
+  end
+
+  module TextDecoder
+    class Array
+      def decode: (String value) -> ::Array[untyped]
+    end
+  end
 end

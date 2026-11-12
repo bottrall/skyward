@@ -9,6 +9,8 @@ module Skyward::ORM::Tables::Values
 
   RANGES: Hash[Symbol, Range[Integer]]
 
+  WHOLE: Hash[Symbol, String]
+
   UNTYPED: String
 
   UNTYPED_WRITE: String
@@ -20,7 +22,8 @@ module Skyward::ORM::Tables::Values
   def mismatch: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Tables::Column column, untyped value) -> String?
 
   # A write binds each value to one placeholder, so an Array or a Range, which
-  # a where unpacks, is never one value, and the driver can't bind a Range.
+  # a where unpacks, is never one value, but for an Array column's whole Array,
+  # and the driver can't bind a Range.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
@@ -28,6 +31,18 @@ module Skyward::ORM::Tables::Values
   def write_mismatch: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Tables::Column column, untyped value) -> String?
 
   private
+
+  # SQLite holds the Array as JSON, which has no Infinity, so neither adapter
+  # takes one in an Array, though a Float column does.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def array_mismatch: (singleton(Skyward::ORM::Record) table, Skyward::ORM::Tables::Column column, untyped value) -> String?
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs return: Skyward::ORM::Tables::Column
+  def item: (Skyward::ORM::Tables::Column column) -> Skyward::ORM::Tables::Column
 
   # A row reads back == to the one written only when its JSON holds each value
   # as it is: a Symbol or a Time would come back a String.

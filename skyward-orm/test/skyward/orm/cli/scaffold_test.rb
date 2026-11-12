@@ -45,9 +45,9 @@ describe Skyward::ORM::CLI::Scaffold do
     )
   end
 
-  def integer = empty.adapter.sql_type(:integer)
+  def integer = empty.adapter.sql_type(TestDatabase.column(:integer))
 
-  def text = empty.adapter.sql_type(:string)
+  def text = empty.adapter.sql_type(TestDatabase.column(:string))
 
   def give_key = "Give the table one in a `skyward migration --empty` migration, then scaffold it."
 

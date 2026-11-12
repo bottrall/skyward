@@ -99,6 +99,32 @@ module MigrationsFixtures
     attr_reader :id, :price, :fee, :discount
   end
 
+  # An Array column of each element type: with an empty default, with ones
+  # PostgreSQL reads back cast or respells, and a nullable one without.
+  class Shelf < Skyward::ORM::Record
+    table :shelves
+    default integers: [],
+            floats: [1e20, -1.5],
+            decimals: [2, BigDecimal("0.5")],
+            strings: ["it's", "a,b", 'say "hi"', "NULL", ""],
+            bools: [true, false],
+            dates: [Date.new(2026, 10, 18)],
+            times: [Time.utc(2026, 10, 18, 9, 30, 1/2r)],
+            weekdays: %i[mon]
+
+    attr_reader :id, :integers, :floats, :decimals, :strings, :bools, :dates, :times, :weekdays, :tags
+  end
+
+  # Defaults written as SQL with the cast PostgreSQL reads a literal back
+  # without, as 0.3.0's scaffold wrote a text[] column's: tags untyped, as
+  # 0.3.0 read one, and labels typed.
+  class Crate < Skyward::ORM::Record
+    table :crates
+    default tags: Skyward.sql("'{}'::text[]"), labels: Skyward.sql("'{}'::text[]"), kind: Skyward.sql("'normal'::text")
+
+    attr_reader :id, :tags, :labels, :kind
+  end
+
   # The README's rework_todos: notes renamed to details, due_on required, and
   # an index on it.
   def self.rework_todos

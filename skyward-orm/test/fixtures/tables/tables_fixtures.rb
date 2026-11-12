@@ -43,6 +43,13 @@ module TablesFixtures
     attr_reader :id, :price, :discount
   end
 
+  # An Array column of each element type, and a nullable one.
+  class Arrayed < Skyward::ORM::Record
+    table :arrays
+
+    attr_reader :id, :integers, :floats, :decimals, :strings, :bools, :dates, :times, :weekdays, :tags
+  end
+
   class Typed < Skyward::ORM::Record
     attr_reader :integer,
                 :float,
@@ -78,6 +85,26 @@ module TablesFixtures
 
   class Listed < Skyward::ORM::Record
     attr_reader :tags
+  end
+
+  class Grid < Skyward::ORM::Record
+    attr_reader :rows
+  end
+
+  class Loose < Skyward::ORM::Record
+    attr_reader :items
+  end
+
+  class Documented < Skyward::ORM::Record
+    attr_reader :documents
+  end
+
+  class Plotted < Skyward::ORM::Record
+    attr_reader :coordinates
+  end
+
+  class Grouped < Skyward::ORM::Record
+    attr_reader :lists
   end
 
   class Recorded < Skyward::ORM::Record
@@ -134,6 +161,11 @@ module TablesFixtures
   # Its columns are typed with Skyward ORM's aliases.
   class Refined < Skyward::ORM::Record
     attr_reader :id, :logins, :rank, :invited_by
+  end
+
+  # Its column is an Array of one of Skyward ORM's aliases.
+  class Identified < Skyward::ORM::Record
+    attr_reader :ids
   end
 
   # Unsigned has no RBS declaration.

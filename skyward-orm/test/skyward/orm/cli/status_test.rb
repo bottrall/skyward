@@ -88,7 +88,7 @@ describe Skyward::ORM::CLI::Status do
 
     it "lists what a table keeps that its class can't declare, without exiting 1 for it" do
       app do |directory, connection|
-        text = empty.adapter.sql_type(:string)
+        text = empty.adapter.sql_type(TestDatabase.column(:string))
         connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name #{text} NOT NULL)")
         connection.execute("CREATE INDEX lists_lower_name_index ON lists (lower(name))")
         run_in(directory, classes: [MigrationsFixtures::List])
@@ -105,7 +105,7 @@ describe Skyward::ORM::CLI::Status do
 
     it "shows a column that may have been renamed as one dropped and one added, since it doesn't ask" do
       app do |directory, connection|
-        text = empty.adapter.sql_type(:string)
+        text = empty.adapter.sql_type(TestDatabase.column(:string))
         connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, title #{text} NOT NULL)")
         run_in(directory, classes: [MigrationsFixtures::List])
 

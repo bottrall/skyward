@@ -6,8 +6,8 @@ require_relative "../../../fixtures/tables/tables_fixtures"
 describe Skyward::ORM::Tables::Values do
   todo = TablesFixtures::Todo
 
-  def column(type, nullable: false, symbols: [])
-    Skyward::ORM::Tables::Column.new(name: :value, type:, nullable:, symbols:)
+  def column(type, nullable: false, symbols: [], element: nil)
+    Skyward::ORM::Tables::Column.new(name: :value, type:, nullable:, symbols:, element:)
   end
 
   def mismatch(column, value) = Skyward::ORM::Tables::Values.mismatch(TablesFixtures::Todo, column, value)
@@ -29,6 +29,29 @@ describe Skyward::ORM::Tables::Values do
         assert_equal(
           [refusal] * 4,
           [{}, { "a" => 1 }, [nil], {}..{}].map { |value| mismatch(column(:json, nullable: true), value) }
+        )
+      end
+    end
+
+    describe "on an Array column" do
+      it "takes nil for a nullable one" do
+        assert_nil mismatch(column(:array, nullable: true, element: :string), nil)
+      end
+
+      it "refuses nil for one that isn't nullable" do
+        assert_equal "#{todo}.value is Array[String], not nil (NilClass)",
+                     mismatch(column(:array, element: :string), nil)
+      end
+
+      it "refuses any other value, an Array included, since an Array would otherwise mean IN" do
+        refusal = "#{todo}.value is an Array column, which where matches only to nil. " \
+                  "Match its contents with an SQL string."
+
+        assert_equal(
+          [refusal] * 4,
+          [[], ["milk"], "milk", ["a"]..["b"]].map do |value|
+            mismatch(column(:array, nullable: true, element: :string), value)
+          end
         )
       end
     end
@@ -258,6 +281,75 @@ describe Skyward::ORM::Tables::Values do
           assert_equal "#{json}, not #{refused.inspect} (#{refused.class}) at value[\"events\"][1][\"at\"]",
                        write_mismatch(column(:json), value)
         end
+      end
+    end
+
+    describe "on an Array column" do
+      {
+        integer: ["Integer", [1, -2**62], 1.5],
+        float: ["Float", [1.5, -2], "1.5"],
+        decimal: ["BigDecimal", [BigDecimal("0.1"), 2, BigDecimal("Infinity")], 0.1],
+        string: ["String", ["milk", ""], :milk],
+        bool: ["bool", [true, false], 0],
+        date: ["Date", [Date.new(2026, 11, 11)], Time.utc(2026, 11, 11)],
+        time: ["Time", [Time.utc(2026, 11, 11, 9, 30)], Date.new(2026, 11, 11)]
+      }.each do |element, (written, taken, refused)|
+        it "takes an Array of #{written}, #{taken.map(&:inspect).join(" and ")}" do
+          assert_nil write_mismatch(column(:array, element:), taken)
+        end
+
+        it "refuses #{refused.inspect} in an Array of #{written}, naming its index" do
+          assert_equal "#{todo}.value is Array[#{written}], not #{refused.inspect} (#{refused.class}) at value[1]",
+                       write_mismatch(column(:array, element:), [*taken.take(1), refused])
+        end
+      end
+
+      it "takes an Array of a union's symbols, and refuses a symbol outside it, writing the union" do
+        weekdays = column(:array, element: :enum, symbols: %i[mon tue])
+
+        assert_equal [nil, "#{todo}.value is Array[:mon | :tue], not :sat (Symbol) at value[0]"],
+                     [write_mismatch(weekdays, %i[tue mon]), write_mismatch(weekdays, %i[sat])]
+      end
+
+      it "takes an empty Array" do
+        assert_nil write_mismatch(column(:array, element: :string), [])
+      end
+
+      it "takes nil for a nullable one" do
+        assert_nil write_mismatch(column(:array, nullable: true, element: :string), nil)
+      end
+
+      it "refuses nil for one that isn't nullable" do
+        assert_equal "#{todo}.value is Array[String], not nil (NilClass)",
+                     write_mismatch(column(:array, element: :string), nil)
+      end
+
+      it "refuses anything but an Array, writing a nullable one's type with ?" do
+        assert_equal ["#{todo}.value is Array[String], not \"milk\" (String)",
+                      "#{todo}.value is Array[String]?, not \"a\"..\"b\" (Range)"],
+                     [write_mismatch(column(:array, element: :string), "milk"),
+                      write_mismatch(column(:array, nullable: true, element: :string), "a".."b")]
+      end
+
+      it "refuses a nil item, even in a nullable one" do
+        assert_equal "#{todo}.value is Array[String]?, not nil (NilClass) at value[2]",
+                     write_mismatch(column(:array, nullable: true, element: :string), ["a", "b", nil])
+      end
+
+      it "names the first item that doesn't fit" do
+        assert_equal "#{todo}.value is Array[Integer], not \"2\" (String) at value[1]",
+                     write_mismatch(column(:array, element: :integer), [1, "2", :three])
+      end
+
+      it "refuses Infinity, -Infinity and NaN in an Array of Float, since SQLite's JSON has none" do
+        assert_equal(
+          [Float::INFINITY, -Float::INFINITY, Float::NAN].map do |refused|
+            "#{todo}.value is Array[Float], not #{refused} (Float) at value[0]"
+          end,
+          [Float::INFINITY, -Float::INFINITY, Float::NAN].map do |refused|
+            write_mismatch(column(:array, element: :float), [refused])
+          end
+        )
       end
     end
 

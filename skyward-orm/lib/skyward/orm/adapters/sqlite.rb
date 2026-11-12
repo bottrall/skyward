@@ -18,7 +18,8 @@ module Skyward::ORM::Adapters::SQLite
     uuid: "TEXT",
     int32: "INTEGER",
     int16: "INTEGER",
-    json: "TEXT"
+    json: "TEXT",
+    array: "TEXT"
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # Fixed width and UTC, so text order is time order, and to the microsecond,
@@ -137,9 +138,9 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def unlimited = "LIMIT -1"
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String?
-  def sql_type(type) = SQL_TYPES[type]
+  def sql_type(column) = SQL_TYPES[column.type]
 
   # An INTEGER PRIMARY KEY is SQLite's rowid, which numbers rows on its own.
   # @rbs return: String?
@@ -155,13 +156,20 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def default_expression(expression) = "(#{expression})"
 
+  # The catalog puts back the parentheses SQLite drops, so it reads a default
+  # back as it was written.
+  # @rbs default: String
+  # @rbs return: String
+  def catalog_default(default) = default
+
   # SQLite stores a value by its column's affinity, which it reads from the
   # declared type, so any declared type with the same affinity is compatible,
   # and for NUMERIC_SAFE types, NUMERIC as well.
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs sql_type: String
   # @rbs return: bool
-  def compatible?(type, sql_type)
+  def compatible?(column, sql_type)
+    type = column.type
     expected = SQL_TYPES[type]
     declared = affinity(sql_type)
     expected.nil? || declared == affinity(expected) || (declared == :numeric && NUMERIC_SAFE.include?(type))
@@ -195,20 +203,31 @@ module Skyward::ORM::Adapters::SQLite
     end
   end
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # JSON holds a boolean as one, where a column holds it as 0 or 1.
+  # @rbs items: Array[untyped]
+  # @rbs return: String
+  def encode_array(items)
+    JSON.generate(
+      items.map do |item|
+        case item
+        when true, false then item
+        else encode(item)
+        end
+      end
+    )
+  end
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
-  def decode(type, value)
-    case type
-    when :bool then value != 0
-    when :decimal then BigDecimal(value)
-    when :date then Date.iso8601(value)
-    when :time then Time.new(value, in: "UTC")
-    when :enum then value.to_sym
-    when :json then JSON.parse(value, freeze: true)
-    # Rows are values, so even what the driver returns as it is comes back frozen.
-    else value.freeze
-    end
+  def decode(column, value)
+    element = column.element
+    return scalar(column.type, value) unless element
+
+    items = JSON.parse(value)
+    raise TypeError, "#{value} isn't a JSON array" unless items.is_a?(Array)
+
+    items.map { |entry| item(element, entry).freeze }.freeze
   end
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
@@ -281,6 +300,36 @@ module Skyward::ORM::Adapters::SQLite
   end
 
   private
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def scalar(type, value)
+    case type
+    when :bool then value != 0
+    when :decimal then BigDecimal(value)
+    when :date then Date.iso8601(value)
+    when :time then Time.new(value, in: "UTC")
+    when :enum then value.to_sym
+    when :json then JSON.parse(value, freeze: true)
+    # Rows are values, so even what the driver returns as it is comes back frozen.
+    else value.freeze
+    end
+  end
+
+  # An Array[Float]'s JSON may hold an Integer, as an Array[Float] takes one.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def item(type, value)
+    case type
+    when :bool then value
+    when :float then Float(value)
+    # Only a String names a Symbol, and JSON may hold any value.
+    when :enum then String.try_convert(value)&.to_sym
+    else scalar(type, value)
+    end
+  end
 
   # @rbs sql_type: String
   # @rbs return: Symbol

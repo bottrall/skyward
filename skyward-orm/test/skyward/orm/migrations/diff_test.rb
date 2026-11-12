@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "pg"
 require "sqlite3"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 require_relative "../../../fixtures/changes/changes_fixtures"
@@ -381,6 +382,46 @@ describe Skyward::ORM::Migrations::Diff do
       end
     end
 
+    describe "for an Array column" do
+      # The shelves table as the adapter reads back what a migration wrote,
+      # but with the floats column's default had.
+      def redefaulted(adapter, had)
+        columns = column_types.columns(MigrationsFixtures::Shelf).map do |column|
+          written = Skyward::ORM::Migrations::Definitions.default(MigrationsFixtures::Shelf, column, adapter)
+          Skyward::ORM::Catalog::Column.new(
+            name: column.name,
+            type: adapter.sql_type(column).to_s,
+            nullable: column.nullable,
+            default: column.name == :floats ? had : written,
+            generated: nil
+          )
+        end
+        tables = [Skyward::ORM::Catalog::Table.new(name: :shelves, columns:, indexes: [], constraints: [])]
+        Skyward::ORM::Migrations::Diff.changes([MigrationsFixtures::Shelf], column_types, tables, adapter, rename)
+                                      .flat_map(&:edits).grep(Skyward::ORM::Migrations::ChangeDefault)
+      end
+
+      postgres = Skyward::ORM::Adapters::PostgreSQL
+      sqlite = Skyward::ORM::Adapters::SQLite
+
+      it "compares the default by value, since PostgreSQL respells a float" do
+        assert_empty redefaulted(postgres, "'{1e+20,-1.5}'")
+      end
+
+      it "changes a default whose value differs" do
+        assert_equal [migrations::ChangeDefault.new(column: :floats, from: "'{1e+20}'", to: "'{1.0e+20,-1.5}'")],
+                     redefaulted(postgres, "'{1e+20}'")
+      end
+
+      it "changes a default that's an expression, or that the column can't read" do
+        assert_equal(
+          ["ARRAY[]::double precision[]", "'{x}'", "'nope'", "'5'"],
+          [[postgres, "ARRAY[]::double precision[]"], [postgres, "'{x}'"], [sqlite, "'nope'"], [sqlite, "'5'"]]
+            .flat_map { |adapter, had| redefaulted(adapter, had).map(&:from) }
+        )
+      end
+    end
+
     it "drops a constraint its class doesn't declare, and adds one it does" do
       title_check = item_table.constraints.find { |had| had.name == "items_title_check" }
       note_check = catalog::Constraint.new(
@@ -662,6 +703,27 @@ describe Skyward::ORM::Migrations::Diff do
       expected = catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil, generated: nil)
 
       assert_equal [[], expected, []], [created, notes, matches.call]
+    end
+
+    it "finds nothing to change once PostgreSQL has read back a default it was given as SQL with a cast" do
+      postgresql = Skyward::ORM::Adapters::PostgreSQL
+      connection = TestDatabase.empty("postgresql").connect
+      matches = lambda do
+        migrations::Diff.changes([fixtures::Crate], column_types, postgresql.tables(connection), postgresql, rename)
+      end
+      connection.execute(<<~SQL)
+        CREATE TABLE crates (
+          id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, tags text[] NOT NULL, labels text[] NOT NULL,
+          kind text NOT NULL
+        )
+      SQL
+      redefaulted = matches.call
+      connection.execute_batch(migrations::Script.write(redefaulted, postgresql).split("-- down\n").fetch(0))
+      expected = { tags: "'{}'::text[]", labels: "'{}'::text[]", kind: "'normal'::text" }.map do |column, to|
+        migrations::ChangeDefault.new(column:, from: nil, to:)
+      end
+
+      assert_equal [expected, []], [redefaulted.flat_map(&:edits), matches.call]
     end
   end
 

@@ -5,5 +5,5 @@ module Skyward::ORM::Tables
 
   type refinement = :uuid | :int32 | :int16
 
-  type column_type = Skyward::Core::Types::scalar | :enum | refinement | :json
+  type column_type = Skyward::Core::Types::scalar | :enum | refinement | :json | :array
 end

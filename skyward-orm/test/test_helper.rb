@@ -18,7 +18,9 @@ module TestDatabase
   Empty = Data.define(:url, :adapter, :location) do
     def connect = adapter.connect(location)
 
-    def primary_key = [adapter.sql_type(:integer), adapter.identity, "PRIMARY KEY"].compact.join(" ")
+    def primary_key
+      [adapter.sql_type(TestDatabase.column(:integer)), adapter.identity, "PRIMARY KEY"].compact.join(" ")
+    end
 
     # The database's message for SQL that fails, and changes nothing.
     def error(sql)
@@ -79,6 +81,10 @@ module TestDatabase
     DROP SCHEMA IF EXISTS public CASCADE;
     CREATE SCHEMA public;
   SQL
+
+  def column(type, element: nil, nullable: false, symbols: [])
+    Skyward::ORM::Tables::Column.new(name: :value, type:, nullable:, symbols:, element:)
+  end
 
   # second: true empties another database, for a test that switches between
   # two: on SQLite another file, as every call gives, and on PostgreSQL one

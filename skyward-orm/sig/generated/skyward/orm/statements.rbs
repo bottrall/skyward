@@ -24,10 +24,10 @@ module Skyward::ORM::Statements
   # @rbs return: Array[untyped]
   def binds: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> Array[untyped]
 
-  # Only a column says a Hash is JSON: bound to a ? in SQL, it's refused,
-  # since the driver would spread it across placeholders. And only a column
-  # says an Integer is a decimal, whose text SQLite compares, so 2 is bound as
-  # 2.0, as BigDecimal(2) is.
+  # Only a column says a Hash is JSON, or an Array one value: bound to a ? in
+  # SQL, either is refused, since the driver would spread it across
+  # placeholders. And only a column says an Integer is a decimal, whose text
+  # SQLite compares, so 2 is bound as 2.0, as BigDecimal(2) is.
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
@@ -67,6 +67,11 @@ module Skyward::ORM::Statements
   def quote: (Symbol name) -> String
 
   private
+
+  # @rbs type: Skyward::ORM::Tables::column_type?
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def exact: (Skyward::ORM::Tables::column_type? type, untyped value) -> untyped
 
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes

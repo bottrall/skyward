@@ -84,9 +84,9 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def unlimited: () -> String
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String?
-  def sql_type: (Skyward::ORM::Tables::column_type type) -> String?
+  def sql_type: (Skyward::ORM::Tables::Column column) -> String?
 
   # An INTEGER PRIMARY KEY is SQLite's rowid, which numbers rows on its own.
   # @rbs return: String?
@@ -102,13 +102,19 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def default_expression: (String expression) -> String
 
+  # The catalog puts back the parentheses SQLite drops, so it reads a default
+  # back as it was written.
+  # @rbs default: String
+  # @rbs return: String
+  def catalog_default: (String default) -> String
+
   # SQLite stores a value by its column's affinity, which it reads from the
   # declared type, so any declared type with the same affinity is compatible,
   # and for NUMERIC_SAFE types, NUMERIC as well.
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs sql_type: String
   # @rbs return: bool
-  def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
+  def compatible?: (Skyward::ORM::Tables::Column column, String sql_type) -> bool
 
   # A decimal's text orders "10.5" before "9.0", so a range or an order
   # compares it as a REAL, which is exact to 15 significant digits.
@@ -125,10 +131,15 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: untyped
   def encode: (untyped value) -> untyped
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # JSON holds a boolean as one, where a column holds it as 0 or 1.
+  # @rbs items: Array[untyped]
+  # @rbs return: String
+  def encode_array: (Array[untyped] items) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
-  def decode: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+  def decode: (Skyward::ORM::Tables::Column column, untyped value) -> untyped
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
   def tables: (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
@@ -158,6 +169,17 @@ module Skyward::ORM::Adapters::SQLite
   def violation: (StandardError error, Array[Skyward::ORM::Catalog::Table] tables, Symbol? table) -> Skyward::ORM::Violation?
 
   private
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def scalar: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+
+  # An Array[Float]'s JSON may hold an Integer, as an Array[Float] takes one.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def item: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
 
   # @rbs sql_type: String
   # @rbs return: Symbol

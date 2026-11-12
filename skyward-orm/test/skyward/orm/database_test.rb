@@ -16,12 +16,12 @@ describe Skyward::ORM::Database do
       @adapter = adapter
     end
 
-    def compatible?(type, sql_type)
+    def compatible?(column, sql_type)
       @comparisons = comparisons.to_i + 1
-      @adapter.compatible?(type, sql_type)
+      @adapter.compatible?(column, sql_type)
     end
 
-    def sql_type(type) = @adapter.sql_type(type)
+    def sql_type(column) = @adapter.sql_type(column)
   end
 
   faulty = Data.define(:connection, :statement, :reached) do
@@ -46,7 +46,7 @@ describe Skyward::ORM::Database do
       connection.execute("INSERT INTO lists (name) VALUES ('Home')")
       # Todo's own types, so todos matches it.
       columns = column_types.columns(todo).map do |column|
-        "#{column.name} #{empty.adapter.sql_type(column.type)}#{" NOT NULL" unless column.nullable}"
+        "#{column.name} #{empty.adapter.sql_type(column)}#{" NOT NULL" unless column.nullable}"
       end
       connection.execute("CREATE TABLE todos (#{columns.join(", ")}, PRIMARY KEY (id))")
     end

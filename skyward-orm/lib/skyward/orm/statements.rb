@@ -53,18 +53,21 @@ module Skyward::ORM::Statements
     values.map { |name, value| encode(adapter, columns.fetch(name), value) }
   end
 
-  # Only a column says a Hash is JSON: bound to a ? in SQL, it's refused,
-  # since the driver would spread it across placeholders. And only a column
-  # says an Integer is a decimal, whose text SQLite compares, so 2 is bound as
-  # 2.0, as BigDecimal(2) is.
+  # Only a column says a Hash is JSON, or an Array one value: bound to a ? in
+  # SQL, either is refused, since the driver would spread it across
+  # placeholders. And only a column says an Integer is a decimal, whose text
+  # SQLite compares, so 2 is bound as 2.0, as BigDecimal(2) is.
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
   def encode(adapter, column, value)
-    if column.type == :json && !value.nil? then JSON.generate(value)
-    elsif column.type == :decimal && value.is_a?(Integer) then adapter.encode(BigDecimal(value))
-    else adapter.encode(value)
+    return if value.nil?
+
+    case column.type
+    when :json then JSON.generate(value)
+    when :array then adapter.encode_array(value.map { |item| exact(column.element, item) })
+    else adapter.encode(exact(column.type, value))
     end
   end
 
@@ -112,6 +115,11 @@ module Skyward::ORM::Statements
   def quote(name) = %("#{name.name.gsub('"', '""')}")
 
   private
+
+  # @rbs type: Skyward::ORM::Tables::column_type?
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def exact(type, value) = type == :decimal && value.is_a?(Integer) ? BigDecimal(value) : value
 
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes

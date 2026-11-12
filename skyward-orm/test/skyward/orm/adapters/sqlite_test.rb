@@ -119,7 +119,7 @@ describe Skyward::ORM::Adapters::SQLite do
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
       types = %i[integer float decimal string bool date time enum uuid int32 int16 json].to_h do |type|
-        [type, sqlite.sql_type(type)]
+        [type, sqlite.sql_type(TestDatabase.column(type))]
       end
 
       assert_equal(
@@ -129,8 +129,16 @@ describe Skyward::ORM::Adapters::SQLite do
       )
     end
 
+    it "writes an Array column as TEXT, whatever its element" do
+      types = %i[integer float decimal string bool date time enum].map do |element|
+        sqlite.sql_type(TestDatabase.column(:array, element:))
+      end
+
+      assert_equal ["TEXT"], types.uniq
+    end
+
     it "has none for an untyped column" do
-      assert_nil sqlite.sql_type(:untyped)
+      assert_nil sqlite.sql_type(TestDatabase.column(:untyped))
     end
   end
 
@@ -156,9 +164,17 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".catalog_default" do
+    it "is the default as it's written, which the catalog reads back the same" do
+      written = ["(datetime('now'))", "'{}'"]
+
+      assert_equal(written, written.map { |default| sqlite.catalog_default(default) })
+    end
+  end
+
   describe ".compatible?" do
     it "accepts any declared type for an untyped column" do
-      assert sqlite.compatible?(:untyped, "BLOB")
+      assert sqlite.compatible?(TestDatabase.column(:untyped), "BLOB")
     end
 
     it "accepts a declared type with the same affinity as the one a migration writes" do
@@ -182,14 +198,32 @@ describe Skyward::ORM::Adapters::SQLite do
         [:json, "varchar"]
       ]
 
-      assert(declared.all? { |type, sql_type| sqlite.compatible?(type, sql_type) })
+      assert(declared.all? { |type, sql_type| sqlite.compatible?(TestDatabase.column(type), sql_type) })
     end
 
     it "refuses a declared type with another affinity" do
       declared = [[:integer, "TEXT"], [:string, "BLOB"], [:string, ""], [:time, "BLOB"], [:float, "NUMERIC"],
                   [:uuid, "BLOB"], [:int32, "TEXT"], [:int16, "REAL"], [:json, "JSON"]]
 
-      assert(declared.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
+      assert(declared.none? { |type, sql_type| sqlite.compatible?(TestDatabase.column(type), sql_type) })
+    end
+  end
+
+  describe ".compatible? for an Array column" do
+    it "accepts a declared type with TEXT affinity" do
+      assert(
+        %w[TEXT varchar(255) CLOB].all? do |sql_type|
+          sqlite.compatible?(TestDatabase.column(:array, element: :integer), sql_type)
+        end
+      )
+    end
+
+    it "refuses any other affinity" do
+      refute(
+        %w[INTEGER REAL BLOB NUMERIC].any? do |sql_type|
+          sqlite.compatible?(TestDatabase.column(:array, element: :date), sql_type)
+        end
+      )
     end
   end
 
@@ -198,7 +232,7 @@ describe Skyward::ORM::Adapters::SQLite do
       numeric = %w[NUMERIC DECIMAL(10,2) BOOLEAN DATETIME]
       refused = %i[integer float decimal string enum].product(numeric)
 
-      assert(refused.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
+      assert(refused.none? { |type, sql_type| sqlite.compatible?(TestDatabase.column(type), sql_type) })
     end
 
     it "reads back == what was written to BOOLEAN, DATE and DATETIME(6) columns" do
@@ -207,7 +241,12 @@ describe Skyward::ORM::Adapters::SQLite do
       connection.execute("INSERT INTO events VALUES (?, ?, ?)", written.map { |value| sqlite.encode(value) })
       row = connection.execute("SELECT done, on_date, at FROM events").fetch(0)
 
-      assert_equal(written, %i[bool date time].zip(row).map { |type, value| sqlite.decode(type, value) })
+      assert_equal(
+        written,
+        %i[bool date time].zip(row).map do |type, value|
+          sqlite.decode(TestDatabase.column(type), value)
+        end
+      )
     end
   end
 
@@ -242,7 +281,7 @@ describe Skyward::ORM::Adapters::SQLite do
     it "returns only a type compatible? accepts for the same SQL type" do
       read = %w[INTEGER REAL TEXT BOOLEAN DATE DATETIME(6)]
 
-      assert(read.all? { |sql_type| sqlite.compatible?(sqlite.column_type(sql_type), sql_type) })
+      assert(read.all? { |sql_type| sqlite.compatible?(TestDatabase.column(sqlite.column_type(sql_type)), sql_type) })
     end
 
     it "has none for any other NUMERIC affinity, or BLOB" do
@@ -294,85 +333,147 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".encode_array" do
+    it "stores a JSON array of each item as the adapter stores it, but a boolean as JSON's" do
+      items = [1, 1.5, true, false, "say \"hi\"", :high, Date.new(2026, 10, 18), Time.utc(2026, 10, 18, 9, 30),
+               BigDecimal("1.5")]
+
+      assert_equal '[1,1.5,true,false,"say \\"hi\\"","high","2026-10-18","2026-10-18 09:30:00.000000","1.5"]',
+                   sqlite.encode_array(items)
+    end
+
+    it "stores an empty array as []" do
+      assert_equal "[]", sqlite.encode_array([])
+    end
+  end
+
   describe ".decode" do
     it "reads 1 as true" do
-      assert sqlite.decode(:bool, 1)
+      assert sqlite.decode(TestDatabase.column(:bool), 1)
     end
 
     it "reads 0 as false" do
-      refute sqlite.decode(:bool, 0)
+      refute sqlite.decode(TestDatabase.column(:bool), 0)
     end
 
     it "reads a date" do
-      assert_equal Date.new(2026, 10, 18), sqlite.decode(:date, "2026-10-18")
+      assert_equal Date.new(2026, 10, 18), sqlite.decode(TestDatabase.column(:date), "2026-10-18")
     end
 
     it "reads a time back == to the one written, to the microsecond" do
       time = Time.new(2026, 10, 18, 19, 30, 123_456_789/1_000_000_000r, "+10:00")
 
-      assert_equal time.floor(6), sqlite.decode(:time, sqlite.encode(time))
+      assert_equal time.floor(6), sqlite.decode(TestDatabase.column(:time), sqlite.encode(time))
     end
 
     it "reads a time in UTC" do
-      assert_predicate sqlite.decode(:time, "2026-10-18 09:30:00.000000"), :utc?
+      assert_predicate sqlite.decode(TestDatabase.column(:time), "2026-10-18 09:30:00.000000"), :utc?
     end
 
     it "reads CURRENT_TIMESTAMP's format, which has no fraction" do
-      assert_equal Time.utc(2026, 10, 18, 9, 30), sqlite.decode(:time, "2026-10-18 09:30:00")
+      assert_equal Time.utc(2026, 10, 18, 9, 30), sqlite.decode(TestDatabase.column(:time), "2026-10-18 09:30:00")
     end
 
     it "reads a symbol" do
-      assert_equal :high, sqlite.decode(:enum, "high")
+      assert_equal :high, sqlite.decode(TestDatabase.column(:enum), "high")
     end
 
     it "reads a decimal's text as a BigDecimal, with every digit" do
       assert_equal BigDecimal("12345678901234567890.123456789"),
-                   sqlite.decode(:decimal, "12345678901234567890.123456789")
+                   sqlite.decode(TestDatabase.column(:decimal), "12345678901234567890.123456789")
     end
 
     it "reads JSON into a Hash, frozen at every level" do
-      read = sqlite.decode(:json, +'{"list":[{"deep":"ü"}]}')
+      read = sqlite.decode(TestDatabase.column(:json), +'{"list":[{"deep":"ü"}]}')
 
       assert_equal [{ "list" => [{ "deep" => "ü" }] }, true],
                    [read, [read, read["list"], read["list"][0], read["list"][0]["deep"]].all?(&:frozen?)]
     end
 
     it "passes an integer through" do
-      assert_equal 42, sqlite.decode(:integer, 42)
+      assert_equal 42, sqlite.decode(TestDatabase.column(:integer), 42)
     end
 
     it "passes a float through" do
-      assert_in_delta 1.5, sqlite.decode(:float, 1.5)
+      assert_in_delta 1.5, sqlite.decode(TestDatabase.column(:float), 1.5)
     end
 
     it "freezes a string" do
-      assert_predicate sqlite.decode(:string, +"Milk"), :frozen?
+      assert_predicate sqlite.decode(TestDatabase.column(:string), +"Milk"), :frozen?
     end
 
     it "passes an untyped value through, frozen" do
-      assert_predicate sqlite.decode(:untyped, +"Milk"), :frozen?
+      assert_predicate sqlite.decode(TestDatabase.column(:untyped), +"Milk"), :frozen?
     end
 
     it "reads back what was written to a decimal's TEXT column, with every digit" do
-      connection.execute("CREATE TABLE prices (price #{sqlite.sql_type(:decimal)})")
+      connection.execute("CREATE TABLE prices (price #{sqlite.sql_type(TestDatabase.column(:decimal))})")
       written = BigDecimal("12345678901234567890.123456789")
       connection.execute("INSERT INTO prices VALUES (?)", [sqlite.encode(written)])
 
-      assert_equal written, sqlite.decode(:decimal, connection.execute("SELECT price FROM prices").dig(0, 0))
+      assert_equal written,
+                   sqlite.decode(
+                     TestDatabase.column(:decimal),
+                     connection.execute("SELECT price FROM prices").dig(0, 0)
+                   )
     end
 
     it "reads back what was written to a uuid, an int32 and an int16 column, as a frozen String and Integers" do
-      connection.execute(
-        "CREATE TABLE refined (id #{sqlite.sql_type(:uuid)}, logins #{sqlite.sql_type(:int32)}, " \
-        "rank #{sqlite.sql_type(:int16)})"
-      )
+      id, logins, rank = %i[uuid int32 int16].map { |type| sqlite.sql_type(TestDatabase.column(type)) }
+      connection.execute("CREATE TABLE refined (id #{id}, logins #{logins}, rank #{rank})")
       written = ["0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f", 2_147_483_647, -32_768]
       connection.execute("INSERT INTO refined VALUES (?, ?, ?)", written.map { |value| sqlite.encode(value) })
       read = connection.execute("SELECT * FROM refined").fetch(0).zip(%i[uuid int32 int16]).map do |value, type|
-        sqlite.decode(type, value)
+        sqlite.decode(TestDatabase.column(type), value)
       end
 
       assert_equal [written, true], [read, read.fetch(0).frozen?]
+    end
+  end
+
+  describe ".decode of an Array column" do
+    it "reads each item by the element's type, freezing the Array and each item" do
+      read = sqlite.decode(TestDatabase.column(:array, element: :string), '["a","b"]')
+
+      assert_equal [%w[a b], true, [true, true]], [read, read.frozen?, read.map(&:frozen?)]
+    end
+
+    it "refuses JSON that isn't an array" do
+      assert_raises(TypeError) { sqlite.decode(TestDatabase.column(:array, element: :integer), "5") }
+    end
+
+    it "reads an Integer in an Array of Float as a Float" do
+      read = sqlite.decode(TestDatabase.column(:array, element: :float), "[2,1.5]")
+
+      assert_equal [[2.0, 1.5], [Float, Float]], [read, read.map(&:class)]
+    end
+
+    it "reads an item of an Array of Symbol that isn't a String as nil" do
+      assert_equal [:mon, nil, nil], sqlite.decode(TestDatabase.column(:array, element: :enum), '["mon",null,5]')
+    end
+
+    it "reads back what was written to an array of each element type" do
+      written = {
+        integer: [1, -2**62],
+        float: [1.5, -2.5e-8, 1e20],
+        decimal: [BigDecimal("12345678901234567890.123456789"), BigDecimal("-0.5")],
+        string: ["a,b", 'say "hi"', "{x}", "back\\slash", "NULL", "", "ü"],
+        bool: [true, false],
+        date: [Date.new(2028, 2, 29)],
+        time: [Time.utc(2026, 10, 18, 9, 30, 123_456/1_000_000r)],
+        enum: %i[mon fri]
+      }
+      columns = written.keys.map { |element| "#{element} #{sqlite.sql_type(TestDatabase.column(:array, element:))}" }
+      connection.execute("CREATE TABLE arrays (#{columns.join(", ")})")
+      connection.execute(
+        "INSERT INTO arrays VALUES (#{Array.new(written.size, "?").join(", ")})",
+        written.values.map { |items| sqlite.encode_array(items) }
+      )
+      read = connection.execute("SELECT * FROM arrays").fetch(0).zip(written.keys).to_h do |value, element|
+        [element, sqlite.decode(TestDatabase.column(:array, element:), value)]
+      end
+
+      assert_equal written, read
     end
   end
 

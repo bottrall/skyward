@@ -36,6 +36,19 @@ module TablesFixtures
     attr_reader discount: BigDecimal?
   end
 
+  class Arrayed < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader integers: Array[Integer]
+    attr_reader floats: Array[Float]
+    attr_reader decimals: Array[BigDecimal]
+    attr_reader strings: Array[String]
+    attr_reader bools: Array[bool]
+    attr_reader dates: Array[Date]
+    attr_reader times: Array[Time]
+    attr_reader weekdays: Array[:mon | :tue | :wed | :thu | :fri]
+    attr_reader tags: Array[String]?
+  end
+
   # unannotated has no reader here.
   class Typed < ::Skyward::ORM::Record
     attr_reader integer: Integer
@@ -77,7 +90,27 @@ module TablesFixtures
   end
 
   class Listed < ::Skyward::ORM::Record
-    attr_reader tags: Array[String]?
+    attr_reader tags: Array[String?]
+  end
+
+  class Grid < ::Skyward::ORM::Record
+    attr_reader rows: Array[Array[Integer]]
+  end
+
+  class Loose < ::Skyward::ORM::Record
+    attr_reader items: Array[untyped]
+  end
+
+  class Documented < ::Skyward::ORM::Record
+    attr_reader documents: Array[Hash[String, untyped]]
+  end
+
+  class Plotted < ::Skyward::ORM::Record
+    attr_reader coordinates: Array[{ x: Integer, y: Integer }]
+  end
+
+  class Grouped < ::Skyward::ORM::Record
+    attr_reader lists: Array[List]
   end
 
   class Recorded < ::Skyward::ORM::Record
