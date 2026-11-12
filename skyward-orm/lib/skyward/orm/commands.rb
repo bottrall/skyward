@@ -62,3 +62,15 @@ Skyward::Core::CLI.register(
     generate:
   )
 end
+
+Skyward::Core::CLI.register("scaffold", "Print a table class for a table in the database") do |args|
+  Skyward::ORM::CLI::Scaffold.run(
+    args,
+    directory: Dir.pwd,
+    out: $stdout,
+    kernel: Kernel,
+    session: Skyward::ORM::Connection::SESSION,
+    discover:,
+    generate:
+  )
+end

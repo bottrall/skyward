@@ -1,0 +1,145 @@
+# Generated from lib/skyward/orm/cli/scaffold/source.rb with RBS::Inline
+
+# A table class's file, written from its table as the catalog reads it. Each
+# type, default and constraint is one the class's migration would write the
+# same, so `skyward migration` changes only what a comment says it will.
+module Skyward::ORM::CLI::Scaffold::Source
+  # Only a trailing s is dropped: ies becomes y, sses becomes ss, and ss stays.
+  SINGULAR: Regexp
+
+  SINGULARS: Hash[String, String]
+
+  QUOTED: Regexp
+
+  LITERAL: Regexp
+
+  ISO_DATE: Regexp
+
+  # A Time as SQLite's adapter decodes it, to the microsecond. PostgreSQL reads
+  # a default back with a cast, so no Time is written back the same there.
+  ISO_TIME: Regexp
+
+  BOOLS: Hash[String, bool]
+
+  PARENTHESIZED: Regexp
+
+  CHECK: Regexp
+
+  # What's left of a check that lists a column's values once its strings,
+  # casts and punctuation are gone. SQLite keeps `priority IN ('low', 'high')`,
+  # and PostgreSQL rewrites it as `priority = ANY (ARRAY['low'::text, 'high'::text])`.
+  CAST: Regexp
+
+  PUNCTUATION: Regexp
+
+  LISTS: Array[String]
+
+  # A btree index on columns alone, as PostgreSQL writes one back, or as it was written on SQLite.
+  PLAIN_INDEX: Regexp
+
+  # The columns a foreign key names after the table it references, if it names any.
+  REFERENCED: Regexp
+
+  DROPPED: String
+
+  REWRITTEN: String
+
+  # @rbs (Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables,
+  #   Skyward::ORM::_Adapter adapter, Array[singleton(Skyward::ORM::Record)] classes) -> String
+  def text: (Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter, Array[singleton(Skyward::ORM::Record)] classes) -> String
+
+  # @rbs table: Symbol
+  # @rbs return: String
+  def class_name: (Symbol table) -> String
+
+  # @rbs table: Skyward::ORM::Catalog::Table?
+  # @rbs return: Array[Symbol]
+  def primary_key: (Skyward::ORM::Catalog::Table? table) -> Array[Symbol]
+
+  private
+
+  # Each line below `table`, in the README's order, with what the class can't
+  # declare first, as a comment.
+  # @rbs (Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables,
+  #   Skyward::ORM::_Adapter adapter, Array[singleton(Skyward::ORM::Record)] classes,
+  #   Array[Skyward::ORM::Catalog::Constraint] checks, Hash[Symbol, Skyward::ORM::Tables::column_type?] types)
+  #   -> Array[String]
+  def declarations: (Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables, Skyward::ORM::_Adapter adapter, Array[singleton(Skyward::ORM::Record)] classes, Array[Skyward::ORM::Catalog::Constraint] checks, Hash[Symbol, Skyward::ORM::Tables::column_type?] types) -> Array[String]
+
+  # @rbs columns: Array[Skyward::ORM::Catalog::Column]
+  # @rbs unions: Hash[Symbol, [Skyward::ORM::Catalog::Constraint, Array[Symbol]]]
+  # @rbs types: Hash[Symbol, Skyward::ORM::Tables::column_type?]
+  # @rbs return: Array[String]
+  def readers: (Array[Skyward::ORM::Catalog::Column] columns, Hash[Symbol, [ Skyward::ORM::Catalog::Constraint, Array[Symbol] ]] unions, Hash[Symbol, Skyward::ORM::Tables::column_type?] types) -> Array[String]
+
+  # A text column whose check lists only strings is a symbol union, and its
+  # type makes that check.
+  # @rbs (Skyward::ORM::Catalog::Column column, Array[Skyward::ORM::Catalog::Constraint] checks,
+  #   Skyward::ORM::_Adapter adapter) -> [Skyward::ORM::Catalog::Constraint, Array[Symbol]]?
+  def union: (Skyward::ORM::Catalog::Column column, Array[Skyward::ORM::Catalog::Constraint] checks, Skyward::ORM::_Adapter adapter) -> [ Skyward::ORM::Catalog::Constraint, Array[Symbol] ]?
+
+  # A literal the column's type reads is that value, if it's written back the
+  # same. Anything else is SQL, without the parentheses SQLite's adapter puts
+  # back, since its default_expression adds them again. The bool says whether
+  # it's written back the same. SQLite keeps a literal as it was written, even
+  # in parentheses, so one no value writes back the same, such as 1.50, is the
+  # value it reads as, which a migration rewrites it as once, or nil when it
+  # reads as none.
+  # @rbs (Skyward::ORM::Catalog::Column column, Skyward::ORM::Tables::column_type? type,
+  #   Skyward::ORM::_Adapter adapter) -> [Skyward::ORM::Catalog::Column, String?, bool]?
+  def default: (Skyward::ORM::Catalog::Column column, Skyward::ORM::Tables::column_type? type, Skyward::ORM::_Adapter adapter) -> [ Skyward::ORM::Catalog::Column, String?, bool ]?
+
+  # @rbs sql: String
+  # @rbs type: Skyward::ORM::Tables::column_type?
+  # @rbs return: Array[untyped]
+  def values: (String sql, Skyward::ORM::Tables::column_type? type) -> Array[untyped]
+
+  # @rbs string: String?
+  # @rbs return: Date?
+  def date: (String? string) -> Date?
+
+  # @rbs string: String?
+  # @rbs return: Time?
+  def time: (String? string) -> Time?
+
+  # @rbs value: untyped
+  # @rbs return: String
+  def ruby: (untyped value) -> String
+
+  # A foreign key a class declares is on one column, and refers to the
+  # primary key of the table it references.
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs return: bool
+  def reference?: (Skyward::ORM::Catalog::Constraint constraint, Array[Skyward::ORM::Catalog::Table] tables) -> bool
+
+  # @rbs table: Symbol
+  # @rbs constraint: Skyward::ORM::Catalog::Constraint
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: Array[String]
+  def reference: (Symbol table, Skyward::ORM::Catalog::Constraint constraint, Array[singleton(Skyward::ORM::Record)] classes) -> Array[String]
+
+  # @rbs index: Skyward::ORM::Catalog::Index
+  # @rbs return: bool
+  def plain?: (Skyward::ORM::Catalog::Index index) -> bool
+
+  # @rbs check: Skyward::ORM::Catalog::Constraint
+  # @rbs return: String
+  def rule: (Skyward::ORM::Catalog::Constraint check) -> String
+
+  # @rbs declaration: String
+  # @rbs key: Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index
+  # @rbs return: String
+  def columns: (String declaration, Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index key) -> String
+
+  # Every line of the text is commented, since a definition or name the
+  # database keeps can hold a newline.
+  # @rbs text: String
+  # @rbs prefix: String
+  # @rbs return: String
+  def comment: (String text, ?String prefix) -> String
+
+  # @rbs undeclarable: Skyward::ORM::Catalog::Column | Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index
+  # @rbs return: String
+  def definition: (Skyward::ORM::Catalog::Column | Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index undeclarable) -> String
+end

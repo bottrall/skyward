@@ -39,6 +39,9 @@ module Skyward::ORM
     def alters_in_place?: () -> bool
     def default_expression: (String expression) -> String
     def compatible?: (Tables::column_type type, String sql_type) -> bool
+    # The inverse of sql_type: the column type a column the catalog reads
+    # holds, one compatible? accepts, or nil when no column type does.
+    def column_type: (String sql_type) -> Tables::column_type?
     def encode: (untyped value) -> untyped
     def decode: (Tables::column_type type, untyped value) -> untyped
     def tables: (_Connection connection) -> Array[Catalog::Table]

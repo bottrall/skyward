@@ -116,6 +116,7 @@ module Skyward::ORM::Migrations::Status
     return "" if unowned.empty?
 
     ["These tables have no class, so `skyward migration` leaves them alone:\n",
-     *unowned.map { |table| "  #{table}\n" }].join
+     *unowned.map { |table| "  #{table}\n" },
+     "Run `skyward scaffold TABLE` to print a class for one.\n"].join
   end
 end
