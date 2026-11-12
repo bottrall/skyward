@@ -15,6 +15,21 @@ module Skyward::API::Assembly::Boot
   # untyped, which is what rbs-inline writes for a method with no annotations.
   ANY: RBS::Types::Bases::Any
 
+  class Refusal < Data
+    attr_reader problem(): String
+
+    attr_reader spots(): Array[Skyward::Core::Diagnostics::Spot]
+
+    attr_reader hint(): String?
+
+    def self.new: (String problem, Array[Skyward::Core::Diagnostics::Spot] spots, String? hint) -> instance
+                | (problem: String, spots: Array[Skyward::Core::Diagnostics::Spot], hint: String?) -> instance
+
+    def self.members: () -> [ :problem, :spots, :hint ]
+
+    def members: () -> [ :problem, :spots, :hint ]
+  end
+
   # @rbs (Array[Skyward::API::Assembly::Builder::Mount] mounts,
   #       providers: Hash[Symbol, Skyward::API::_Provider & Object], reader: Skyward::Core::Types::Reader,
   #       max_body_size: Integer, strict: bool) ->
@@ -36,16 +51,39 @@ module Skyward::API::Assembly::Boot
 
   # @rbs mount: Skyward::API::Assembly::Builder::Mount
   # @rbs route: Skyward::API::Endpoints::Route
-  # @rbs built: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs built: Array[[Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint]]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
   # @rbs return: Skyward::API::Routing::Router::Endpoint
-  def boot: (Skyward::API::Assembly::Builder::Mount mount, Skyward::API::Endpoints::Route route, Array[Skyward::API::Routing::Router::Endpoint] built, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader, Integer max_body_size) -> Skyward::API::Routing::Router::Endpoint
+  def boot: (Skyward::API::Assembly::Builder::Mount mount, Skyward::API::Endpoints::Route route, Array[[ Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint ]] built, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader, Integer max_body_size) -> Skyward::API::Routing::Router::Endpoint
+
+  # Core's own errors carry their excerpt in their message, already indented,
+  # so every line but an excerpt's is indented under the label.
+  # @rbs label: String
+  # @rbs refusal: Refusal
+  # @rbs return: String
+  def explained: (String label, Refusal refusal) -> String
+
+  # @rbs problem: String
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot?]
+  # @rbs hint: String?
+  # @rbs return: Refusal
+  def refused: (String problem, ?spots: Array[Skyward::Core::Diagnostics::Spot?], ?hint: String?) -> Refusal
 
   # @rbs route: Skyward::API::Endpoints::Route
-  # @rbs return: String?
-  def summary: (Skyward::API::Endpoints::Route route) -> String?
+  # @rbs key: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def argument: (Skyward::API::Endpoints::Route route, Symbol key) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs part: String
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def in_path: (Skyward::API::Endpoints::Route route, String part) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs return: Refusal?
+  def summary: (Skyward::API::Endpoints::Route route) -> Refusal?
 
   # @rbs prefix: String
   # @rbs path: String
@@ -56,11 +94,12 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Array[String | Symbol]
   def pattern: (String path) -> Array[String | Symbol]
 
+  # @rbs route: Skyward::API::Endpoints::Route
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
-  # @rbs built: Array[Skyward::API::Routing::Router::Endpoint]
-  # @rbs return: String?
-  def shadowing: (String verb, Array[String | Symbol] pattern, Array[Skyward::API::Routing::Router::Endpoint] built) -> String?
+  # @rbs built: Array[[Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint]]
+  # @rbs return: Refusal?
+  def shadowing: (Skyward::API::Endpoints::Route route, String verb, Array[String | Symbol] pattern, Array[[ Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint ]] built) -> Refusal?
 
   # A path parameter matches any segment but an empty one, which only the root path has.
   # @rbs pattern: Array[String | Symbol]
@@ -76,14 +115,21 @@ module Skyward::API::Assembly::Boot
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
-  # @rbs return: Skyward::API::Routing::Router::Endpoint | String
-  def endpoint: (Skyward::API api, Skyward::API::Endpoints::Route route, String verb, Array[String | Symbol] pattern, String label, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader, Integer max_body_size) -> (Skyward::API::Routing::Router::Endpoint | String)
+  # @rbs return: Skyward::API::Routing::Router::Endpoint | Refusal
+  def endpoint: (Skyward::API api, Skyward::API::Endpoints::Route route, String verb, Array[String | Symbol] pattern, String label, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader, Integer max_body_size) -> (Skyward::API::Routing::Router::Endpoint | Refusal)
 
   # @rbs klass: Class
-  # @rbs to: Symbol
+  # @rbs route: Skyward::API::Endpoints::Route
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: RBS::MethodType | String | nil
-  def method_type: (Class klass, Symbol to, Skyward::Core::Types::Reader reader) -> (RBS::MethodType | String | nil)
+  # @rbs return: RBS::MethodType | Refusal | nil
+  def method_type: (Class klass, Skyward::API::Endpoints::Route route, Skyward::Core::Types::Reader reader) -> (RBS::MethodType | Refusal | nil)
+
+  # Only the class's own methods, so that a method it inherits, as from
+  # Skyward::API or Kernel, is never suggested.
+  # @rbs klass: Class
+  # @rbs to: Symbol
+  # @rbs return: String?
+  def unrouted: (Class klass, Symbol to) -> String?
 
   # @rbs owner: Module
   # @rbs name: Symbol
@@ -91,10 +137,10 @@ module Skyward::API::Assembly::Boot
   # @rbs return: RBS::MethodType?
   def signature: (Module owner, Symbol name, Skyward::Core::Types::Reader reader) -> RBS::MethodType?
 
-  # @rbs parameters: Method::param_types
+  # @rbs method: UnboundMethod
   # @rbs type: RBS::Types::function?
-  # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | String
-  def signed: (Method::param_types parameters, RBS::Types::function? type) -> (Array[[ Symbol, bool, RBS::Types::t ]] | String)
+  # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | Refusal
+  def signed: (UnboundMethod method, RBS::Types::function? type) -> (Array[[ Symbol, bool, RBS::Types::t ]] | Refusal)
 
   # @rbs method_type: RBS::MethodType
   # @rbs return: String
@@ -106,8 +152,8 @@ module Skyward::API::Assembly::Boot
 
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function
-  # @rbs return: String
-  def stale: (Hash[Symbol, bool] keywords, RBS::Types::function function) -> String
+  # @rbs return: Refusal
+  def stale: (Hash[Symbol, bool] keywords, RBS::Types::function function) -> Refusal
 
   # @rbs function: RBS::Types::function
   # @rbs return: RBS::Types::Function?
@@ -117,14 +163,38 @@ module Skyward::API::Assembly::Boot
   # @rbs return: Hash[Symbol, bool]
   def keyword_requirements: (RBS::Types::Function function) -> Hash[Symbol, bool]
 
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs method: UnboundMethod
+  # @rbs parameter: Symbol
+  # @rbs query: Array[Symbol]
+  # @rbs return: Refusal
+  def no_keyword: (Skyward::API::Endpoints::Route route, UnboundMethod method, Symbol parameter, Array[Symbol] query) -> Refusal
+
+  # A nested resource's renamed parameter, as `todo_id:` for `/:id`, isn't a
+  # misspelling DidYouMean would find, so a keyword that ends in the parameter,
+  # or that the parameter ends in, is meant too, when it's the only one.
+  # @rbs parameter: Symbol
+  # @rbs query: Array[Symbol]
+  # @rbs return: Symbol?
+  def meant: (Symbol parameter, Array[Symbol] query) -> Symbol?
+
+  # Core's spot of a parameter list that runs onto another line stops at the end
+  # of its first, so only a list written whole on the `def` line is rewritten.
+  # @rbs method: UnboundMethod
+  # @rbs parameters: Skyward::Core::Diagnostics::Spot
+  # @rbs keyword: Skyward::Core::Diagnostics::Spot
+  # @rbs parameter: Symbol
+  # @rbs return: String?
+  def rename_hint: (UnboundMethod method, Skyward::Core::Diagnostics::Spot parameters, Skyward::Core::Diagnostics::Spot keyword, Symbol parameter) -> String?
+
   # @rbs name: Symbol
   # @rbs required: bool
   # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | String
-  def keyword: (Symbol name, bool required, RBS::Types::t type, Array[String | Symbol] pattern, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader) -> (Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | String)
+  # @rbs return: Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | Refusal
+  def keyword: (Symbol name, bool required, RBS::Types::t type, Array[String | Symbol] pattern, Hash[Symbol, Skyward::API::Routing::Router::Provider] providers, Skyward::Core::Types::Reader reader) -> (Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | Refusal)
 
   # @rbs name: Symbol
   # @rbs pattern: Array[String | Symbol]
@@ -133,16 +203,16 @@ module Skyward::API::Assembly::Boot
 
   # @rbs required: bool
   # @rbs type: RBS::Types::t
-  # @rbs return: Skyward::API::Routing::Router::Keyword | String
-  def request: (bool required, RBS::Types::t type) -> (Skyward::API::Routing::Router::Keyword | String)
+  # @rbs return: Skyward::API::Routing::Router::Keyword | Refusal
+  def request: (bool required, RBS::Types::t type) -> (Skyward::API::Routing::Router::Keyword | Refusal)
 
   # A provided keyword's type is the provider's to give, so it's compared, never
   # read, except that an untyped keyword is left unchecked, as untyped code is.
   # @rbs name: Symbol
   # @rbs type: RBS::Types::t
   # @rbs provider: Skyward::API::Routing::Router::Provider
-  # @rbs return: Skyward::API::Routing::Router::Provider | String
-  def provided: (Symbol name, RBS::Types::t type, Skyward::API::Routing::Router::Provider provider) -> (Skyward::API::Routing::Router::Provider | String)
+  # @rbs return: Skyward::API::Routing::Router::Provider | Refusal
+  def provided: (Symbol name, RBS::Types::t type, Skyward::API::Routing::Router::Provider provider) -> (Skyward::API::Routing::Router::Provider | Refusal)
 
   # @rbs type: RBS::Types::t
   # @rbs return: bool
@@ -157,8 +227,8 @@ module Skyward::API::Assembly::Boot
   # @rbs name: Symbol
   # @rbs source: :path | :query | :body | :request
   # @rbs type: Skyward::Core::Types::t
-  # @rbs return: String?
-  def carried: (Symbol name, :path | :query | :body | :request source, Skyward::Core::Types::t type) -> String?
+  # @rbs return: Refusal?
+  def carried: (Symbol name, :path | :query | :body | :request source, Skyward::Core::Types::t type) -> Refusal?
 
   # @rbs type: Skyward::Core::Types::t
   # @rbs within: :path | :query | :array
@@ -168,8 +238,8 @@ module Skyward::API::Assembly::Boot
   # Response values are found in the signature, because the reader can't read them.
   # @rbs type: RBS::Types::t
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: Array[Skyward::API::Routing::Router::returned] | String
-  def returns: (RBS::Types::t type, Skyward::Core::Types::Reader reader) -> (Array[Skyward::API::Routing::Router::returned] | String)
+  # @rbs return: Array[Skyward::API::Routing::Router::returned] | Refusal
+  def returns: (RBS::Types::t type, Skyward::Core::Types::Reader reader) -> (Array[Skyward::API::Routing::Router::returned] | Refusal)
 
   # @rbs type: RBS::Types::t
   # @rbs return: Array[RBS::Types::t]
@@ -208,8 +278,8 @@ module Skyward::API::Assembly::Boot
 
   # @rbs subject: String
   # @rbs type: Skyward::Core::Types::Unreadable
-  # @rbs return: String
-  def unreadable: (String subject, Skyward::Core::Types::Unreadable type) -> String
+  # @rbs return: Refusal
+  def unreadable: (String subject, Skyward::Core::Types::Unreadable type) -> Refusal
 
   # @rbs text: String
   # @rbs return: String

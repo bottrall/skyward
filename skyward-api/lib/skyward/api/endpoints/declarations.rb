@@ -95,12 +95,16 @@ module Skyward::API::Endpoints::Declarations
     problem = problem_with(path, to)
     raise ArgumentError, "#{self} #{verb.upcase} #{path.inspect}: #{problem}" if problem
 
+    # The caller of get, post, put, patch or delete, which is the app's declaration.
+    location = caller_locations(2, 1)&.first
     route = Skyward::API::Endpoints::Route.new(
       verb:,
       path: path.dup.freeze,
       to:,
       summary: summary.dup.freeze,
-      description: description.dup.freeze
+      description: description.dup.freeze,
+      file: location&.path,
+      line: location&.lineno
     )
     @routes = [*routes, route].freeze
   end

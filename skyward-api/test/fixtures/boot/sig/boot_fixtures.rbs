@@ -20,6 +20,10 @@ module BootFixtures
     attr_reader tags: Hash[Symbol, untyped]
   end
 
+  class Listing
+    attr_reader title: Strng
+  end
+
   class Node
     attr_reader next: Node?
   end
@@ -117,8 +121,16 @@ module BootFixtures
     def show: (todo_id: Integer) -> Todo
   end
 
+  class MisspeltSignature < Skyward::API
+    def show: (id: Integr) -> Todo
+  end
+
   class TupleQuery < Skyward::API
     def index: (range: [Integer, Integer]) -> Array[Todo]
+  end
+
+  class MisspeltBody < Skyward::API
+    def create: (body: Listing) -> Todo
   end
 
   class HashBody < Skyward::API

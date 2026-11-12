@@ -6,8 +6,11 @@ describe Skyward::API::Endpoints::Declarations do
   let(:api) { Class.new { extend Skyward::API::Endpoints::Declarations } }
 
   def route(verb, path, to, summary: nil, description: nil)
-    Skyward::API::Endpoints::Route.new(verb:, path:, to:, summary:, description:)
+    Skyward::API::Endpoints::Route.new(verb:, path:, to:, summary:, description:, file: nil, line: nil)
   end
+
+  # Where each route is declared has its own test, so the rest leave it out.
+  def declared(api) = api.routes.map { |found| found.with(file: nil, line: nil) }
 
   def refusal
     yield
@@ -71,13 +74,13 @@ describe Skyward::API::Endpoints::Declarations do
     it "declares a GET route" do
       api.get "/", to: :index
 
-      assert_equal [route(:get, "/", :index)], api.routes
+      assert_equal [route(:get, "/", :index)], declared(api)
     end
 
     it "keeps the summary and description" do
       api.get "/", to: :index, summary: "List todos.", description: "Newest first."
 
-      assert_equal [route(:get, "/", :index, summary: "List todos.", description: "Newest first.")], api.routes
+      assert_equal [route(:get, "/", :index, summary: "List todos.", description: "Newest first.")], declared(api)
     end
   end
 
@@ -85,7 +88,7 @@ describe Skyward::API::Endpoints::Declarations do
     it "declares a POST route" do
       api.post "/", to: :create
 
-      assert_equal [route(:post, "/", :create)], api.routes
+      assert_equal [route(:post, "/", :create)], declared(api)
     end
   end
 
@@ -93,7 +96,7 @@ describe Skyward::API::Endpoints::Declarations do
     it "declares a PUT route" do
       api.put "/:id", to: :replace
 
-      assert_equal [route(:put, "/:id", :replace)], api.routes
+      assert_equal [route(:put, "/:id", :replace)], declared(api)
     end
   end
 
@@ -101,7 +104,7 @@ describe Skyward::API::Endpoints::Declarations do
     it "declares a PATCH route" do
       api.patch "/:id", to: :update
 
-      assert_equal [route(:patch, "/:id", :update)], api.routes
+      assert_equal [route(:patch, "/:id", :update)], declared(api)
     end
   end
 
@@ -109,7 +112,7 @@ describe Skyward::API::Endpoints::Declarations do
     it "declares a DELETE route" do
       api.delete "/:id", to: :destroy
 
-      assert_equal [route(:delete, "/:id", :destroy)], api.routes
+      assert_equal [route(:delete, "/:id", :destroy)], declared(api)
     end
   end
 
@@ -124,13 +127,13 @@ describe Skyward::API::Endpoints::Declarations do
       child = Class.new(parent)
       child.get "/:id", to: :show
 
-      assert_equal [route(:get, "/", :index), route(:get, "/:id", :show)], child.routes
+      assert_equal [route(:get, "/", :index), route(:get, "/:id", :show)], declared(child)
     end
 
     it "leaves the parent's routes alone" do
       Class.new(parent).get "/:id", to: :show
 
-      assert_equal [route(:get, "/", :index)], parent.routes
+      assert_equal [route(:get, "/", :index)], declared(parent)
     end
 
     it "starts a cleared subclass after the routes its cleared parent declares again" do
@@ -139,7 +142,7 @@ describe Skyward::API::Endpoints::Declarations do
       parent.get "/done", to: :done
       child.get "/:id", to: :show
 
-      assert_equal [route(:get, "/done", :done), route(:get, "/:id", :show)], child.routes
+      assert_equal [route(:get, "/done", :done), route(:get, "/:id", :show)], declared(child)
     end
 
     it "doesn't pass on the parent's description" do
@@ -154,7 +157,7 @@ describe Skyward::API::Endpoints::Declarations do
       namespace.send(:remove_const, :Todos)
       namespace.const_set(:Todos, Class.new(parent))
 
-      assert_equal [route(:get, "/", :index)], namespace::Todos.routes
+      assert_equal [route(:get, "/", :index)], declared(namespace::Todos)
     end
   end
 
@@ -165,18 +168,25 @@ describe Skyward::API::Endpoints::Declarations do
       assert_empty api.routes
     end
 
+    it "records the file and line of the route's declaration" do
+      api.get "/", to: :index
+      line = __LINE__ - 1
+
+      assert_equal({ file: __FILE__, line: }, api.routes.first.to_h.slice(:file, :line))
+    end
+
     it "keeps routes in the order they're declared" do
       api.post "/", to: :create
       api.get "/", to: :index
 
-      assert_equal [route(:post, "/", :create), route(:get, "/", :index)], api.routes
+      assert_equal [route(:post, "/", :create), route(:get, "/", :index)], declared(api)
     end
 
     it "lets two routes name the same method" do
       api.put "/:id", to: :update
       api.patch "/:id", to: :update
 
-      assert_equal [route(:put, "/:id", :update), route(:patch, "/:id", :update)], api.routes
+      assert_equal [route(:put, "/:id", :update), route(:patch, "/:id", :update)], declared(api)
     end
 
     it "keeps frozen copies of the strings" do
@@ -206,7 +216,7 @@ describe Skyward::API::Endpoints::Declarations do
     it "accepts a path parameter with underscores and digits" do
       api.get "/:_todo_id2", to: :show
 
-      assert_equal [route(:get, "/:_todo_id2", :show)], api.routes
+      assert_equal [route(:get, "/:_todo_id2", :show)], declared(api)
     end
 
     it "refuses a path parameter that isn't a valid keyword name" do
