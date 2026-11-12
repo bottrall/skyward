@@ -6,10 +6,19 @@ module Skyward::ORM::Tables::Declarations : Class
 
   ON_DELETE: Array[Skyward::ORM::Tables::on_delete]
 
+  @locations: Hash[[ Symbol, Symbol ], [ String, Integer ]]?
+
   @schema: Skyward::ORM::Tables::Schema?
 
   # @rbs return: Skyward::ORM::Tables::Schema
   def schema: () -> Skyward::ORM::Tables::Schema
+
+  # The schema is compared as a value, so where each name was declared is kept
+  # beside it, by the declaration and the column or table it names.
+  # @rbs declaration: Symbol
+  # @rbs name: Symbol
+  # @rbs return: [String, Integer]?
+  def declared_at: (Symbol declaration, Symbol name) -> [ String, Integer ]?
 
   # @rbs return: Symbol
   def table_name: () -> Symbol
@@ -53,9 +62,14 @@ module Skyward::ORM::Tables::Declarations : Class
 
   private
 
+  # Only a declaration calls this, so its caller's caller is the class body.
+  # An anonymous class, from Class.new, keeps no location, and eval'd code has
+  # no file to point at.
+  # @rbs declaration: Symbol
+  # @rbs names: Array[Symbol]
   # @rbs **changes: untyped
   # @rbs return: void
-  def declare: (**untyped changes) -> void
+  def declare: (Symbol declaration, Array[Symbol] names, **untyped changes) -> void
 
   # @rbs declaration: Symbol
   # @rbs arguments: Array[untyped]

@@ -95,8 +95,36 @@ module TablesFixtures
     attr_reader :kind
   end
 
+  # Their types are in #: comments, as rbs-inline reads them.
+  class Annotated < Skyward::ORM::Record
+    attr_reader :tags #: Array[String]
+  end
+
+  # Memo's reader misspells String.
+  class Misnamed < Skyward::ORM::Record
+    attr_reader :memo #: Memo
+  end
+
+  # Each declaration names a column the class doesn't have, most of them misspelt.
+  class Misspelt < Skyward::ORM::Record
+    primary_key :cdoe
+    references :lsit_id, List
+    default dnoe: false
+    unique :emial
+    check :titel, length: 1..200
+    index :lsit_id, :due_on
+
+    attr_reader :code, :list_id, :title, :done, :email
+  end
+
+  # Its column is close to id, the default primary key it doesn't have.
+  class Keyless < Skyward::ORM::Record
+    attr_reader :ids
+  end
+
   Pair = Class.new
   Node = Class.new
+  Memo = Class.new
 
   # Its columns are typed with Skyward ORM's aliases.
   class Refined < Skyward::ORM::Record

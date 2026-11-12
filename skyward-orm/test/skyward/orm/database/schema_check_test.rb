@@ -61,6 +61,45 @@ describe Skyward::ORM::Database::SchemaCheck do
       assert_equal expected, mismatch(columns, todos(stored(:id, "INTEGER")))
     end
 
+    it "suggests a table the database has for a missing one" do
+      expected = <<~MESSAGE.chomp
+        TablesFixtures::Todo doesn't match the todos table
+
+          todos  The database has no table todos. Did you mean todo?
+                 #{migrate}
+      MESSAGE
+      tables = [Skyward::ORM::Catalog::Table.new(name: :todo, columns: [], indexes: [], constraints: [])]
+
+      assert_equal expected, mismatch([declared(:id, :integer)], tables)
+    end
+
+    it "suggests a column the class doesn't declare for a missing one" do
+      expected = <<~MESSAGE.chomp
+        TablesFixtures::Todo doesn't match the todos table
+
+          titel  todos has no column titel. Did you mean title?
+                 #{migrate}
+      MESSAGE
+
+      assert_equal expected,
+                   mismatch(
+                     [declared(:id, :integer), declared(:titel, :string)],
+                     todos(stored(:id, "INTEGER"), stored(:title, "TEXT"))
+                   )
+    end
+
+    it "suggests no column the class declares for a missing one" do
+      columns = [declared(:id, :integer), declared(:title, :string), declared(:titles, :string)]
+      expected = <<~MESSAGE.chomp
+        TablesFixtures::Todo doesn't match the todos table
+
+          titles  todos has no column titles.
+                  #{migrate}
+      MESSAGE
+
+      assert_equal expected, mismatch(columns, todos(stored(:id, "INTEGER"), stored(:title, "TEXT")))
+    end
+
     it "checks only that an untyped column is there" do
       assert_nil mismatch([declared(:tags, :untyped)], todos(stored(:tags, "BLOB", nullable: true)))
     end

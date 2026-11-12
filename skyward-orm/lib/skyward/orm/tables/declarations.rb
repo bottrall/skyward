@@ -16,13 +16,27 @@ module Skyward::ORM::Tables::Declarations
   ON_DELETE = %i[cascade restrict set_null set_default no_action].freeze #: Array[Skyward::ORM::Tables::on_delete]
 
   # @rbs @schema: Skyward::ORM::Tables::Schema?
+  # @rbs @locations: Hash[[Symbol, Symbol], [String, Integer]]?
 
   # @rbs return: Skyward::ORM::Tables::Schema
   def schema = @schema || EMPTY
 
+  # The schema is compared as a value, so where each name was declared is kept
+  # beside it, by the declaration and the column or table it names.
+  # @rbs declaration: Symbol
+  # @rbs name: Symbol
+  # @rbs return: [String, Integer]?
+  def declared_at(declaration, name) = @locations&.[]([declaration, name])
+
   # @rbs return: Symbol
   def table_name
-    schema.table || raise(Skyward::Core::BootError, "#{self} has no table. Add `table :name` to its body.")
+    schema.table || raise(
+      Skyward::Core::BootError,
+      Skyward::ORM::Tables::Sources.explain(
+        "#{self} has no table. Add `table :name` to its body.",
+        [Skyward::ORM::Tables::Sources.class_name(self)]
+      )
+    )
   end
 
   # Every attr_reader is a column, so each one compiles the row's methods again.
@@ -35,7 +49,7 @@ module Skyward::ORM::Tables::Declarations
     repeated = columns.find { |column| columns.count(column) > 1 }
     raise ArgumentError, "#{self} already has a column #{repeated}" if repeated
 
-    declare(columns: columns.freeze)
+    declare(:attr_reader, readers, columns: columns.freeze)
     # Ruby warns when a method is redefined, so the old ones are removed first.
     (Skyward::ORM::Tables::Rows::METHODS & [*instance_methods(false), *private_instance_methods(false)])
       .each { |method| remove_method(method) }
@@ -47,7 +61,7 @@ module Skyward::ORM::Tables::Declarations
   # @rbs return: void
   def table(name)
     refuse(:table, [name], "the table's name must be a Symbol, such as :todos") unless symbol?(name)
-    declare(table: name)
+    declare(:table, [name], table: name)
   end
 
   # @rbs column: Symbol
@@ -55,7 +69,7 @@ module Skyward::ORM::Tables::Declarations
   def primary_key(column)
     problem = unnamed([column])
     refuse(:primary_key, [column], problem) if problem
-    declare(primary_key: column)
+    declare(:primary_key, [column], primary_key: column)
   end
 
   # @rbs column: Symbol
@@ -66,13 +80,13 @@ module Skyward::ORM::Tables::Declarations
     problem = unnamed([column]) || unreferenceable(table, on_delete)
     refuse(:references, [column], problem) if problem
     reference = Skyward::ORM::Tables::Reference.new(column:, table:, on_delete:)
-    declare(references: [*schema.references, reference].freeze)
+    declare(:references, [column], references: [*schema.references, reference].freeze)
   end
 
   # @rbs **values: untyped
   # @rbs return: void
   def default(**values)
-    declare(defaults: schema.defaults.merge(values).freeze)
+    declare(:default, values.keys, defaults: schema.defaults.merge(values).freeze)
   end
 
   # @rbs *columns: Symbol
@@ -80,7 +94,7 @@ module Skyward::ORM::Tables::Declarations
   def unique(*columns)
     problem = unnamed(columns)
     refuse(:unique, columns, problem) if problem
-    declare(uniques: [*schema.uniques, columns.freeze].freeze)
+    declare(:unique, columns, uniques: [*schema.uniques, columns.freeze].freeze)
   end
 
   # @rbs column: Symbol
@@ -91,7 +105,8 @@ module Skyward::ORM::Tables::Declarations
     rule = unnamed([column]) || check_rule(sql, length)
     case rule
     when String then refuse(:check, [column], rule)
-    else declare(checks: [*schema.checks, Skyward::ORM::Tables::Check.new(column:, rule:)].freeze)
+    else
+      declare(:check, [column], checks: [*schema.checks, Skyward::ORM::Tables::Check.new(column:, rule:)].freeze)
     end
   end
 
@@ -100,15 +115,28 @@ module Skyward::ORM::Tables::Declarations
   def index(*columns)
     problem = unnamed(columns)
     refuse(:index, columns, problem) if problem
-    declare(indexes: [*schema.indexes, columns.freeze].freeze)
+    declare(:index, columns, indexes: [*schema.indexes, columns.freeze].freeze)
   end
 
   private
 
+  # Only a declaration calls this, so its caller's caller is the class body.
+  # An anonymous class, from Class.new, keeps no location, and eval'd code has
+  # no file to point at.
+  # @rbs declaration: Symbol
+  # @rbs names: Array[Symbol]
   # @rbs **changes: untyped
   # @rbs return: void
-  def declare(**changes)
+  def declare(declaration, names, **changes)
     @schema = schema.with(**changes)
+    site = caller_locations(2, 1)&.first
+    path = site&.absolute_path
+    return unless name && site && path
+
+    located = names.to_h do |named|
+      [[declaration, named], [path, site.lineno]] #: [[Symbol, Symbol], [String, Integer]]
+    end
+    @locations = (@locations || {}).merge(located)
   end
 
   # @rbs declaration: Symbol

@@ -96,6 +96,19 @@ module TablesFixtures
     attr_reader kind: "todo"
   end
 
+  # As rbs-inline writes them from their #: comments.
+  class Annotated < ::Skyward::ORM::Record
+    attr_reader tags: Array[String]
+  end
+
+  class Misnamed < ::Skyward::ORM::Record
+    attr_reader memo: Memo
+  end
+
+  class Memo
+    attr_reader body: Strng
+  end
+
   class Overdue < ::Data
     attr_reader title: String
     attr_reader days_late: Integer

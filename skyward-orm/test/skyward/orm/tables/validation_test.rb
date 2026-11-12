@@ -4,8 +4,17 @@ require "test_helper"
 require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Tables::Validation do
+  fixtures = File.expand_path("../../../fixtures/tables/tables_fixtures.rb", __dir__).delete_prefix("#{Dir.pwd}/")
+  source = File.readlines(fixtures, chomp: true)
+
   def refusal(klass)
     assert_raises(Skyward::Core::BootError) { Skyward::ORM::Tables::Validation.validate(klass) }.message
+  end
+
+  define_method(:excerpt) do |declaration, part|
+    line = source.index { |text| text.include?(declaration) }.to_i
+    text = source.fetch(line).strip
+    "    #{fixtures}:#{line + 1}\n    #{text}\n    #{" " * text.index(part).to_i}#{"^" * part.size}"
   end
 
   describe ".validate" do
@@ -17,6 +26,12 @@ describe Skyward::ORM::Tables::Validation do
       assert_equal "#{TablesFixtures::Literal} has no column id, which its primary_key names. " \
                    "Add `attr_reader :id`, or fix the name.",
                    refusal(TablesFixtures::Literal)
+    end
+
+    it "points at nothing for the default primary key, which is declared nowhere, and suggests nothing" do
+      assert_equal "TablesFixtures::Keyless has no column id, which its primary_key names. " \
+                   "Add `attr_reader :id`, or fix the name.",
+                   refusal(TablesFixtures::Keyless)
     end
 
     it "names the class and each column a declaration names that it doesn't have" do
@@ -38,6 +53,25 @@ describe Skyward::ORM::Tables::Validation do
       ]
 
       assert_equal expected.join("\n"), refusal(klass)
+    end
+
+    it "points at each declaration that names a column the class doesn't have, suggesting the closest" do
+      explained = lambda do |column, declaration, snippet, part, suggestion = nil|
+        ["TablesFixtures::Misspelt has no column #{column}, which its #{declaration} names. " \
+         "Add `attr_reader :#{column}`, or fix the name.\n\n#{excerpt(snippet, part)}",
+         ("Did you mean #{suggestion}?" if suggestion)].compact.join("\n")
+      end
+      expected = [
+        explained.call(:cdoe, :primary_key, "primary_key :cdoe", ":cdoe", "code"),
+        explained.call(:lsit_id, :references, "references :lsit_id", ":lsit_id", "list_id"),
+        explained.call(:dnoe, :default, "default dnoe:", "dnoe:", "done"),
+        explained.call(:emial, :unique, "unique :emial", ":emial", "email"),
+        explained.call(:titel, :check, "check :titel", ":titel", "title"),
+        explained.call(:lsit_id, :index, "index :lsit_id", ":lsit_id", "list_id"),
+        explained.call(:due_on, :index, "index :lsit_id", ":due_on")
+      ]
+
+      assert_equal expected.join("\n\n"), refusal(TablesFixtures::Misspelt)
     end
 
     it "checks a check's column" do

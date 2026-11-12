@@ -13,9 +13,16 @@ module Skyward::ORM::Database::SchemaCheck
 
   private
 
+  # A missing column is suggested only one the class doesn't declare, since
+  # one added with no migration yet would otherwise be pointed at another.
   # @rbs (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table,
-  #   Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> Array[problem]
-  def column_problems: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> Array[problem]
+  #   Skyward::ORM::Tables::Column column, Array[Symbol] undeclared, Skyward::ORM::_Adapter adapter) -> Array[problem]
+  def column_problems: (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table, Skyward::ORM::Tables::Column column, Array[Symbol] undeclared, Skyward::ORM::_Adapter adapter) -> Array[problem]
+
+  # @rbs name: Symbol
+  # @rbs names: Array[Symbol]
+  # @rbs return: String
+  def suggest: (Symbol name, Array[Symbol] names) -> String
 
   # @rbs stored: String
   # @rbs declared: String

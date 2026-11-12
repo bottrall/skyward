@@ -203,10 +203,15 @@ describe Skyward::ORM::CLI::Migration do
 
     it "fails with only the message of a class it can't migrate" do
       app do |directory|
-        run_in(directory, "create_todos", classes: [fixtures::Todo, fixtures::NotedTodo])
+        shared = Array.new(2) do
+          Class.new(Skyward::ORM::Record) do
+            table :todos
+            attr_reader :id
+          end
+        end
+        run_in(directory, "create_todos", classes: shared)
 
-        assert_equal "MigrationsFixtures::NotedTodo and MigrationsFixtures::Todo each declare table :todos. " \
-                     "Give each table one class.",
+        assert_equal "#{shared.sort_by(&:to_s).join(" and ")} each declare table :todos. Give each table one class.",
                      kernel.aborted
       end
     end

@@ -128,7 +128,7 @@ module Skyward::ORM::Statements
     name = (columns - known).first #: Symbol?
     return unless name
 
-    suggestion = DidYouMean::SpellChecker.new(dictionary: known).correct(name).first
+    suggestion = Skyward::Core::Diagnostics::Suggestion.closest(name.to_s, known.map(&:to_s))
     "#{table} has no column #{name}.#{" Did you mean #{suggestion}?" if suggestion}"
   end
 

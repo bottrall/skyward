@@ -8,6 +8,11 @@ require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Migrations::Diff do
   fixtures = MigrationsFixtures
+  fixture = File.expand_path(
+    "../../../fixtures/migrations/migrations_fixtures.rb",
+    __dir__
+  ).delete_prefix("#{Dir.pwd}/")
+  todos_line = File.readlines(fixture).index { |text| text.include?("table :todos") }.to_i + 1
   changed = ChangesFixtures
   migrations = Skyward::ORM::Migrations
   catalog = Skyward::ORM::Catalog
@@ -121,9 +126,18 @@ describe Skyward::ORM::Migrations::Diff do
     it "refuses classes that share a table" do
       error = assert_raises(Skyward::Core::BootError) { changes([fixtures::Todo, fixtures::List, fixtures::NotedTodo]) }
 
-      assert_equal "MigrationsFixtures::NotedTodo and MigrationsFixtures::Todo each declare table :todos. " \
-                   "Give each table one class.",
-                   error.message
+      expected = <<~MESSAGE.chomp
+        MigrationsFixtures::NotedTodo and MigrationsFixtures::Todo each declare table :todos. Give each table one class.
+
+            #{fixture}:#{todos_line}
+            table :todos
+                  ^^^^^^
+            ...
+            table :todos
+                  ^^^^^^
+      MESSAGE
+
+      assert_equal expected, error.message
     end
 
     it "creates each table the database doesn't have, with its class's typed columns" do

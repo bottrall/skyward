@@ -42,8 +42,12 @@ class Skyward::ORM::Tables::ColumnTypes
       written = returned.to_s.gsub(/(?<!\w)::/, "")
       column = returned ? read(name, returned, written) : column(name, UNTYPED, written)
       case column
-      when String then raise Skyward::Core::BootError, "#{klass}##{name} #{column}"
-      else column
+      when Skyward::ORM::Tables::Column then column
+      else
+        problem, suggestion = column
+        spot = Skyward::ORM::Tables::Sources.reader(klass, name)
+        raise Skyward::Core::BootError,
+              Skyward::ORM::Tables::Sources.explain("#{klass}##{name} #{problem}", [spot], suggestion)
       end
     end.freeze
   end
@@ -51,30 +55,30 @@ class Skyward::ORM::Tables::ColumnTypes
   # @rbs name: Symbol
   # @rbs returned: RBS::Types::t
   # @rbs written: String
-  # @rbs return: Skyward::ORM::Tables::Column | String
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
   def read(name, returned, written)
     column(name, @reader.read(returned), written)
   # The reader raises for a type it can't read at all, such as one that refers
   # to itself, and the column should still be named.
   rescue Skyward::Core::BootError => e
-    "is #{written}. #{e.message}"
+    ["is #{written}. #{e.message}", nil]
   end
 
   # @rbs name: Symbol
   # @rbs read: Skyward::Core::Types::result
   # @rbs written: String
-  # @rbs return: Skyward::ORM::Tables::Column | String
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
   def column(name, read, written)
     nullable = read.is_a?(Skyward::Core::Types::Nullable)
     carried = read.is_a?(Skyward::Core::Types::Nullable) ? read.type : read
     case carried
     when DECIMAL, Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf
-      "is #{written}, which isn't a column type yet. #{COLUMN_TYPES}"
+      ["is #{written}, which isn't a column type yet. #{COLUMN_TYPES}", nil]
     when Skyward::Core::Types::HashOf
       if carried.type == UNTYPED
         Skyward::ORM::Tables::Column.new(name:, type: :json, nullable:, symbols: [])
       else
-        "is #{written}, which isn't a column type. A Hash column is Hash[String, untyped], holding any JSON."
+        ["is #{written}, which isn't a column type. A Hash column is Hash[String, untyped], holding any JSON.", nil]
       end
     when Skyward::Core::Types::Scalar
       Skyward::ORM::Tables::Column.new(name:, type: carried.name, nullable:, symbols: [])
@@ -85,8 +89,9 @@ class Skyward::ORM::Tables::ColumnTypes
       type = carried.as #: Skyward::ORM::Tables::refinement
       Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [])
     when Skyward::Core::Types::Unreadable
-      "can't be read: Skyward ORM doesn't read #{carried.type}#{", at #{carried.at}" if carried.at}. #{COLUMN_TYPES}"
-    else "is #{written}, which isn't a column type. #{COLUMN_TYPES}"
+      at = ", at #{carried.at}" if carried.at
+      ["can't be read: Skyward ORM doesn't read #{carried.type}#{at}. #{COLUMN_TYPES}", carried.suggestion]
+    else ["is #{written}, which isn't a column type. #{COLUMN_TYPES}", nil]
     end
   end
 end
