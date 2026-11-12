@@ -18,6 +18,11 @@ module Skyward::ORM::CLI::Scaffold::Source
   ISO_TIME = /\A(\d{4}-\d{2}-\d{2}) (?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?\z/ #: Regexp
 
   BOOLS = { "true" => true, "false" => false, "1" => true, "0" => false }.freeze #: Hash[String, bool]
+
+  ENUM = Skyward::ORM::Tables::Column.new(
+    name: :enum, type: :enum, nullable: false, symbols: [], element: nil
+  ) #: Skyward::ORM::Tables::Column
+
   PARENTHESIZED = /\A\((.*)\)\z/m #: Regexp
 
   CHECK = /\ACHECK\s*\((.*)\)\z/im #: Regexp
@@ -148,7 +153,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs (Skyward::ORM::Catalog::Column column, Array[Skyward::ORM::Catalog::Constraint] checks,
   #   Skyward::ORM::_Adapter adapter) -> [Skyward::ORM::Catalog::Constraint, Array[Symbol]]?
   def union(column, checks, adapter)
-    return unless adapter.column_type(column.type) == :string && adapter.compatible?(:enum, column.type)
+    return unless adapter.column_type(column.type) == :string && adapter.compatible?(ENUM, column.type)
 
     found = checks.find do |check|
       rule = rule(check)

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "pg"
 require_relative "../../../fixtures/migrations/migrations_fixtures"
 
 describe Skyward::ORM::Migrations::Definitions do
@@ -87,6 +88,17 @@ describe Skyward::ORM::Migrations::Definitions do
                    definitions.default(fixtures::Webhook, settings, Skyward::ORM::Adapters::PostgreSQL)
     end
 
+    it "writes an Array column's default quoted, as each adapter stores an array, an empty one as {} and []" do
+      columns = [column(fixtures::Shelf, :integers), column(fixtures::Shelf, :strings)]
+      written = [Skyward::ORM::Adapters::PostgreSQL, Skyward::ORM::Adapters::SQLite].map do |adapter|
+        columns.map { |column| definitions.default(fixtures::Shelf, column, adapter) }
+      end
+
+      assert_equal [["'{}'", %('{it''s,"a,b","say \\"hi\\"","NULL",""}')],
+                    ["'[]'", %('["it''s","a,b","say \\"hi\\"","NULL",""]')]],
+                   written
+    end
+
     it "writes a BigDecimal column's default unquoted, an Integer as a decimal, on both adapters" do
       columns = [column(fixtures::Product, :price), column(fixtures::Product, :fee)]
       written = [Skyward::ORM::Adapters::PostgreSQL, Skyward::ORM::Adapters::SQLite].map do |adapter|
@@ -98,14 +110,26 @@ describe Skyward::ORM::Migrations::Definitions do
 
     it "writes a BigDecimal column's nil default as NULL" do
       product = Class.new(Skyward::ORM::Record) { default discount: nil }
-      discount = Skyward::ORM::Tables::Column.new(name: :discount, type: :decimal, nullable: true, symbols: [])
+      discount = Skyward::ORM::Tables::Column.new(
+        name: :discount,
+        type: :decimal,
+        nullable: true,
+        symbols: [],
+        element: nil
+      )
 
       assert_equal "NULL", definitions.default(product, discount, Skyward::ORM::Adapters::SQLite)
     end
 
     it "quotes a BigDecimal column's Infinity default, which isn't a number SQL reads" do
       product = Class.new(Skyward::ORM::Record) { default discount: BigDecimal("Infinity") }
-      discount = Skyward::ORM::Tables::Column.new(name: :discount, type: :decimal, nullable: true, symbols: [])
+      discount = Skyward::ORM::Tables::Column.new(
+        name: :discount,
+        type: :decimal,
+        nullable: true,
+        symbols: [],
+        element: nil
+      )
 
       assert_equal "'Infinity'", definitions.default(product, discount, Skyward::ORM::Adapters::PostgreSQL)
     end

@@ -34,11 +34,13 @@ module Skyward::ORM
     def placeholder: (Integer position) -> String
     def bind_limit: () -> Integer
     def unlimited: () -> String?
-    def sql_type: (Tables::column_type type) -> String?
+    def sql_type: (Tables::Column column) -> String?
     def identity: () -> String?
     def alters_in_place?: () -> bool
     def default_expression: (String expression) -> String
-    def compatible?: (Tables::column_type type, String sql_type) -> bool
+    # A column's default as the catalog reads it back once written.
+    def catalog_default: (String default) -> String
+    def compatible?: (Tables::Column column, String sql_type) -> bool
     # The SQL a range and an order compare a column's values in, given its SQL.
     def comparable: (Tables::column_type type, String column) -> String
 
@@ -46,7 +48,9 @@ module Skyward::ORM
     # holds, one compatible? accepts, or nil when no column type does.
     def column_type: (String sql_type) -> Tables::column_type?
     def encode: (untyped value) -> untyped
-    def decode: (Tables::column_type type, untyped value) -> untyped
+    # An Array column's value, each item encoded as the adapter stores its type.
+    def encode_array: (Array[untyped] items) -> String
+    def decode: (Tables::Column column, untyped value) -> untyped
     def tables: (_Connection connection) -> Array[Catalog::Table]
     def violation: (StandardError error, Array[Catalog::Table] tables, Symbol? table) -> Violation?
     # Begins a migration's transaction, first taking a lock that one migrator

@@ -181,7 +181,9 @@ describe "skyward/orm/commands.rb" do
        "table written by hand, with PostgreSQL's default constraint names" do
       app do |directory|
         adapter = empty.adapter
-        integer, text, date, bool, time = %i[integer string date bool time].map { |type| adapter.sql_type(type) }
+        integer, text, date, bool, time = %i[integer string date bool time].map do |type|
+          adapter.sql_type(TestDatabase.column(type))
+        end
         FileUtils.mkdir_p(File.join(directory, "db/migrate"))
         File.write(File.join(directory, "db/migrate/20261001000000_by_hand.sql"), <<~SQL)
           CREATE TABLE lists (id #{empty.primary_key}, name #{text} NOT NULL);

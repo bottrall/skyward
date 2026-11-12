@@ -10,11 +10,13 @@ module Skyward::ORM::Tables
 
     attr_reader symbols(): Array[Symbol]
 
-    def self.new: (Symbol name, column_type type, bool nullable, Array[Symbol] symbols) -> instance
-                | (name: Symbol, type: column_type, nullable: bool, symbols: Array[Symbol]) -> instance
+    attr_reader element(): column_type?
 
-    def self.members: () -> [ :name, :type, :nullable, :symbols ]
+    def self.new: (Symbol name, column_type type, bool nullable, Array[Symbol] symbols, column_type? element) -> instance
+                | (name: Symbol, type: column_type, nullable: bool, symbols: Array[Symbol], element: column_type?) -> instance
 
-    def members: () -> [ :name, :type, :nullable, :symbols ]
+    def self.members: () -> [ :name, :type, :nullable, :symbols, :element ]
+
+    def members: () -> [ :name, :type, :nullable, :symbols, :element ]
   end
 end

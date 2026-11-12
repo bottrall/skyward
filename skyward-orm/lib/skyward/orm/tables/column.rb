@@ -5,6 +5,7 @@ module Skyward::ORM::Tables
     :name, #: Symbol
     :type, #: column_type
     :nullable, #: bool
-    :symbols #: Array[Symbol]
+    :symbols, #: Array[Symbol]
+    :element #: column_type?
   )
 end

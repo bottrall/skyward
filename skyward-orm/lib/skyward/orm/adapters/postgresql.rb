@@ -63,9 +63,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%6N" #: String
   TRAILING_ZEROS = /\.?0+\z/ #: Regexp
 
-  # PostgreSQL reads a literal default back cast to its type, as 'normal'::text,
-  # and quotes a number that isn't a plain integer or decimal, as '-1'::integer.
-  CAST = /\A(?<literal>'(?:[^']|'')*')::(?<type>[a-z ]+)\z/ #: Regexp
+  # PostgreSQL reads a literal default back cast to its type, as 'normal'::text
+  # or '{}'::text[], and quotes a number that isn't a plain integer or decimal,
+  # as '-1'::integer.
+  CAST = /\A(?<literal>'(?:[^']|'')*')::(?<type>[a-z ]+(?:\[\])?)\z/ #: Regexp
   NUMERIC = /\A(?:smallint|integer|bigint|numeric|real|double precision)\z/ #: Regexp
 
   # Float() refuses the special values PostgreSQL writes out.
@@ -79,6 +80,7 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   # Each value comes back as text, and a boolean as t or f.
   TRUE_TEXT = "t" #: String
+  FALSE_TEXT = "f" #: String
 
   VIOLATIONS = {
     "23505" => :unique,
@@ -169,9 +171,12 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String?
   def unlimited = nil
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String?
-  def sql_type(type) = SQL_TYPES[type]
+  def sql_type(column)
+    element = column.element
+    element ? "#{SQL_TYPES.fetch(element)}[]" : SQL_TYPES[column.type]
+  end
 
   # @rbs return: String?
   def identity = "GENERATED ALWAYS AS IDENTITY"
@@ -196,12 +201,24 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String
   def default_expression(expression) = expression
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs default: String
+  # @rbs return: String
+  def catalog_default(default)
+    cast = CAST.match(default)
+    return default unless cast
+
+    literal = cast[:literal].to_s
+    NUMERIC.match?(cast[:type].to_s) ? literal.delete("'") : literal
+  end
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs sql_type: String
   # @rbs return: bool
-  def compatible?(type, sql_type)
-    accepted = COMPATIBLE[type]
-    accepted.nil? || accepted.include?(sql_type.sub(MODIFIER, ""))
+  def compatible?(column, sql_type)
+    element = column.element
+    return accepts?(column.type, sql_type) unless element
+
+    sql_type.end_with?("[]") && accepts?(element, sql_type.delete_suffix("[]"))
   end
 
   # PostgreSQL compares numeric as it is.
@@ -227,22 +244,32 @@ module Skyward::ORM::Adapters::PostgreSQL
     end
   end
 
-  # @rbs type: Skyward::ORM::Tables::column_type
+  # The encoder quotes each item that needs it, the string NULL included. A
+  # boolean is written as PostgreSQL writes one back, so a default reads back
+  # as it was written.
+  # @rbs items: Array[untyped]
+  # @rbs return: String
+  def encode_array(items)
+    PG::TextEncoder::Array.new.encode(
+      items.map do |item|
+        case item
+        when true then TRUE_TEXT
+        when false then FALSE_TEXT
+        else encode(item)
+        end
+      end
+    )
+  end
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
-  def decode(type, value)
-    case type
-    when :integer, :int32, :int16 then Integer(value, 10)
-    when :float then SPECIAL_FLOATS.fetch(value) { Float(value) }
-    when :decimal then BigDecimal(value)
-    when :bool then value == TRUE_TEXT
-    when :date then Date.iso8601(value)
-    # A timestamp column's text has no zone, so it's read as the UTC it was written in.
-    when :time then Time.new(value, in: "UTC").getutc
-    when :enum then value.to_sym
-    when :json then JSON.parse(value, freeze: true)
-    else value.freeze
-    end
+  def decode(column, value)
+    element = column.element
+    return scalar(column.type, value) unless element
+
+    # Other SQL can write a NULL item, which the ORM never does; it stays nil rather than reading as false.
+    PG::TextDecoder::Array.new.decode(value).map { |item| item.nil? ? nil : scalar(element, item).freeze }.freeze
   end
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
@@ -254,7 +281,11 @@ module Skyward::ORM::Adapters::PostgreSQL
         name: name.to_sym,
         columns: rows.map do |_, column, type, not_null, default, generated|
           Skyward::ORM::Catalog::Column.new(
-            name: column.to_sym, type:, nullable: not_null != TRUE_TEXT, default: default(default), generated:
+            name: column.to_sym,
+            type:,
+            nullable: not_null != TRUE_TEXT,
+            default: default && catalog_default(default),
+            generated:
           )
         end,
         indexes: indexes(index_rows.fetch(name, [])),
@@ -285,6 +316,33 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   private
 
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs sql_type: String
+  # @rbs return: bool
+  def accepts?(type, sql_type)
+    accepted = COMPATIBLE[type]
+    accepted.nil? || accepted.include?(sql_type.sub(MODIFIER, ""))
+  end
+
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def scalar(type, value)
+    case type
+    when :integer, :int32, :int16 then Integer(value, 10)
+    when :float then SPECIAL_FLOATS.fetch(value) { Float(value) }
+    when :decimal then BigDecimal(value)
+    when :bool then value == TRUE_TEXT
+    when :date then Date.iso8601(value)
+    # A timestamp column's text has no zone, so it's read as the UTC it was written in.
+    when :time then Time.new(value, in: "UTC").getutc
+    # An Array's item may be NULL, or an Array of its own, which names no Symbol.
+    when :enum then String.try_convert(value)&.to_sym
+    when :json then JSON.parse(value, freeze: true)
+    else value.freeze
+    end
+  end
+
   # @rbs rows: Array[Array[untyped]]
   # @rbs return: Array[Skyward::ORM::Catalog::Index]
   def indexes(rows)
@@ -312,16 +370,6 @@ module Skyward::ORM::Adapters::PostgreSQL
         definition: first.fetch(5)
       )
     end
-  end
-
-  # @rbs expression: String?
-  # @rbs return: String?
-  def default(expression)
-    cast = CAST.match(expression.to_s)
-    return expression unless cast
-
-    literal = cast[:literal].to_s
-    NUMERIC.match?(cast[:type].to_s) ? literal.delete("'") : literal
   end
 
   # @rbs tables: Array[Skyward::ORM::Catalog::Table]

@@ -31,7 +31,7 @@ describe Skyward::ORM::Projection do
   let(:empty) { TestDatabase.empty }
   let(:adapter) { empty.adapter }
   let(:connection) do
-    integer = adapter.sql_type(:integer)
+    integer, date, bool, time = %i[integer date bool time].map { |type| adapter.sql_type(TestDatabase.column(type)) }
     empty.connect.tap do |connection|
       connection.execute("CREATE TABLE lists (id #{integer} PRIMARY KEY, name TEXT CONSTRAINT lists_name_key UNIQUE)")
       connection.execute("INSERT INTO lists VALUES (1, 'Home'), (2, 'Work')")
@@ -39,8 +39,7 @@ describe Skyward::ORM::Projection do
         "CREATE TABLE todos (id #{integer} PRIMARY KEY, " \
         "list_id #{integer} CONSTRAINT todos_list_id_fkey REFERENCES lists ON DELETE RESTRICT, " \
         "title TEXT NOT NULL CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200), " \
-        "priority TEXT, due_on #{adapter.sql_type(:date)}, done #{adapter.sql_type(:bool)}, " \
-        "created_at #{adapter.sql_type(:time)})"
+        "priority TEXT, due_on #{date}, done #{bool}, created_at #{time})"
       )
     end
   end

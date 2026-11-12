@@ -21,6 +21,8 @@ module Skyward::ORM::CLI::Scaffold::Source
 
   BOOLS: Hash[String, bool]
 
+  ENUM: Skyward::ORM::Tables::Column
+
   PARENTHESIZED: Regexp
 
   CHECK: Regexp

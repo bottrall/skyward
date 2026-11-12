@@ -224,7 +224,7 @@ module Skyward::ORM::Migrations::Script
     name_width = columns.map { |column| column.name.length }.max || 0
     identity = adapter.identity
     type_width = columns.reject { |column| identity && generated?(schema, column) }
-                        .filter_map { |column| (adapter.sql_type(column.type) || kept[column.name]&.type)&.length }
+                        .filter_map { |column| (adapter.sql_type(column) || kept[column.name]&.type)&.length }
                         .max || 0
     lines = columns.map do |column|
       found = definition(klass, column, adapter, constraints, kept[column.name])
@@ -273,7 +273,7 @@ module Skyward::ORM::Migrations::Script
   # @rbs (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter,
   #   Array[Skyward::ORM::Catalog::Constraint] constraints, Skyward::ORM::Catalog::Column? kept) -> [String, String]?
   def definition(klass, column, adapter, constraints, kept)
-    typed = adapter.sql_type(column.type)
+    typed = adapter.sql_type(column)
     sql_type = typed || kept&.type
     return unless sql_type
 

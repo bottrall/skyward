@@ -7,7 +7,12 @@ class Skyward::ORM::Tables::ColumnTypes
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
   COLUMN_TYPES = "A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, " \
-                 "a union of symbols or Hash[String, untyped], any of them nullable, or untyped." #: String
+                 "a union of symbols, Hash[String, untyped] or Array[T], any of them nullable, or untyped." #: String
+
+  ELEMENTS = %i[integer float decimal string bool date time].freeze #: Array[Skyward::Core::Types::scalar]
+
+  ELEMENT_TYPES = "An Array column is Array[T], where T is Integer, Float, BigDecimal, String, bool, Date, Time " \
+                  "or a union of symbols, and isn't nullable." #: String
 
   # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
   REFINEMENTS = {
@@ -70,26 +75,47 @@ class Skyward::ORM::Tables::ColumnTypes
     nullable = read.is_a?(Skyward::Core::Types::Nullable)
     carried = read.is_a?(Skyward::Core::Types::Nullable) ? read.type : read
     case carried
-    when Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf
+    when Skyward::Core::Types::Record, Skyward::Core::Types::Named
       ["is #{written}, which isn't a column type yet. #{COLUMN_TYPES}", nil]
+    when Skyward::Core::Types::ArrayOf then array(name, carried.type, nullable, written)
     when Skyward::Core::Types::HashOf
       if carried.type == UNTYPED
-        Skyward::ORM::Tables::Column.new(name:, type: :json, nullable:, symbols: [])
+        Skyward::ORM::Tables::Column.new(name:, type: :json, nullable:, symbols: [], element: nil)
       else
         ["is #{written}, which isn't a column type. A Hash column is Hash[String, untyped], holding any JSON.", nil]
       end
     when Skyward::Core::Types::Scalar
-      Skyward::ORM::Tables::Column.new(name:, type: carried.name, nullable:, symbols: [])
+      Skyward::ORM::Tables::Column.new(name:, type: carried.name, nullable:, symbols: [], element: nil)
     when Skyward::Core::Types::Enum
-      Skyward::ORM::Tables::Column.new(name:, type: :enum, nullable:, symbols: carried.symbols)
+      Skyward::ORM::Tables::Column.new(name:, type: :enum, nullable:, symbols: carried.symbols, element: nil)
     when Skyward::Core::Types::Refined
       # The reader refines only the aliases in REFINEMENTS.
       type = carried.as #: Skyward::ORM::Tables::refinement
-      Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [])
+      Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [], element: nil)
     when Skyward::Core::Types::Unreadable
       at = ", at #{carried.at}" if carried.at
       ["can't be read: Skyward ORM doesn't read #{carried.type}#{at}. #{COLUMN_TYPES}", carried.suggestion]
     else ["is #{written}, which isn't a column type. #{COLUMN_TYPES}", nil]
+    end
+  end
+
+  # @rbs name: Symbol
+  # @rbs item: Skyward::Core::Types::t
+  # @rbs nullable: bool
+  # @rbs written: String
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
+  def array(name, item, nullable, written)
+    case item
+    when Skyward::Core::Types::Scalar
+      if ELEMENTS.include?(item.name)
+        Skyward::ORM::Tables::Column.new(name:, type: :array, nullable:, symbols: [], element: item.name)
+      else
+        ["is #{written}, which isn't a column type. #{ELEMENT_TYPES}", nil]
+      end
+    when Skyward::Core::Types::Enum
+      Skyward::ORM::Tables::Column.new(name:, type: :array, nullable:, symbols: item.symbols, element: :enum)
+    when Skyward::Core::Types::Refined then ["is #{written}, which isn't a column type yet. #{ELEMENT_TYPES}", nil]
+    else ["is #{written}, which isn't a column type. #{ELEMENT_TYPES}", nil]
     end
   end
 end

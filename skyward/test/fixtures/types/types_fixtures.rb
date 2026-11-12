@@ -15,6 +15,14 @@ module TypesFixtures
                 :due_at,
                 :priority,
                 :settings,
+                :counts,
+                :ratios,
+                :amounts,
+                :titles,
+                :flags,
+                :due_ons,
+                :due_ats,
+                :priorities,
                 :nullable_count,
                 :nullable_ratio,
                 :nullable_amount,
@@ -23,7 +31,8 @@ module TypesFixtures
                 :nullable_due_on,
                 :nullable_due_at,
                 :nullable_priority,
-                :nullable_settings
+                :nullable_settings,
+                :nullable_titles
   end
 
   class EverythingAPI < Skyward::API

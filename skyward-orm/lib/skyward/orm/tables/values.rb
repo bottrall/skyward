@@ -37,6 +37,11 @@ module Skyward::ORM::Tables::Values
     int16: -(2**15)...(2**15)
   }.freeze #: Hash[Symbol, Range[Integer]]
 
+  WHOLE = {
+    json: "a #{WRITTEN.fetch(:json)}",
+    array: "an Array"
+  }.freeze #: Hash[Symbol, String]
+
   UNTYPED = "untyped, which takes any value but a Hash or a nested Array" #: String
 
   UNTYPED_WRITE = "untyped, which takes any one value but an Array, a Hash or a Range" #: String
@@ -47,9 +52,11 @@ module Skyward::ORM::Tables::Values
   # @rbs return: String?
   def mismatch(table, column, value)
     # PostgreSQL compares jsonb by value, but SQLite compares the JSON's text,
-    # so the two would match different rows for anything but NULL.
-    if column.type == :json && !value.nil?
-      return "#{table}.#{column.name} is a #{WRITTEN.fetch(:json)} column, which where matches only to nil. " \
+    # so the two would match different rows for anything but NULL. An Array
+    # would otherwise mean IN, which on an Array column could mean either.
+    whole = WHOLE[column.type]
+    if whole && !value.nil?
+      return "#{table}.#{column.name} is #{whole} column, which where matches only to nil. " \
              "Match its contents with an SQL string."
     end
 
@@ -60,19 +67,47 @@ module Skyward::ORM::Tables::Values
   end
 
   # A write binds each value to one placeholder, so an Array or a Range, which
-  # a where unpacks, is never one value, and the driver can't bind a Range.
+  # a where unpacks, is never one value, but for an Array column's whole Array,
+  # and the driver can't bind a Range.
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: String?
   def write_mismatch(table, column, value)
     return json_mismatch(table, column, value) if column.type == :json && !value.nil?
+    return array_mismatch(table, column, value) if column.type == :array && !value.nil?
     return if accepts?(column, value) && !value.is_a?(Range)
 
     refusal(table, column, value, UNTYPED_WRITE)
   end
 
   private
+
+  # SQLite holds the Array as JSON, which has no Infinity, so neither adapter
+  # takes one in an Array, though a Float column does.
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: String?
+  def array_mismatch(table, column, value)
+    return refusal(table, column, value, UNTYPED_WRITE) unless value.is_a?(Array)
+
+    element = item(column)
+    index = value.index do |entry|
+      !accepts?(element, entry) || (entry.is_a?(Float) && entry.infinite?)
+    end
+    return unless index
+
+    "#{refusal(table, column, value.fetch(index), UNTYPED_WRITE)} at #{column.name}[#{index}]"
+  end
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs return: Skyward::ORM::Tables::Column
+  def item(column)
+    # Only an :array column, which always has an element, has items.
+    type = column.element #: Skyward::ORM::Tables::column_type
+    column.with(type:, nullable: false, element: nil)
+  end
 
   # A row reads back == to the one written only when its JSON holds each value
   # as it is: a Symbol or a Time would come back a String.
@@ -170,6 +205,7 @@ module Skyward::ORM::Tables::Values
     when :enum
       symbols = column.symbols.map(&:inspect).join(" | ")
       column.nullable ? "(#{symbols})?" : symbols
+    when :array then "Array[#{written(item(column), untyped)}]#{"?" if column.nullable}"
     else "#{WRITTEN.fetch(column.type)}#{"?" if column.nullable}"
     end
   end

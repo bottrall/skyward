@@ -27,6 +27,8 @@ module Skyward::ORM::Migrations::Diff
 
   QUOTED = /\A'((?:[^']|'')*)'\z/ #: Regexp
 
+  BY_VALUE = %i[json array].freeze #: Array[Skyward::ORM::Tables::column_type]
+
   # New tables come first, each after the tables it references, so a changed
   # table can reference a new table too. A table with no class is left alone:
   # a class that isn't loaded looks the same.
@@ -182,7 +184,7 @@ module Skyward::ORM::Migrations::Diff
     none = {} #: Hash[Symbol, Symbol]
     removed.reduce(none) do |renamed, gone|
       to = added.find do |column|
-        !renamed.value?(column.name) && adapter.compatible?(column.type, gone.type) &&
+        !renamed.value?(column.name) && adapter.compatible?(column, gone.type) &&
           rename.call(table, gone.name, column.name)
       end
       to ? renamed.merge(gone.name => to.name) : renamed
@@ -198,11 +200,12 @@ module Skyward::ORM::Migrations::Diff
   # @rbs return: Array[Skyward::ORM::Migrations::edit]
   def changed(klass, column, had, adapter)
     name = column.name
-    sql_type = adapter.sql_type(column.type)
-    retyped = sql_type unless adapter.compatible?(column.type, had.type)
+    sql_type = adapter.sql_type(column)
+    retyped = sql_type unless adapter.compatible?(column, had.type)
     default = Skyward::ORM::Migrations::Definitions.default(klass, column, adapter)
     # PostgreSQL keeps no default for DEFAULT NULL, which is the same as none.
-    redefaulted = !had.generated && !same_default?(column, had.default || NULL, default || NULL)
+    wanted = adapter.catalog_default(default || NULL)
+    redefaulted = !had.generated && !same_default?(column, had.default || NULL, wanted, adapter)
     renulled = sql_type && had.nullable != column.nullable
     [
       (Skyward::ORM::Migrations::ChangeType.new(column: name, from: had.type, to: retyped) if retyped),
@@ -211,29 +214,28 @@ module Skyward::ORM::Migrations::Diff
     ].compact
   end
 
-  # PostgreSQL respells a jsonb default, as '{"a": 1}' for '{"a":1}', so a JSON
-  # column's default is compared by value.
-  # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs had: String
-  # @rbs wanted: String
-  # @rbs return: bool
-  def same_default?(column, had, wanted)
+  # PostgreSQL respells a jsonb default, as '{"a": 1}' for '{"a":1}', and a
+  # float array's, as '{1e+20}' for '{1.0e+20}', so a JSON or Array column's
+  # default is compared by value.
+  # @rbs (Skyward::ORM::Tables::Column column, String had, String wanted, Skyward::ORM::_Adapter adapter) -> bool
+  def same_default?(column, had, wanted, adapter)
     return true if had == wanted
-    return false unless column.type == :json
+    return false unless BY_VALUE.include?(column.type)
 
-    decoded = json(had)
-    !decoded.nil? && decoded == json(wanted)
+    decoded = value(column, had, adapter)
+    !decoded.nil? && decoded == value(column, wanted, adapter)
   end
 
-  # The value a string literal holds as JSON, in an Array so that JSON's null
-  # isn't taken for no value, or nil when it's an expression or not JSON.
-  # @rbs default: String
-  # @rbs return: [untyped]?
-  def json(default)
+  # The value a string literal holds as the column reads it, in an Array so
+  # that JSON's null isn't taken for no value, or nil when it's an expression
+  # or the column can't read it.
+  # @rbs (Skyward::ORM::Tables::Column column, String default, Skyward::ORM::_Adapter adapter) -> [untyped]?
+  def value(column, default, adapter)
     text = default[QUOTED, 1]
-    [JSON.parse(text.gsub("''", "'"))] if text
-  # Other SQL than a migration's may have written a default that isn't JSON.
-  rescue JSON::ParserError
+    [adapter.decode(column, text.gsub("''", "'"))] if text
+  # Other SQL than a migration's may have written a default the column can't
+  # read, and each type's parser raises its own error for one.
+  rescue JSON::ParserError, ArgumentError, TypeError
     nil
   end
 

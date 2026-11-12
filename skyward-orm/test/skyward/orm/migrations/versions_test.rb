@@ -27,7 +27,7 @@ describe Skyward::ORM::Migrations::Versions do
     end
 
     it "reads each version that's run with its checksum, as text" do
-      version = empty.adapter.sql_type(:integer)
+      version = empty.adapter.sql_type(TestDatabase.column(:integer))
       connection.execute("CREATE TABLE schema_migrations (version #{version} PRIMARY KEY, checksum TEXT NOT NULL)")
       connection.execute("INSERT INTO schema_migrations (version, checksum) VALUES (20261018093000, 'abc')")
 

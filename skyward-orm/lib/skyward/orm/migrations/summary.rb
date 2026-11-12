@@ -79,7 +79,7 @@ module Skyward::ORM::Migrations::Summary
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs return: String
   def column(column, adapter)
-    sql_type = adapter.sql_type(column.type)
+    sql_type = adapter.sql_type(column)
     return "needs a type" unless sql_type
 
     "#{sql_type} #{column.nullable ? "NULL" : "NOT NULL"}"

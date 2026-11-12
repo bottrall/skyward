@@ -9,6 +9,7 @@ describe Skyward::ORM::Statements do
   )
   todo = TablesFixtures::Todo
   webhook = TablesFixtures::Webhook
+  arrayed = TablesFixtures::Arrayed
 
   let(:empty) { TestDatabase.empty }
   let(:adapter) { empty.adapter }
@@ -238,6 +239,15 @@ describe Skyward::ORM::Statements do
   describe ".encode" do
     def column(klass, name) = column_types.columns(klass).find { |column| column.name == name }
 
+    it "binds nil as NULL, a JSON or an Array column's included" do
+      assert_equal(
+        [nil] * 3,
+        [column(webhook, :payload), column(arrayed, :tags), column(todo, :due_on)].map do |nullable|
+          Skyward::ORM::Statements.encode(adapter, nullable, nil)
+        end
+      )
+    end
+
     it "binds a JSON column's Hash as its JSON, one value" do
       assert_equal %({"list":[1,{"ü":null}]}),
                    Skyward::ORM::Statements.encode(
@@ -247,8 +257,14 @@ describe Skyward::ORM::Statements do
                    )
     end
 
-    it "binds a JSON column's nil as NULL" do
-      assert_nil Skyward::ORM::Statements.encode(adapter, column(webhook, :payload), nil)
+    it "binds an Array column's Array as one value, as the adapter encodes an array" do
+      assert_equal adapter.encode_array(["a,b", "c"]),
+                   Skyward::ORM::Statements.encode(adapter, column(arrayed, :strings), ["a,b", "c"])
+    end
+
+    it "binds an Integer in an Array of BigDecimal as the BigDecimal it is" do
+      assert_equal adapter.encode_array([BigDecimal(2), BigDecimal("1.5")]),
+                   Skyward::ORM::Statements.encode(adapter, column(arrayed, :decimals), [2, BigDecimal("1.5")])
     end
 
     it "binds an Integer for a BigDecimal column as the BigDecimal it is, so 2 is 2.0" do
@@ -336,6 +352,10 @@ describe Skyward::ORM::Statements do
       end
 
       assert_equal %(TablesFixtures::Todo.title is String, not ["c"] (Array)), error.message
+    end
+
+    it "passes an Array for an Array column, which is one value" do
+      assert_nil Skyward::ORM::Statements.require_values(column_types, [], arrayed, { strings: ["c"], tags: nil })
     end
   end
 

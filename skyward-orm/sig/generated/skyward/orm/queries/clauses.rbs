@@ -16,6 +16,8 @@ module Skyward::ORM::Queries::Clauses[R]
 
   DIRECTIONS: Array[direction]
 
+  COUNT: Skyward::ORM::Tables::Column
+
   class Comparison < Data
     attr_reader column(): Symbol
 

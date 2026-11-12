@@ -9,6 +9,10 @@ class Skyward::ORM::Tables::ColumnTypes
 
   COLUMN_TYPES: String
 
+  ELEMENTS: Array[Skyward::Core::Types::scalar]
+
+  ELEMENT_TYPES: String
+
   # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
   REFINEMENTS: Hash[String, Skyward::ORM::Tables::refinement]
 
@@ -39,4 +43,11 @@ class Skyward::ORM::Tables::ColumnTypes
   # @rbs written: String
   # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
   def column: (Symbol name, Skyward::Core::Types::result read, String written) -> (Skyward::ORM::Tables::Column | [ String, String? ])
+
+  # @rbs name: Symbol
+  # @rbs item: Skyward::Core::Types::t
+  # @rbs nullable: bool
+  # @rbs written: String
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
+  def array: (Symbol name, Skyward::Core::Types::t item, bool nullable, String written) -> (Skyward::ORM::Tables::Column | [ String, String? ])
 end

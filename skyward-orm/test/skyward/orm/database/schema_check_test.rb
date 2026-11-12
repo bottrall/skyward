@@ -7,7 +7,7 @@ describe Skyward::ORM::Database::SchemaCheck do
   migrate = "Run `skyward migrate`, or `skyward migration` if you haven't generated one."
 
   def declared(name, type, nullable: false)
-    Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [])
+    Skyward::ORM::Tables::Column.new(name:, type:, nullable:, symbols: [], element: nil)
   end
 
   def stored(name, type, nullable: false)
@@ -113,6 +113,34 @@ describe Skyward::ORM::Database::SchemaCheck do
       MESSAGE
 
       assert_equal expected, mismatch([declared(:done, :bool)], todos(stored(:done, "TEXT")))
+    end
+
+    describe "on PostgreSQL" do
+      tags = Skyward::ORM::Tables::Column.new(name: :tags, type: :array, nullable: false, symbols: [], element: :string)
+
+      def mismatch(columns, tables)
+        Skyward::ORM::Database::SchemaCheck.mismatch(
+          TablesFixtures::Todo,
+          columns,
+          tables,
+          Skyward::ORM::Adapters::PostgreSQL
+        )
+      end
+
+      it "accepts an array of a type compatible with an Array column's element" do
+        assert_nil mismatch([tags], todos(stored(:tags, "character varying(20)[]")))
+      end
+
+      it "reports a type that isn't an array of one, naming the array type the column needs" do
+        expected = <<~MESSAGE.chomp
+          TablesFixtures::Todo doesn't match the todos table
+
+            tags  todos.tags is text, but TablesFixtures::Todo#tags needs text[].
+                  #{migrate} Or change TablesFixtures::Todo#tags's type to match.
+        MESSAGE
+
+        assert_equal expected, mismatch([tags], todos(stored(:tags, "text")))
+      end
     end
 
     it "reports a column that allows NULL when the class doesn't" do

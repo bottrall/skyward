@@ -125,7 +125,9 @@ describe Skyward::ORM::Migrations::Runner do
       it "records each version with its checksum and when it ran" do
         migrate(create_a)
         rows = connection.execute("SELECT version, checksum, ran_at FROM schema_migrations")
-        ran = rows.map { |version, checksum, ran_at| [version, checksum, adapter.decode(:time, ran_at).class] }
+        ran = rows.map do |version, checksum, ran_at|
+          [version, checksum, adapter.decode(TestDatabase.column(:time), ran_at).class]
+        end
 
         assert_equal [["20261001000000", create_a.checksum, Time]], ran
       end
@@ -155,7 +157,7 @@ describe Skyward::ORM::Migrations::Runner do
         broken = Module.new do
           extend broken_on
 
-          def self.sql_type(_type) = "("
+          def self.sql_type(_column) = "("
         end
 
         assert_raises(StandardError) { runner.run(broken, connection, [create_a]) }
@@ -177,7 +179,7 @@ describe Skyward::ORM::Migrations::Runner do
         assert_equal(
           [1, 2],
           connection.execute("SELECT id FROM b ORDER BY id").map do |(id)|
-            adapter.decode(:integer, id)
+            adapter.decode(TestDatabase.column(:integer), id)
           end
         )
       end

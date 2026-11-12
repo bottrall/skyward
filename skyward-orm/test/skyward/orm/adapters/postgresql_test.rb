@@ -92,7 +92,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
   describe ".sql_type" do
     it "maps each column type to the README's PostgreSQL type" do
       types = %i[integer float decimal string bool date time enum uuid int32 int16 json].to_h do |type|
-        [type, postgresql.sql_type(type)]
+        [type, postgresql.sql_type(TestDatabase.column(type))]
       end
 
       assert_equal(
@@ -103,8 +103,18 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       )
     end
 
+    it "writes an Array column as its element's type with []" do
+      types = %i[integer float decimal string bool date time enum].map do |element|
+        postgresql.sql_type(TestDatabase.column(:array, element:))
+      end
+
+      assert_equal ["bigint[]", "double precision[]", "numeric[]", "text[]", "boolean[]", "date[]", "timestamptz[]",
+                    "text[]"],
+                   types
+    end
+
     it "has none for an untyped column" do
-      assert_nil postgresql.sql_type(:untyped)
+      assert_nil postgresql.sql_type(TestDatabase.column(:untyped))
     end
   end
 
@@ -156,9 +166,17 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
   end
 
+  describe ".catalog_default" do
+    it "drops the cast PostgreSQL reads a literal back with, and a number's quotes, but not an expression's" do
+      written = ["'{}'::text[]", "'normal'::text", "'-1'::integer", "now()"]
+
+      assert_equal(["'{}'", "'normal'", "-1", "now()"], written.map { |default| postgresql.catalog_default(default) })
+    end
+  end
+
   describe ".compatible?" do
     it "accepts any declared type for an untyped column" do
-      assert postgresql.compatible?(:untyped, "bytea")
+      assert postgresql.compatible?(TestDatabase.column(:untyped), "bytea")
     end
 
     it "accepts the type a migration writes, as the catalog spells it" do
@@ -177,7 +195,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
         [:json, "jsonb"]
       ]
 
-      assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
+      assert(declared.all? { |type, sql_type| postgresql.compatible?(TestDatabase.column(type), sql_type) })
     end
 
     it "accepts integer, smallint, varchar, timestamp and numeric, with or without a length or precision" do
@@ -192,13 +210,38 @@ describe Skyward::ORM::Adapters::PostgreSQL do
         [:time, "timestamp(3) with time zone"]
       ]
 
-      assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
+      assert(declared.all? { |type, sql_type| postgresql.compatible?(TestDatabase.column(type), sql_type) })
     end
 
     it "accepts uuid and citext for a string, real for a float, and json for a JSON column" do
       declared = [[:string, "uuid"], [:string, "citext"], [:float, "real"], [:json, "json"]]
 
-      assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
+      assert(declared.all? { |type, sql_type| postgresql.compatible?(TestDatabase.column(type), sql_type) })
+    end
+
+    it "accepts an array of any type an Array column's element takes, as the catalog spells it" do
+      declared = [[:integer, "integer[]"], [:integer, "bigint[]"], [:string, "character varying(20)[]"],
+                  [:time, "timestamp with time zone[]"], [:decimal, "numeric(10,2)[]"], [:enum, "text[]"]]
+
+      assert(
+        declared.all? do |element, sql_type|
+          postgresql.compatible?(TestDatabase.column(:array, element:), sql_type)
+        end
+      )
+    end
+
+    it "refuses an Array column a type that isn't an array, or an array of one its element doesn't take" do
+      declared = [[:string, "text"], [:integer, "text[]"], [:date, "timestamp with time zone[]"], [:bool, "jsonb"]]
+
+      assert(
+        declared.none? do |element, sql_type|
+          postgresql.compatible?(TestDatabase.column(:array, element:), sql_type)
+        end
+      )
+    end
+
+    it "refuses an array for a column that isn't an Array" do
+      refute postgresql.compatible?(TestDatabase.column(:string), "text[]")
     end
 
     it "refuses any other type" do
@@ -206,7 +249,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
                   [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"], [:uuid, "text"],
                   [:int32, "bigint"], [:int16, "integer"], [:json, "text"], [:decimal, "double precision"]]
 
-      assert(declared.none? { |type, sql_type| postgresql.compatible?(type, sql_type) })
+      assert(declared.none? { |type, sql_type| postgresql.compatible?(TestDatabase.column(type), sql_type) })
     end
   end
 
@@ -232,7 +275,11 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     it "returns only a type compatible? accepts for the same SQL type" do
       read = postgresql::COLUMN_TYPES.keys
 
-      assert(read.all? { |sql_type| postgresql.compatible?(postgresql.column_type(sql_type), sql_type) })
+      assert(
+        read.all? do |sql_type|
+          postgresql.compatible?(TestDatabase.column(postgresql.column_type(sql_type)), sql_type)
+        end
+      )
     end
 
     it "has none for any other type" do
@@ -273,70 +320,92 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
   end
 
+  describe ".encode_array" do
+    it "writes an array's text, quoting each item with a comma, a quote, a brace, a backslash or a space, or NULL" do
+      items = ["a,b", 'say "hi"', "{x}", "back\\slash", "two words", "NULL", "null", "", "plain"]
+
+      assert_equal '{"a,b","say \\"hi\\"","{x}","back\\\\slash","two words","NULL","null","",plain}',
+                   postgresql.encode_array(items)
+    end
+
+    it "writes each item as the adapter sends it, and a boolean as t or f" do
+      items = [:high, Time.utc(2026, 10, 18, 9, 30, 1/2r), BigDecimal("1.5"), Date.new(2026, 10, 18), true, false, 2]
+
+      assert_equal '{high,"2026-10-18 09:30:00.5+00",1.5,2026-10-18,t,f,2}', postgresql.encode_array(items)
+    end
+
+    it "writes an empty array as {}" do
+      assert_equal "{}", postgresql.encode_array([])
+    end
+  end
+
   describe ".decode" do
     it "reads an integer" do
-      assert_equal 42, postgresql.decode(:integer, "42")
+      assert_equal 42, postgresql.decode(TestDatabase.column(:integer), "42")
     end
 
     it "reads an int32 and an int16 as Integers" do
       assert_equal [2_147_483_647, -32_768],
-                   [postgresql.decode(:int32, "2147483647"), postgresql.decode(:int16, "-32768")]
+                   [postgresql.decode(TestDatabase.column(:int32), "2147483647"),
+                    postgresql.decode(TestDatabase.column(:int16), "-32768")]
     end
 
     it "reads a float" do
-      assert_in_delta 1.5, postgresql.decode(:float, "1.5")
+      assert_in_delta 1.5, postgresql.decode(TestDatabase.column(:float), "1.5")
     end
 
     it "reads the special floats PostgreSQL writes out" do
+      float = TestDatabase.column(:float)
+
       assert_equal [Float::INFINITY, -Float::INFINITY, true],
-                   [postgresql.decode(:float, "Infinity"), postgresql.decode(:float, "-Infinity"),
-                    postgresql.decode(:float, "NaN").nan?]
+                   [postgresql.decode(float, "Infinity"), postgresql.decode(float, "-Infinity"),
+                    postgresql.decode(float, "NaN").nan?]
     end
 
     it "reads t as true" do
-      assert postgresql.decode(:bool, "t")
+      assert postgresql.decode(TestDatabase.column(:bool), "t")
     end
 
     it "reads f as false" do
-      refute postgresql.decode(:bool, "f")
+      refute postgresql.decode(TestDatabase.column(:bool), "f")
     end
 
     it "reads a date" do
-      assert_equal Date.new(2026, 10, 18), postgresql.decode(:date, "2026-10-18")
+      assert_equal Date.new(2026, 10, 18), postgresql.decode(TestDatabase.column(:date), "2026-10-18")
     end
 
     it "reads a timestamptz in UTC" do
-      time = postgresql.decode(:time, "2026-10-18 19:30:00.123456+10")
+      time = postgresql.decode(TestDatabase.column(:time), "2026-10-18 19:30:00.123456+10")
 
       assert_equal [Time.utc(2026, 10, 18, 9, 30, 123_456/1_000_000r), true], [time, time.utc?]
     end
 
     it "reads a timestamp, which has no zone, as UTC" do
-      assert_equal Time.utc(2026, 10, 18, 9, 30), postgresql.decode(:time, "2026-10-18 09:30:00")
+      assert_equal Time.utc(2026, 10, 18, 9, 30), postgresql.decode(TestDatabase.column(:time), "2026-10-18 09:30:00")
     end
 
     it "reads a symbol" do
-      assert_equal :high, postgresql.decode(:enum, "high")
+      assert_equal :high, postgresql.decode(TestDatabase.column(:enum), "high")
     end
 
     it "reads a numeric's text as a BigDecimal, with every digit" do
       assert_equal BigDecimal("12345678901234567890.123456789"),
-                   postgresql.decode(:decimal, "12345678901234567890.123456789")
+                   postgresql.decode(TestDatabase.column(:decimal), "12345678901234567890.123456789")
     end
 
     it "reads JSON into a Hash, frozen at every level" do
-      read = postgresql.decode(:json, +'{"list": [{"deep": "ü"}]}')
+      read = postgresql.decode(TestDatabase.column(:json), +'{"list": [{"deep": "ü"}]}')
 
       assert_equal [{ "list" => [{ "deep" => "ü" }] }, true],
                    [read, [read, read["list"], read["list"][0], read["list"][0]["deep"]].all?(&:frozen?)]
     end
 
     it "freezes a string" do
-      assert_predicate postgresql.decode(:string, +"Milk"), :frozen?
+      assert_predicate postgresql.decode(TestDatabase.column(:string), +"Milk"), :frozen?
     end
 
     it "passes an untyped value through, frozen" do
-      assert_predicate postgresql.decode(:untyped, +"Milk"), :frozen?
+      assert_predicate postgresql.decode(TestDatabase.column(:untyped), +"Milk"), :frozen?
     end
 
     it "reads back what was written: a time == to it at microsecond precision, a date, a boolean and a symbol" do
@@ -349,7 +418,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       )
       types = %i[time time date bool enum]
       read = connection.execute("SELECT * FROM values").fetch(0).zip(types).map do |value, type|
-        postgresql.decode(type, value)
+        postgresql.decode(TestDatabase.column(type), value)
       end
 
       assert_equal [time.floor(6), time.floor(6), *written.drop(2)], read
@@ -360,7 +429,11 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       written = BigDecimal("12345678901234567890.123456789")
       connection.execute("INSERT INTO prices VALUES ($1)", [postgresql.encode(written)])
 
-      assert_equal written, postgresql.decode(:decimal, connection.execute("SELECT price FROM prices").dig(0, 0))
+      assert_equal written,
+                   postgresql.decode(
+                     TestDatabase.column(:decimal),
+                     connection.execute("SELECT price FROM prices").dig(0, 0)
+                   )
     end
 
     it "reads back what was written to a uuid, an integer and a smallint column, as a String and Integers" do
@@ -368,7 +441,50 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       written = ["0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f", 2_147_483_647, -32_768]
       connection.execute("INSERT INTO refined VALUES ($1, $2, $3)", written.map { |value| postgresql.encode(value) })
       read = connection.execute("SELECT * FROM refined").fetch(0).zip(%i[uuid int32 int16]).map do |value, type|
-        postgresql.decode(type, value)
+        postgresql.decode(TestDatabase.column(type), value)
+      end
+
+      assert_equal written, read
+    end
+  end
+
+  describe ".decode of an Array column" do
+    it "reads each item by the element's type, freezing the Array and each item" do
+      read = postgresql.decode(TestDatabase.column(:array, element: :date), "{2026-10-18,2026-10-19}")
+
+      assert_equal [[Date.new(2026, 10, 18), Date.new(2026, 10, 19)], true, [true, true]],
+                   [read, read.frozen?, read.map(&:frozen?)]
+    end
+
+    it "reads a NULL item of an Array of Symbol as nil" do
+      assert_equal [:mon, nil], postgresql.decode(TestDatabase.column(:array, element: :enum), "{mon,NULL}")
+    end
+
+    it "reads a NULL item of an Array of bool as nil, not false" do
+      assert_equal [true, nil], postgresql.decode(TestDatabase.column(:array, element: :bool), "{t,NULL}")
+    end
+
+    it "reads back what was written to an array of each element type" do
+      written = {
+        integer: [1, -2**62],
+        float: [1.5, -2.5e-8, 1e20],
+        decimal: [BigDecimal("12345678901234567890.123456789"), BigDecimal("-0.5")],
+        string: ["a,b", 'say "hi"', "{x}", "back\\slash", "NULL", "", "ü"],
+        bool: [true, false],
+        date: [Date.new(2028, 2, 29)],
+        time: [Time.utc(2026, 10, 18, 9, 30, 123_456/1_000_000r)],
+        enum: %i[mon fri]
+      }
+      columns = written.keys.map do |element|
+        "#{element} #{postgresql.sql_type(TestDatabase.column(:array, element:))}"
+      end
+      connection.execute("CREATE TABLE arrays (#{columns.join(", ")})")
+      connection.execute(
+        "INSERT INTO arrays VALUES (#{Array.new(written.size) { |index| "$#{index + 1}" }.join(", ")})",
+        written.values.map { |items| postgresql.encode_array(items) }
+      )
+      read = connection.execute("SELECT * FROM arrays").fetch(0).zip(written.keys).to_h do |value, element|
+        [element, postgresql.decode(TestDatabase.column(:array, element:), value)]
       end
 
       assert_equal written, read
@@ -411,10 +527,11 @@ describe Skyward::ORM::Adapters::PostgreSQL do
         CREATE TABLE defaults (
           a text DEFAULT 'it''s me', b boolean DEFAULT false, c bigint DEFAULT -1, d bigint DEFAULT 3000000000,
           e double precision DEFAULT -1.5, f date DEFAULT '2026-10-18', g timestamptz DEFAULT '#{time}',
-          h timestamptz DEFAULT now()
+          h timestamptz DEFAULT now(), i text[] DEFAULT '{}', j timestamp with time zone[] DEFAULT '{}'
         )
       SQL
-      expected = ["'it''s me'", "false", "-1", "3000000000", "-1.5", "'2026-10-18'", "'#{time}'", "now()"]
+      expected = ["'it''s me'", "false", "-1", "3000000000", "-1.5", "'2026-10-18'", "'#{time}'", "now()", "'{}'",
+                  "'{}'"]
 
       assert_equal expected, table(:defaults).columns.map(&:default)
     end

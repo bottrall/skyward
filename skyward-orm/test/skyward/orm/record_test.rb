@@ -76,16 +76,17 @@ describe Skyward::ORM::Record do
         Skyward::ORM::Migrations::Definitions.literal(types.encode(value))
       end
       empty.connect.tap do |connection|
-        connection.execute("CREATE TABLE lists (id #{types.sql_type(:integer)} PRIMARY KEY, name TEXT)")
+        integer = types.sql_type(TestDatabase.column(:integer))
+        connection.execute("CREATE TABLE lists (id #{integer} PRIMARY KEY, name TEXT)")
         connection.execute("CREATE TABLE drafts (id #{empty.primary_key}, body TEXT NOT NULL)")
         connection.execute(
           "CREATE TABLE todos (id #{empty.primary_key}, " \
-          "list_id #{types.sql_type(:integer)} NOT NULL CONSTRAINT todos_list_id_fkey REFERENCES lists, " \
+          "list_id #{integer} NOT NULL CONSTRAINT todos_list_id_fkey REFERENCES lists, " \
           "title TEXT NOT NULL CONSTRAINT todos_title_key UNIQUE " \
           "CONSTRAINT todos_title_check CHECK (length(title) BETWEEN 1 AND 200), " \
-          "priority TEXT NOT NULL DEFAULT 'normal', due_on #{types.sql_type(:date)}, " \
-          "done #{types.sql_type(:bool)} NOT NULL DEFAULT #{done}, " \
-          "created_at #{types.sql_type(:time)} NOT NULL DEFAULT #{created_at})"
+          "priority TEXT NOT NULL DEFAULT 'normal', due_on #{types.sql_type(TestDatabase.column(:date))}, " \
+          "done #{types.sql_type(TestDatabase.column(:bool))} NOT NULL DEFAULT #{done}, " \
+          "created_at #{types.sql_type(TestDatabase.column(:time))} NOT NULL DEFAULT #{created_at})"
         )
         connection.execute("INSERT INTO lists VALUES (1, 'Home')")
         connection.execute(
@@ -240,7 +241,7 @@ describe Skyward::ORM::Record do
         webhook = TablesFixtures::Webhook
 
         before do
-          json = empty.adapter.sql_type(:json)
+          json = empty.adapter.sql_type(TestDatabase.column(:json))
           connection.execute(
             "CREATE TABLE webhooks (id #{empty.primary_key}, settings #{json} NOT NULL, payload #{json})"
           )
@@ -258,11 +259,59 @@ describe Skyward::ORM::Record do
         end
       end
 
+      describe "into an Array column" do
+        arrayed = TablesFixtures::Arrayed
+        elements = %i[integer float decimal string bool date time]
+        values = {
+          integers: [1, -2**62],
+          floats: [1.5, 2],
+          decimals: [BigDecimal("12345678901234567890.123456789"), 2],
+          strings: ["a,b", 'say "hi"', "{x}", "back\\slash", "NULL", "", "ü"],
+          bools: [true, false],
+          dates: [Date.new(2028, 2, 29)],
+          times: [Time.new(2026, 11, 9, 21, 45, Rational("7.123456"), "+10:30")],
+          weekdays: []
+        }
+
+        before do
+          adapter = empty.adapter
+          columns = elements.map { |element| "#{element}s #{adapter.sql_type(TestDatabase.column(:array, element:))}" }
+          strings = adapter.sql_type(TestDatabase.column(:array, element: :string))
+          required = columns.map { |column| "#{column} NOT NULL" }.join(", ")
+          connection.execute(
+            "CREATE TABLE arrays (id #{empty.primary_key}, #{required}, weekdays #{strings} NOT NULL, tags #{strings})"
+          )
+        end
+
+        it "binds each Array as one value, and reads back frozen Arrays of each element's type" do
+          inserted = arrayed.insert(**values, tags: nil)
+          row = arrayed.all.first
+          read = arrayed.members.drop(1).filter_map { |name| row.public_send(name) }
+
+          assert_equal [1, arrayed.new(id: 1, **values, tags: nil), [true], [true]],
+                       [inserted, row, read.map(&:frozen?).uniq, read.flatten.map(&:frozen?).uniq]
+        end
+
+        it "reads an Integer written to an Array of Float or of BigDecimal back as one" do
+          arrayed.insert(**values)
+          row = arrayed.all.first
+
+          assert_equal [[Float, Float], [BigDecimal, BigDecimal]], [row.floats.map(&:class), row.decimals.map(&:class)]
+        end
+
+        it "refuses an item that doesn't fit before any SQL runs, naming its index" do
+          error = nil
+          sent = traced { error = assert_raises(ArgumentError) { arrayed.insert(**values, tags: ["a", nil]) } }
+
+          assert_equal [[], "#{arrayed}.tags is Array[String]?, not nil (NilClass) at tags[1]"], [sent, error.message]
+        end
+      end
+
       describe "into a BigDecimal column" do
         product = TablesFixtures::Product
 
         before do
-          decimal = empty.adapter.sql_type(:decimal)
+          decimal = empty.adapter.sql_type(TestDatabase.column(:decimal))
           connection.execute(
             "CREATE TABLE products (id #{empty.primary_key}, price #{decimal} NOT NULL, discount #{decimal})"
           )

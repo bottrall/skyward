@@ -15,6 +15,10 @@ module Skyward::ORM::Queries::Clauses
 
   DIRECTIONS = %i[asc desc].freeze #: Array[direction]
 
+  COUNT = Skyward::ORM::Tables::Column.new(
+    name: :count, type: :integer, nullable: false, symbols: [], element: nil
+  ) #: Skyward::ORM::Tables::Column
+
   Comparison = Data.define(
     :column, #: Symbol
     :operator, #: String
@@ -215,7 +219,7 @@ module Skyward::ORM::Queries::Clauses
     sql, binds = from(database, [], @limit)
     counted = @groups.empty? && @limit.nil? && @offset.nil? ? sql : %(FROM (SELECT 1 #{sql}) AS "counted")
     # PostgreSQL's driver returns every value as text, so the adapter reads it.
-    database.adapter.decode(:integer, database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0))
+    database.adapter.decode(COUNT, database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0))
   end
 
   # Order can't change whether the query has a row, so it's left out, and a

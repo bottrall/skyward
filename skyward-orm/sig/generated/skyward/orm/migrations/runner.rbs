@@ -11,6 +11,8 @@ module Skyward::ORM::Migrations::Runner
 
   DOWN: Regexp
 
+  RAN_AT: Skyward::ORM::Tables::Column
+
   # @rbs path: String
   # @rbs return: Array[Migration]
   def read: (String path) -> Array[Migration]

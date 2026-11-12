@@ -158,9 +158,9 @@ class Skyward::ORM::Database
   # @rbs return: Array[untyped]
   def rows(row, sql, values)
     columns, fetched = run(sql, values)
-    types = @column_types.columns(row).to_h { |member| [member.name, member.type] }
-    unmatched(row, columns, types.keys)
-    fetched.map(&compile(row, columns, types.fetch_values(*columns)))
+    members = @column_types.columns(row).to_h { |member| [member.name, member] }
+    unmatched(row, columns, members.keys)
+    fetched.map(&compile(row, members.fetch_values(*columns)))
   end
 
   # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
@@ -305,22 +305,22 @@ class Skyward::ORM::Database
   def build(table, row, expressed)
     prepare(table)
     # An expression reads no column, so without a type of its own its value passes through.
-    columns = @column_types.columns(table).to_h { |column| [column.name, column.type] }.except(*expressed)
-    members = @column_types.columns(row)
-    types = members.map { |member| member.type == :untyped ? columns[member.name] || :untyped : member.type }
-    compile(row, members.map(&:name), types)
+    columns = Skyward::ORM::Statements.by_name(@column_types, table).except(*expressed)
+    members = @column_types.columns(row).map do |member|
+      member.type == :untyped ? columns.fetch(member.name, member) : member
+    end
+    compile(row, members)
   end
 
   # @rbs row: Class
-  # @rbs members: Array[Symbol]
-  # @rbs types: Array[Skyward::ORM::Tables::column_type]
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
   # @rbs return: ^(Array[untyped]) -> untyped
-  def compile(row, members, types)
+  def compile(row, columns)
     lambda do |values|
       row.new(
-        **members.each_with_index.to_h do |member, index|
+        **columns.each_with_index.to_h do |column, index|
           value = values.fetch(index)
-          [member, value.nil? ? nil : @adapter.decode(types.fetch(index), value)]
+          [column.name, value.nil? ? nil : @adapter.decode(column, value)]
         end
       )
     end

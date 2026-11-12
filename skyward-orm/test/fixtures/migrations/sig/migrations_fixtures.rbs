@@ -59,6 +59,26 @@ module MigrationsFixtures
     attr_reader discount: BigDecimal?
   end
 
+  class Shelf < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader integers: Array[Integer]
+    attr_reader floats: Array[Float]
+    attr_reader decimals: Array[BigDecimal]
+    attr_reader strings: Array[String]
+    attr_reader bools: Array[bool]
+    attr_reader dates: Array[Date]
+    attr_reader times: Array[Time]
+    attr_reader weekdays: Array[:mon | :tue | :wed | :thu | :fri]
+    attr_reader tags: Array[String]?
+  end
+
+  class Crate < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader tags: untyped
+    attr_reader labels: Array[String]
+    attr_reader kind: String
+  end
+
   # payload has no type.
   class Scrap < ::Skyward::ORM::Record
     attr_reader id: Integer
