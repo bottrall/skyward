@@ -221,10 +221,10 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     it "reads each type compatible? accepts as the narrowest column type, without its length or precision" do
       read = ["bigint", "integer", "smallint", "double precision", "real", "numeric(10,2)", "text",
               "character varying(255)", "citext", "uuid", "boolean", "date", "timestamp(3) with time zone",
-              "timestamp without time zone"]
+              "timestamp without time zone", "jsonb", "json"]
 
       assert_equal(
-        %i[integer int32 int16 float float decimal string string string uuid bool date time time],
+        %i[integer int32 int16 float float decimal string string string uuid bool date time time json json],
         read.map { |sql_type| postgresql.column_type(sql_type) }
       )
     end
@@ -236,9 +236,9 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
 
     it "has none for any other type" do
-      read = ["jsonb", "bytea", "text[]"]
+      read = ["bytea", "text[]"]
 
-      assert_equal([nil] * 3, read.map { |sql_type| postgresql.column_type(sql_type) })
+      assert_equal([nil] * 2, read.map { |sql_type| postgresql.column_type(sql_type) })
     end
   end
 

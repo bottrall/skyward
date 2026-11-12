@@ -204,6 +204,31 @@ describe "skyward/orm/commands.rb" do
       end
     end
 
+    describe "on PostgreSQL" do
+      let(:empty) { TestDatabase.empty("postgresql") }
+
+      it "prints a jsonb column, with and without a default, as Hash[String, untyped], and then has nothing to write" do
+        app do |directory|
+          FileUtils.mkdir_p(File.join(directory, "db/migrate"))
+          File.write(File.join(directory, "db/migrate/20261001000000_by_hand.sql"), <<~SQL)
+            CREATE TABLE lists (id #{empty.primary_key}, name text NOT NULL);
+            CREATE TABLE todos (
+              id #{empty.primary_key},
+              meta jsonb NOT NULL DEFAULT '{"a":1}',
+              payload jsonb,
+              extra json
+            );
+          SQL
+          skyward("migrate", chdir: directory)
+          replace_todo(directory)
+          types = File.read(File.join(directory, "app/todo.rb")).scan(/^  attr_reader :\w+ +#: (.*)$/).flatten
+
+          assert_equal [["Integer", "Hash[String, untyped]", *["Hash[String, untyped]?"] * 2], nothing],
+                       [types, skyward("migration", "again", chdir: directory)]
+        end
+      end
+    end
+
     describe "on SQLite" do
       let(:empty) { TestDatabase.empty("sqlite") }
 

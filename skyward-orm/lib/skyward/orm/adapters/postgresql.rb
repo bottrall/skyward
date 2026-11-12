@@ -49,7 +49,9 @@ module Skyward::ORM::Adapters::PostgreSQL
     "boolean" => :bool,
     "date" => :date,
     "timestamp with time zone" => :time,
-    "timestamp without time zone" => :time
+    "timestamp without time zone" => :time,
+    "jsonb" => :json,
+    "json" => :json
   }.freeze #: Hash[String, Skyward::ORM::Tables::column_type]
 
   # The catalog puts a length or precision in parentheses.
