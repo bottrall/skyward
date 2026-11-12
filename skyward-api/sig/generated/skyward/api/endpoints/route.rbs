@@ -14,11 +14,15 @@ module Skyward::API::Endpoints
 
     attr_reader description(): String?
 
-    def self.new: (Symbol verb, String path, Symbol to, String? summary, String? description) -> instance
-                | (verb: Symbol, path: String, to: Symbol, summary: String?, description: String?) -> instance
+    attr_reader file(): String?
 
-    def self.members: () -> [ :verb, :path, :to, :summary, :description ]
+    attr_reader line(): Integer?
 
-    def members: () -> [ :verb, :path, :to, :summary, :description ]
+    def self.new: (Symbol verb, String path, Symbol to, String? summary, String? description, String? file, Integer? line) -> instance
+                | (verb: Symbol, path: String, to: Symbol, summary: String?, description: String?, file: String?, line: Integer?) -> instance
+
+    def self.members: () -> [ :verb, :path, :to, :summary, :description, :file, :line ]
+
+    def members: () -> [ :verb, :path, :to, :summary, :description, :file, :line ]
   end
 end

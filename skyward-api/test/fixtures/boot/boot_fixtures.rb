@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 # Signed in sig/boot_fixtures.rbs, except Unsigned, UnsignedPositional, UnsignedRacking, UnsignedProvider,
-# ModuleProvider, ClassProvider, UnsignedProvided and the classes refused before their signature is read: Unrouted,
-# Private and Protected. Each class that fails to boot has one problem.
+# ModuleProvider, ClassProvider, UnsignedProvided, the classes whose path parameter has no keyword but Unnamed, and
+# the classes refused before their signature is read: Unrouted, Misrouted, Private and Protected. Each class that
+# fails to boot has one problem.
 module BootFixtures
   Todo = Data.define(:id, :title)
   User = Data.define(:id, :name, :password_hash)
   Draft = Data.define(:title, :priority, :due_on)
   Holder = Class.new
+  Listing = Class.new
   Node = Class.new
 
   Hello = Class.new(Skyward::API) do
@@ -88,6 +90,12 @@ module BootFixtures
 
   Unrouted = Class.new(Skyward::API) do
     get "/", to: :index
+  end
+
+  Misrouted = Class.new(Skyward::API) do
+    get "/", to: :indx
+
+    def index = []
   end
 
   Private = Class.new(Skyward::API) do
@@ -188,10 +196,91 @@ module BootFixtures
     def show(todo_id:) = { todo_id: }
   end
 
+  Renested = Class.new(Skyward::API) do
+    get "/:todo_id", to: :show
+
+    def show(id:) = { id: }
+  end
+
+  Misspelt = Class.new(Skyward::API) do
+    get "/:todo_id", to: :show
+
+    def show(todo_idd:) = { todo_idd: }
+  end
+
+  Nested = Class.new(Skyward::API) do
+    get "/:list_id/:id", to: :show
+
+    def show(list_id:, user_id:, todo_id:) = { list_id:, user_id:, todo_id: }
+  end
+
+  Ambiguous = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(todo_id:, list_id:) = { todo_id:, list_id: }
+  end
+
+  Unmatched = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(limit: 10) = { limit: }
+  end
+
+  Wrapped = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(
+      limit: 10,
+      todo_id: nil
+    )
+      { limit:, todo_id: }
+    end
+  end
+
+  Continued = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    # rubocop:disable-next Layout/FirstMethodParameterLineBreak -- an app can still write this layout, and that it gets no hint is tested.
+    def show(todo_id: nil,
+             limit: 10)
+      { todo_id:, limit: }
+    end
+  end
+
+  Opened = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(
+      todo_id: nil,
+      limit: 10
+    )
+      { todo_id:, limit: }
+    end
+  end
+
+  Aliased = Class.new(Skyward::API) do
+    get "/:id", to: :find
+
+    def show(todo_id:) = { todo_id: }
+    alias_method :find, :show
+  end
+
+  MisspeltSignature = Class.new(Skyward::API) do
+    get "/:id", to: :show
+
+    def show(id:) = { id: }
+  end
+
   TupleQuery = Class.new(Skyward::API) do
     get "/", to: :index
 
     def index(range:) = { range: }
+  end
+
+  MisspeltBody = Class.new(Skyward::API) do
+    post "/", to: :create
+
+    def create(body:) = body
   end
 
   HashBody = Class.new(Skyward::API) do

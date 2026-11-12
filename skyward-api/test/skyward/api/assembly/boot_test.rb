@@ -6,7 +6,15 @@ require_relative "../../../fixtures/boot/boot_fixtures"
 
 describe Skyward::API::Assembly::Boot do
   types = Skyward::Core::Types
-  reader = types::Reader.new(Skyward::Core::Signatures.load(File.expand_path("../../../fixtures/boot/sig", __dir__)))
+  fixtures = File.expand_path("../../../fixtures/boot", __dir__)
+  reader = types::Reader.new(Skyward::Core::Signatures.load(File.join(fixtures, "sig")))
+  relative = fixtures.delete_prefix("#{Dir.pwd}/")
+  excerpt_header = lambda do |file, owner, snippet|
+    lines = File.readlines(File.join(fixtures, file))
+    start = lines.index { |line| line.include?(owner) }.to_i
+    "#{relative}/#{file}:#{start + lines.drop(start).index { |line| line.include?(snippet) }.to_i + 1}"
+  end
+  at = ->(owner, snippet) { excerpt_header.call("boot_fixtures.rb", "  #{owner} = ", snippet) }
 
   integer = types::Scalar.new(name: :integer)
   untyped = types::Scalar.new(name: :untyped)
@@ -185,32 +193,56 @@ describe Skyward::API::Assembly::Boot do
       end
     end
 
-    it "refuses a summary with a line break" do
-      assert_equal "BootFixtures::Summarised#index (GET /)\n  " \
-                   "Its summary: has a line break, but a summary is one line. Put the rest in description:.",
-                   refusal([BootFixtures::Summarised.new, "/"])
+    it "refuses a summary with a line break, with carets under the summary" do
+      assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Summarised.new, "/"])
+        BootFixtures::Summarised#index (GET /)
+          Its summary: has a line break, but a summary is one line. Put the rest in description:.
+
+            #{at.call("Summarised", "get ")}
+            get "/", to: :index, summary: "List todos.\\nNewest first."
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      MESSAGE
     end
 
     describe "shadowing" do
-      it "refuses a route that a route before it in the same class matches every path of" do
-        assert_equal "BootFixtures::StaticLast#new_form (GET /new)\n  " \
-                     "BootFixtures::StaticLast#show (GET /:id) is tried first and matches every path this route " \
-                     "does, so this route is never reached. Declare the static route first.",
-                     refusal([BootFixtures::StaticLast.new, "/"])
+      it "refuses a route that a route before it in the same class matches every path of, under both paths" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::StaticLast.new, "/"])
+          BootFixtures::StaticLast#new_form (GET /new)
+            BootFixtures::StaticLast#show (GET /:id) is tried first and matches every path this route does, so this route is never reached. Declare the static route first.
+
+              #{at.call("StaticLast", "get ")}
+              get "/:id", to: :show
+                   ^^^^
+              get "/new", to: :new_form
+                   ^^^^
+        MESSAGE
       end
 
       it "refuses a route that a route in an earlier mount matches every path of" do
-        assert_equal "BootFixtures::NewForm#new_form (GET /todos/new)\n  " \
-                     "BootFixtures::Todos#show (GET /todos/:id) is tried first and matches every path this route " \
-                     "does, so this route is never reached. Declare the static route first.",
-                     refusal([todos, "/todos"], [BootFixtures::NewForm.new, "/todos"])
+        assert_equal <<~MESSAGE.chomp, refusal([todos, "/todos"], [BootFixtures::NewForm.new, "/todos"])
+          BootFixtures::NewForm#new_form (GET /todos/new)
+            BootFixtures::Todos#show (GET /todos/:id) is tried first and matches every path this route does, so this route is never reached. Declare the static route first.
+
+              #{at.call("Todos", "get \"/:id\"")}
+              get "/:id", to: :show
+                   ^^^^
+              ...
+              get "/new", to: :new_form
+                   ^^^^
+        MESSAGE
       end
 
       it "refuses a route with the same shape as one before it" do
-        assert_equal "BootFixtures::SameShape#find (GET /:todo_id)\n  " \
-                     "BootFixtures::SameShape#show (GET /:id) is tried first and matches exactly the same paths, " \
-                     "so this route is never reached. Remove one of them, or change a path.",
-                     refusal([BootFixtures::SameShape.new, "/"])
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::SameShape.new, "/"])
+          BootFixtures::SameShape#find (GET /:todo_id)
+            BootFixtures::SameShape#show (GET /:id) is tried first and matches exactly the same paths, so this route is never reached. Remove one of them, or change a path.
+
+              #{at.call("SameShape", "get ")}
+              get "/:id", to: :show
+                   ^^^^
+              get "/:todo_id", to: :find
+                   ^^^^^^^^^
+        MESSAGE
       end
 
       it "allows a static route declared before a parameter in its place" do
@@ -223,26 +255,57 @@ describe Skyward::API::Assembly::Boot do
     end
 
     describe "the method" do
-      it "refuses a method the class doesn't have" do
-        assert_equal "BootFixtures::Unrouted#index (GET /)\n  " \
-                     "BootFixtures::Unrouted has no public method `index`. " \
-                     "Define it as a public method, or change to:.",
-                     refusal([BootFixtures::Unrouted.new, "/"])
+      it "refuses a method the class doesn't have, with carets under to:, and no hint when it has no method close" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Unrouted.new, "/"])
+          BootFixtures::Unrouted#index (GET /)
+            BootFixtures::Unrouted has no public method `index`. Define it as a public method, or change to:.
+
+              #{at.call("Unrouted", "get ")}
+              get "/", to: :index
+                           ^^^^^^
+        MESSAGE
       end
 
-      it "refuses a private method" do
-        assert_match(/has no public method `index`/, refusal([BootFixtures::Private.new, "/"]))
+      it "refuses a private method, saying to move it above private" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Private.new, "/"])
+          BootFixtures::Private#index (GET /)
+            BootFixtures::Private has no public method `index`. Define it as a public method, or change to:.
+
+              #{at.call("Private", "get ")}
+              get "/", to: :index
+                           ^^^^^^
+            index is private. Move it above `private`.
+        MESSAGE
       end
 
-      it "refuses a protected method" do
-        assert_match(/has no public method `index`/, refusal([BootFixtures::Protected.new, "/"]))
+      it "refuses a protected method, saying to move it above protected" do
+        assert_match(
+          /\n  index is protected\. Move it above `protected`\.\z/,
+          refusal([BootFixtures::Protected.new, "/"])
+        )
       end
 
-      it "refuses a method that takes a positional argument" do
-        assert_equal "BootFixtures::Positional#show (GET /:id)\n  " \
-                     "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
-                     "Take each input as a keyword, such as `id:`.",
-                     refusal([BootFixtures::Positional.new, "/"])
+      it "suggests the class's own public method closest to to:" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Misrouted.new, "/"])
+          BootFixtures::Misrouted#indx (GET /)
+            BootFixtures::Misrouted has no public method `indx`. Define it as a public method, or change to:.
+
+              #{at.call("Misrouted", "get ")}
+              get "/", to: :indx
+                           ^^^^^
+            Did you mean to: :index?
+        MESSAGE
+      end
+
+      it "refuses a method that takes a positional argument, with carets under its parameters" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Positional.new, "/"])
+          BootFixtures::Positional#show (GET /:id)
+            The method takes positional arguments or **rest, but Skyward API passes only named keywords. Take each input as a keyword, such as `id:`.
+
+              #{at.call("Positional", "def ")}
+              def show(id) = { id: }
+                       ^^
+        MESSAGE
       end
 
       it "refuses a method that takes **rest" do
@@ -301,19 +364,171 @@ describe Skyward::API::Assembly::Boot do
       end
     end
 
-    it "refuses a path parameter the method has no keyword for" do
-      assert_equal "BootFixtures::Unnamed#show (GET /:id)\n  " \
-                   "The route has a path parameter :id, but the method has no `id:` keyword. " \
-                   "Add `id:` to the method, or rename the path parameter.",
-                   refusal([BootFixtures::Unnamed.new, "/"])
+    describe "a path parameter the method has no keyword for" do
+      it "refuses it, suggesting the keyword that ends in _<parameter>" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Unnamed.new, "/"])
+          BootFixtures::Unnamed#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Unnamed", "def ")}
+              get "/:id", to: :show
+              ...
+              def show(todo_id:) = { todo_id: }
+                       ^^^^^^^^
+            Did you mean `def show(id:)`?
+        MESSAGE
+      end
+
+      it "suggests a misspelt keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Misspelt.new, "/"])
+          BootFixtures::Misspelt#show (GET /:todo_id)
+            The route has a path parameter :todo_id, but the method has no `todo_id:` keyword. Add `todo_id:` to the method, or rename the path parameter.
+
+              #{at.call("Misspelt", "def ")}
+              get "/:todo_id", to: :show
+              ...
+              def show(todo_idd:) = { todo_idd: }
+                       ^^^^^^^^^
+            Did you mean `def show(todo_id:)`?
+        MESSAGE
+      end
+
+      it "suggests the keyword the parameter ends in _<keyword> of" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Renested.new, "/"])
+          BootFixtures::Renested#show (GET /:todo_id)
+            The route has a path parameter :todo_id, but the method has no `todo_id:` keyword. Add `todo_id:` to the method, or rename the path parameter.
+
+              #{at.call("Renested", "def ")}
+              get "/:todo_id", to: :show
+              ...
+              def show(id:) = { id: }
+                       ^^^
+            Did you mean `def show(todo_id:)`?
+        MESSAGE
+      end
+
+      it "suggests only a keyword that would come from the query string, renamed among the others" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Nested.new, "/"], providers: { user_id: tenant })
+          BootFixtures::Nested#show (GET /:list_id/:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Nested", "def ")}
+              get "/:list_id/:id", to: :show
+              ...
+              def show(list_id:, user_id:, todo_id:) = { list_id:, user_id:, todo_id: }
+                                           ^^^^^^^^
+            Did you mean `def show(list_id:, user_id:, id:)`?
+        MESSAGE
+      end
+
+      it "suggests nothing when several keywords match, with carets under the parameters" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Ambiguous.new, "/"])
+          BootFixtures::Ambiguous#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Ambiguous", "def ")}
+              get "/:id", to: :show
+              ...
+              def show(todo_id:, list_id:) = { todo_id:, list_id: }
+                       ^^^^^^^^^^^^^^^^^^
+        MESSAGE
+      end
+
+      it "suggests nothing when no keyword matches" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Unmatched.new, "/"])
+          BootFixtures::Unmatched#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Unmatched", "def ")}
+              get "/:id", to: :show
+              ...
+              def show(limit: 10) = { limit: }
+                       ^^^^^^^^^
+        MESSAGE
+      end
+
+      it "suggests nothing for a keyword on a later line than the parameter list starts on" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Wrapped.new, "/"])
+          BootFixtures::Wrapped#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Wrapped", "todo_id: nil")}
+              get "/:id", to: :show
+              ...
+                todo_id: nil
+                ^^^^^^^^^^^^
+        MESSAGE
+      end
+
+      it "suggests nothing for a parameter list that starts on a line after `def`, with carets under the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Opened.new, "/"])
+          BootFixtures::Opened#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Opened", "todo_id: nil")}
+              get "/:id", to: :show
+              ...
+                todo_id: nil,
+                ^^^^^^^^^^^^
+        MESSAGE
+      end
+
+      it "suggests nothing for a parameter list that runs on from the `def` line, with carets under the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Continued.new, "/"])
+          BootFixtures::Continued#show (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Continued", "def ")}
+              get "/:id", to: :show
+              ...
+              def show(todo_id: nil,
+                       ^^^^^^^^^^^^
+        MESSAGE
+      end
+
+      it "suggests the name written on the `def` for a routed alias" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::Aliased.new, "/"])
+          BootFixtures::Aliased#find (GET /:id)
+            The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
+
+              #{at.call("Aliased", "def ")}
+              get "/:id", to: :find
+              ...
+              def show(todo_id:) = { todo_id: }
+                       ^^^^^^^^
+            Did you mean `def show(id:)`?
+        MESSAGE
+      end
+
+      it "gives no excerpt or hint for a route and method in a file that isn't on disk" do
+        api = Class.new(Skyward::API)
+        # rubocop:disable-next Style/EvalWithLocation -- the route and method must be in a file that isn't on disk.
+        api.class_eval(<<~RUBY, "nowhere.rb", 1)
+          get "/:id", to: :show
+
+          def show(todo_id:) = { todo_id: }
+        RUBY
+
+        assert_equal "#{api}#show (GET /:id)\n  " \
+                     "The route has a path parameter :id, but the method has no `id:` keyword. " \
+                     "Add `id:` to the method, or rename the path parameter.",
+                     refusal([api.new, "/"])
+      end
     end
 
     describe "provided keywords" do
-      it "refuses a path parameter that's provided" do
-        assert_equal "BootFixtures::ProvidedPath#show (GET /:current_user)\n  " \
-                     "The route has a path parameter :current_user, but :current_user is provided too, " \
-                     "so `current_user:` can't be both. Rename the path parameter, or provide another name.",
-                     refusal([BootFixtures::ProvidedPath.new, "/"], providers: { current_user: })
+      it "refuses a path parameter that's provided, with carets under the parameter and the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::ProvidedPath.new, "/"], providers: { current_user: })
+          BootFixtures::ProvidedPath#show (GET /:current_user)
+            The route has a path parameter :current_user, but :current_user is provided too, so `current_user:` can't be both. Rename the path parameter, or provide another name.
+
+              #{at.call("ProvidedPath", "get ")}
+              get "/:current_user", to: :show
+                    ^^^^^^^^^^^^^
+              ...
+              def show(current_user:) = Todo.new(id: 1, title: current_user)
+                       ^^^^^^^^^^^^^
+        MESSAGE
       end
 
       it "takes a provided keyword from its provider, never the query string" do
@@ -346,18 +561,22 @@ describe Skyward::API::Assembly::Boot do
         assert_equal [response(Skyward::API::Responses::Unauthorized)], provider.responses
       end
 
-      it "refuses a keyword typed other than its provider's value" do
-        assert_equal "BootFixtures::MistypedUser#index (GET /)\n  " \
-                     "`current_user:` is typed as BootFixtures::Todo, but the :current_user provider returns " \
-                     "BootFixtures::User, besides any responses. Give them the same type.",
-                     refusal([BootFixtures::MistypedUser.new, "/"], providers: { current_user: })
+      it "refuses a keyword typed other than its provider's value, with carets under the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::MistypedUser.new, "/"], providers: { current_user: })
+          BootFixtures::MistypedUser#index (GET /)
+            `current_user:` is typed as BootFixtures::Todo, but the :current_user provider returns BootFixtures::User, besides any responses. Give them the same type.
+
+              #{at.call("MistypedUser", "def ")}
+              def index(current_user:) = [current_user]
+                        ^^^^^^^^^^^^^
+        MESSAGE
       end
 
       it "refuses a keyword whose provider returns only responses" do
-        assert_equal "BootFixtures::Guarded#index (GET /)\n  " \
-                     "`admin:` is typed as BootFixtures::User, but the :admin provider returns only responses. " \
-                     "Give them the same type.",
-                     refusal([BootFixtures::Guarded.new, "/"], providers: { admin: BootFixtures::Guard.new })
+        assert_match(
+          /`admin:` is typed as BootFixtures::User, but the :admin provider returns only responses\./,
+          refusal([BootFixtures::Guarded.new, "/"], providers: { admin: BootFixtures::Guard.new })
+        )
       end
 
       it "keeps an endpoint's providers in its keywords' order, apart from its other keywords" do
@@ -405,11 +624,15 @@ describe Skyward::API::Assembly::Boot do
                        endpoint(boot([BootFixtures::Inlined.new, "/"]), :greet).keywords.last
         end
 
-        it "refuses request: typed as anything but Skyward::API::Request" do
-          assert_equal "BootFixtures::MistypedRequest#index (GET /)\n  " \
-                       "`request:` is always the Skyward::API::Request, but its signature types it as String. " \
-                       "Type it as Skyward::API::Request, or rename the keyword.",
-                       refusal([BootFixtures::MistypedRequest.new, "/"])
+        it "refuses request: typed as anything but Skyward::API::Request, with carets under the keyword" do
+          assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::MistypedRequest.new, "/"])
+            BootFixtures::MistypedRequest#index (GET /)
+              `request:` is always the Skyward::API::Request, but its signature types it as String. Type it as Skyward::API::Request, or rename the keyword.
+
+                #{at.call("MistypedRequest", "def ")}
+                def index(request:) = { request: }
+                          ^^^^^^^^
+          MESSAGE
         end
       end
 
@@ -422,25 +645,45 @@ describe Skyward::API::Assembly::Boot do
         assert_equal expected, endpoint(boot([todos, "/"]), :index).keywords
       end
 
-      it "refuses a keyword whose type can't be read" do
-        assert_equal "BootFixtures::TupleQuery#index (GET /)\n  " \
-                     "The type of `range:` can't be read: Skyward API doesn't read [ Integer, Integer ]. " \
-                     "Use Array[T], or a record instead.",
-                     refusal([BootFixtures::TupleQuery.new, "/"])
+      it "refuses a keyword whose type can't be read, with carets under the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::TupleQuery.new, "/"])
+          BootFixtures::TupleQuery#index (GET /)
+            The type of `range:` can't be read: Skyward API doesn't read [ Integer, Integer ]. Use Array[T], or a record instead.
+
+              #{at.call("TupleQuery", "def ")}
+              def index(range:) = { range: }
+                        ^^^^^^
+        MESSAGE
       end
 
       it "names the class and reader where an unreadable type was found" do
-        assert_equal "BootFixtures::HashBody#create (POST /)\n  " \
-                     "The type of `body:` can't be read: Skyward API doesn't read Hash[Symbol, untyped], " \
-                     "at BootFixtures::Holder#tags. Use Hash[String, T] (only String keys are supported) instead.",
-                     refusal([BootFixtures::HashBody.new, "/"])
+        assert_match(
+          /doesn't read Hash\[Symbol, untyped\], at BootFixtures::Holder#tags\./,
+          refusal([BootFixtures::HashBody.new, "/"])
+        )
       end
 
-      it "refuses an array in the path" do
-        assert_equal "BootFixtures::ArrayPath#show (GET /:ids)\n  " \
-                     "`ids:` comes from the path, which can't carry an array. " \
-                     "Give it a type such as String, Integer or an enum.",
-                     refusal([BootFixtures::ArrayPath.new, "/"])
+      it "suggests the class name closest to an unreadable type's" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::MisspeltBody.new, "/"])
+          BootFixtures::MisspeltBody#create (POST /)
+            The type of `body:` can't be read: Skyward API doesn't read Strng, at BootFixtures::Listing#title. Use a record, or a class with public typed attr_readers instead.
+
+              #{at.call("MisspeltBody", "def ")}
+              def create(body:) = body
+                         ^^^^^
+            Did you mean String?
+        MESSAGE
+      end
+
+      it "refuses an array in the path, with carets under the keyword" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::ArrayPath.new, "/"])
+          BootFixtures::ArrayPath#show (GET /:ids)
+            `ids:` comes from the path, which can't carry an array. Give it a type such as String, Integer or an enum.
+
+              #{at.call("ArrayPath", "def ")}
+              def show(ids:) = { ids: }
+                       ^^^^
+        MESSAGE
       end
 
       it "refuses a hash in the path" do
@@ -458,10 +701,10 @@ describe Skyward::API::Assembly::Boot do
       end
 
       it "refuses a record in the query string" do
-        assert_equal "BootFixtures::RecordQuery#index (GET /)\n  " \
-                     "`filter:` comes from the query string, which can't carry a record. " \
-                     "Give it a type such as String, Integer or an array of them, or take it in `body:`.",
-                     refusal([BootFixtures::RecordQuery.new, "/"])
+        assert_match(
+          /`filter:` comes from the query string, which can't carry a record\./,
+          refusal([BootFixtures::RecordQuery.new, "/"])
+        )
       end
 
       it "refuses a nullable hash in the query string" do
@@ -506,11 +749,15 @@ describe Skyward::API::Assembly::Boot do
         assert_equal [types::ArrayOf.new(type: todo)], endpoint(boot([todos, "/"]), :index).returns
       end
 
-      it "refuses a return type that can't be read" do
-        assert_equal "BootFixtures::HashReturn#index (GET /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use Hash[String, T] (only String keys are supported) instead.",
-                     refusal([BootFixtures::HashReturn.new, "/"])
+      it "refuses a return type that can't be read, with carets under the method's name" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::HashReturn.new, "/"])
+          BootFixtures::HashReturn#index (GET /)
+            The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. Use Hash[String, T] (only String keys are supported) instead.
+
+              #{at.call("HashReturn", "def ")}
+              def index = {}
+                  ^^^^^
+        MESSAGE
       end
 
       it "compiles the keywords into the endpoint's inputs, reading a body up to max_body_size" do
@@ -518,6 +765,18 @@ describe Skyward::API::Assembly::Boot do
         env = { "CONTENT_TYPE" => "application/json", "rack.input" => StringIO.new('{"title":"Ship it"}') }
 
         assert_equal :content_too_large, inputs.call(env, {})
+      end
+
+      it "labels an RBS error from reading the signature, indenting its excerpt and suggestion" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::MisspeltSignature.new, "/"])
+          BootFixtures::MisspeltSignature#show (GET /:id)
+            Can't read the RBS signatures: Could not find Integr
+
+              #{excerpt_header.call("sig/boot_fixtures.rbs", "class MisspeltSignature ", "def ")}
+              def show: (id: Integr) -> Todo
+                             ^^^^^^
+            Did you mean Integer?
+        MESSAGE
       end
 
       it "labels a type the reader refuses outright" do
@@ -567,18 +826,22 @@ describe Skyward::API::Assembly::Boot do
                      endpoint(responding, :create, "POST").returns
       end
 
-      it "refuses a Created without the type of its value" do
-        assert_equal "BootFixtures::CreatedBare#create (POST /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read Skyward::API::Responses::Created. " \
-                     "Use Skyward::API::Responses::Created[T] instead.",
-                     refusal([BootFixtures::CreatedBare.new, "/"])
+      it "refuses a Created without the type of its value, with carets under the method's name" do
+        assert_equal <<~MESSAGE.chomp, refusal([BootFixtures::CreatedBare.new, "/"])
+          BootFixtures::CreatedBare#create (POST /)
+            The return type can't be read: Skyward API doesn't read Skyward::API::Responses::Created. Use Skyward::API::Responses::Created[T] instead.
+
+              #{at.call("CreatedBare", "def ")}
+              def create = created({})
+                  ^^^^^^
+        MESSAGE
       end
 
       it "refuses a Created whose value's type can't be read" do
-        assert_equal "BootFixtures::CreatedHash#create (POST /)\n  " \
-                     "The return type can't be read: Skyward API doesn't read Hash[Symbol, untyped]. " \
-                     "Use Hash[String, T] (only String keys are supported) instead.",
-                     refusal([BootFixtures::CreatedHash.new, "/"])
+        assert_match(
+          /The return type can't be read: Skyward API doesn't read Hash\[Symbol, untyped\]\./,
+          refusal([BootFixtures::CreatedHash.new, "/"])
+        )
       end
     end
 

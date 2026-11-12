@@ -8,6 +8,8 @@ module Skyward::API::Endpoints
     :path, #: String
     :to, #: Symbol
     :summary, #: String?
-    :description #: String?
+    :description, #: String?
+    :file, #: String?
+    :line #: Integer?
   )
 end

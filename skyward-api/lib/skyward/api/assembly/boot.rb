@@ -23,6 +23,12 @@ module Skyward::API::Assembly::Boot
   # untyped, which is what rbs-inline writes for a method with no annotations.
   ANY = RBS::Types::Bases::Any.new(location: nil) #: RBS::Types::Bases::Any
 
+  Refusal = Data.define(
+    :problem, #: String
+    :spots, #: Array[Skyward::Core::Diagnostics::Spot]
+    :hint #: String?
+  )
+
   # @rbs (Array[Skyward::API::Assembly::Builder::Mount] mounts,
   #       providers: Hash[Symbol, Skyward::API::_Provider & Object], reader: Skyward::Core::Types::Reader,
   #       max_body_size: Integer, strict: bool) ->
@@ -32,12 +38,13 @@ module Skyward::API::Assembly::Boot
     raise Skyward::Core::BootError, single if single
 
     provided = providers.to_h { |name, callable| [name, provider(name, callable, reader)] }
-    none = [] #: Array[Skyward::API::Routing::Router::Endpoint]
-    built = mounts.reduce(none) do |booted, mount|
+    none = [] #: Array[[Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint]]
+    routed = mounts.reduce(none) do |booted, mount|
       mount.api.class.routes.reduce(booted) do |so_far, route|
-        [*so_far, boot(mount, route, so_far, provided, reader, max_body_size)]
+        [*so_far, [route, boot(mount, route, so_far, provided, reader, max_body_size)]]
       end
     end
+    built = routed.map(&:last)
     return built unless strict
 
     refused = built.filter_map { |endpoint| untyped(endpoint, reader) }
@@ -82,7 +89,7 @@ module Skyward::API::Assembly::Boot
 
   # @rbs mount: Skyward::API::Assembly::Builder::Mount
   # @rbs route: Skyward::API::Endpoints::Route
-  # @rbs built: Array[Skyward::API::Routing::Router::Endpoint]
+  # @rbs built: Array[[Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint]]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
@@ -92,20 +99,61 @@ module Skyward::API::Assembly::Boot
     verb = route.verb.upcase.name
     pattern = pattern(path)
     label = "#{mount.api.class}##{route.to} (#{verb} #{path})"
-    result = summary(route) || shadowing(verb, pattern, built) ||
+    result = summary(route) || shadowing(route, verb, pattern, built) ||
              endpoint(mount.api, route, verb, pattern, label, providers, reader, max_body_size)
     case result
-    when String then raise Skyward::Core::BootError, "#{label}\n  #{result}"
+    when Refusal then raise Skyward::Core::BootError, explained(label, result)
     else result
     end
   end
 
+  # Core's own errors carry their excerpt in their message, already indented,
+  # so every line but an excerpt's is indented under the label.
+  # @rbs label: String
+  # @rbs refusal: Refusal
+  # @rbs return: String
+  def explained(label, refusal)
+    excerpt = Skyward::Core::Diagnostics::Excerpt.render(refusal.spots)
+    body = [[refusal.problem, excerpt].compact.join("\n\n"), refusal.hint].compact.join("\n")
+    lines = body.lines(chomp: true).map do |line|
+      line.empty? || line.start_with?(Skyward::Core::Diagnostics::Excerpt::INDENT) ? line : "  #{line}"
+    end
+    [label, *lines].join("\n")
+  end
+
+  # @rbs problem: String
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot?]
+  # @rbs hint: String?
+  # @rbs return: Refusal
+  def refused(problem, spots: [], hint: nil) = Refusal.new(problem:, spots: spots.compact, hint:)
+
   # @rbs route: Skyward::API::Endpoints::Route
-  # @rbs return: String?
+  # @rbs key: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def argument(route, key)
+    file = route.file
+    line = route.line
+    Skyward::Core::Diagnostics::Spots.keyword_value(file, line, call: route.verb, key:) if file && line
+  end
+
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs part: String
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def in_path(route, part)
+    file = route.file
+    line = route.line
+    Skyward::Core::Diagnostics::Spots.string(file, line, call: route.verb, part:) if file && line
+  end
+
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs return: Refusal?
   def summary(route)
     return unless route.summary&.match?(/\R/)
 
-    "Its summary: has a line break, but a summary is one line. Put the rest in description:."
+    refused(
+      "Its summary: has a line break, but a summary is one line. Put the rest in description:.",
+      spots: [argument(route, :summary)]
+    )
   end
 
   # @rbs prefix: String
@@ -122,21 +170,25 @@ module Skyward::API::Assembly::Boot
     path.split("/", -1).map { |segment| segment.start_with?(":") ? segment.delete_prefix(":").to_sym : segment }
   end
 
+  # @rbs route: Skyward::API::Endpoints::Route
   # @rbs verb: String
   # @rbs pattern: Array[String | Symbol]
-  # @rbs built: Array[Skyward::API::Routing::Router::Endpoint]
-  # @rbs return: String?
-  def shadowing(verb, pattern, built)
-    earlier = built.find { |endpoint| endpoint.verb == verb && covers?(endpoint.pattern, pattern) }
-    return unless earlier
+  # @rbs built: Array[[Skyward::API::Endpoints::Route, Skyward::API::Routing::Router::Endpoint]]
+  # @rbs return: Refusal?
+  def shadowing(route, verb, pattern, built)
+    found = built.find { |_, endpoint| endpoint.verb == verb && covers?(endpoint.pattern, pattern) }
+    return unless found
 
-    if covers?(pattern, earlier.pattern)
-      "#{earlier.label} is tried first and matches exactly the same paths, so this route is never reached. " \
-        "Remove one of them, or change a path."
-    else
-      "#{earlier.label} is tried first and matches every path this route does, so this route is never reached. " \
-        "Declare the static route first."
-    end
+    earlier_route, earlier = found
+    problem =
+      if covers?(pattern, earlier.pattern)
+        "#{earlier.label} is tried first and matches exactly the same paths, so this route is never reached. " \
+          "Remove one of them, or change a path."
+      else
+        "#{earlier.label} is tried first and matches every path this route does, so this route is never reached. " \
+          "Declare the static route first."
+      end
+    refused(problem, spots: [earlier_route, route].map { |declared| in_path(declared, declared.path) })
   end
 
   # A path parameter matches any segment but an empty one, which only the root path has.
@@ -156,36 +208,46 @@ module Skyward::API::Assembly::Boot
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
   # @rbs max_body_size: Integer
-  # @rbs return: Skyward::API::Routing::Router::Endpoint | String
+  # @rbs return: Skyward::API::Routing::Router::Endpoint | Refusal
   def endpoint(api, route, verb, pattern, label, providers, reader, max_body_size)
-    method_type = method_type(api.class, route.to, reader)
-    return method_type if method_type.is_a?(String)
+    method_type = method_type(api.class, route, reader)
+    return method_type if method_type.is_a?(Refusal)
 
+    method = api.class.instance_method(route.to)
     function = method_type&.type
-    signed = signed(api.class.instance_method(route.to).parameters, function)
-    return signed if signed.is_a?(String)
+    signed = signed(method, function)
+    return signed if signed.is_a?(Refusal)
 
-    unnamed = pattern.grep(Symbol).find { |name| signed.none? { |keyword, _, _| keyword == name } }
+    path_parameters = pattern.grep(Symbol) #: Array[Symbol]
+    unnamed = path_parameters.find { |name| signed.none? { |keyword, _, _| keyword == name } }
     if unnamed
-      return "The route has a path parameter :#{unnamed}, but the method has no `#{unnamed}:` keyword. " \
-             "Add `#{unnamed}:` to the method, or rename the path parameter."
+      query = signed.filter_map { |name, _, _| name if source(name, pattern) == :query && !providers.key?(name) }
+      return no_keyword(route, method, unnamed, query)
     end
 
-    both = pattern.grep(Symbol).find { |name| providers.key?(name) }
+    both = path_parameters.find { |name| providers.key?(name) }
     if both
-      return "The route has a path parameter :#{both}, but :#{both} is provided too, so `#{both}:` can't be both. " \
-             "Rename the path parameter, or provide another name."
+      problem = "The route has a path parameter :#{both}, but :#{both} is provided too, so `#{both}:` can't be both. " \
+                "Rename the path parameter, or provide another name."
+      return refused(
+        problem,
+        spots: [in_path(route, ":#{both}"), Skyward::Core::Diagnostics::Spots.keyword_parameter(method, both)]
+      )
     end
 
-    read = signed.map { |name, required, type| keyword(name, required, type, pattern, providers, reader) }
-    problem = read.find { |keyword| keyword.is_a?(String) }
-    return problem if problem.is_a?(String)
+    read = signed.to_h { |name, required, type| [name, keyword(name, required, type, pattern, providers, reader)] }
+    name, problem = read.find { |_, keyword| keyword.is_a?(Refusal) }
+    if name && problem.is_a?(Refusal)
+      return problem.with(spots: [Skyward::Core::Diagnostics::Spots.keyword_parameter(method, name)].compact)
+    end
 
-    keywords = read.grep(Skyward::API::Routing::Router::Keyword) #: Array[Skyward::API::Routing::Router::Keyword]
-    provided = read.grep(Skyward::API::Routing::Router::Provider) #: Array[Skyward::API::Routing::Router::Provider]
+    keywords = read.values.grep(Skyward::API::Routing::Router::Keyword) #: Array[Skyward::API::Routing::Router::Keyword]
+    provided = read.values.grep(Skyward::API::Routing::Router::Provider) #: Array[Skyward::API::Routing::Router::Provider]
 
     returns = returns(function&.return_type || ANY, reader)
-    return returns if returns.is_a?(String)
+    if returns.is_a?(Refusal)
+      return returns.with(spots: [Skyward::Core::Diagnostics::Spots.method_name(method)].compact)
+    end
 
     inputs = Skyward::API::Inputs.new(keywords, providers: provided, max_body_size:)
     serializer = Skyward::API::Serializer.new(returns, label:)
@@ -207,19 +269,38 @@ module Skyward::API::Assembly::Boot
   # The reader raises for a type it can't read at all, such as one that refers
   # to itself, and that's this route's problem too.
   rescue Skyward::Core::BootError => e
-    e.message
+    refused(e.message)
   end
 
   # @rbs klass: Class
-  # @rbs to: Symbol
+  # @rbs route: Skyward::API::Endpoints::Route
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: RBS::MethodType | String | nil
-  def method_type(klass, to, reader)
-    unless klass.public_method_defined?(to)
-      return "#{klass} has no public method `#{to}`. Define it as a public method, or change to:."
-    end
+  # @rbs return: RBS::MethodType | Refusal | nil
+  def method_type(klass, route, reader)
+    to = route.to
+    return signature(klass, to, reader) if klass.public_method_defined?(to)
 
-    signature(klass, to, reader)
+    refused(
+      "#{klass} has no public method `#{to}`. Define it as a public method, or change to:.",
+      spots: [argument(route, :to)],
+      hint: unrouted(klass, to)
+    )
+  end
+
+  # Only the class's own methods, so that a method it inherits, as from
+  # Skyward::API or Kernel, is never suggested.
+  # @rbs klass: Class
+  # @rbs to: Symbol
+  # @rbs return: String?
+  def unrouted(klass, to)
+    hidden =
+      if klass.private_method_defined?(to, false) then "private"
+      elsif klass.protected_method_defined?(to, false) then "protected"
+      end
+    return "#{to} is #{hidden}. Move it above `#{hidden}`." if hidden
+
+    closest = Skyward::Core::Diagnostics::Suggestion.closest(to.to_s, klass.public_instance_methods(false).map(&:to_s))
+    "Did you mean to: :#{closest}?" if closest
   end
 
   # @rbs owner: Module
@@ -231,13 +312,17 @@ module Skyward::API::Assembly::Boot
     reader.method_type(type_name, name) if type_name
   end
 
-  # @rbs parameters: Method::param_types
+  # @rbs method: UnboundMethod
   # @rbs type: RBS::Types::function?
-  # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | String
-  def signed(parameters, type)
+  # @rbs return: Array[[Symbol, bool, RBS::Types::t]] | Refusal
+  def signed(method, type)
+    parameters = method.parameters
     if parameters.any? { |kind, _| UNNAMED.include?(kind) }
-      return "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
-             "Take each input as a keyword, such as `id:`."
+      return refused(
+        "The method takes positional arguments or **rest, but Skyward API passes only named keywords. " \
+        "Take each input as a keyword, such as `id:`.",
+        spots: [Skyward::Core::Diagnostics::Spots.parameters(method)]
+      )
     end
 
     keywords = parameters.filter_map { |kind, name| [name, kind == :keyreq] if KEYWORD.include?(kind) }.to_h
@@ -268,11 +353,13 @@ module Skyward::API::Assembly::Boot
 
   # @rbs keywords: Hash[Symbol, bool]
   # @rbs function: RBS::Types::function
-  # @rbs return: String
+  # @rbs return: Refusal
   def stale(keywords, function)
     taken = keywords.map { |name, required| "#{"?" unless required}#{name}:" }
-    "The method takes (#{taken.join(", ")}), but its signature takes (#{written(function.param_to_s)}), " \
+    refused(
+      "The method takes (#{taken.join(", ")}), but its signature takes (#{written(function.param_to_s)}), " \
       "so the signature is stale. Run rbs-inline, or update the signature."
+    )
   end
 
   # @rbs function: RBS::Types::function
@@ -297,13 +384,61 @@ module Skyward::API::Assembly::Boot
     function.required_keywords.transform_values { true }.merge(function.optional_keywords.transform_values { false })
   end
 
+  # @rbs route: Skyward::API::Endpoints::Route
+  # @rbs method: UnboundMethod
+  # @rbs parameter: Symbol
+  # @rbs query: Array[Symbol]
+  # @rbs return: Refusal
+  def no_keyword(route, method, parameter, query)
+    problem = "The route has a path parameter :#{parameter}, but the method has no `#{parameter}:` keyword. " \
+              "Add `#{parameter}:` to the method, or rename the path parameter."
+    meant = meant(parameter, query)
+    keyword = Skyward::Core::Diagnostics::Spots.keyword_parameter(method, meant) if meant
+    parameters = Skyward::Core::Diagnostics::Spots.parameters(method)
+    hint = rename_hint(method, parameters, keyword, parameter) if parameters && keyword
+    refused(problem, spots: [argument(route, :to)&.with(columns: nil), keyword || parameters], hint:)
+  end
+
+  # A nested resource's renamed parameter, as `todo_id:` for `/:id`, isn't a
+  # misspelling DidYouMean would find, so a keyword that ends in the parameter,
+  # or that the parameter ends in, is meant too, when it's the only one.
+  # @rbs parameter: Symbol
+  # @rbs query: Array[Symbol]
+  # @rbs return: Symbol?
+  def meant(parameter, query)
+    closest = Skyward::Core::Diagnostics::Suggestion.closest(parameter.to_s, query.map(&:to_s))
+    return closest.to_sym if closest
+
+    suffixed = query.select { |name| name.end_with?("_#{parameter}") || parameter.end_with?("_#{name}") }
+    suffixed.first if suffixed.one?
+  end
+
+  # Core's spot of a parameter list that runs onto another line stops at the end
+  # of its first, so only a list written whole on the `def` line is rewritten.
+  # @rbs method: UnboundMethod
+  # @rbs parameters: Skyward::Core::Diagnostics::Spot
+  # @rbs keyword: Skyward::Core::Diagnostics::Spot
+  # @rbs parameter: Symbol
+  # @rbs return: String?
+  def rename_hint(method, parameters, keyword, parameter)
+    list = parameters.columns
+    columns = keyword.columns
+    text = parameters.text
+    line = method.source_location&.last
+    return unless list && columns && parameters.line == line && text[list.end] == ")" && keyword.line == line
+
+    renamed = text[columns].to_s.sub(/\A[^:]+/, parameter.to_s)
+    rewritten = "#{text[list.begin...columns.begin]}#{renamed}#{text[columns.end...list.end]}"
+    "Did you mean `def #{method.original_name}(#{rewritten})`?"
+  end
+
   # @rbs name: Symbol
   # @rbs required: bool
   # @rbs type: RBS::Types::t
   # @rbs pattern: Array[String | Symbol]
   # @rbs providers: Hash[Symbol, Skyward::API::Routing::Router::Provider]
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | String
+  # @rbs return: Skyward::API::Routing::Router::Keyword | Skyward::API::Routing::Router::Provider | Refusal
   def keyword(name, required, type, pattern, providers, reader)
     source = source(name, pattern)
     return request(required, type) if source == :request
@@ -332,11 +467,13 @@ module Skyward::API::Assembly::Boot
 
   # @rbs required: bool
   # @rbs type: RBS::Types::t
-  # @rbs return: Skyward::API::Routing::Router::Keyword | String
+  # @rbs return: Skyward::API::Routing::Router::Keyword | Refusal
   def request(required, type)
     unless [REQUEST, ANY].include?(type)
-      return "`request:` is always the Skyward::API::Request, but its signature types it as #{written(type.to_s)}. " \
-             "Type it as Skyward::API::Request, or rename the keyword."
+      return refused(
+        "`request:` is always the Skyward::API::Request, but its signature types it as " \
+        "#{written(type.to_s)}. Type it as Skyward::API::Request, or rename the keyword."
+      )
     end
 
     Skyward::API::Routing::Router::Keyword.new(name: :request, source: :request, required:, type: REQUEST_TYPE)
@@ -347,14 +484,16 @@ module Skyward::API::Assembly::Boot
   # @rbs name: Symbol
   # @rbs type: RBS::Types::t
   # @rbs provider: Skyward::API::Routing::Router::Provider
-  # @rbs return: Skyward::API::Routing::Router::Provider | String
+  # @rbs return: Skyward::API::Routing::Router::Provider | Refusal
   def provided(name, type, provider)
     value = provider.value
     return provider if value.nil? || untyped_type?(type) || same?(parts(type), value)
 
     returned = value.empty? ? "only responses" : "#{written(value.join(" | "))}, besides any responses"
-    "`#{name}:` is typed as #{written(type.to_s)}, but the :#{name} provider returns #{returned}. " \
+    refused(
+      "`#{name}:` is typed as #{written(type.to_s)}, but the :#{name} provider returns #{returned}. " \
       "Give them the same type."
+    )
   end
 
   # @rbs type: RBS::Types::t
@@ -370,20 +509,24 @@ module Skyward::API::Assembly::Boot
   # @rbs name: Symbol
   # @rbs source: :path | :query | :body | :request
   # @rbs type: Skyward::Core::Types::t
-  # @rbs return: String?
+  # @rbs return: Refusal?
   def carried(name, source, type)
     case source
     when :path
       uncarried = uncarried(type, :path)
       if uncarried
-        "`#{name}:` comes from the path, which can't carry #{uncarried}. " \
+        refused(
+          "`#{name}:` comes from the path, which can't carry #{uncarried}. " \
           "Give it a type such as String, Integer or an enum."
+        )
       end
     when :query
       uncarried = uncarried(type, :query)
       if uncarried
-        "`#{name}:` comes from the query string, which can't carry #{uncarried}. " \
+        refused(
+          "`#{name}:` comes from the query string, which can't carry #{uncarried}. " \
           "Give it a type such as String, Integer or an array of them, or take it in `body:`."
+        )
       end
     end
   end
@@ -410,7 +553,7 @@ module Skyward::API::Assembly::Boot
   # Response values are found in the signature, because the reader can't read them.
   # @rbs type: RBS::Types::t
   # @rbs reader: Skyward::Core::Types::Reader
-  # @rbs return: Array[Skyward::API::Routing::Router::returned] | String
+  # @rbs return: Array[Skyward::API::Routing::Router::returned] | Refusal
   def returns(type, reader)
     read = parts(type).map { |part| response(part, reader) || reader.read(part) }
     unreadable = read.find { |member| member.is_a?(Skyward::Core::Types::Unreadable) }
@@ -522,10 +665,14 @@ module Skyward::API::Assembly::Boot
 
   # @rbs subject: String
   # @rbs type: Skyward::Core::Types::Unreadable
-  # @rbs return: String
+  # @rbs return: Refusal
   def unreadable(subject, type)
-    "#{subject} can't be read: Skyward API doesn't read #{type.type}#{", at #{type.at}" if type.at}. " \
-      "Use #{type.instead} instead."
+    suggestion = type.suggestion
+    refused(
+      "#{subject} can't be read: Skyward API doesn't read #{type.type}#{", at #{type.at}" if type.at}. " \
+      "Use #{type.instead} instead.",
+      hint: ("Did you mean #{suggestion}?" if suggestion)
+    )
   end
 
   # @rbs text: String
