@@ -1,0 +1,3 @@
+module Skyward::ORM::CLI::Scaffold
+  extend ::Skyward::ORM::CLI::Scaffold
+end

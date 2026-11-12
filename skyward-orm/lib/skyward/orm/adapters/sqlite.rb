@@ -47,6 +47,22 @@ module Skyward::ORM::Adapters::SQLite
   # BigDecimal would be: NUMERIC turns "1.10" into 1.1.
   NUMERIC_SAFE = %i[bool date time].freeze #: Array[Skyward::ORM::Tables::column_type]
 
+  # The names Rails writes for the NUMERIC_SAFE types, with any precision, as
+  # in DATETIME(6). Nothing else in the catalog tells a bool, Date or Time from
+  # an Integer or String, since a migration stores them as INTEGER and TEXT.
+  NUMERIC_NAMES = {
+    "BOOLEAN" => :bool,
+    "DATE" => :date,
+    "DATETIME" => :time
+  }.freeze #: Hash[String, Skyward::ORM::Tables::column_type]
+  PRECISION = /\s*\(.*\)\z/ #: Regexp
+
+  AFFINITY_TYPES = {
+    integer: :integer,
+    real: :float,
+    text: :string
+  }.freeze #: Hash[Symbol, Skyward::ORM::Tables::column_type]
+
   UNIQUE_KINDS = %i[unique primary_key].freeze #: Array[Skyward::ORM::Catalog::constraint_kind]
 
   BUSY_TIMEOUT_MS = 5000 #: Integer
@@ -157,6 +173,10 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs column: String
   # @rbs return: String
   def comparable(type, column) = type == :decimal ? "CAST(#{column} AS REAL)" : column
+
+  # @rbs sql_type: String
+  # @rbs return: Skyward::ORM::Tables::column_type?
+  def column_type(sql_type) = NUMERIC_NAMES[sql_type.upcase.sub(PRECISION, "")] || AFFINITY_TYPES[affinity(sql_type)]
 
   # @rbs value: untyped
   # @rbs return: untyped

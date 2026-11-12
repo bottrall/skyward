@@ -6,6 +6,9 @@ module Skyward::ORM::Adapters::PostgreSQL
   # As the catalog spells each type, which compatible? is given.
   COMPATIBLE: Hash[Skyward::ORM::Tables::column_type, Array[String]]
 
+  # COMPATIBLE read backwards, taking the narrowest type for each.
+  COLUMN_TYPES: Hash[String, Skyward::ORM::Tables::column_type]
+
   # The catalog puts a length or precision in parentheses.
   MODIFIER: Regexp
 
@@ -110,6 +113,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   # PostgreSQL compares numeric as it is.
   # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
   def comparable: (Skyward::ORM::Tables::column_type _type, String column) -> String
+
+  # @rbs sql_type: String
+  # @rbs return: Skyward::ORM::Tables::column_type?
+  def column_type: (String sql_type) -> Skyward::ORM::Tables::column_type?
 
   # The driver sends every other value as its to_s, which PostgreSQL reads.
   # @rbs value: untyped

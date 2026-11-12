@@ -1,0 +1,28 @@
+# Generated from lib/skyward/orm/cli/scaffold.rb with RBS::Inline
+
+module Skyward::ORM::CLI::Scaffold
+  USAGE: String
+
+  # A row compiles @name for each column, and has these methods of its own.
+  COLUMN: Regexp
+
+  TAKEN: Array[Symbol]
+
+  # @rbs (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel),
+  #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)],
+  #   generate: ^() -> String?) -> void
+  def run: (Array[String] args, directory: String, out: _Writer, kernel: singleton(Kernel), session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)], generate: ^() -> String?) -> void
+
+  private
+
+  # @rbs name: String
+  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: Skyward::ORM::Catalog::Table | String
+  def find: (String name, Array[Skyward::ORM::Catalog::Table] tables, Array[singleton(Skyward::ORM::Record)] classes) -> (Skyward::ORM::Catalog::Table | String)
+
+  # @rbs table: Skyward::ORM::Catalog::Table
+  # @rbs classes: Array[singleton(Skyward::ORM::Record)]
+  # @rbs return: String?
+  def refusal: (Skyward::ORM::Catalog::Table table, Array[singleton(Skyward::ORM::Record)] classes) -> String?
+end

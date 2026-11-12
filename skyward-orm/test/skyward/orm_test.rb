@@ -186,6 +186,8 @@ describe Skyward do
       end
 
       it "reports a query, with its SQL and encoded binds" do
+        # Building a query finds the current database, which another file's test may have left unset.
+        database
         query = list.where(id: 1, name: %w[Home Work])
 
         assert_equal([execution(*query.to_sql)], reported { query.to_a })

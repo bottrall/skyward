@@ -79,6 +79,7 @@ describe Skyward::ORM::CLI::Status do
             + lists  2 columns
           These tables have no class, so `skyward migration` leaves them alone:
             legacy
+          Run `skyward scaffold TABLE` to print a class for one.
         TEXT
 
         assert_equal [expected, 1, [:legacy]], [out.string, kernel.exited, empty.adapter.tables(connection).map(&:name)]

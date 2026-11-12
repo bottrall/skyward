@@ -27,6 +27,15 @@ module Skyward::ORM::Adapters::SQLite
   # BigDecimal would be: NUMERIC turns "1.10" into 1.1.
   NUMERIC_SAFE: Array[Skyward::ORM::Tables::column_type]
 
+  # The names Rails writes for the NUMERIC_SAFE types, with any precision, as
+  # in DATETIME(6). Nothing else in the catalog tells a bool, Date or Time from
+  # an Integer or String, since a migration stores them as INTEGER and TEXT.
+  NUMERIC_NAMES: Hash[String, Skyward::ORM::Tables::column_type]
+
+  PRECISION: Regexp
+
+  AFFINITY_TYPES: Hash[Symbol, Skyward::ORM::Tables::column_type]
+
   UNIQUE_KINDS: Array[Skyward::ORM::Catalog::constraint_kind]
 
   BUSY_TIMEOUT_MS: Integer
@@ -107,6 +116,10 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs column: String
   # @rbs return: String
   def comparable: (Skyward::ORM::Tables::column_type type, String column) -> String
+
+  # @rbs sql_type: String
+  # @rbs return: Skyward::ORM::Tables::column_type?
+  def column_type: (String sql_type) -> Skyward::ORM::Tables::column_type?
 
   # @rbs value: untyped
   # @rbs return: untyped

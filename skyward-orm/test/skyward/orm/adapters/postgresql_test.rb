@@ -217,6 +217,31 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
   end
 
+  describe ".column_type" do
+    it "reads each type compatible? accepts as the narrowest column type, without its length or precision" do
+      read = ["bigint", "integer", "smallint", "double precision", "real", "numeric(10,2)", "text",
+              "character varying(255)", "citext", "uuid", "boolean", "date", "timestamp(3) with time zone",
+              "timestamp without time zone"]
+
+      assert_equal(
+        %i[integer int32 int16 float float decimal string string string uuid bool date time time],
+        read.map { |sql_type| postgresql.column_type(sql_type) }
+      )
+    end
+
+    it "returns only a type compatible? accepts for the same SQL type" do
+      read = postgresql::COLUMN_TYPES.keys
+
+      assert(read.all? { |sql_type| postgresql.compatible?(postgresql.column_type(sql_type), sql_type) })
+    end
+
+    it "has none for any other type" do
+      read = ["jsonb", "bytea", "text[]"]
+
+      assert_equal([nil] * 3, read.map { |sql_type| postgresql.column_type(sql_type) })
+    end
+  end
+
   describe ".encode" do
     it "sends a symbol as its name" do
       assert_equal "high", postgresql.encode(:high)

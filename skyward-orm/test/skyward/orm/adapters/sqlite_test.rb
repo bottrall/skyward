@@ -226,6 +226,32 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".column_type" do
+    it "reads INTEGER, REAL and TEXT affinity as Integer, Float and String" do
+      read = %w[INTEGER bigint REAL float TEXT varchar(255)]
+
+      assert_equal(%i[integer integer float float string string], read.map { |sql_type| sqlite.column_type(sql_type) })
+    end
+
+    it "reads BOOLEAN, DATE and DATETIME, with any precision, as bool, Date and Time" do
+      read = %w[BOOLEAN date DATETIME DATETIME(6)]
+
+      assert_equal(%i[bool date time time], read.map { |sql_type| sqlite.column_type(sql_type) })
+    end
+
+    it "returns only a type compatible? accepts for the same SQL type" do
+      read = %w[INTEGER REAL TEXT BOOLEAN DATE DATETIME(6)]
+
+      assert(read.all? { |sql_type| sqlite.compatible?(sqlite.column_type(sql_type), sql_type) })
+    end
+
+    it "has none for any other NUMERIC affinity, or BLOB" do
+      read = ["NUMERIC", "DECIMAL(10,2)", "BLOB", ""]
+
+      assert_equal([nil] * 4, read.map { |sql_type| sqlite.column_type(sql_type) })
+    end
+  end
+
   describe ".encode" do
     it "stores true as 1" do
       assert_equal 1, sqlite.encode(true)

@@ -34,6 +34,24 @@ module Skyward::ORM::Adapters::PostgreSQL
     json: %w[jsonb json]
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, Array[String]]
 
+  # COMPATIBLE read backwards, taking the narrowest type for each.
+  COLUMN_TYPES = {
+    "bigint" => :integer,
+    "integer" => :int32,
+    "smallint" => :int16,
+    "double precision" => :float,
+    "real" => :float,
+    "numeric" => :decimal,
+    "text" => :string,
+    "character varying" => :string,
+    "citext" => :string,
+    "uuid" => :uuid,
+    "boolean" => :bool,
+    "date" => :date,
+    "timestamp with time zone" => :time,
+    "timestamp without time zone" => :time
+  }.freeze #: Hash[String, Skyward::ORM::Tables::column_type]
+
   # The catalog puts a length or precision in parentheses.
   MODIFIER = /\(\d+(?:,\d+)?\)/ #: Regexp
 
@@ -187,6 +205,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   # PostgreSQL compares numeric as it is.
   # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
   def comparable(_type, column) = column
+
+  # @rbs sql_type: String
+  # @rbs return: Skyward::ORM::Tables::column_type?
+  def column_type(sql_type) = COLUMN_TYPES[sql_type.sub(MODIFIER, "")]
 
   # The driver sends every other value as its to_s, which PostgreSQL reads.
   # @rbs value: untyped
