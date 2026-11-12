@@ -1,0 +1,45 @@
+# Generated from lib/skyward/orm/connection/instrumented.rb with RBS::Inline
+
+class Skyward::ORM::Connection::Instrumented
+  ONCE: String
+
+  @connection: Skyward::ORM::_Connection
+
+  @instrument: Skyward::ORM::_Instrument
+
+  @adapter: Symbol
+
+  @clock_ms: ^() -> Float
+
+  # @rbs (Skyward::ORM::_Connection connection, Skyward::ORM::_Instrument instrument, Symbol adapter,
+  #   clock_ms: ^() -> Float) -> void
+  def initialize: (Skyward::ORM::_Connection connection, Skyward::ORM::_Instrument instrument, Symbol adapter, clock_ms: ^() -> Float) -> void
+
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs return: Array[Array[untyped]]
+  def execute: (String sql, ?Array[untyped] binds) -> Array[Array[untyped]]
+
+  # @rbs sql: String
+  # @rbs *binds: untyped
+  # @rbs return: Array[Array[untyped]]
+  def execute2: (String sql, *untyped binds) -> Array[Array[untyped]]
+
+  # @rbs sql: String
+  # @rbs return: void
+  def execute_batch: (String sql) -> void
+
+  # @rbs return: Integer
+  def changes: () -> Integer
+
+  # @rbs return: bool
+  def transaction_active?: () -> bool
+
+  # @rbs return: void
+  def close: () -> void
+
+  private
+
+  # @rbs [T] (String sql, Array[untyped] binds) { () -> T } -> T
+  def instrumented: [T] (String sql, Array[untyped] binds) { () -> T } -> T
+end

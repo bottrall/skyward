@@ -74,6 +74,9 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def driver = "sqlite3"
 
+  # @rbs return: Symbol
+  def adapter_name = :sqlite
+
   # @rbs location: String
   # @rbs return: Skyward::ORM::_Connection
   def connect(location)

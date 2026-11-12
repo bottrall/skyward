@@ -159,7 +159,7 @@ module Skyward::ORM::Migrations::Runner
     end
     nil
   ensure
-    connection.execute_batch(adapter.end_migration)
+    end_migration(adapter, connection)
   end
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection, Migration migration)
@@ -173,7 +173,7 @@ module Skyward::ORM::Migrations::Runner
   else
     run_locked(connection, migration, &)
   ensure
-    connection.execute_batch(adapter.end_migration)
+    end_migration(adapter, connection)
   end
 
   # Rolled back in ensure rather than rescue, so a migration left by throw or a
@@ -191,6 +191,12 @@ module Skyward::ORM::Migrations::Runner
     ensure
       cancel(connection) unless settled
     end
+  end
+
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> void
+  def end_migration(adapter, connection)
+    sql = adapter.end_migration
+    connection.execute_batch(sql) if sql
   end
 
   # SQLite ends the transaction itself on some failures, such as ON CONFLICT

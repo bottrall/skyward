@@ -1,0 +1,18 @@
+# Generated from lib/skyward/orm/execution.rb with RBS::Inline
+
+module Skyward::ORM
+  class Execution < Data
+    attr_reader sql(): String
+
+    attr_reader binds(): Array[untyped]
+
+    attr_reader adapter(): Symbol
+
+    def self.new: (String sql, Array[untyped] binds, Symbol adapter) -> instance
+                | (sql: String, binds: Array[untyped], adapter: Symbol) -> instance
+
+    def self.members: () -> [ :sql, :binds, :adapter ]
+
+    def members: () -> [ :sql, :binds, :adapter ]
+  end
+end

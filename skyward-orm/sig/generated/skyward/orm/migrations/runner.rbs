@@ -54,6 +54,9 @@ module Skyward::ORM::Migrations::Runner
   # @rbs (Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Failed)
   def run_locked: (Skyward::ORM::_Connection connection, Migration migration) { () -> (bool | Failed) } -> (bool | Failed)
 
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> void
+  def end_migration: (Skyward::ORM::_Adapter adapter, Skyward::ORM::_Connection connection) -> void
+
   # SQLite ends the transaction itself on some failures, such as ON CONFLICT
   # ROLLBACK, and then ROLLBACK raises, though the outcome is already decided.
   # @rbs (Skyward::ORM::_Connection connection) -> void

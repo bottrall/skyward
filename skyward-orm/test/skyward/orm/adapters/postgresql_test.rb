@@ -51,6 +51,12 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
   end
 
+  describe ".adapter_name" do
+    it "is :postgresql" do
+      assert_equal :postgresql, postgresql.adapter_name
+    end
+  end
+
   describe ".connect" do
     it "sets the session to UTC, with dates written as ISO 8601, and only warnings and worse sent" do
       settings = %w[TimeZone DateStyle client_min_messages].map { |name| "current_setting('#{name}')" }.join(", ")
@@ -136,7 +142,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
   describe ".end_migration" do
     it "is nothing, since ending the transaction releases the lock" do
-      assert_equal "", postgresql.end_migration
+      assert_nil postgresql.end_migration
     end
   end
 
