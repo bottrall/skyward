@@ -90,6 +90,15 @@ module MigrationsFixtures
     attr_reader :id, :settings, :payload
   end
 
+  # BigDecimal columns: with a default, with an Integer one below zero, which
+  # PostgreSQL reads back cast, and without one.
+  class Product < Skyward::ORM::Record
+    table :products
+    default price: BigDecimal("1.5"), fee: -2
+
+    attr_reader :id, :price, :fee, :discount
+  end
+
   # The README's rework_todos: notes renamed to details, due_on required, and
   # an index on it.
   def self.rework_todos

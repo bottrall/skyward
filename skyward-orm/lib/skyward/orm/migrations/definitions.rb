@@ -65,7 +65,10 @@ module Skyward::ORM::Migrations::Definitions
     value = defaults.fetch(column.name)
     case value
     when Skyward::ORM::Tables::SQL then adapter.default_expression(value.expression)
-    else literal(Skyward::ORM::Statements.encode(adapter, column, value))
+    else
+      encoded = Skyward::ORM::Statements.encode(adapter, column, value)
+      # A finite decimal's text is a number, which both catalogs read back unquoted.
+      column.type == :decimal && !value.nil? && value.finite? ? encoded : literal(encoded)
     end
   end
 

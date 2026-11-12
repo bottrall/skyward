@@ -6,6 +6,7 @@ module Skyward::ORM::Tables::Values
   ACCEPTED = {
     integer: [Integer],
     float: [Float, Integer],
+    decimal: [BigDecimal, Integer],
     string: [String],
     bool: [TrueClass, FalseClass],
     date: [Date],
@@ -18,6 +19,7 @@ module Skyward::ORM::Tables::Values
   WRITTEN = {
     integer: "Integer",
     float: "Float",
+    decimal: "BigDecimal",
     string: "String",
     bool: "bool",
     date: "Date",
@@ -150,8 +152,9 @@ module Skyward::ORM::Tables::Values
   # @rbs return: bool
   def holds?(type, value)
     case type
-    # SQLite stores NaN as NULL.
-    when :float then !(value.is_a?(Float) && value.nan?)
+    # SQLite stores a Float NaN as NULL, and a BigDecimal NaN never equals
+    # itself, so a row holding one would never be == to itself.
+    when :float, :decimal then value.is_a?(Integer) || !value.nan?
     when :uuid then UUID.match?(value)
     when :int32, :int16 then RANGES.fetch(type).cover?(value)
     else true

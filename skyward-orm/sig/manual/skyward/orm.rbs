@@ -39,6 +39,8 @@ module Skyward::ORM
     def alters_in_place?: () -> bool
     def default_expression: (String expression) -> String
     def compatible?: (Tables::column_type type, String sql_type) -> bool
+    # The SQL a range and an order compare a column's values in, given its SQL.
+    def comparable: (Tables::column_type type, String column) -> String
     def encode: (untyped value) -> untyped
     def decode: (Tables::column_type type, untyped value) -> untyped
     def tables: (_Connection connection) -> Array[Catalog::Table]

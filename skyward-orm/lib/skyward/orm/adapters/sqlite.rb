@@ -9,6 +9,7 @@ module Skyward::ORM::Adapters::SQLite
   SQL_TYPES = {
     integer: "INTEGER",
     float: "REAL",
+    decimal: "TEXT",
     string: "TEXT",
     bool: "INTEGER",
     date: "TEXT",
@@ -150,6 +151,13 @@ module Skyward::ORM::Adapters::SQLite
     expected.nil? || declared == affinity(expected) || (declared == :numeric && NUMERIC_SAFE.include?(type))
   end
 
+  # A decimal's text orders "10.5" before "9.0", so a range or an order
+  # compares it as a REAL, which is exact to 15 significant digits.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: String
+  # @rbs return: String
+  def comparable(type, column) = type == :decimal ? "CAST(#{column} AS REAL)" : column
+
   # @rbs value: untyped
   # @rbs return: untyped
   def encode(value)
@@ -157,6 +165,10 @@ module Skyward::ORM::Adapters::SQLite
     when true then 1
     when false then 0
     when Symbol then value.name
+    # A decimal is stored as text, which = compares, so it's always written the
+    # same way, without the exponent BigDecimal#to_s writes, as 0.15e1.
+    # -0.0 is 0, but would be written "-0.0" and miss an = against 0 on SQLite.
+    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s("F")
     when Time then value.getutc.strftime(TIME_FORMAT)
     when Date then value.iso8601
     else value
@@ -169,6 +181,7 @@ module Skyward::ORM::Adapters::SQLite
   def decode(type, value)
     case type
     when :bool then value != 0
+    when :decimal then BigDecimal(value)
     when :date then Date.iso8601(value)
     when :time then Time.new(value, in: "UTC")
     when :enum then value.to_sym

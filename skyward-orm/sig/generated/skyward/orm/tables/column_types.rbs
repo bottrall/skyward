@@ -7,8 +7,6 @@ class Skyward::ORM::Tables::ColumnTypes
 
   UNTYPED: Skyward::Core::Types::Scalar
 
-  DECIMAL: Skyward::Core::Types::Scalar
-
   COLUMN_TYPES: String
 
   # The aliases Skyward ORM declares, for its reader to keep as the column type each names.

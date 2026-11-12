@@ -348,12 +348,13 @@ module Skyward::ORM::Queries::Clauses[R]
   def alternative: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
-  # @rbs database: Skyward::ORM::Database
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs name: String
   # @rbs values: Array[untyped]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def within: (Skyward::ORM::Database database, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
+  def within: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::Column column, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
 
   # Steep can't tie the row class to R, so the rows are untyped here and each
   # public method types them.

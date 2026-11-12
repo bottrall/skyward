@@ -118,13 +118,13 @@ describe Skyward::ORM::Adapters::SQLite do
 
   describe ".sql_type" do
     it "maps each column type to the type a migration writes" do
-      types = %i[integer float string bool date time enum uuid int32 int16 json].to_h do |type|
+      types = %i[integer float decimal string bool date time enum uuid int32 int16 json].to_h do |type|
         [type, sqlite.sql_type(type)]
       end
 
       assert_equal(
-        { integer: "INTEGER", float: "REAL", string: "TEXT", bool: "INTEGER", date: "TEXT", time: "TEXT",
-          enum: "TEXT", uuid: "TEXT", int32: "INTEGER", int16: "INTEGER", json: "TEXT" },
+        { integer: "INTEGER", float: "REAL", decimal: "TEXT", string: "TEXT", bool: "INTEGER", date: "TEXT",
+          time: "TEXT", enum: "TEXT", uuid: "TEXT", int32: "INTEGER", int16: "INTEGER", json: "TEXT" },
         types
       )
     end
@@ -168,6 +168,7 @@ describe Skyward::ORM::Adapters::SQLite do
         [:bool, "int"],
         [:float, "DOUBLE PRECISION"],
         [:float, "float"],
+        [:decimal, "varchar(40)"],
         [:string, "varchar(255)"],
         [:enum, "CLOB"],
         [:date, "text"],
@@ -195,7 +196,7 @@ describe Skyward::ORM::Adapters::SQLite do
   describe ".compatible? with NUMERIC affinity" do
     it "refuses every type but bool, date and time" do
       numeric = %w[NUMERIC DECIMAL(10,2) BOOLEAN DATETIME]
-      refused = %i[integer float string enum].product(numeric)
+      refused = %i[integer float decimal string enum].product(numeric)
 
       assert(refused.none? { |type, sql_type| sqlite.compatible?(type, sql_type) })
     end
@@ -207,6 +208,21 @@ describe Skyward::ORM::Adapters::SQLite do
       row = connection.execute("SELECT done, on_date, at FROM events").fetch(0)
 
       assert_equal(written, %i[bool date time].zip(row).map { |type, value| sqlite.decode(type, value) })
+    end
+  end
+
+  describe ".comparable" do
+    it "compares a decimal's text as a REAL, which orders 9 before 10" do
+      connection.execute_batch(
+        "CREATE TABLE prices (price TEXT); INSERT INTO prices VALUES ('10.5'), ('9.0'), ('-1.5'), ('100.0')"
+      )
+      ordered = connection.execute("SELECT price FROM prices ORDER BY #{sqlite.comparable(:decimal, "price")}")
+
+      assert_equal %w[-1.5 9.0 10.5 100.0], ordered.flatten
+    end
+
+    it "compares any other column as it is" do
+      assert_equal ['"title"', '"note"'], [sqlite.comparable(:string, '"title"'), sqlite.comparable(:untyped, '"note"')]
     end
   end
 
@@ -234,6 +250,17 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "stores a date as ISO 8601" do
       assert_equal "2026-10-18", sqlite.encode(Date.new(2026, 10, 18))
+    end
+
+    it "stores a BigDecimal as its digits, without an exponent" do
+      assert_equal(
+        %w[1.5 2.0 -0.0000001 12345678901234567890.123456789],
+        %w[1.5 2 -1e-7 12345678901234567890.123456789].map { |text| sqlite.encode(BigDecimal(text)) }
+      )
+    end
+
+    it "stores a negative zero as 0.0, which an = against 0 matches" do
+      assert_equal "0.0", sqlite.encode(BigDecimal("-0"))
     end
 
     it "passes anything else through" do
@@ -272,6 +299,11 @@ describe Skyward::ORM::Adapters::SQLite do
       assert_equal :high, sqlite.decode(:enum, "high")
     end
 
+    it "reads a decimal's text as a BigDecimal, with every digit" do
+      assert_equal BigDecimal("12345678901234567890.123456789"),
+                   sqlite.decode(:decimal, "12345678901234567890.123456789")
+    end
+
     it "reads JSON into a Hash, frozen at every level" do
       read = sqlite.decode(:json, +'{"list":[{"deep":"ü"}]}')
 
@@ -293,6 +325,14 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "passes an untyped value through, frozen" do
       assert_predicate sqlite.decode(:untyped, +"Milk"), :frozen?
+    end
+
+    it "reads back what was written to a decimal's TEXT column, with every digit" do
+      connection.execute("CREATE TABLE prices (price #{sqlite.sql_type(:decimal)})")
+      written = BigDecimal("12345678901234567890.123456789")
+      connection.execute("INSERT INTO prices VALUES (?)", [sqlite.encode(written)])
+
+      assert_equal written, sqlite.decode(:decimal, connection.execute("SELECT price FROM prices").dig(0, 0))
     end
 
     it "reads back what was written to a uuid, an int32 and an int16 column, as a frozen String and Integers" do

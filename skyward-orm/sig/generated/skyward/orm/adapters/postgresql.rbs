@@ -107,6 +107,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: bool
   def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
 
+  # PostgreSQL compares numeric as it is.
+  # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
+  def comparable: (Skyward::ORM::Tables::column_type _type, String column) -> String
+
   # The driver sends every other value as its to_s, which PostgreSQL reads.
   # @rbs value: untyped
   # @rbs return: untyped

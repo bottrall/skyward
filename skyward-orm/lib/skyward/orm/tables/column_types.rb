@@ -6,10 +6,8 @@ class Skyward::ORM::Tables::ColumnTypes
 
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
-  DECIMAL = Skyward::Core::Types::Scalar.new(name: :decimal) #: Skyward::Core::Types::Scalar
-
-  COLUMN_TYPES = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16, a union of symbols " \
-                 "or Hash[String, untyped], any of them nullable, or untyped." #: String
+  COLUMN_TYPES = "A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, " \
+                 "a union of symbols or Hash[String, untyped], any of them nullable, or untyped." #: String
 
   # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
   REFINEMENTS = {
@@ -72,7 +70,7 @@ class Skyward::ORM::Tables::ColumnTypes
     nullable = read.is_a?(Skyward::Core::Types::Nullable)
     carried = read.is_a?(Skyward::Core::Types::Nullable) ? read.type : read
     case carried
-    when DECIMAL, Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf
+    when Skyward::Core::Types::Record, Skyward::Core::Types::Named, Skyward::Core::Types::ArrayOf
       ["is #{written}, which isn't a column type yet. #{COLUMN_TYPES}", nil]
     when Skyward::Core::Types::HashOf
       if carried.type == UNTYPED

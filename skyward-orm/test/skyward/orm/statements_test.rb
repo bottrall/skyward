@@ -251,6 +251,15 @@ describe Skyward::ORM::Statements do
       assert_nil Skyward::ORM::Statements.encode(adapter, column(webhook, :payload), nil)
     end
 
+    it "binds an Integer for a BigDecimal column as the BigDecimal it is, so 2 is 2.0" do
+      price = column(TablesFixtures::Product, :price)
+      bound = [2, BigDecimal(2), BigDecimal("1.50")].map do |value|
+        Skyward::ORM::Statements.encode(adapter, price, value)
+      end
+
+      assert_equal %w[2.0 2.0 1.5], bound
+    end
+
     it "encodes any other column's value as the adapter does" do
       assert_equal adapter.encode(true), Skyward::ORM::Statements.encode(adapter, column(todo, :done), true)
     end
@@ -327,6 +336,14 @@ describe Skyward::ORM::Statements do
       end
 
       assert_equal %(TablesFixtures::Todo.title is String, not ["c"] (Array)), error.message
+    end
+  end
+
+  describe ".by_name" do
+    it "keys a table class's columns by name" do
+      columns = Skyward::ORM::Statements.by_name(column_types, webhook)
+
+      assert_equal [%i[id settings payload], %i[integer json json]], [columns.keys, columns.values.map(&:type)]
     end
   end
 

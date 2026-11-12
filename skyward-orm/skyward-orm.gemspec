@@ -25,5 +25,8 @@ Gem::Specification.new do |spec|
 
   # The Skyward gems release in lockstep, so each pins the others exactly.
   spec.add_dependency "skyward-core", "= #{Skyward::ORM::VERSION}"
+  # A bundled gem from Ruby 3.4, so a bundle that doesn't name it can't require
+  # it. 3.1 is what Ruby 3.3 ships, and no upper bound fights a Ruby's own.
+  spec.add_dependency "bigdecimal", ">= 3.1"
   spec.add_dependency "zeitwerk", "~> 2.8"
 end
