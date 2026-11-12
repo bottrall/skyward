@@ -33,12 +33,12 @@ class Skyward::ORM::Tables::ColumnTypes
   # @rbs name: Symbol
   # @rbs returned: RBS::Types::t
   # @rbs written: String
-  # @rbs return: Skyward::ORM::Tables::Column | String
-  def read: (Symbol name, RBS::Types::t returned, String written) -> (Skyward::ORM::Tables::Column | String)
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
+  def read: (Symbol name, RBS::Types::t returned, String written) -> (Skyward::ORM::Tables::Column | [ String, String? ])
 
   # @rbs name: Symbol
   # @rbs read: Skyward::Core::Types::result
   # @rbs written: String
-  # @rbs return: Skyward::ORM::Tables::Column | String
-  def column: (Symbol name, Skyward::Core::Types::result read, String written) -> (Skyward::ORM::Tables::Column | String)
+  # @rbs return: Skyward::ORM::Tables::Column | [String, String?]
+  def column: (Symbol name, Skyward::Core::Types::result read, String written) -> (Skyward::ORM::Tables::Column | [ String, String? ])
 end

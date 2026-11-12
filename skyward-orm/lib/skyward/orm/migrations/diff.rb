@@ -75,9 +75,13 @@ module Skyward::ORM::Migrations::Diff
     return if shared.empty?
 
     problems = shared.map do |table, owners|
-      "#{owners.map(&:to_s).sort.join(" and ")} each declare table :#{table}. Give each table one class."
+      sorted = owners.sort_by(&:to_s)
+      Skyward::ORM::Tables::Sources.explain(
+        "#{sorted.join(" and ")} each declare table :#{table}. Give each table one class.",
+        sorted.map { |owner| Skyward::ORM::Tables::Sources.declaration(owner, :table, table) }
+      )
     end
-    raise Skyward::Core::BootError, problems.join("\n")
+    raise Skyward::Core::BootError, Skyward::ORM::Tables::Sources.join(problems)
   end
 
   # Indexes and constraints go before the columns they're on, and come back

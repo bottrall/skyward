@@ -24,9 +24,20 @@ describe Skyward::ORM::Adapters do
                    refusal("mysql://user:secret@localhost/todos", schemes, requirer)
     end
 
+    it "suggests the closest scheme it has for a misspelt one" do
+      assert_equal "Skyward ORM can't connect to a fakee:// URL. It connects to fake://, other:// URLs. " \
+                   "Did you mean fake://?",
+                   refusal("fakee://user:secret@localhost/todos", schemes, requirer)
+    end
+
     it "refuses a URL with no scheme, without showing it" do
       assert_equal "Skyward ORM can't connect to a URL with no scheme. It connects to fake://, other:// URLs.",
                    refusal("user:secret@todos.db", schemes, requirer)
+    end
+
+    it "doesn't show what comes before :// when it isn't a scheme, which can hold a password" do
+      assert_equal "Skyward ORM can't connect to a URL with no scheme. It connects to fake://, other:// URLs.",
+                   refusal("user:secret@todos.db://x", schemes, requirer)
     end
 
     it "requires the adapter's driver" do

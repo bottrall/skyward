@@ -1,0 +1,3 @@
+module Skyward::ORM::Tables::Sources
+  extend ::Skyward::ORM::Tables::Sources
+end

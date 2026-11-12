@@ -11,6 +11,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
   )
   column_types = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16, a union of symbols " \
                  "or Hash[String, untyped], any of them nullable, or untyped."
+  fixtures = File.expand_path("../../../fixtures/tables/tables_fixtures.rb", __dir__).delete_prefix("#{Dir.pwd}/")
+  source = File.readlines(fixtures, chomp: true)
 
   counting_reader = Class.new do
     attr_reader :reads
@@ -44,6 +46,13 @@ describe Skyward::ORM::Tables::ColumnTypes do
 
   def refusal(klass)
     assert_raises(Skyward::Core::BootError) { types.columns(klass) }.message
+  end
+
+  define_method(:excerpt) do |klass, part|
+    start = source.index { |text| text.include?("class #{klass.name.delete_prefix("TablesFixtures::")} <") }.to_i
+    line = source.each_index.find { |index| index > start && source.fetch(index).include?("attr_reader") }.to_i
+    text = source.fetch(line).strip
+    "\n\n    #{fixtures}:#{line + 1}\n    #{text}\n    #{" " * text.index(part).to_i}#{"^" * part.size}"
   end
 
   describe "#columns" do
@@ -116,59 +125,71 @@ describe Skyward::ORM::Tables::ColumnTypes do
 
     it "refuses a type core can't read, with its explanation" do
       assert_equal "TablesFixtures::Tuple#tags can't be read: Skyward ORM doesn't read [ String, Integer ]. " \
-                   "#{column_types}",
+                   "#{column_types}#{excerpt(TablesFixtures::Tuple, ":tags")}",
                    refusal(TablesFixtures::Tuple)
     end
 
     it "says where core found a type it can't read" do
       assert_equal "TablesFixtures::Holder#pair can't be read: Skyward ORM doesn't read [ String, Integer ], " \
-                   "at TablesFixtures::Pair#both. #{column_types}",
+                   "at TablesFixtures::Pair#both. #{column_types}#{excerpt(TablesFixtures::Holder, ":pair")}",
                    refusal(TablesFixtures::Holder)
     end
 
     it "names the column when core can't read its type at all" do
       assert_equal "TablesFixtures::Nested#node is TablesFixtures::Node. " \
                    "Can't read TablesFixtures::Node: it refers to itself through " \
-                   "TablesFixtures::Node -> TablesFixtures::Node",
+                   "TablesFixtures::Node -> TablesFixtures::Node#{excerpt(TablesFixtures::Nested, ":node")}",
                    refusal(TablesFixtures::Nested)
     end
 
     it "refuses a BigDecimal as not a column type yet" do
-      assert_equal "TablesFixtures::Decimal#price is BigDecimal?, which isn't a column type yet. #{column_types}",
+      assert_equal "TablesFixtures::Decimal#price is BigDecimal?, which isn't a column type yet. #{column_types}" \
+                   "#{excerpt(TablesFixtures::Decimal, ":price")}",
                    refusal(TablesFixtures::Decimal)
     end
 
     it "refuses a record as not a column type yet" do
       assert_equal "TablesFixtures::Recorded#point is { x: Integer, y: Integer }, which isn't a column type yet. " \
-                   "#{column_types}",
+                   "#{column_types}#{excerpt(TablesFixtures::Recorded, ":point")}",
                    refusal(TablesFixtures::Recorded)
     end
 
     it "refuses a class as not a column type yet" do
       assert_equal "TablesFixtures::Classed#list is TablesFixtures::List, which isn't a column type yet. " \
-                   "#{column_types}",
+                   "#{column_types}#{excerpt(TablesFixtures::Classed, ":list")}",
                    refusal(TablesFixtures::Classed)
     end
 
     it "refuses an array as not a column type yet" do
-      assert_equal "TablesFixtures::Listed#tags is Array[String]?, which isn't a column type yet. #{column_types}",
+      assert_equal "TablesFixtures::Listed#tags is Array[String]?, which isn't a column type yet. #{column_types}" \
+                   "#{excerpt(TablesFixtures::Listed, ":tags")}",
                    refusal(TablesFixtures::Listed)
     end
 
     it "refuses a hash of anything but untyped, pointing at Hash[String, untyped]" do
       assert_equal "TablesFixtures::Hashed#settings is Hash[String, String], which isn't a column type. " \
-                   "A Hash column is Hash[String, untyped], holding any JSON.",
+                   "A Hash column is Hash[String, untyped], holding any JSON." \
+                   "#{excerpt(TablesFixtures::Hashed, ":settings")}",
                    refusal(TablesFixtures::Hashed)
     end
 
     it "refuses a union of other types" do
-      assert_equal "TablesFixtures::Mixed#value is String | Integer, which isn't a column type. #{column_types}",
+      assert_equal "TablesFixtures::Mixed#value is String | Integer, which isn't a column type. #{column_types}" \
+                   "#{excerpt(TablesFixtures::Mixed, ":value")}",
                    refusal(TablesFixtures::Mixed)
     end
 
     it "refuses a literal" do
-      assert_equal "TablesFixtures::Literal#kind is \"todo\", which isn't a column type. #{column_types}",
+      assert_equal "TablesFixtures::Literal#kind is \"todo\", which isn't a column type. #{column_types}" \
+                   "#{excerpt(TablesFixtures::Literal, ":kind")}",
                    refusal(TablesFixtures::Literal)
+    end
+
+    it "suggests the class core suggests for a misspelt one" do
+      assert_equal "TablesFixtures::Misnamed#memo can't be read: Skyward ORM doesn't read Strng, " \
+                   "at TablesFixtures::Memo#body. #{column_types}#{excerpt(TablesFixtures::Misnamed, "Memo")}\n" \
+                   "Did you mean String?",
+                   refusal(TablesFixtures::Misnamed)
     end
   end
 end

@@ -1,0 +1,32 @@
+# Generated from lib/skyward/orm/tables/sources.rb with RBS::Inline
+
+module Skyward::ORM::Tables::Sources
+  # @rbs klass: singleton(Skyward::ORM::Record)
+  # @rbs declaration: Symbol
+  # @rbs name: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def declaration: (singleton(Skyward::ORM::Record) klass, Symbol declaration, Symbol name) -> Skyward::Core::Diagnostics::Spot?
+
+  # A type in a hand-written .rbs leaves the reader's line with no type to
+  # point at, so the carets go under the column's name.
+  # @rbs klass: Class
+  # @rbs column: Symbol
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def reader: (Class klass, Symbol column) -> Skyward::Core::Diagnostics::Spot?
+
+  # Only a `class` keyword's line is pointed at, so a class from Class.new
+  # keeps its message even once a constant names it, as its declarations do.
+  # @rbs klass: Module
+  # @rbs return: Skyward::Core::Diagnostics::Spot?
+  def class_name: (Module klass) -> Skyward::Core::Diagnostics::Spot?
+
+  # @rbs message: String
+  # @rbs spots: Array[Skyward::Core::Diagnostics::Spot?]
+  # @rbs suggestion: String?
+  # @rbs return: String
+  def explain: (String message, Array[Skyward::Core::Diagnostics::Spot?] spots, ?String? suggestion) -> String
+
+  # @rbs problems: Array[String]
+  # @rbs return: String
+  def join: (Array[String] problems) -> String
+end

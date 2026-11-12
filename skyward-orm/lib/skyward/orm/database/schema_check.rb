@@ -16,21 +16,25 @@ module Skyward::ORM::Database::SchemaCheck
     name = klass.table_name
     table = tables.find { |candidate| candidate.name == name }
     problems = if table
-                 columns.flat_map { |column| column_problems(klass, table, column, adapter) }
+                 undeclared = table.columns.map(&:name) - columns.map(&:name)
+                 columns.flat_map { |column| column_problems(klass, table, column, undeclared, adapter) }
                else
-                 [[name.to_s, "The database has no table #{name}.", MIGRATE]] #: Array[problem]
+                 hint = suggest(name, tables.map(&:name))
+                 [[name.to_s, "The database has no table #{name}.#{hint}", MIGRATE]] #: Array[problem]
                end
     report(klass, name, problems) unless problems.empty?
   end
 
   private
 
+  # A missing column is suggested only one the class doesn't declare, since
+  # one added with no migration yet would otherwise be pointed at another.
   # @rbs (singleton(Skyward::ORM::Record) klass, Skyward::ORM::Catalog::Table table,
-  #   Skyward::ORM::Tables::Column column, Skyward::ORM::_Adapter adapter) -> Array[problem]
-  def column_problems(klass, table, column, adapter)
+  #   Skyward::ORM::Tables::Column column, Array[Symbol] undeclared, Skyward::ORM::_Adapter adapter) -> Array[problem]
+  def column_problems(klass, table, column, undeclared, adapter)
     name = column.name
     found = table.columns.find { |candidate| candidate.name == name }
-    return [[name.to_s, "#{table.name} has no column #{name}.", MIGRATE]] unless found
+    return [[name.to_s, "#{table.name} has no column #{name}.#{suggest(name, undeclared)}", MIGRATE]] unless found
     # An untyped column's values pass through as the driver returns them.
     return [] if column.type == :untyped
 
@@ -41,6 +45,14 @@ module Skyward::ORM::Database::SchemaCheck
       (type unless adapter.compatible?(column.type, found.type)),
       (nullability(stored, declared, found.nullable) unless found.nullable == column.nullable)
     ].compact.map { |problem| [name.to_s, problem, "#{MIGRATE} Or change #{declared}'s type to match."] }
+  end
+
+  # @rbs name: Symbol
+  # @rbs names: Array[Symbol]
+  # @rbs return: String
+  def suggest(name, names)
+    suggestion = Skyward::Core::Diagnostics::Suggestion.closest(name.to_s, names.map(&:to_s))
+    suggestion ? " Did you mean #{suggestion}?" : ""
   end
 
   # @rbs stored: String

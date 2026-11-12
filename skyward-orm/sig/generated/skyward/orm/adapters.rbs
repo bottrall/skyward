@@ -3,6 +3,9 @@
 module Skyward::ORM::Adapters
   SCHEMES: Hash[String, Skyward::ORM::_Adapter]
 
+  # What comes before "://" is shown only when it's a scheme: in a malformed URL it can hold a password.
+  SCHEME: Regexp
+
   # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
   #   -> [Skyward::ORM::_Adapter, String]
   def resolve: (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void) -> [ Skyward::ORM::_Adapter, String ]

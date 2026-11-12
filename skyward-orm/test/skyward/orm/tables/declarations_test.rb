@@ -5,6 +5,9 @@ require_relative "../../../fixtures/tables/tables_fixtures"
 
 describe Skyward::ORM::Tables::Declarations do
   tables = Skyward::ORM::Tables
+  fixtures = File.expand_path("../../../fixtures/tables/tables_fixtures.rb", __dir__)
+  source = File.readlines(fixtures, chomp: true)
+  line_of = ->(snippet) { source.index { |text| text.include?(snippet) }.to_i + 1 }
 
   let(:table) { Class.new { extend Skyward::ORM::Tables::Declarations } }
 
@@ -33,6 +36,43 @@ describe Skyward::ORM::Tables::Declarations do
     end
   end
 
+  describe "#declared_at" do
+    it "is the file and line of each name a declaration names" do
+      fixture = TablesFixtures::Misspelt
+      declared = [
+        TablesFixtures::Todo.declared_at(:table, :todos),
+        fixture.declared_at(:primary_key, :cdoe),
+        fixture.declared_at(:references, :lsit_id),
+        fixture.declared_at(:default, :dnoe),
+        fixture.declared_at(:unique, :emial),
+        fixture.declared_at(:check, :titel),
+        fixture.declared_at(:index, :due_on),
+        fixture.declared_at(:attr_reader, :email)
+      ]
+      snippets = ["table :todos", "primary_key :cdoe", "references :lsit_id", "default dnoe:", "unique :emial",
+                  "check :titel", "index :lsit_id", "attr_reader :code"]
+
+      assert_equal snippets.map { |snippet| [fixtures, line_of.call(snippet)] }, declared
+    end
+
+    it "is nil for a name no declaration names" do
+      assert_nil TablesFixtures::Literal.declared_at(:primary_key, :id)
+    end
+
+    it "keeps none for an anonymous class" do
+      table.index :done
+
+      assert_nil table.declared_at(:index, :done)
+    end
+
+    it "keeps none for eval'd code, which has no file" do
+      table.define_singleton_method(:name) { "Named" }
+      table.instance_eval("index :done") # rubocop:disable Style/EvalWithLocation -- eval'd code with no file is what's tested
+
+      assert_nil table.declared_at(:index, :done)
+    end
+  end
+
   describe "#table_name" do
     it "is the declared table" do
       table.table :todos
@@ -44,6 +84,19 @@ describe Skyward::ORM::Tables::Declarations do
       error = assert_raises(Skyward::Core::BootError) { table.table_name }
 
       assert_equal "#{table} has no table. Add `table :name` to its body.", error.message
+    end
+
+    it "points at the class's name" do
+      error = assert_raises(Skyward::Core::BootError) { TablesFixtures::Typed.table_name }
+      expected = <<~MESSAGE.chomp
+        TablesFixtures::Typed has no table. Add `table :name` to its body.
+
+            #{fixtures.delete_prefix("#{Dir.pwd}/")}:#{line_of.call("class Typed <")}
+            class Typed < Skyward::ORM::Record
+                  ^^^^^
+      MESSAGE
+
+      assert_equal expected, error.message
     end
   end
 
