@@ -134,7 +134,7 @@ describe Skyward::ORM::Migrations::Script do
         PG
         <<~SQLITE.gsub(/^/, "  ")
           integers  TEXT    NOT NULL DEFAULT '[]',
-          floats    TEXT    NOT NULL DEFAULT '[1e+20,-1.5]',
+          floats    TEXT    NOT NULL DEFAULT '#{JSON.generate([1e20, -1.5])}',
           decimals  TEXT    NOT NULL DEFAULT '["2.0","0.5"]',
           strings   TEXT    NOT NULL DEFAULT '["it''s","a,b","say \\"hi\\"","NULL",""]',
           bools     TEXT    NOT NULL DEFAULT '[true,false]',
