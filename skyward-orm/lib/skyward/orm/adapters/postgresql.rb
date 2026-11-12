@@ -6,6 +6,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   SQL_TYPES = {
     integer: "bigint",
     float: "double precision",
+    decimal: "numeric",
     string: "text",
     bool: "boolean",
     date: "date",
@@ -21,6 +22,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   COMPATIBLE = {
     integer: %w[bigint integer smallint],
     float: ["double precision", "real"],
+    decimal: ["numeric"],
     string: ["text", "character varying", "uuid", "citext"],
     bool: ["boolean"],
     date: ["date"],
@@ -39,6 +41,7 @@ module Skyward::ORM::Adapters::PostgreSQL
     "smallint" => :int16,
     "double precision" => :float,
     "real" => :float,
+    "numeric" => :decimal,
     "text" => :string,
     "character varying" => :string,
     "citext" => :string,
@@ -199,6 +202,10 @@ module Skyward::ORM::Adapters::PostgreSQL
     accepted.nil? || accepted.include?(sql_type.sub(MODIFIER, ""))
   end
 
+  # PostgreSQL compares numeric as it is.
+  # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
+  def comparable(_type, column) = column
+
   # @rbs sql_type: String
   # @rbs return: Skyward::ORM::Tables::column_type?
   def column_type(sql_type) = COLUMN_TYPES[sql_type.sub(MODIFIER, "")]
@@ -209,6 +216,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   def encode(value)
     case value
     when Symbol then value.name
+    # Without the exponent BigDecimal#to_s writes, as 0.15e1, so both adapters
+    # bind the same text.
+    # -0.0 is 0, but would be written "-0.0" and miss an = against 0 on SQLite.
+    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s("F")
     when Time then "#{value.getutc.strftime(TIME_FORMAT).sub(TRAILING_ZEROS, "")}+00"
     else value
     end
@@ -221,6 +232,7 @@ module Skyward::ORM::Adapters::PostgreSQL
     case type
     when :integer, :int32, :int16 then Integer(value, 10)
     when :float then SPECIAL_FLOATS.fetch(value) { Float(value) }
+    when :decimal then BigDecimal(value)
     when :bool then value == TRUE_TEXT
     when :date then Date.iso8601(value)
     # A timestamp column's text has no zone, so it's read as the UTC it was written in.

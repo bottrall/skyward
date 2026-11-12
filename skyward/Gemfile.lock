@@ -18,6 +18,7 @@ PATH
   remote: ../skyward-orm
   specs:
     skyward-orm (0.3.0)
+      bigdecimal (>= 3.1)
       skyward-core (= 0.3.0)
       zeitwerk (~> 2.8)
 

@@ -43,6 +43,8 @@ describe "Skyward's types" do
       values = {
         count: -42,
         ratio: 0.1,
+        # More digits than a Float holds.
+        amount: BigDecimal("12345678901234567890.123456789"),
         title: "Ünïcode \"quoted\" ✓",
         done: true,
         due_on: Date.new(2028, 2, 29),
@@ -73,6 +75,7 @@ describe "Skyward's types" do
         nullables = {
           nullable_count: 0,
           nullable_ratio: -2.5e-8,
+          nullable_amount: BigDecimal("-0.000000000000000001"),
           nullable_title: "",
           nullable_done: false,
           nullable_due_on: Date.new(1970, 1, 1),
@@ -99,6 +102,7 @@ describe "Skyward's types" do
       documented = {
         integer: { type: "integer" },
         float: { type: "number" },
+        decimal: { type: "string", format: "decimal" },
         string: { type: "string" },
         bool: { type: "boolean" },
         date: { type: "string", format: "date" },
@@ -137,7 +141,6 @@ describe "Skyward's types" do
     # Teaching either gem a type moves it in or out of this list, so the test
     # fails until the list says which gems read it.
     known = {
-      "BigDecimal" => %i[api],
       "Hash[String, Integer]" => %i[api],
       "Array[Integer]" => %i[api],
       "{ id: Integer }" => %i[api],

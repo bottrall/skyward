@@ -110,6 +110,10 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: bool
   def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
 
+  # PostgreSQL compares numeric as it is.
+  # @rbs (Skyward::ORM::Tables::column_type _type, String column) -> String
+  def comparable: (Skyward::ORM::Tables::column_type _type, String column) -> String
+
   # @rbs sql_type: String
   # @rbs return: Skyward::ORM::Tables::column_type?
   def column_type: (String sql_type) -> Skyward::ORM::Tables::column_type?

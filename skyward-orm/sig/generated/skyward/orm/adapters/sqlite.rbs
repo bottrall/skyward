@@ -110,6 +110,13 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: bool
   def compatible?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
 
+  # A decimal's text orders "10.5" before "9.0", so a range or an order
+  # compares it as a REAL, which is exact to 15 significant digits.
+  # @rbs type: Skyward::ORM::Tables::column_type
+  # @rbs column: String
+  # @rbs return: String
+  def comparable: (Skyward::ORM::Tables::column_type type, String column) -> String
+
   # @rbs sql_type: String
   # @rbs return: Skyward::ORM::Tables::column_type?
   def column_type: (String sql_type) -> Skyward::ORM::Tables::column_type?

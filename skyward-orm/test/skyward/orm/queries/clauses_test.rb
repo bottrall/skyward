@@ -10,8 +10,10 @@ describe Skyward::ORM::Queries::Clauses do
   todo = TablesFixtures::Todo
   list = TablesFixtures::List
   with_list = TablesFixtures::TodoWithList
+  product = TablesFixtures::Product
   columns = %("id", "list_id", "title", "priority", "due_on", "done", "created_at")
   select = %(SELECT #{columns} FROM "todos")
+  select_products = %(SELECT "id", "price", "discount" FROM "products")
   joined = %(SELECT "todos"."id", "todos"."list_id", "todos"."title", "todos"."priority", "todos"."due_on", ) +
            %("todos"."done", "todos"."created_at" FROM "todos" JOIN "lists" ON "todos"."list_id" = "lists"."id")
 
@@ -74,6 +76,17 @@ describe Skyward::ORM::Queries::Clauses do
   end
   let(:eggs) { milk.with(id: 2, title: "Buy eggs", priority: :normal, due_on: Date.new(2026, 10, 20), done: true) }
   let(:home) { list.new(id: 1, name: "Home") }
+  # Prices whose text sorts 10.5 and 100 before 9.
+  let(:products) do
+    decimal = adapter.sql_type(:decimal)
+    connection.execute(
+      "CREATE TABLE products (id #{adapter.sql_type(:integer)} PRIMARY KEY, price #{decimal} NOT NULL, " \
+      "discount #{decimal})"
+    )
+    prices = %w[10.5 9 100 2].map { |price| BigDecimal(price) }
+    insert(*prices.each.with_index(1).map { |price, id| product.new(id:, price:, discount: nil) })
+    Skyward::ORM::Query.new(product, session)
+  end
 
   def insert(*rows)
     rows.each do |row|
@@ -351,6 +364,27 @@ describe Skyward::ORM::Queries::Clauses do
       end
     end
 
+    describe "on a BigDecimal column" do
+      let(:price) { adapter.comparable(:decimal, %("price")) }
+
+      it "matches a value with = on the text it's stored as, binding an Integer as the BigDecimal it is" do
+        assert_equal [empty.shown(%(#{select_products} WHERE "price" = ?), ["2.0"]), [BigDecimal(2)]],
+                     [products.where(price: 2).to_sql, products.where(price: 2).map(&:price)]
+      end
+
+      it "binds each value of an array the same way" do
+        assert_equal [empty.shown(%(#{select_products} WHERE "price" IN (?, ?)), %w[2.0 10.5]), [10.5, 2]],
+                     [products.where(price: [2, BigDecimal("10.5")]).to_sql,
+                      products.where(price: [2, BigDecimal("10.5")]).map(&:price)]
+      end
+
+      it "compares a range's ends as the adapter orders a decimal, across 9 and 10" do
+        assert_equal [empty.shown(%(#{select_products} WHERE #{price} >= ? AND #{price} < ?), %w[9.0 100.0]),
+                      [10.5, 9]],
+                     [products.where(price: 9...100).to_sql, products.where(price: 9...100).map(&:price)]
+      end
+    end
+
     describe "with SQL" do
       it "adds the SQL in parentheses, binding its values as the adapter encodes them" do
         assert_equal empty.shown(%(#{select} WHERE (title LIKE ? AND done = ?)), ["%milk%", false]),
@@ -568,6 +602,13 @@ describe Skyward::ORM::Queries::Clauses do
 
     it "appends to the order so far" do
       assert_equal [%(#{select} ORDER BY "done" DESC, "title" ASC), []], query.order(done: :desc).order(:title).to_sql
+    end
+
+    it "orders a BigDecimal column as the adapter orders a decimal, across 9 and 10" do
+      price = adapter.comparable(:decimal, %("price"))
+
+      assert_equal [[%(#{select_products} ORDER BY #{price} DESC), []], [100, 10.5, 9, 2]],
+                   [products.order(price: :desc).to_sql, products.order(price: :desc).map(&:price)]
     end
 
     it "refuses a column the table doesn't have" do

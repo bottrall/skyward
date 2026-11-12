@@ -440,7 +440,10 @@ module Skyward::ORM::Queries::Clauses
   def from(database, orders, limit)
     adapter = database.adapter
     where, binds = filter(database, 1)
-    ordered = orders.map { |column, direction| "#{qualified(column)} #{direction.upcase}" }
+    columns = Skyward::ORM::Statements.by_name(database.column_types, @table)
+    ordered = orders.map do |column, direction|
+      "#{adapter.comparable(columns[column]&.type || :untyped, qualified(column))} #{direction.upcase}"
+    end
     # The limit and offset are bound rather than written in, so every page of a
     # query shares one SQL string.
     paging = [limit, @offset].compact
@@ -507,12 +510,19 @@ module Skyward::ORM::Queries::Clauses
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
   def comparison(database, comparison, position)
+    adapter = database.adapter
+    column = Skyward::ORM::Statements.by_name(database.column_types, @table).fetch(comparison.column)
     name = qualified(comparison.column)
     value = comparison.value
     case value
     when nil then ["#{name} IS NULL", []]
-    when Array then within(database, name, value, position)
-    else ["#{name} #{comparison.operator} #{database.adapter.placeholder(position)}", [database.adapter.encode(value)]]
+    when Array then within(adapter, column, name, value, position)
+    else
+      # = compares exactly as the column stores its values, and only a range's
+      # ends need them in order.
+      compared = comparison.operator == "=" ? name : adapter.comparable(column.type, name)
+      bound = Skyward::ORM::Statements.encode(adapter, column, value)
+      ["#{compared} #{comparison.operator} #{adapter.placeholder(position)}", [bound]]
     end
   end
 
@@ -563,21 +573,22 @@ module Skyward::ORM::Queries::Clauses
   end
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
-  # @rbs database: Skyward::ORM::Database
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs name: String
   # @rbs values: Array[untyped]
   # @rbs position: Integer
   # @rbs return: [String, Array[untyped]]
-  def within(database, name, values, position)
+  def within(adapter, column, name, values, position)
     present = values.compact
-    placeholders = Array.new(present.size) { |index| database.adapter.placeholder(position + index) }
+    placeholders = Array.new(present.size) { |index| adapter.placeholder(position + index) }
     list = "#{name} IN (#{placeholders.join(", ")})"
     sql = if values.empty? then "1 = 0"
           elsif present.empty? then "#{name} IS NULL"
           elsif values.include?(nil) then "(#{list} OR #{name} IS NULL)"
           else list
           end
-    [sql, present.map { |value| database.adapter.encode(value) }]
+    [sql, present.map { |value| Skyward::ORM::Statements.encode(adapter, column, value) }]
   end
 
   # Steep can't tie the row class to R, so the rows are untyped here and each

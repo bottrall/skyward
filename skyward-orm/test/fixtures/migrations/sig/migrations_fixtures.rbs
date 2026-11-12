@@ -52,6 +52,13 @@ module MigrationsFixtures
     attr_reader payload: Hash[String, untyped]?
   end
 
+  class Product < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader price: BigDecimal
+    attr_reader fee: BigDecimal
+    attr_reader discount: BigDecimal?
+  end
+
   # payload has no type.
   class Scrap < ::Skyward::ORM::Record
     attr_reader id: Integer

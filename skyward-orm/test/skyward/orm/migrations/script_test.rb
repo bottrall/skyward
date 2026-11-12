@@ -106,6 +106,16 @@ describe Skyward::ORM::Migrations::Script do
                    columns
     end
 
+    it "writes a BigDecimal column as numeric on PostgreSQL and TEXT on SQLite, with its default unquoted" do
+      columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Product)], adapter).lines[2..4].join }
+
+      assert_equal [
+        "  price     numeric NOT NULL DEFAULT 1.5,\n  fee       numeric NOT NULL DEFAULT -2.0,\n  discount  numeric\n",
+        "  price     TEXT    NOT NULL DEFAULT 1.5,\n  fee       TEXT    NOT NULL DEFAULT -2.0,\n  discount  TEXT\n"
+      ],
+                   columns
+    end
+
     it "quotes a default its adapter passes through as its text" do
       assert_match(/^  joined_on +date +NOT NULL DEFAULT '2026-10-18',$/, write([create(fixtures::Member)], postgres))
     end
@@ -373,6 +383,17 @@ describe Skyward::ORM::Migrations::Script do
         diff = lambda do
           Skyward::ORM::Migrations::Diff.changes(
             [fixtures::Webhook], column_types, adapter.tables(connection), adapter, ->(*) { true }
+          )
+        end
+        migrate(section(diff.call, :up))
+
+        assert_empty diff.call
+      end
+
+      it "creates BigDecimal columns, and then finds nothing to change, their defaults included" do
+        diff = lambda do
+          Skyward::ORM::Migrations::Diff.changes(
+            [fixtures::Product], column_types, adapter.tables(connection), adapter, ->(*) { true }
           )
         end
         migrate(section(diff.call, :up))

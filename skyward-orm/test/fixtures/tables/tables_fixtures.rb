@@ -36,6 +36,13 @@ module TablesFixtures
     attr_reader :id, :title, :search
   end
 
+  # The README's BigDecimal column, and a nullable one.
+  class Product < Skyward::ORM::Record
+    table :products
+
+    attr_reader :id, :price, :discount
+  end
+
   class Typed < Skyward::ORM::Record
     attr_reader :integer,
                 :float,
@@ -48,6 +55,8 @@ module TablesFixtures
                 :or_nil,
                 :aliased,
                 :nullable_enum,
+                :decimal,
+                :nullable_decimal,
                 :json,
                 :nullable_json,
                 :untyped,
@@ -77,10 +86,6 @@ module TablesFixtures
 
   class Classed < Skyward::ORM::Record
     attr_reader :list
-  end
-
-  class Decimal < Skyward::ORM::Record
-    attr_reader :price
   end
 
   class Hashed < Skyward::ORM::Record

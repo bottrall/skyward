@@ -113,6 +113,7 @@ describe Skyward::ORM::Tables::Values do
     {
       integer: ["Integer", 1, 1.0],
       float: ["Float", 1.5, "1.5"],
+      decimal: ["BigDecimal", BigDecimal("0.1"), 0.1],
       string: ["String", "Buy milk", :buy_milk],
       bool: ["bool", false, 0],
       date: ["Date", Date.new(2026, 10, 20), Time.utc(2026, 10, 20)],
@@ -148,6 +149,20 @@ describe Skyward::ORM::Tables::Values do
 
     it "refuses NaN for a Float column, which SQLite stores as NULL" do
       assert_equal "#{todo}.value is Float, not NaN (Float)", mismatch(column(:float), Float::NAN)
+    end
+
+    it "takes an Integer for a BigDecimal column" do
+      assert_nil mismatch(column(:decimal), 1)
+    end
+
+    it "takes Infinity and -Infinity for a BigDecimal column" do
+      assert_nil mismatch(column(:decimal), [BigDecimal("Infinity"), BigDecimal("-Infinity")])
+    end
+
+    it "refuses NaN for a BigDecimal column, which never equals itself" do
+      nan = BigDecimal("NaN")
+
+      assert_equal "#{todo}.value is BigDecimal, not #{nan.inspect} (BigDecimal)", mismatch(column(:decimal), nan)
     end
 
     it "takes true for a bool column" do

@@ -9,8 +9,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
     Skyward::Core::Signatures.load(signatures),
     refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS
   )
-  column_types = "A column is Integer, Float, String, bool, Date, Time, uuid, int32, int16, a union of symbols " \
-                 "or Hash[String, untyped], any of them nullable, or untyped."
+  column_types = "A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, " \
+                 "a union of symbols or Hash[String, untyped], any of them nullable, or untyped."
   fixtures = File.expand_path("../../../fixtures/tables/tables_fixtures.rb", __dir__).delete_prefix("#{Dir.pwd}/")
   source = File.readlines(fixtures, chomp: true)
 
@@ -83,6 +83,8 @@ describe Skyward::ORM::Tables::ColumnTypes do
         column(:or_nil, :string, nullable: true),
         column(:aliased, :enum, symbols: %i[low normal high]),
         column(:nullable_enum, :enum, nullable: true, symbols: %i[low normal high]),
+        column(:decimal, :decimal),
+        column(:nullable_decimal, :decimal, nullable: true),
         column(:json, :json),
         column(:nullable_json, :json, nullable: true),
         column(:untyped, :untyped),
@@ -140,12 +142,6 @@ describe Skyward::ORM::Tables::ColumnTypes do
                    "Can't read TablesFixtures::Node: it refers to itself through " \
                    "TablesFixtures::Node -> TablesFixtures::Node#{excerpt(TablesFixtures::Nested, ":node")}",
                    refusal(TablesFixtures::Nested)
-    end
-
-    it "refuses a BigDecimal as not a column type yet" do
-      assert_equal "TablesFixtures::Decimal#price is BigDecimal?, which isn't a column type yet. #{column_types}" \
-                   "#{excerpt(TablesFixtures::Decimal, ":price")}",
-                   refusal(TablesFixtures::Decimal)
     end
 
     it "refuses a record as not a column type yet" do

@@ -86,6 +86,29 @@ describe Skyward::ORM::Migrations::Definitions do
       assert_equal %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}'),
                    definitions.default(fixtures::Webhook, settings, Skyward::ORM::Adapters::PostgreSQL)
     end
+
+    it "writes a BigDecimal column's default unquoted, an Integer as a decimal, on both adapters" do
+      columns = [column(fixtures::Product, :price), column(fixtures::Product, :fee)]
+      written = [Skyward::ORM::Adapters::PostgreSQL, Skyward::ORM::Adapters::SQLite].map do |adapter|
+        columns.map { |column| definitions.default(fixtures::Product, column, adapter) }
+      end
+
+      assert_equal [%w[1.5 -2.0], %w[1.5 -2.0]], written
+    end
+
+    it "writes a BigDecimal column's nil default as NULL" do
+      product = Class.new(Skyward::ORM::Record) { default discount: nil }
+      discount = Skyward::ORM::Tables::Column.new(name: :discount, type: :decimal, nullable: true, symbols: [])
+
+      assert_equal "NULL", definitions.default(product, discount, Skyward::ORM::Adapters::SQLite)
+    end
+
+    it "quotes a BigDecimal column's Infinity default, which isn't a number SQL reads" do
+      product = Class.new(Skyward::ORM::Record) { default discount: BigDecimal("Infinity") }
+      discount = Skyward::ORM::Tables::Column.new(name: :discount, type: :decimal, nullable: true, symbols: [])
+
+      assert_equal "'Infinity'", definitions.default(product, discount, Skyward::ORM::Adapters::PostgreSQL)
+    end
   end
 
   describe ".inline" do

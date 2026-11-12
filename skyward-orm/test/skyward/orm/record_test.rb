@@ -258,6 +258,38 @@ describe Skyward::ORM::Record do
         end
       end
 
+      describe "into a BigDecimal column" do
+        product = TablesFixtures::Product
+
+        before do
+          decimal = empty.adapter.sql_type(:decimal)
+          connection.execute(
+            "CREATE TABLE products (id #{empty.primary_key}, price #{decimal} NOT NULL, discount #{decimal})"
+          )
+        end
+
+        it "reads a BigDecimal back with every digit, more than a Float holds" do
+          price = BigDecimal("12345678901234567890.123456789")
+          discount = BigDecimal("-0.000000000000000001")
+          product.insert(price:, discount:)
+
+          assert_equal(
+            [[product.new(id: 1, price:, discount:), BigDecimal]],
+            product.all.map { |row| [row, row.price.class] }
+          )
+        end
+
+        it "takes an Integer, reading it back as a BigDecimal" do
+          product.insert(price: 2)
+
+          assert_equal([[BigDecimal(2), BigDecimal]], product.all.map { |row| [row.price, row.price.class] })
+        end
+
+        it "refuses a value a BigDecimal column doesn't hold before any SQL runs" do
+          assert_empty(traced { assert_raises(ArgumentError) { product.insert(price: 0.1) } })
+        end
+      end
+
       violations.each do |kind, (violation, sql, written)|
         it "returns a #{kind} violation, with the database's message" do
           todo.insert(list_id: 1, title: "Buy milk")

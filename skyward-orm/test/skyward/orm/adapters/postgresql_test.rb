@@ -91,13 +91,14 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
   describe ".sql_type" do
     it "maps each column type to the README's PostgreSQL type" do
-      types = %i[integer float string bool date time enum uuid int32 int16 json].to_h do |type|
+      types = %i[integer float decimal string bool date time enum uuid int32 int16 json].to_h do |type|
         [type, postgresql.sql_type(type)]
       end
 
       assert_equal(
-        { integer: "bigint", float: "double precision", string: "text", bool: "boolean", date: "date",
-          time: "timestamptz", enum: "text", uuid: "uuid", int32: "integer", int16: "smallint", json: "jsonb" },
+        { integer: "bigint", float: "double precision", decimal: "numeric", string: "text", bool: "boolean",
+          date: "date", time: "timestamptz", enum: "text", uuid: "uuid", int32: "integer", int16: "smallint",
+          json: "jsonb" },
         types
       )
     end
@@ -164,6 +165,7 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       declared = [
         [:integer, "bigint"],
         [:float, "double precision"],
+        [:decimal, "numeric"],
         [:string, "text"],
         [:bool, "boolean"],
         [:date, "date"],
@@ -178,8 +180,9 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       assert(declared.all? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
 
-    it "accepts integer, smallint, varchar and timestamp, with or without a length or precision" do
+    it "accepts integer, smallint, varchar, timestamp and numeric, with or without a length or precision" do
       declared = [
+        [:decimal, "numeric(10,2)"],
         [:integer, "integer"],
         [:integer, "smallint"],
         [:string, "character varying(255)"],
@@ -201,19 +204,27 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     it "refuses any other type" do
       declared = [[:integer, "text"], [:float, "numeric(10,2)"], [:string, "bytea"], [:bool, "integer"],
                   [:date, "timestamp with time zone"], [:time, "date"], [:enum, "integer"], [:uuid, "text"],
-                  [:int32, "bigint"], [:int16, "integer"], [:json, "text"]]
+                  [:int32, "bigint"], [:int16, "integer"], [:json, "text"], [:decimal, "double precision"]]
 
       assert(declared.none? { |type, sql_type| postgresql.compatible?(type, sql_type) })
     end
   end
 
+  describe ".comparable" do
+    it "compares every column as it is, a numeric included" do
+      assert_equal ['"price"', '"title"'],
+                   [postgresql.comparable(:decimal, '"price"'), postgresql.comparable(:string, '"title"')]
+    end
+  end
+
   describe ".column_type" do
     it "reads each type compatible? accepts as the narrowest column type, without its length or precision" do
-      read = ["bigint", "integer", "smallint", "double precision", "real", "text", "character varying(255)", "citext",
-              "uuid", "boolean", "date", "timestamp(3) with time zone", "timestamp without time zone"]
+      read = ["bigint", "integer", "smallint", "double precision", "real", "numeric(10,2)", "text",
+              "character varying(255)", "citext", "uuid", "boolean", "date", "timestamp(3) with time zone",
+              "timestamp without time zone"]
 
       assert_equal(
-        %i[integer int32 int16 float float string string string uuid bool date time time],
+        %i[integer int32 int16 float float decimal string string string uuid bool date time time],
         read.map { |sql_type| postgresql.column_type(sql_type) }
       )
     end
@@ -225,9 +236,9 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
 
     it "has none for any other type" do
-      read = ["numeric(10,2)", "jsonb", "bytea", "text[]"]
+      read = ["jsonb", "bytea", "text[]"]
 
-      assert_equal([nil] * 4, read.map { |sql_type| postgresql.column_type(sql_type) })
+      assert_equal([nil] * 3, read.map { |sql_type| postgresql.column_type(sql_type) })
     end
   end
 
@@ -245,6 +256,14 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       assert_equal ["2026-10-18 09:30:00.5+00", "2026-10-18 09:30:00+00"],
                    [postgresql.encode(Time.utc(2026, 10, 18, 9, 30, 1/2r)),
                     postgresql.encode(Time.utc(2026, 10, 18, 9, 30))]
+    end
+
+    it "sends a BigDecimal as its digits, without an exponent" do
+      assert_equal(%w[1.5 2.0 -0.0000001], %w[1.5 2 -1e-7].map { |text| postgresql.encode(BigDecimal(text)) })
+    end
+
+    it "sends a negative zero as 0.0" do
+      assert_equal "0.0", postgresql.encode(BigDecimal("-0"))
     end
 
     it "passes anything else through, for the driver to send as text" do
@@ -300,6 +319,11 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       assert_equal :high, postgresql.decode(:enum, "high")
     end
 
+    it "reads a numeric's text as a BigDecimal, with every digit" do
+      assert_equal BigDecimal("12345678901234567890.123456789"),
+                   postgresql.decode(:decimal, "12345678901234567890.123456789")
+    end
+
     it "reads JSON into a Hash, frozen at every level" do
       read = postgresql.decode(:json, +'{"list": [{"deep": "ü"}]}')
 
@@ -329,6 +353,14 @@ describe Skyward::ORM::Adapters::PostgreSQL do
       end
 
       assert_equal [time.floor(6), time.floor(6), *written.drop(2)], read
+    end
+
+    it "reads back what was written to a numeric column, with every digit" do
+      connection.execute("CREATE TABLE prices (price numeric)")
+      written = BigDecimal("12345678901234567890.123456789")
+      connection.execute("INSERT INTO prices VALUES ($1)", [postgresql.encode(written)])
+
+      assert_equal written, postgresql.decode(:decimal, connection.execute("SELECT price FROM prices").dig(0, 0))
     end
 
     it "reads back what was written to a uuid, an integer and a smallint column, as a String and Integers" do

@@ -30,6 +30,12 @@ module TablesFixtures
     attr_reader search: String
   end
 
+  class Product < ::Skyward::ORM::Record
+    attr_reader id: Integer
+    attr_reader price: BigDecimal
+    attr_reader discount: BigDecimal?
+  end
+
   # unannotated has no reader here.
   class Typed < ::Skyward::ORM::Record
     attr_reader integer: Integer
@@ -43,6 +49,8 @@ module TablesFixtures
     attr_reader or_nil: String | nil
     attr_reader aliased: priority
     attr_reader nullable_enum: priority?
+    attr_reader decimal: BigDecimal
+    attr_reader nullable_decimal: BigDecimal?
     attr_reader json: Hash[String, untyped]
     attr_reader nullable_json: Hash[String, untyped]?
     attr_reader untyped: untyped
@@ -78,10 +86,6 @@ module TablesFixtures
 
   class Classed < ::Skyward::ORM::Record
     attr_reader list: List
-  end
-
-  class Decimal < ::Skyward::ORM::Record
-    attr_reader price: BigDecimal?
   end
 
   class Hashed < ::Skyward::ORM::Record

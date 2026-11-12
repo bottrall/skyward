@@ -54,13 +54,18 @@ module Skyward::ORM::Statements
   end
 
   # Only a column says a Hash is JSON: bound to a ? in SQL, it's refused,
-  # since the driver would spread it across placeholders.
+  # since the driver would spread it across placeholders. And only a column
+  # says an Integer is a decimal, whose text SQLite compares, so 2 is bound as
+  # 2.0, as BigDecimal(2) is.
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
   def encode(adapter, column, value)
-    column.type == :json && !value.nil? ? JSON.generate(value) : adapter.encode(value)
+    if column.type == :json && !value.nil? then JSON.generate(value)
+    elsif column.type == :decimal && value.is_a?(Integer) then adapter.encode(BigDecimal(value))
+    else adapter.encode(value)
+    end
   end
 
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -91,6 +96,11 @@ module Skyward::ORM::Statements
     refused = unwritable(column_types, generated(tables, table), table, values)
     raise ArgumentError, refused if refused
   end
+
+  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
+  # @rbs table: singleton(Skyward::ORM::Record)
+  # @rbs return: Hash[Symbol, Skyward::ORM::Tables::Column]
+  def by_name(column_types, table) = column_types.columns(table).to_h { |column| [column.name, column] }
 
   # @rbs columns: Array[Symbol]
   # @rbs return: String
@@ -217,9 +227,4 @@ module Skyward::ORM::Statements
           "database binds at most #{limit} in one statement. Split the rows, in a Skyward.transaction if they " \
           "must land together."
   end
-
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
-  # @rbs table: singleton(Skyward::ORM::Record)
-  # @rbs return: Hash[Symbol, Skyward::ORM::Tables::Column]
-  def by_name(column_types, table) = column_types.columns(table).to_h { |column| [column.name, column] }
 end

@@ -3,6 +3,7 @@ module TypesFixtures
     attr_reader id: Integer
     attr_reader count: Integer
     attr_reader ratio: Float
+    attr_reader amount: BigDecimal
     attr_reader title: String
     attr_reader done: bool
     attr_reader due_on: Date
@@ -11,6 +12,7 @@ module TypesFixtures
     attr_reader settings: Hash[String, untyped]
     attr_reader nullable_count: Integer?
     attr_reader nullable_ratio: Float?
+    attr_reader nullable_amount: BigDecimal?
     attr_reader nullable_title: String?
     attr_reader nullable_done: bool?
     attr_reader nullable_due_on: Date?

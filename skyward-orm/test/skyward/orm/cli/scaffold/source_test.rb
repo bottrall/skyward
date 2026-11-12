@@ -313,13 +313,13 @@ describe Skyward::ORM::CLI::Scaffold::Source do
     it "aligns each reader's type, and starts each type the database has no column type for with a comment" do
       expected = [
         "  attr_reader :id     #: Integer\n",
-        "  # total is numeric(10,2), which has no column type, so it's untyped.\n",
+        "  # total is bytea, which has no column type, so it's untyped.\n",
         "  attr_reader :total  #: untyped\n",
         "  # meta is jsonb, which has no column type, so it's untyped.\n",
         "  attr_reader :meta   #: untyped\n"
       ]
 
-      assert_equal expected, readers([column(:total, "numeric(10,2)"), column(:meta, "jsonb", nullable: true)])
+      assert_equal expected, readers([column(:total, "bytea"), column(:meta, "jsonb", nullable: true)])
     end
 
     it "says a column SQLite declares with no type has none, and comments every line of a type that spans several" do
@@ -381,10 +381,10 @@ describe Skyward::ORM::CLI::Scaffold::Source do
     it "writes a literal default as the value the column's type reads" do
       defaults = [
         ["bigint", "-1"], ["double precision", "1.5"], ["real", "0"], ["text", "'it''s'"], ["uuid", "'x'"],
-        ["boolean", "true"], ["date", "'2026-01-01'"], ["jsonb", "'{}'"], ["numeric", "2"]
+        ["boolean", "true"], ["date", "'2026-01-01'"], ["jsonb", "'{}'"]
       ].map { |type, default| default(type, default) }
 
-      assert_equal ["-1", "1.5", "0", %("it's"), %("x"), "true", "Date.new(2026, 1, 1)", %("{}"), "2"], defaults
+      assert_equal ["-1", "1.5", "0", %("it's"), %("x"), "true", "Date.new(2026, 1, 1)", %("{}")], defaults
     end
 
     it "reads SQLite's 0 and 1 as a bool's false and true" do
