@@ -117,6 +117,9 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: String
   def driver = "pg"
 
+  # @rbs return: Symbol
+  def adapter_name = :postgresql
+
   # Values are decoded from PostgreSQL's ISO text, whatever the server's
   # defaults, and times read and written in UTC. libpq prints each notice the
   # server sends, so only warnings and worse are sent, or `skyward migrate`
@@ -164,8 +167,8 @@ module Skyward::ORM::Adapters::PostgreSQL
   def foreign_key_violations(_connection) = []
 
   # Ending the transaction released the lock, and nothing else was set.
-  # @rbs return: String
-  def end_migration = ""
+  # @rbs return: String?
+  def end_migration = nil
 
   # @rbs expression: String
   # @rbs return: String

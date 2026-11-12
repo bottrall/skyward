@@ -17,9 +17,18 @@ module Skyward::ORM
     def close: () -> void
   end
 
+  # What Skyward.connect's instrument: takes: a lambda with a &block
+  # parameter, or an object. The block runs the statement and returns how
+  # many milliseconds it took.
+  interface _Instrument
+    def call: (Execution execution) { () -> Float } -> void
+  end
+
   # Everything that differs between databases: Adapters::SQLite and Adapters::PostgreSQL.
   interface _Adapter
     def driver: () -> String
+    # The adapter as each Execution names it.
+    def adapter_name: () -> Symbol
     def connect: (String location) -> _Connection
     def pool_size: (String location, Integer size) -> Integer
     def placeholder: (Integer position) -> String
@@ -40,8 +49,9 @@ module Skyward::ORM
     # Each row the migration left referring to a missing one, before it
     # commits. None on a database that enforces foreign keys as it goes.
     def foreign_key_violations: (_Connection connection) -> Array[String]
-    # Undoes what begin_migration set on the connection, once the transaction has ended.
-    def end_migration: () -> String
+    # Undoes what begin_migration set on the connection, once the transaction
+    # has ended, unless it set nothing.
+    def end_migration: () -> String?
   end
 
   # A class whose rows Skyward.query returns: a Data class, a table class, or

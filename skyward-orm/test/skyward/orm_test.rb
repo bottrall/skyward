@@ -138,6 +138,140 @@ describe Skyward do
 
       assert_equal [Skyward::ORM::Database, kept], [database.class, Skyward::ORM::Connection::SESSION.database]
     end
+
+    describe "instrument:" do
+      list = TablesFixtures::List
+
+      let(:executions) { [] }
+      let(:durations) { [] }
+      let(:instrument) do
+        lambda do |execution, &run|
+          executions << execution
+          durations << run.call
+        end
+      end
+      let(:database) { Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false, instrument:) }
+      # The SQL the adapter reads the schema with, which is the same whatever the schema holds.
+      let(:schema_reads) { recorded { |connection| empty.adapter.tables(connection) } }
+
+      def execution(sql, binds = []) = Skyward::ORM::Execution.new(sql:, binds:, adapter: empty.adapter.adapter_name)
+
+      def recorded
+        sent = []
+        yield TestDatabase::Recording.new(connection: empty.connect, sent:)
+        sent.map { |sql, binds| execution(sql, binds) }
+      end
+
+      def shown(sql, *values) = execution(*empty.shown(sql, values))
+
+      def reported
+        database.execute("CREATE TABLE lists (id #{empty.primary_key}, name TEXT NOT NULL UNIQUE)")
+        executions.clear
+        yield
+        executions
+      end
+
+      it "refuses anything without call, before it connects" do
+        error = assert_raises(Skyward::Core::BootError) { Skyward.connect("nowhere://", instrument: :log) }
+
+        assert_equal "Skyward.connect's instrument: takes something that responds to call, such as a lambda, " \
+                     "not a Symbol",
+                     error.message
+      end
+
+      it "reports the schema reads at connect, each with its duration as a Float" do
+        database
+
+        assert_equal [schema_reads, [Float] * schema_reads.size], [executions, durations.map(&:class)]
+      end
+
+      it "reports a query, with its SQL and encoded binds" do
+        query = list.where(id: 1, name: %w[Home Work])
+
+        assert_equal([execution(*query.to_sql)], reported { query.to_a })
+      end
+
+      it "reports a write" do
+        insert = shown(%(INSERT INTO "lists" ("name") VALUES (?)), "Home")
+
+        assert_equal([insert], reported { list.insert(name: "Home") })
+      end
+
+      it "reports raw SQL" do
+        sql = "SELECT name FROM lists WHERE id > ? AND name <> ?"
+
+        assert_equal([shown(sql, 1, "Home")], reported { Skyward.query(sql, 1, "Home") })
+      end
+
+      it "reports a nested transaction's statements, in the order they're sent" do
+        insert = shown(%(INSERT INTO "lists" ("name") VALUES (?)), "Home")
+        sent = reported { Skyward.transaction { Skyward.transaction { list.insert(name: "Home") } } }
+
+        assert_equal [
+          execution("BEGIN"),
+          execution("SAVEPOINT skyward_1"),
+          insert,
+          execution("RELEASE SAVEPOINT skyward_1"),
+          execution("COMMIT")
+        ],
+                     sent
+      end
+
+      it "reports the transaction Skyward::ORM::Transactional holds for a test" do
+        test = Class.new(Minitest::Spec) { define_method(:example) { list.insert(name: "Home") } }
+        test.include(Skyward::ORM::Transactional)
+        insert = shown(%(INSERT INTO "lists" ("name") VALUES (?)), "Home")
+
+        assert_equal([execution("BEGIN"), insert, execution("ROLLBACK")], reported { test.new(:example).run })
+      end
+
+      it "reports a migration, its bookkeeping and the schema read after it, with no empty statement" do
+        migration = Skyward::ORM::Migrations::Runner.parse(
+          "20261001000000_create_notes.sql",
+          "CREATE TABLE notes (id INTEGER);\n"
+        )
+        adapter = empty.adapter
+        foreign_key_check = recorded { |connection| adapter.foreign_key_violations(connection) }
+        lock = execution(adapter.begin_migration)
+        unlock = [adapter.end_migration].compact.map { |sql| execution(sql) }
+        create = "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
+                 "ran_at #{adapter.sql_type(:time)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+        pending = shown("SELECT 1 FROM schema_migrations WHERE version = ?", migration.version)
+        record = shown(
+          "INSERT INTO schema_migrations (version, checksum) VALUES (?, ?)",
+          migration.version,
+          migration.checksum
+        )
+
+        assert_equal(
+          [
+            *schema_reads,
+            lock, execution(create), execution("COMMIT"), *unlock,
+            execution("SELECT version, checksum FROM schema_migrations"),
+            lock, pending, execution(migration.up), *foreign_key_check, record, execution("COMMIT"), *unlock,
+            *schema_reads
+          ],
+          reported { database.migrate([migration]) }
+        )
+      end
+
+      it "still returns a violation for a constraint the database refuses" do
+        refused = nil
+        sent = reported do
+          list.insert(name: "Home")
+          refused = list.insert(name: "Home")
+        end
+
+        assert_equal [Skyward::ORM::Violation, :unique, 2], [refused.class, refused.kind, sent.size]
+      end
+
+      it "leaves the pool's connections the adapter's own without it" do
+        plain = Skyward.connect(empty.url, signatures: File.join(fixtures, "sig"), check: false, default: false)
+
+        assert_equal [empty.connect.class, Skyward::ORM::Connection::Instrumented],
+                     [plain.connection(&:class), database.connection(&:class)]
+      end
+    end
   end
 
   describe ".using" do

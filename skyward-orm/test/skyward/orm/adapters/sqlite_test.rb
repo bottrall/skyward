@@ -47,6 +47,12 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe ".adapter_name" do
+    it "is :sqlite" do
+      assert_equal :sqlite, sqlite.adapter_name
+    end
+  end
+
   describe ".connect" do
     it "waits on another connection's lock rather than failing at once" do
       Dir.mktmpdir do |dir|

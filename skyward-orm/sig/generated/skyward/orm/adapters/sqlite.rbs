@@ -44,6 +44,9 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: String
   def driver: () -> String
 
+  # @rbs return: Symbol
+  def adapter_name: () -> Symbol
+
   # @rbs location: String
   # @rbs return: Skyward::ORM::_Connection
   def connect: (String location) -> Skyward::ORM::_Connection

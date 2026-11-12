@@ -19,13 +19,23 @@ dir = __dir__ #: String
 Skyward::Core::Signatures.register(File.expand_path("../../sig", dir))
 
 module Skyward
-  # @rbs url: String
-  # @rbs signatures: String
-  # @rbs pool: Integer
-  # @rbs check: bool
-  # @rbs default: bool
-  # @rbs return: ORM::Database
-  def self.connect(url, signatures: "sig", pool: 5, check: ORM::Connection::SESSION.check?, default: true)
+  # @rbs (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool,
+  #   ?instrument: ORM::_Instrument?) -> ORM::Database
+  def self.connect(
+    url,
+    signatures: "sig",
+    pool: 5,
+    check: ORM::Connection::SESSION.check?,
+    default: true,
+    instrument: nil
+  )
+    # Steep knows instrument is one, but untyped code can pass anything.
+    unless instrument.nil? || instrument.respond_to?(:call) # steep:ignore NoMethod
+      raise Core::BootError,
+            "Skyward.connect's instrument: takes something that responds to call, such as a lambda, " \
+            "not a #{instrument.class}" # steep:ignore NoMethod
+    end
+
     reader = Core::Types::Reader.new(Core::Signatures.load(signatures), refinements: ORM::Tables::ColumnTypes::REFINEMENTS)
     column_types = ORM::Tables::ColumnTypes.new(reader)
     adapter, location = ORM::Adapters.resolve(
@@ -33,7 +43,16 @@ module Skyward
       schemes: ORM::Adapters::SCHEMES,
       requirer: ->(feature) { require(feature) }
     )
-    connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), -> { adapter.connect(location) })
+    clock_ms = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond) }
+    opener = lambda do
+      connection = adapter.connect(location)
+      if instrument
+        ORM::Connection::Instrumented.new(connection, instrument, adapter.adapter_name, clock_ms:)
+      else
+        connection
+      end
+    end
+    connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), opener)
     tables = connections.with { |connection| adapter.tables(connection) }
     database = ORM::Database.new(adapter, connections, column_types, tables, check:)
     database.check(ORM::Tables::Loaded.table_classes(ORM::Record)) if check

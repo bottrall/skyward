@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "delegate"
 require "test_helper"
 require "sqlite3"
 require "tmpdir"
@@ -383,6 +384,18 @@ describe Skyward::ORM::Migrations::Runner do
         )
 
         assert_equal [timed_out, true, %w[schema_migrations]], [locked, idle?, tables]
+      end
+
+      it "sends nothing to end a migration, since its lock ends with its transaction" do
+        batches = []
+        recording = SimpleDelegator.new(connection)
+        recording.define_singleton_method(:execute_batch) do |sql|
+          batches << sql
+          __getobj__.execute_batch(sql)
+        end
+        runner.run(adapter, recording, [create_a])
+
+        assert_equal [adapter.begin_migration, adapter.begin_migration, create_a.up], batches
       end
 
       it "fails a migration that leaves a row referring to a missing one, as PostgreSQL checks it as it writes" do
