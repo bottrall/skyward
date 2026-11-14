@@ -59,15 +59,33 @@ module TestDatabase
   end
 
   Recording = Data.define(:connection, :sent) do
-    def execute(sql, binds = [])
+    def execute(sql, binds = [], prepare: false)
       sent << [sql, binds]
-      connection.execute(sql, binds)
+      connection.execute(sql, binds, prepare:)
     end
 
-    def execute2(sql, *binds)
+    def execute2(sql, *binds, prepare: false)
       sent << [sql, binds]
-      connection.execute2(sql, *binds)
+      connection.execute2(sql, *binds, prepare:)
     end
+
+    def changes = connection.changes
+
+    def transaction_active? = connection.transaction_active?
+  end
+
+  Preparing = Data.define(:connection, :prepared) do
+    def execute(sql, binds = [], prepare: false)
+      prepared << [sql, prepare]
+      connection.execute(sql, binds, prepare:)
+    end
+
+    def execute2(sql, *binds, prepare: false)
+      prepared << [sql, prepare]
+      connection.execute2(sql, *binds, prepare:)
+    end
+
+    def execute_batch(sql) = connection.execute_batch(sql)
 
     def changes = connection.changes
 

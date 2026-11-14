@@ -12,8 +12,7 @@ module Skyward::ORM::Migrations::Versions
   def checksums(database)
     return {} unless database.tables.any? { |table| table.name == TABLE }
 
-    database.execute("SELECT version, checksum FROM #{TABLE}").to_h do |version, checksum|
-      [version.to_s, checksum.to_s]
-    end
+    rows = database.connection { |connection| connection.execute("SELECT version, checksum FROM #{TABLE}") }
+    rows.to_h { |version, checksum| [version.to_s, checksum.to_s] }
   end
 end

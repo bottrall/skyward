@@ -2,8 +2,8 @@
 
 module Skyward
   # @rbs (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool,
-  #   ?instrument: ORM::_Instrument?) -> ORM::Database
-  def self.connect: (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool, ?instrument: ORM::_Instrument?) -> ORM::Database
+  #   ?instrument: ORM::_Instrument?, ?prepared_statements: bool) -> ORM::Database
+  def self.connect: (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool, ?instrument: ORM::_Instrument?, ?prepared_statements: bool) -> ORM::Database
 
   # @rbs [T] (ORM::Database database) { () -> T } -> T
   def self.using: [T] (ORM::Database database) { () -> T } -> T

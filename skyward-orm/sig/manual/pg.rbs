@@ -6,6 +6,7 @@ module PG
   PG_DIAG_TABLE_NAME: Integer
   PG_DIAG_COLUMN_NAME: Integer
   PG_DIAG_CONSTRAINT_NAME: Integer
+  PG_DIAG_SOURCE_FUNCTION: Integer
   PQTRANS_IDLE: Integer
 
   def self.connect: (String url) -> Connection
@@ -13,6 +14,9 @@ module PG
   class Connection
     def exec: (String sql) -> Result
     def exec_params: [T] (String sql, Array[untyped] params) { (Result result) -> T } -> T
+    def prepare: (String name, String sql) -> Result
+    def exec_prepared: [T] (String name, Array[untyped] params) { (Result result) -> T } -> T
+    def close_prepared: (String name) -> Result
     def transaction_status: () -> Integer
     def close: () -> void
   end
@@ -27,6 +31,12 @@ module PG
 
   class Error < StandardError
     def result: () -> Result?
+  end
+
+  class FeatureNotSupported < Error
+  end
+
+  class InvalidSqlStatementName < Error
   end
 
   module TextEncoder

@@ -32,15 +32,18 @@ class Skyward::ORM::Database
   # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), Class, Array[Symbol]], ^(Array[untyped]) -> untyped]
   # @rbs @sql: Hash[untyped, String]
   # @rbs @key: Symbol
+  # @rbs @prepared_statements: bool
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
-  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
-  def initialize(adapter, pool, column_types, tables, check:)
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool,
+  #   ?prepared_statements: bool) -> void
+  def initialize(adapter, pool, column_types, tables, check:, prepared_statements: true)
     @adapter = adapter
     @pool = pool
     @column_types = column_types
     @tables = tables
     @check = check
+    @prepared_statements = prepared_statements
     @checked = Set.new
     @lock = Thread::Mutex.new
     @decoders = {}
@@ -110,7 +113,9 @@ class Skyward::ORM::Database
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[Array[untyped]]
-  def execute(sql, binds = []) = connection { |checked_out| checked_out.execute(sql, binds) }
+  def execute(sql, binds = [])
+    connection { |checked_out| checked_out.execute(sql, binds, prepare: @prepared_statements) }
+  end
 
   # @rbs tables: Array[singleton(Skyward::ORM::Record)]
   # @rbs return: void
@@ -203,7 +208,7 @@ class Skyward::ORM::Database
   def write(table, sql, binds)
     prepare(table)
     connection do |checked_out|
-      checked_out.execute(sql, binds)
+      checked_out.execute(sql, binds, prepare: @prepared_statements)
       checked_out.changes
     end
   rescue StandardError => e
@@ -366,7 +371,7 @@ class Skyward::ORM::Database
     end
     binds = values.map { |value| @adapter.encode(value) }
     Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'Skyward.query')
-    result = connection { |checked_out| checked_out.execute2(statement, *binds) }
+    result = connection { |checked_out| checked_out.execute2(statement, *binds, prepare: @prepared_statements) }
     [result.fetch(0).map(&:to_sym), result.drop(1)]
   rescue StandardError => e
     violation = violation(e, nil)

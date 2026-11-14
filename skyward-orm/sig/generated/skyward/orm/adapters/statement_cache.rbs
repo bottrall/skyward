@@ -1,0 +1,37 @@
+# Generated from lib/skyward/orm/adapters/statement_cache.rb with RBS::Inline
+
+# Only one fiber uses a connection at a time, so its cache takes no lock.
+# @rbs generic S
+class Skyward::ORM::Adapters::StatementCache[S]
+  LIMIT: Integer
+
+  # A statement with more binds isn't kept. Varying IN lists and multi-row
+  # inserts are what reach it: each length is different SQL that would churn
+  # the cache, PostgreSQL keeps a large plan for each, and parsing is a small
+  # part of their cost.
+  MAX_BINDS: Integer
+
+  @limit: Integer
+
+  @statements: Hash[String, S]
+
+  # @rbs limit: Integer
+  # @rbs return: void
+  def initialize: (?Integer limit) -> void
+
+  # @rbs binds: Array[untyped]
+  # @rbs return: bool
+  def keeps?: (Array[untyped] binds) -> bool
+
+  # @rbs sql: String
+  # @rbs return: S?
+  def fetch: (String sql) -> S?
+
+  # @rbs sql: String
+  # @rbs statement: S
+  # @rbs return: S?
+  def store: (String sql, S statement) -> S?
+
+  # @rbs return: Array[S]
+  def clear: () -> Array[S]
+end

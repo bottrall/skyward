@@ -105,7 +105,7 @@ module Skyward::ORM::Adapters::SQLite
     connection.busy_handler_timeout = BUSY_TIMEOUT_MS
     connection.execute('PRAGMA foreign_keys = ON')
     require_version(connection.execute('SELECT sqlite_version()').dig(0, 0).to_s)
-    connection
+    Connection.new(connection, Skyward::ORM::Adapters::StatementCache.new)
   end
 
   # Each connection to :memory: opens its own empty database, so there can be

@@ -33,5 +33,20 @@ describe Skyward::ORM::Migrations::Versions do
 
       assert_equal({ '20261018093000' => 'abc' }, Skyward::ORM::Migrations::Versions.checksums(database))
     end
+
+    it 'asks the connection to keep no statement' do
+      connection.execute('CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, checksum TEXT NOT NULL)')
+      prepared = []
+      preparing = Skyward::ORM::Database.new(
+        empty.adapter,
+        Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Preparing.new(connection:, prepared:) }),
+        column_types,
+        empty.adapter.tables(connection),
+        check: false
+      )
+      Skyward::ORM::Migrations::Versions.checksums(preparing)
+
+      assert_equal [['SELECT version, checksum FROM schema_migrations', false]], prepared
+    end
   end
 end
