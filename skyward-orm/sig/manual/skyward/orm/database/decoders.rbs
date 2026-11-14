@@ -1,0 +1,3 @@
+module Skyward::ORM::Database::Decoders
+  extend ::Skyward::ORM::Database::Decoders
+end

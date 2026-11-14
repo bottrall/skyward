@@ -3,7 +3,7 @@
 module Skyward::ORM::Tables::Rows
   METHODS: Array[Symbol]
 
-  # Each row sets, compares and hashes its columns' instance variables
+  # Each row sets, reads, compares and hashes its columns' instance variables
   # directly, rather than reflecting on them for every row.
   # @rbs columns: Array[Symbol]
   # @rbs return: String

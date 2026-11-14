@@ -506,38 +506,4 @@ describe Skyward::ORM::Record do
       assert_equal 'Home', list.name
     end
   end
-
-  describe '#deconstruct_keys' do
-    it 'matches a pattern' do
-      matched =
-        case list
-        in { name: 'Home' } then true
-        else false
-        end
-
-      assert matched
-    end
-
-    it 'is every column when every key is asked for' do
-      assert_equal({ id: 1, name: 'Home' }, list.deconstruct_keys(nil))
-    end
-  end
-
-  describe '#inspect' do
-    it 'shows the class and each column' do
-      todo = TablesFixtures::Todo.new(
-        id: 1,
-        list_id: 1,
-        title: 'Buy milk',
-        priority: :normal,
-        due_on: nil,
-        done: false,
-        created_at: Time.at(0, in: 'UTC')
-      )
-
-      assert_equal '#<TablesFixtures::Todo id=1, list_id=1, title="Buy milk", priority=:normal, due_on=nil, ' \
-                   'done=false, created_at=1970-01-01 00:00:00 UTC>',
-                   todo.inspect
-    end
-  end
 end

@@ -61,4 +61,12 @@ describe Skyward::ORM::Adapters do
       assert_equal 'todos.db', location
     end
   end
+
+  describe '.decode' do
+    it "evaluates the adapter's decoding of the column on the value" do
+      reading = Data.define(:driver) { def decoding(_column, value) = "#{value} * 2" }.new(driver: 'fakedb')
+
+      assert_equal 42, adapters.decode(reading, nil, 21)
+    end
+  end
 end

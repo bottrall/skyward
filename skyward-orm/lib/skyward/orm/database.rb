@@ -31,6 +31,7 @@ class Skyward::ORM::Database
   # @rbs @lock: Thread::Mutex
   # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), Class, Array[Symbol]], ^(Array[untyped]) -> untyped]
   # @rbs @sql: Hash[untyped, String]
+  # @rbs @query_decoders: Hash[[Class, Array[Symbol]], ^(Array[untyped]) -> untyped]
   # @rbs @key: Symbol
   # @rbs @prepared_statements: bool
 
@@ -44,10 +45,11 @@ class Skyward::ORM::Database
     @tables = tables
     @check = check
     @prepared_statements = prepared_statements
-    @checked = Set.new
+    @checked = Set.new.freeze
     @lock = Thread::Mutex.new
     @decoders = {}
     @sql = {}
+    @query_decoders = {}
     # Fiber storage takes only a Symbol key, and each database's transactions are its own.
     @key = :"skyward_orm_transaction_#{object_id}"
   end
@@ -128,7 +130,7 @@ class Skyward::ORM::Database
       end
       raise Skyward::ORM::SchemaMismatch, mismatches.join("\n\n") unless mismatches.empty?
 
-      @checked.merge(unchecked)
+      @checked = (@checked | unchecked).freeze
     end
   end
 
@@ -158,7 +160,8 @@ class Skyward::ORM::Database
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs return: void
   def prepare(table)
-    check([table]) if @check
+    # The checked set is replaced, never changed, so reading it needs no lock.
+    check([table]) if @check && !@checked.include?(table)
   end
 
   # @rbs error: StandardError
@@ -174,17 +177,14 @@ class Skyward::ORM::Database
     rows.map { |row| columns.zip(row).to_h }
   end
 
-  # Raw SQL picks its own columns, in its own order, so they're matched to the
-  # row class's members by name.
   # @rbs row: Class
   # @rbs sql: String
   # @rbs values: Array[untyped]
   # @rbs return: Array[untyped]
   def rows(row, sql, values)
     columns, fetched = run(sql, values)
-    members = @column_types.columns(row).to_h { |member| [member.name, member] }
-    unmatched(row, columns, members.keys)
-    fetched.map(&compile(row, members.fetch_values(*columns)))
+    decode = @query_decoders[[row, columns]] ||= query_decoder(row, columns)
+    fetched.map(&decode)
   end
 
   # @rbs migrations: Array[Skyward::ORM::Migrations::Runner::Migration]
@@ -242,7 +242,7 @@ class Skyward::ORM::Database
       tables = @adapter.tables(checked_out)
       @lock.synchronize do
         @tables = tables
-        @checked.clear
+        @checked = Set.new.freeze
       end
       changed
     end
@@ -344,21 +344,18 @@ class Skyward::ORM::Database
     members = @column_types.columns(row).map do |member|
       member.type == :untyped ? columns.fetch(member.name, member) : member
     end
-    compile(row, members)
+    Decoders.compile(row, members, members.each_index.to_a, @adapter)
   end
 
   # @rbs row: Class
-  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs columns: Array[Symbol]
   # @rbs return: ^(Array[untyped]) -> untyped
-  def compile(row, columns)
-    lambda do |values|
-      row.new(
-        **columns.each_with_index.to_h do |column, index|
-          value = values.fetch(index)
-          [column.name, value.nil? ? nil : @adapter.decode(column, value)]
-        end
-      )
-    end
+  def query_decoder(row, columns)
+    members = @column_types.columns(row)
+    unmatched(row, columns, members.map(&:name))
+    # Raw SQL picks its own columns, in its own order.
+    positions = columns.each_with_index.to_h
+    Decoders.compile(row, members, members.map { |member| positions.fetch(member.name) }, @adapter)
   end
 
   # Raw SQL returns rows, with no room for a violation, so one raises.

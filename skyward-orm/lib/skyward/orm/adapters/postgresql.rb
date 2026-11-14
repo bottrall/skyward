@@ -275,15 +275,21 @@ module Skyward::ORM::Adapters::PostgreSQL
   end
 
   # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs value: untyped
-  # @rbs return: untyped
-  def decode(column, value)
+  # @rbs value: String
+  # @rbs return: String
+  def decoding(column, value)
     element = column.element
     return scalar(column.type, value) unless element
 
+    decoded = scalar(element, 'item')
     # Other SQL can write a NULL item, which the ORM never does; it stays nil rather than reading as false.
-    PG::TextDecoder::Array.new.decode(value).map { |item| item.nil? ? nil : scalar(element, item).freeze }.freeze
+    "::PG::TextDecoder::Array.new.decode(#{value}).map { |item| item.nil? ? nil : (#{decoded}).freeze }.freeze"
   end
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def decode(column, value) = Skyward::ORM::Adapters.decode(self, column, value)
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
   def tables(connection)
@@ -338,21 +344,21 @@ module Skyward::ORM::Adapters::PostgreSQL
   end
 
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
+  # @rbs value: String
+  # @rbs return: String
   def scalar(type, value)
     case type
-    when :integer, :int32, :int16 then Integer(value, 10)
-    when :float then SPECIAL_FLOATS.fetch(value) { Float(value) }
-    when :decimal then BigDecimal(value)
-    when :bool then value == TRUE_TEXT
-    when :date then Date.iso8601(value)
+    when :integer, :int32, :int16 then "Integer(#{value}, 10)"
+    when :float then "::Skyward::ORM::Adapters::PostgreSQL::SPECIAL_FLOATS.fetch(#{value}) { Float(#{value}) }"
+    when :decimal then "BigDecimal(#{value})"
+    when :bool then "#{value} == ::Skyward::ORM::Adapters::PostgreSQL::TRUE_TEXT"
+    when :date then "::Date.iso8601(#{value})"
     # A timestamp column's text has no zone, so it's read as the UTC it was written in.
-    when :time then Time.new(value, in: 'UTC').getutc
+    when :time then "::Time.new(#{value}, in: \"UTC\").getutc"
     # An Array's item may be NULL, or an Array of its own, which names no Symbol.
-    when :enum then String.try_convert(value)&.to_sym
-    when :json then JSON.parse(value, freeze: true)
-    else value.freeze
+    when :enum then "::String.try_convert(#{value})&.to_sym"
+    when :json then "::JSON.parse(#{value}, freeze: true)"
+    else "#{value}.freeze"
     end
   end
 

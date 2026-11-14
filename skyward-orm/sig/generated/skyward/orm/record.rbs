@@ -5,7 +5,13 @@ class Skyward::ORM::Record
 
   private def initialize_columns: (Hash[Symbol, untyped] columns) -> void
 
+  private def load_columns: (*untyped values) -> self
+
   def to_h: () -> Hash[Symbol, untyped]
+
+  def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
+
+  def inspect: () -> String
 
   def ==: (untyped other) -> bool
 
@@ -78,11 +84,4 @@ class Skyward::ORM::Record
   # @rbs **changes: untyped
   # @rbs return: self
   def with: (**untyped changes) -> self
-
-  # @rbs keys: Array[Symbol]?
-  # @rbs return: Hash[Symbol, untyped]
-  def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
-
-  # @rbs return: String
-  def inspect: () -> String
 end

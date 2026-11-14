@@ -10,7 +10,7 @@ describe Skyward::ORM::Database do
   foreign = 'this transaction belongs to another fiber; start your own, or return the result to the block'
 
   counting_adapter = Class.new do
-    attr_reader :comparisons
+    attr_reader :comparisons, :decodings
 
     def initialize(adapter)
       @adapter = adapter
@@ -18,6 +18,39 @@ describe Skyward::ORM::Database do
 
     def compatible?(column, sql_type)
       @comparisons = comparisons.to_i + 1
+      @adapter.compatible?(column, sql_type)
+    end
+
+    def decoding(column, value)
+      @decodings = decodings.to_i + 1
+      @adapter.decoding(column, value)
+    end
+
+    def sql_type(column) = @adapter.sql_type(column)
+
+    def placeholder(position) = @adapter.placeholder(position)
+
+    def encode(value) = @adapter.encode(value)
+  end
+
+  # Once closed, each comparison waits, inside the database's lock, until the gate opens.
+  gated_adapter = Class.new do
+    attr_reader :entered
+
+    def initialize(adapter)
+      @adapter = adapter
+      @entered = Thread::Queue.new
+    end
+
+    def close = @gate = Thread::Queue.new
+
+    def open = @gate.close
+
+    def compatible?(column, sql_type)
+      if @gate
+        entered << true
+        @gate.pop
+      end
       @adapter.compatible?(column, sql_type)
     end
 
@@ -680,6 +713,26 @@ describe Skyward::ORM::Database do
       assert_equal mismatch(list), error.message
     end
 
+    describe "with another class's check holding the lock" do
+      let(:adapter) { gated_adapter.new(empty.adapter) }
+
+      it 'returns at once for a class it has checked' do
+        database.check([todo])
+        adapter.close
+        checking = Thread.new do
+          database.check([list])
+        rescue Skyward::ORM::SchemaMismatch
+          nil
+        end
+        adapter.entered.pop
+        prepared = Thread.new { database.prepare(todo) }.join(5)
+        adapter.open
+        checking.join
+
+        refute_nil prepared
+      end
+    end
+
     describe 'with the check off' do
       let(:check) { false }
 
@@ -855,6 +908,37 @@ describe Skyward::ORM::Database do
       [3, 4].each { |days| database.rows(overdue, 'SELECT ? AS days_late, name AS title FROM lists', [days]) }
 
       assert_equal [[empty.shown('SELECT ? AS days_late, name AS title FROM lists', []).fetch(0), true]] * 2, prepared
+    end
+
+    describe 'with an adapter that counts decodings' do
+      let(:adapter) { counting_adapter.new(empty.adapter) }
+
+      it "compiles a row class's decoder once for the SQL's columns" do
+        database.rows(overdue, 'SELECT 3 AS days_late, name AS title FROM lists', [])
+        decodings = adapter.decodings
+        database.rows(overdue, "SELECT 4 AS days_late, 'Work' AS title", [])
+
+        assert_equal decodings, adapter.decodings
+      end
+
+      it 'compiles another for columns in another order' do
+        database.rows(overdue, 'SELECT 3 AS days_late, name AS title FROM lists', [])
+        decodings = adapter.decodings
+        database.rows(overdue, 'SELECT name AS title, 3 AS days_late FROM lists', [])
+
+        assert_equal decodings * 2, adapter.decodings
+      end
+
+      it "refuses columns that don't match the members every time" do
+        mismatched = -> { database.rows(overdue, 'SELECT name AS title FROM lists', []) }
+        begin
+          mismatched.call
+        rescue ArgumentError
+          nil
+        end
+
+        assert_raises(ArgumentError) { mismatched.call }
+      end
     end
   end
 

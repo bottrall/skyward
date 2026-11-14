@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'test_helper'
+require 'pg'
 
 describe Skyward::ORM::Adapters::PostgreSQL do
   postgresql = Skyward::ORM::Adapters::PostgreSQL
@@ -357,6 +358,32 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
     it 'writes an empty array as {}' do
       assert_equal '{}', postgresql.encode_array([])
+    end
+  end
+
+  describe '.decoding' do
+    # Its value is the first of a row, an expression decode never writes.
+    define_method(:decoder) do |column|
+      source = "->(row) { #{postgresql.decoding(column, 'row[0]')} }"
+      Object.new.instance_eval(source, __FILE__, __LINE__)
+    end
+
+    it 'decodes the value any expression names, as decode does, for every column type' do
+      texts = {
+        integer: '42', int32: '7', int16: '-3', float: '1.5', decimal: '12345678901234567890.123456789',
+        string: 'Milk', uuid: '0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f', bool: 't', date: '2026-10-18',
+        time: '2026-10-18 09:30:00.123456', enum: 'high', json: '{"list":[1]}', untyped: 'anything'
+      }.map { |type, text| [TestDatabase.column(type), text] }
+      items = {
+        integer: '{1,NULL}', float: '{Infinity,1.5}', decimal: '{1.5}', string: '{"a,b",NULL}', bool: '{t,f}',
+        date: '{2026-10-18}', time: '{"2026-10-18 09:30:00"}', enum: '{mon,fri}'
+      }.map { |element, text| [TestDatabase.column(:array, element:), text] }
+      values = [*texts, *items]
+
+      assert_equal(
+        values.map { |column, text| postgresql.decode(column, text) },
+        values.map { |column, text| decoder(column).call([text]) }
+      )
     end
   end
 

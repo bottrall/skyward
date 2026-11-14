@@ -33,6 +33,12 @@ module Skyward::ORM::Adapters
     [adapter, location]
   end
 
+  # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::Column column, untyped value) -> untyped
+  def decode(adapter, column, value)
+    source = "->(value) { #{adapter.decoding(column, 'value')} }"
+    instance_eval(source, __FILE__, __LINE__).call(value)
+  end
+
   private
 
   # The URL can hold a password, so only its scheme is shown.
