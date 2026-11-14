@@ -7,7 +7,7 @@ class Skyward::ORM::Query
   # @rbs **values: untyped
   # @rbs return: Integer | Skyward::ORM::Violation
   def update(**values)
-    sql, binds = updating(values)
+    sql, binds = updating(values, nil)
     @session.database.write(@table, sql, binds)
   end
 
@@ -17,7 +17,7 @@ class Skyward::ORM::Query
 
   # @rbs return: Integer | Skyward::ORM::Violation
   def delete
-    sql, binds = deleting
+    sql, binds = deleting(nil)
     @session.database.write(@table, sql, binds)
   end
 

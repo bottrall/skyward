@@ -588,6 +588,52 @@ describe Skyward::ORM::Database do
     end
   end
 
+  describe '#cached_sql' do
+    it "renders the SQL for a key it hasn't cached" do
+      assert_equal 'SELECT 1', database.cached_sql([:select]) { 'SELECT 1' }
+    end
+
+    it 'freezes the SQL it renders' do
+      assert_predicate database.cached_sql([:select]) { +'SELECT 1' }, :frozen?
+    end
+
+    it 'returns the SQL it cached for a key, without rendering it again' do
+      cached = database.cached_sql([:select]) { 'SELECT 1' }
+
+      assert_same cached, database.cached_sql([:select]) { 'SELECT 2' }
+    end
+
+    it 'caches nothing when rendering raises, so it renders again' do
+      assert_raises(ArgumentError) { database.cached_sql([:select]) { raise ArgumentError } }
+
+      assert_equal 'SELECT 2', database.cached_sql([:select]) { 'SELECT 2' }
+    end
+
+    it 'keeps the SQL added first when the key is rendered twice at once' do
+      first = database.cached_sql([:select]) do
+        database.cached_sql([:select]) { 'SELECT 1' }
+        'SELECT 2'
+      end
+
+      assert_equal 'SELECT 1', first
+    end
+
+    describe 'once it holds as many shapes as it keeps' do
+      before do
+        Skyward::ORM::Database::SHAPES.times { |index| database.cached_sql([index]) { "SELECT #{index}" } }
+        database.cached_sql([:added]) { 'SELECT 1' }
+      end
+
+      it 'drops the oldest to add another' do
+        assert_equal 'SELECT again', database.cached_sql([0]) { 'SELECT again' }
+      end
+
+      it 'keeps the rest' do
+        assert_equal 'SELECT 1', database.cached_sql([1]) { 'SELECT again' }
+      end
+    end
+  end
+
   describe '#prepare' do
     it 'checks the table class' do
       error = assert_raises(Skyward::ORM::SchemaMismatch) { database.prepare(list) }
@@ -637,8 +683,41 @@ describe Skyward::ORM::Database do
                    database.hashes('SELECT ? AS done, ? AS due_on', [true, Date.new(2026, 10, 1)])
     end
 
+    it "refuses a count of ? that doesn't match the values, on every call" do
+      errors = Array.new(2) { assert_raises(ArgumentError) { database.hashes('SELECT ?', []) }.message }
+
+      assert_equal ['The SQL has 1 ?, each taking one value, but was given 0'] * 2, errors
+    end
+
+    describe 'with a connection that records what it sends' do
+      let(:sent) { [] }
+      let(:database) do
+        Skyward::ORM::Database.new(
+          adapter,
+          Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Recording.new(connection:, sent:) }),
+          column_types,
+          empty.adapter.tables(connection),
+          check:
+        )
+      end
+
+      it "rewrites the SQL's ? once for each count of values" do
+        database.hashes('SELECT ? AS id', [1])
+        database.hashes('SELECT ? AS id', [2])
+
+        assert_same sent.dig(0, 0), sent.dig(1, 0)
+      end
+    end
+
     it 'refuses an Array, which the driver would spread across several ?, naming its position' do
       error = assert_raises(ArgumentError) { database.hashes('SELECT ?', [[1, 2]]) }
+
+      assert_equal 'Skyward.query binds one value to each ?, but value 1 is an Array', error.message
+    end
+
+    it 'refuses an Array for SQL whose ? it has rewritten before' do
+      database.hashes('SELECT ? AS id', [1])
+      error = assert_raises(ArgumentError) { database.hashes('SELECT ? AS id', [[1, 2]]) }
 
       assert_equal 'Skyward.query binds one value to each ?, but value 1 is an Array', error.message
     end

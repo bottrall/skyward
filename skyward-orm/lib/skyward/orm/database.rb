@@ -18,6 +18,10 @@ class Skyward::ORM::Database
 
   FOREIGN = 'this transaction belongs to another fiber; start your own, or return the result to the block' #: String
 
+  # Each IN list's length is a shape of its own, and so is each SQL string an
+  # app builds at run time, so the cache is bounded.
+  SHAPES = 1_000 #: Integer
+
   # @rbs @adapter: Skyward::ORM::_Adapter
   # @rbs @pool: Skyward::ORM::Connection::Pool
   # @rbs @column_types: Skyward::ORM::Tables::ColumnTypes
@@ -26,6 +30,7 @@ class Skyward::ORM::Database
   # @rbs @checked: Set[singleton(Skyward::ORM::Record)]
   # @rbs @lock: Thread::Mutex
   # @rbs @decoders: Hash[[singleton(Skyward::ORM::Record), Class, Array[Symbol]], ^(Array[untyped]) -> untyped]
+  # @rbs @sql: Hash[untyped, String]
   # @rbs @key: Symbol
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
@@ -39,6 +44,7 @@ class Skyward::ORM::Database
     @checked = Set.new
     @lock = Thread::Mutex.new
     @decoders = {}
+    @sql = {}
     # Fiber storage takes only a Symbol key, and each database's transactions are its own.
     @key = :"skyward_orm_transaction_#{object_id}"
   end
@@ -128,6 +134,19 @@ class Skyward::ORM::Database
   # @rbs expressed: Array[Symbol]
   # @rbs return: ^(Array[untyped]) -> untyped
   def decoder(table, row, expressed) = @decoders[[table, row, expressed]] ||= build(table, row, expressed)
+
+  # The cache is replaced under the lock rather than changed, so a hit reads
+  # it without one, on every Ruby. A miss renders outside the lock, so two
+  # fibers may render one shape, and the SQL the first adds is the one kept.
+  # @rbs key: untyped
+  # @rbs &: () -> String
+  # @rbs return: String
+  def cached_sql(key)
+    @sql.fetch(key) do
+      rendered = yield.freeze
+      @lock.synchronize { @sql[key] || cache_sql(key, rendered) }
+    end
+  end
 
   # Every query and write calls this before it touches its table, so a table
   # class loaded after connect is checked before its first use.
@@ -222,6 +241,17 @@ class Skyward::ORM::Database
       end
       changed
     end
+  end
+
+  # Dropping the oldest, rather than the least recently used, leaves a hit
+  # nothing to change.
+  # @rbs key: untyped
+  # @rbs sql: String
+  # @rbs return: String
+  def cache_sql(key, sql)
+    kept = @sql.size < SHAPES ? @sql : @sql.except(@sql.each_key.first)
+    @sql = kept.merge(key => sql)
+    sql
   end
 
   # @rbs held: Held
@@ -331,7 +361,9 @@ class Skyward::ORM::Database
   # @rbs values: Array[untyped]
   # @rbs return: [Array[Symbol], Array[Array[untyped]]]
   def run(sql, values)
-    statement = Skyward::ORM::Statements::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
+    statement = cached_sql([:query, sql, values.size]) do
+      Skyward::ORM::Statements::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
+    end
     binds = values.map { |value| @adapter.encode(value) }
     Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'Skyward.query')
     result = connection { |checked_out| checked_out.execute2(statement, *binds) }

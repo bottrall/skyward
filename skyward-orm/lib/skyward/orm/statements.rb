@@ -3,18 +3,25 @@
 module Skyward::ORM::Statements
   extend self
 
-  # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
-  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs database: Skyward::ORM::Database
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def insert(adapter, column_types, tables, table, values)
+  def insert(database, table, values, returned_row)
+    adapter = database.adapter
+    column_types = database.column_types
+    tables = database.tables
+    columns = values.keys
     require_values(column_types, tables, table, values)
-    require_present(table, column_types.columns(table), values.keys, generated(tables, table), "#{table}.insert")
-    return ["INSERT INTO #{quote(table.table_name)} DEFAULT VALUES", []] if values.empty?
-
-    inserting(adapter, column_types, table, values.keys, [values])
+    require_present(table, column_types.columns(table), columns, generated(tables, table), "#{table}.insert")
+    sql = database.cached_sql([:insert, table, columns, returned_row]) do
+      inserted = if columns.empty? then "INSERT INTO #{quote(table.table_name)} DEFAULT VALUES"
+                 else insertion(adapter, table, columns, 1)
+                 end
+      [inserted, (returning(returned_row) if returned_row)].compact.join(' ')
+    end
+    [sql, binds(adapter, column_types, table, values)]
   end
 
   # @rbs adapter: Skyward::ORM::_Adapter
@@ -40,7 +47,11 @@ module Skyward::ORM::Statements
     end
     # Every row has row 0's columns by now, so only row 0 can lack one.
     require_present(table, column_types.columns(table), columns, generated, "#{table}.insert_all row 0")
-    inserting(adapter, column_types, table, columns, rows)
+    named = by_name(column_types, table)
+    [
+      insertion(adapter, table, columns, rows.size),
+      rows.flat_map { |row| columns.map { |column| encode(adapter, named.fetch(column), row.fetch(column)) } }
+    ]
   end
 
   # @rbs adapter: Skyward::ORM::_Adapter
@@ -105,9 +116,9 @@ module Skyward::ORM::Statements
   # @rbs return: Hash[Symbol, Skyward::ORM::Tables::Column]
   def by_name(column_types, table) = column_types.columns(table).to_h { |column| [column.name, column] }
 
-  # @rbs columns: Array[Symbol]
+  # @rbs row: Class
   # @rbs return: String
-  def returning(columns) = "RETURNING #{columns.map { |column| quote(column) }.join(', ')}"
+  def returning(row) = "RETURNING #{Skyward::ORM::Tables::Members.of(row).map { |column| quote(column) }.join(', ')}"
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol
@@ -122,20 +133,15 @@ module Skyward::ORM::Statements
   def exact(type, value) = type == :decimal && value.is_a?(Integer) ? BigDecimal(value) : value
 
   # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Symbol]
-  # @rbs rows: Array[Hash[Symbol, untyped]]
-  # @rbs return: [String, Array[untyped]]
-  def inserting(adapter, column_types, table, columns, rows)
-    tuples = Array.new(rows.size * columns.size) { |index| adapter.placeholder(index + 1) }
+  # @rbs rows: Integer
+  # @rbs return: String
+  def insertion(adapter, table, columns, rows)
+    tuples = Array.new(rows * columns.size) { |index| adapter.placeholder(index + 1) }
                   .each_slice(columns.size).map { |placeholders| "(#{placeholders.join(', ')})" }
-    named = by_name(column_types, table)
-    [
-      "INSERT INTO #{quote(table.table_name)} (#{columns.map { |column| quote(column) }.join(', ')}) " \
-      "VALUES #{tuples.join(', ')}",
-      rows.flat_map { |row| columns.map { |column| encode(adapter, named.fetch(column), row.fetch(column)) } }
-    ]
+    "INSERT INTO #{quote(table.table_name)} (#{columns.map { |column| quote(column) }.join(', ')}) " \
+      "VALUES #{tuples.join(', ')}"
   end
 
   # @rbs table: singleton(Skyward::ORM::Record)

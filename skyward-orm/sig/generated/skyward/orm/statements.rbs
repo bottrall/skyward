@@ -1,13 +1,12 @@
 # Generated from lib/skyward/orm/statements.rb with RBS::Inline
 
 module Skyward::ORM::Statements
-  # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
-  # @rbs tables: Array[Skyward::ORM::Catalog::Table]
+  # @rbs database: Skyward::ORM::Database
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs values: Hash[Symbol, untyped]
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def insert: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
+  def insert: (Skyward::ORM::Database database, singleton(Skyward::ORM::Record) table, Hash[Symbol, untyped] values, Class? returned_row) -> [ String, Array[untyped] ]
 
   # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
@@ -57,9 +56,9 @@ module Skyward::ORM::Statements
   # @rbs return: Hash[Symbol, Skyward::ORM::Tables::Column]
   def by_name: (Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table) -> Hash[Symbol, Skyward::ORM::Tables::Column]
 
-  # @rbs columns: Array[Symbol]
+  # @rbs row: Class
   # @rbs return: String
-  def returning: (Array[Symbol] columns) -> String
+  def returning: (Class row) -> String
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol
@@ -74,12 +73,11 @@ module Skyward::ORM::Statements
   def exact: (Skyward::ORM::Tables::column_type? type, untyped value) -> untyped
 
   # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column_types: Skyward::ORM::Tables::ColumnTypes
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Symbol]
-  # @rbs rows: Array[Hash[Symbol, untyped]]
-  # @rbs return: [String, Array[untyped]]
-  def inserting: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::ColumnTypes column_types, singleton(Skyward::ORM::Record) table, Array[Symbol] columns, Array[Hash[Symbol, untyped]] rows) -> [ String, Array[untyped] ]
+  # @rbs rows: Integer
+  # @rbs return: String
+  def insertion: (Skyward::ORM::_Adapter adapter, singleton(Skyward::ORM::Record) table, Array[Symbol] columns, Integer rows) -> String
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs columns: Array[Symbol]

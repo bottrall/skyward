@@ -64,6 +64,11 @@ module TestDatabase
       connection.execute(sql, binds)
     end
 
+    def execute2(sql, *binds)
+      sent << [sql, binds]
+      connection.execute2(sql, *binds)
+    end
+
     def changes = connection.changes
 
     def transaction_active? = connection.transaction_active?
