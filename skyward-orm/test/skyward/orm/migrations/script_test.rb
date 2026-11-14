@@ -535,11 +535,15 @@ describe Skyward::ORM::Migrations::Script do
       # it commits.
       def migrate(sql)
         connection.execute('PRAGMA foreign_keys = OFF')
-        connection.transaction do
-          connection.execute_batch(sql)
-          problems = connection.execute('PRAGMA foreign_key_check')
-          raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
-        end
+        connection.execute('BEGIN')
+        connection.execute_batch(sql)
+        problems = connection.execute('PRAGMA foreign_key_check')
+        raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
+
+        connection.execute('COMMIT')
+      rescue StandardError
+        connection.execute('ROLLBACK') if connection.transaction_active?
+        raise
       ensure
         connection.execute('PRAGMA foreign_keys = ON')
       end

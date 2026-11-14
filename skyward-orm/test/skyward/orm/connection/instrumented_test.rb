@@ -34,6 +34,16 @@ describe Skyward::ORM::Connection::Instrumented do
 
       assert_equal [[['Home']], [execution(insert, ['Home']), execution(select)]], [wrapped.execute(select), executions]
     end
+
+    it "asks the connection to keep the statement only when it's asked to" do
+      prepared = []
+      preparing = TestDatabase::Preparing.new(connection:, prepared:)
+      wrapped = instrumented.new(preparing, passing, :test, clock_ms: -> { 0.0 })
+      wrapped.execute('SELECT 1')
+      wrapped.execute('SELECT 1', prepare: true)
+
+      assert_equal [['SELECT 1', false], ['SELECT 1', true]], prepared
+    end
   end
 
   describe '#execute2' do
@@ -41,6 +51,16 @@ describe Skyward::ORM::Connection::Instrumented do
       sql = empty.shown('SELECT ? AS name', ['Home']).fetch(0)
 
       assert_equal [[['name'], ['Home']], [execution(sql, ['Home'])]], [wrap(passing).execute2(sql, 'Home'), executions]
+    end
+
+    it "asks the connection to keep the statement only when it's asked to" do
+      prepared = []
+      preparing = TestDatabase::Preparing.new(connection:, prepared:)
+      wrapped = instrumented.new(preparing, passing, :test, clock_ms: -> { 0.0 })
+      wrapped.execute2('SELECT 1')
+      wrapped.execute2('SELECT 1', prepare: true)
+
+      assert_equal [['SELECT 1', false], ['SELECT 1', true]], prepared
     end
   end
 

@@ -21,14 +21,15 @@ Skyward::Core::Signatures.register(File.expand_path('../../sig', dir))
 
 module Skyward
   # @rbs (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool,
-  #   ?instrument: ORM::_Instrument?) -> ORM::Database
+  #   ?instrument: ORM::_Instrument?, ?prepared_statements: bool) -> ORM::Database
   def self.connect(
     url,
     signatures: 'sig',
     pool: 5,
     check: ORM::Connection::SESSION.check?,
     default: true,
-    instrument: nil
+    instrument: nil,
+    prepared_statements: true
   )
     # Steep knows instrument is one, but untyped code can pass anything.
     unless instrument.nil? || instrument.respond_to?(:call) # steep:ignore NoMethod
@@ -55,7 +56,7 @@ module Skyward
     end
     connections = ORM::Connection::Pool.new(adapter.pool_size(location, pool), opener)
     tables = connections.with { |connection| adapter.tables(connection) }
-    database = ORM::Database.new(adapter, connections, column_types, tables, check:)
+    database = ORM::Database.new(adapter, connections, column_types, tables, check:, prepared_statements:)
     database.check(ORM::Tables::Loaded.table_classes(ORM::Record)) if check
     default ? ORM::Connection::SESSION.connect(database) : database
   end

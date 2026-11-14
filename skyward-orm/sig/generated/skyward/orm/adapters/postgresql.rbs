@@ -66,6 +66,12 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: Skyward::ORM::_Connection
   def connect: (String location) -> Skyward::ORM::_Connection
 
+  # A connection closes each statement it evicts with close_prepared, which pg
+  # compiles only against libpq 17 and later.
+  # @rbs connection: Module
+  # @rbs return: void
+  def require_close_prepared: (Module connection) -> void
+
   # @rbs (String _location, Integer size) -> Integer
   def pool_size: (String _location, Integer size) -> Integer
 

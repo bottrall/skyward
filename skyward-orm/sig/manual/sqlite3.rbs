@@ -2,8 +2,9 @@
 # classify a violation, extended_result_codes=, which turns those codes on,
 # busy_handler_timeout=, which waits on a lock without holding the GVL,
 # execute2, which returns a result's column names, execute_batch, which runs a
-# migration, and transaction_active? and close, with which the pool finds a
-# connection that comes back mid-transaction, and closes one it can't roll back.
+# migration, transaction_active? and close, with which the pool finds a
+# connection that comes back mid-transaction, and closes one it can't roll back,
+# and prepare and the Statement it returns, which a connection keeps to run again.
 module SQLite3
   class Exception < ::StandardError
     def code: () -> Integer
@@ -18,6 +19,16 @@ module SQLite3
     def execute2: (String sql, *untyped bind_vars) -> Array[Array[untyped]]
     def execute_batch: (String sql) -> void
     def transaction_active?: () -> bool
+    def prepare: (String sql) -> Statement
+    def close: () -> void
+  end
+
+  class Statement
+    def bind_params: (*untyped bind_vars) -> void
+    def to_a: () -> Array[Array[untyped]]
+    def column_count: () -> Integer
+    def column_name: (Integer index) -> String
+    def reset!: () -> void
     def close: () -> void
   end
 end

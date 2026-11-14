@@ -274,6 +274,33 @@ describe Skyward do
                      [plain.connection(&:class), database.connection(&:class)]
       end
     end
+
+    # PostgreSQL lists the statements each session has prepared, which SQLite doesn't.
+    describe 'prepared_statements:' do
+      let(:empty) { TestDatabase.empty('postgresql') }
+
+      def kept(database)
+        database.connection do |connection|
+          connection.execute('SELECT statement, generic_plans + custom_plans FROM pg_prepared_statements')
+        end
+      end
+
+      it 'keeps the statements the database runs by default' do
+        database = Skyward.connect(empty.url, signatures: File.join(fixtures, 'sig'), check: false)
+        database.execute('SELECT 1')
+
+        assert_equal [['SELECT 1', '1']], kept(database)
+      end
+
+      it 'keeps nothing with prepared_statements: false' do
+        database = Skyward.connect(
+          empty.url, signatures: File.join(fixtures, 'sig'), check: false, prepared_statements: false
+        )
+        database.execute('SELECT 1')
+
+        assert_empty kept(database)
+      end
+    end
   end
 
   describe '.using' do

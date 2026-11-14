@@ -72,6 +72,10 @@ describe Skyward::ORM::Adapters::SQLite do
     it 'turns foreign keys on' do
       assert_equal [[1]], sqlite.connect(':memory:').execute('PRAGMA foreign_keys')
     end
+
+    it "returns a connection that keeps the statements it's asked to prepare" do
+      assert_instance_of Skyward::ORM::Adapters::SQLite::Connection, sqlite.connect(':memory:')
+    end
   end
 
   describe '.pool_size' do
@@ -479,6 +483,13 @@ describe Skyward::ORM::Adapters::SQLite do
 
   describe '.tables' do
     def table(name) = tables.find { |table| table.name == name }
+
+    it 'asks its connection to keep none of the statements it reads the schema with' do
+      prepared = []
+      sqlite.tables(TestDatabase::Preparing.new(connection:, prepared:))
+
+      assert_equal [false], prepared.map(&:last).uniq
+    end
 
     it "reads each column's declared type, nullability and default, with a primary key never null" do
       expected = [

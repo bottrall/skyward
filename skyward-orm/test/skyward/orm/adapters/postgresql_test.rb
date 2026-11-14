@@ -63,6 +63,27 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
       assert_equal [['UTC', 'ISO, MDY', 'warning']], empty.connect.execute("SELECT #{settings}")
     end
+
+    it "returns a connection that keeps the statements it's asked to prepare" do
+      connection = empty.connect
+      connection.execute('SELECT 1', prepare: true)
+
+      assert_equal [['SELECT 1']], connection.execute('SELECT statement FROM pg_prepared_statements')
+    end
+  end
+
+  describe '.require_close_prepared' do
+    it 'accepts a connection class with close_prepared' do
+      assert_nil postgresql.require_close_prepared(PG::Connection)
+    end
+
+    it 'refuses one without, which pg built against libpq before 17 has' do
+      error = assert_raises(Skyward::Core::BootError) { postgresql.require_close_prepared(Class.new) }
+
+      assert_equal 'Skyward ORM needs the pg gem 1.6 or later, built against libpq 17 or later, for ' \
+                   "PG::Connection#close_prepared. Update the pg gem, or the libpq it's built against.",
+                   error.message
+    end
   end
 
   describe '.pool_size' do
@@ -493,6 +514,13 @@ describe Skyward::ORM::Adapters::PostgreSQL do
 
   describe '.tables' do
     def table(name) = tables.find { |table| table.name == name }
+
+    it 'asks its connection to keep none of the statements it reads the schema with' do
+      prepared = []
+      postgresql.tables(TestDatabase::Preparing.new(connection:, prepared:))
+
+      assert_equal [false], prepared.map(&:last).uniq
+    end
 
     it "reads each column's type and nullability, and no default for an identity column" do
       expected = [

@@ -41,6 +41,8 @@ class Skyward::ORM::Database
   # app builds at run time, so the cache is bounded.
   SHAPES: Integer
 
+  @prepared_statements: bool
+
   @key: Symbol
 
   @sql: Hash[untyped, String]
@@ -62,8 +64,9 @@ class Skyward::ORM::Database
   @adapter: Skyward::ORM::_Adapter
 
   # @rbs (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool,
-  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
-  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool) -> void
+  #   Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool,
+  #   ?prepared_statements: bool) -> void
+  def initialize: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Connection::Pool pool, Skyward::ORM::Tables::ColumnTypes column_types, Array[Skyward::ORM::Catalog::Table] tables, check: bool, ?prepared_statements: bool) -> void
 
   # The seam every query runs through. Fiber storage is copied into child
   # fibers and threads, so one can find a transaction here that isn't its own.

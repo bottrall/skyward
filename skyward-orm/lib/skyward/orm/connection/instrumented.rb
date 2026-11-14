@@ -19,13 +19,15 @@ class Skyward::ORM::Connection::Instrumented
 
   # @rbs sql: String
   # @rbs binds: Array[untyped]
+  # @rbs prepare: bool
   # @rbs return: Array[Array[untyped]]
-  def execute(sql, binds = []) = instrumented(sql, binds) { @connection.execute(sql, binds) }
+  def execute(sql, binds = [], prepare: false) = instrumented(sql, binds) { @connection.execute(sql, binds, prepare:) }
 
   # @rbs sql: String
   # @rbs *binds: untyped
+  # @rbs prepare: bool
   # @rbs return: Array[Array[untyped]]
-  def execute2(sql, *binds) = instrumented(sql, binds) { @connection.execute2(sql, *binds) }
+  def execute2(sql, *binds, prepare: false) = instrumented(sql, binds) { @connection.execute2(sql, *binds, prepare:) }
 
   # @rbs sql: String
   # @rbs return: void

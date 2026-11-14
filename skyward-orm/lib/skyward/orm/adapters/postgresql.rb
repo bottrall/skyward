@@ -151,9 +151,22 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs location: String
   # @rbs return: Skyward::ORM::_Connection
   def connect(location)
+    require_close_prepared(PG::Connection)
     connection = PG.connect("postgresql://#{location}")
     connection.exec("SET TimeZone = 'UTC'; SET DateStyle = 'ISO'; SET client_min_messages = warning")
-    Connection.new(connection)
+    Connection.new(connection, Skyward::ORM::Adapters::StatementCache.new)
+  end
+
+  # A connection closes each statement it evicts with close_prepared, which pg
+  # compiles only against libpq 17 and later.
+  # @rbs connection: Module
+  # @rbs return: void
+  def require_close_prepared(connection)
+    return if connection.method_defined?(:close_prepared)
+
+    raise Skyward::Core::BootError,
+          'Skyward ORM needs the pg gem 1.6 or later, built against libpq 17 or later, for ' \
+          "PG::Connection#close_prepared. Update the pg gem, or the libpq it's built against."
   end
 
   # @rbs (String _location, Integer size) -> Integer

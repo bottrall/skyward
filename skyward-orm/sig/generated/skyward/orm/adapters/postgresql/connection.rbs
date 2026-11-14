@@ -3,28 +3,39 @@
 # PG::Connection runs SQL with exec_params, which returns a PG::Result, so this
 # gives it the execute every adapter's connection has.
 class Skyward::ORM::Adapters::PostgreSQL::Connection
+  # What PostgreSQL reports when a migration changed a column a kept statement
+  # returns. Other errors share its SQLSTATE, 0A000.
+  REVALIDATE: String
+
   @connection: PG::Connection
+
+  @statements: Skyward::ORM::Adapters::StatementCache[String]
+
+  @prepared: Integer
 
   @changes: Integer
 
   # @rbs connection: PG::Connection
+  # @rbs statements: Skyward::ORM::Adapters::StatementCache[String]
   # @rbs return: void
-  def initialize: (PG::Connection connection) -> void
+  def initialize: (PG::Connection connection, Skyward::ORM::Adapters::StatementCache[String] statements) -> void
 
   # The block form clears each result as soon as its rows are read, so the
   # rows it changed are kept for changes, as SQLite keeps them for its own.
   # @rbs sql: String
   # @rbs binds: Array[untyped]
+  # @rbs prepare: bool
   # @rbs return: Array[Array[String?]]
-  def execute: (String sql, ?Array[untyped] binds) -> Array[Array[String?]]
+  def execute: (String sql, ?Array[untyped] binds, ?prepare: bool) -> Array[Array[String?]]
 
   # @dynamic changes
   attr_reader changes: Integer
 
   # @rbs sql: String
   # @rbs *binds: untyped
+  # @rbs prepare: bool
   # @rbs return: Array[Array[String?]]
-  def execute2: (String sql, *untyped binds) -> Array[Array[String?]]
+  def execute2: (String sql, *untyped binds, ?prepare: bool) -> Array[Array[String?]]
 
   # exec, unlike exec_params, runs every statement in the SQL.
   # @rbs sql: String
@@ -38,4 +49,25 @@ class Skyward::ORM::Adapters::PostgreSQL::Connection
 
   # @rbs return: void
   def close: () -> void
+
+  private
+
+  # @rbs [T] (String sql, Array[untyped] binds, bool prepare) { (PG::Result result) -> T } -> T
+  def run: [T] (String sql, Array[untyped] binds, bool prepare) { (PG::Result result) -> T } -> T
+
+  # Prepared before the evicted one is closed, so in an aborted transaction,
+  # which refuses to prepare, nothing is evicted. It's closed with the
+  # protocol's Close, which PgBouncer tracks as it does a prepare, and which,
+  # unlike DEALLOCATE, succeeds on a name DISCARD ALL dropped, so it can't
+  # abort a transaction. A name is never used again, so a statement an
+  # exception left on the server unkept can't collide.
+  # @rbs sql: String
+  # @rbs return: String
+  def keep: (String sql) -> String
+
+  # A statement DISCARD ALL dropped is missing, and one a migration changed the
+  # result of is refused.
+  # @rbs error: PG::Error
+  # @rbs return: bool
+  def stale?: (PG::Error error) -> bool
 end

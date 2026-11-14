@@ -1,0 +1,55 @@
+# Generated from lib/skyward/orm/adapters/sqlite/connection.rb with RBS::Inline
+
+# SQLite3::Database#execute prepares, runs and closes a new statement on every
+# call, so this keeps the statements it's asked to prepare, to run again.
+class Skyward::ORM::Adapters::SQLite::Connection
+  @database: SQLite3::Database[SQLite3::result_as_array]
+
+  @statements: Skyward::ORM::Adapters::StatementCache[SQLite3::Statement]
+
+  # @rbs database: SQLite3::Database[SQLite3::result_as_array]
+  # @rbs statements: Skyward::ORM::Adapters::StatementCache[SQLite3::Statement]
+  # @rbs return: void
+  def initialize: (SQLite3::Database[SQLite3::result_as_array] database, Skyward::ORM::Adapters::StatementCache[SQLite3::Statement] statements) -> void
+
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs prepare: bool
+  # @rbs return: Array[Array[untyped]]
+  def execute: (String sql, ?Array[untyped] binds, ?prepare: bool) -> Array[Array[untyped]]
+
+  # @rbs sql: String
+  # @rbs *binds: untyped
+  # @rbs prepare: bool
+  # @rbs return: Array[Array[untyped]]
+  def execute2: (String sql, *untyped binds, ?prepare: bool) -> Array[Array[untyped]]
+
+  # @rbs sql: String
+  # @rbs return: void
+  def execute_batch: (String sql) -> void
+
+  # @rbs return: Integer
+  def changes: () -> Integer
+
+  # @rbs return: bool
+  def transaction_active?: () -> bool
+
+  # SQLite holds a closed database open until each of its statements is closed too.
+  # @rbs return: void
+  def close: () -> void
+
+  private
+
+  # @rbs sql: String
+  # @rbs binds: Array[untyped]
+  # @rbs prepare: bool
+  # @rbs return: SQLite3::Statement?
+  def kept: (String sql, Array[untyped] binds, bool prepare) -> SQLite3::Statement?
+
+  # Reset however it ends, so no kept statement is left running, where it would
+  # stop a migration's DROP TABLE with "database table is locked".
+  # @rbs statement: SQLite3::Statement
+  # @rbs binds: Array[untyped]
+  # @rbs return: Array[Array[untyped]]
+  def run: (SQLite3::Statement statement, Array[untyped] binds) -> Array[Array[untyped]]
+end

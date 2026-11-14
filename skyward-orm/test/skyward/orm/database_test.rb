@@ -64,6 +64,7 @@ describe Skyward::ORM::Database do
     )
   end
   let(:two_connections) { pooled(-> { empty.connect }) }
+  let(:prepared) { [] }
   let(:todo) { TablesFixtures::Todo }
   let(:list) { TablesFixtures::List }
 
@@ -79,6 +80,17 @@ describe Skyward::ORM::Database do
 
   def pooled(opener)
     Skyward::ORM::Database.new(adapter, Skyward::ORM::Connection::Pool.new(2, opener), column_types, [], check: false)
+  end
+
+  def recording(prepared_statements: true)
+    Skyward::ORM::Database.new(
+      adapter,
+      Skyward::ORM::Connection::Pool.new(1, -> { TestDatabase::Preparing.new(connection:, prepared:) }),
+      column_types,
+      adapter.tables(connection),
+      check: false,
+      prepared_statements:
+    )
   end
 
   def insert(database, name)
@@ -320,6 +332,13 @@ describe Skyward::ORM::Database do
 
       assert_equal [['Home']], names(database)
     end
+
+    it 'asks its connection to keep none of its own statements' do
+      database = recording
+      database.transaction { database.execute('SELECT 1') }
+
+      assert_equal [['BEGIN', false], ['SELECT 1', true], ['COMMIT', false]], prepared
+    end
   end
 
   describe '#transaction?' do
@@ -433,6 +452,14 @@ describe Skyward::ORM::Database do
 
       assert_same(lost, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
     end
+
+    it 'asks its connection to keep neither the BEGIN #hold sent nor its ROLLBACK' do
+      database = recording
+      database.hold
+      database.release
+
+      assert_equal [['BEGIN', false], ['ROLLBACK', false]], prepared
+    end
   end
 
   describe '#adapter' do
@@ -460,6 +487,18 @@ describe Skyward::ORM::Database do
 
     it "binds its values to the SQL's placeholders" do
       assert_equal [['Home']], database.execute("SELECT name FROM lists WHERE id = #{adapter.placeholder(1)}", [1])
+    end
+
+    it 'asks its connection to keep the statement' do
+      recording.execute('SELECT 1')
+
+      assert_equal [['SELECT 1', true]], prepared
+    end
+
+    it 'asks it to keep nothing with prepared_statements: false' do
+      recording(prepared_statements: false).execute('SELECT 1')
+
+      assert_equal [['SELECT 1', false]], prepared
     end
   end
 
@@ -761,6 +800,18 @@ describe Skyward::ORM::Database do
 
       refute_kind_of Skyward::ORM::ViolationError, error
     end
+
+    it 'asks its connection to keep the statement' do
+      recording.hashes('SELECT ?', [1])
+
+      assert_equal [[empty.shown('SELECT ?', [1]).fetch(0), true]], prepared
+    end
+
+    it 'asks it to keep nothing with prepared_statements: false' do
+      recording(prepared_statements: false).hashes('SELECT ?', [1])
+
+      assert_equal [[empty.shown('SELECT ?', [1]).fetch(0), false]], prepared
+    end
   end
 
   describe '#rows' do
@@ -797,6 +848,13 @@ describe Skyward::ORM::Database do
       end
 
       assert_equal 'The SQL returns no days_late for TablesFixtures::Overdue', error.message
+    end
+
+    it 'asks its connection to keep one statement for rows that differ only in their values' do
+      database = recording
+      [3, 4].each { |days| database.rows(overdue, 'SELECT ? AS days_late, name AS title FROM lists', [days]) }
+
+      assert_equal [[empty.shown('SELECT ? AS days_late, name AS title FROM lists', []).fetch(0), true]] * 2, prepared
     end
   end
 
@@ -892,6 +950,18 @@ describe Skyward::ORM::Database do
 
         refute_kind_of Skyward::ORM::ViolationError, error
       end
+    end
+
+    it 'asks its connection to keep the statement' do
+      recording.write(list, 'DELETE FROM lists', [])
+
+      assert_equal [['DELETE FROM lists', true]], prepared
+    end
+
+    it 'asks it to keep nothing with prepared_statements: false' do
+      recording(prepared_statements: false).write(list, 'DELETE FROM lists', [])
+
+      assert_equal [['DELETE FROM lists', false]], prepared
     end
   end
 

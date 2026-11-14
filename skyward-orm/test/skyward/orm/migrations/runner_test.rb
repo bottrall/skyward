@@ -122,6 +122,13 @@ describe Skyward::ORM::Migrations::Runner do
         end
       end
 
+      it 'asks its connection to keep none of the statements it runs' do
+        prepared = []
+        runner.run(adapter, TestDatabase::Preparing.new(connection:, prepared:), [create_a])
+
+        assert_equal [false], prepared.map(&:last).uniq
+      end
+
       it 'records each version with its checksum and when it ran' do
         migrate(create_a)
         rows = connection.execute('SELECT version, checksum, ran_at FROM schema_migrations')
@@ -272,7 +279,7 @@ describe Skyward::ORM::Migrations::Runner do
       it "runs nothing when it can't take the migration lock to make schema_migrations" do
         holder = empty.connect
         holder.execute('BEGIN IMMEDIATE')
-        connection.busy_handler_timeout = 10
+        connection.execute('PRAGMA busy_timeout = 10')
         locked = runner::Locked.new(file: create_a.file, message: 'database is locked')
 
         assert_equal [[], locked, true, []],
@@ -283,7 +290,7 @@ describe Skyward::ORM::Migrations::Runner do
         holder = empty.connect
         runner.run(sqlite, connection, [])
         holder.execute('BEGIN IMMEDIATE')
-        connection.busy_handler_timeout = 10
+        connection.execute('PRAGMA busy_timeout = 10')
         locked = runner.run(sqlite, connection, [create_a, create_b])
 
         assert_equal [runner::Locked.new(file: create_a.file, message: 'database is locked'), true, [[1]]],
@@ -324,7 +331,7 @@ describe Skyward::ORM::Migrations::Runner do
         reader = empty.connect
         reader.execute('BEGIN')
         reader.execute('SELECT version FROM schema_migrations')
-        connection.busy_handler_timeout = 10
+        connection.execute('PRAGMA busy_timeout = 10')
         failed = runner::Failed.new(file: create_a.file, message: 'database is locked')
 
         assert_equal [failed, true, %w[schema_migrations]], [runner.run(sqlite, connection, [create_a]), idle?, tables]
@@ -507,7 +514,7 @@ describe Skyward::ORM::Migrations::Runner do
         migrate(create_d)
         holder = empty.connect
         holder.execute('BEGIN IMMEDIATE')
-        connection.busy_handler_timeout = 10
+        connection.execute('PRAGMA busy_timeout = 10')
 
         assert_equal [runner::Locked.new(file: create_d.file, message: 'database is locked'), true],
                      [roll_back(create_d), idle?]

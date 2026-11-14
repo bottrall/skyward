@@ -5,11 +5,14 @@ module Skyward::ORM
   type int32 = Integer
   type int16 = Integer
 
-  # Each adapter's connection: SQLite3::Database, and Adapters::PostgreSQL::Connection.
+  # Each adapter's connection, Adapters::SQLite::Connection and
+  # Adapters::PostgreSQL::Connection, and Connection::Instrumented, which wraps
+  # either. prepare: keeps the statement on the connection to run again, unless
+  # it binds more than StatementCache::MAX_BINDS values.
   interface _Connection
-    def execute: (String sql, ?Array[untyped] binds) -> Array[Array[untyped]]
+    def execute: (String sql, ?Array[untyped] binds, ?prepare: bool) -> Array[Array[untyped]]
     # Its first row is the result's column names, even when it has no rows.
-    def execute2: (String sql, *untyped binds) -> Array[Array[untyped]]
+    def execute2: (String sql, *untyped binds, ?prepare: bool) -> Array[Array[untyped]]
     def execute_batch: (String sql) -> void
     # The rows the latest INSERT, UPDATE or DELETE that execute ran changed.
     def changes: () -> Integer
