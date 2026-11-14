@@ -1,0 +1,22 @@
+# Generated from lib/bench/runner.rb with RBS::Inline
+
+module Bench::Runner
+  # run takes a group, the names it's given, comma-separated, and the path to
+  # write its results to, or nil to only check them, and answers whether it
+  # succeeded.
+  # @rbs names: Array[String]
+  # @rbs scenario_names: Array[String]
+  # @rbs postgres_url: String?
+  # @rbs environment: Hash[Symbol, untyped]
+  # @rbs scratch: String
+  # @rbs run: ^(String, String, String?) -> bool
+  # @rbs say: ^(String) -> void
+  # @rbs return: Bench::Report | String
+  def call: (Array[String] names, scenario_names: Array[String], postgres_url: String?, environment: Hash[Symbol, untyped], scratch: String, run: ^(String, String, String?) -> bool, say: ^(String) -> void) -> (Bench::Report | String)
+
+  # @rbs outputs: Array[Hash[Symbol, untyped]]
+  # @rbs environment: Hash[Symbol, untyped]
+  # @rbs skipped: Hash[String, String]
+  # @rbs return: Bench::Report
+  def report: (Array[Hash[Symbol, untyped]] outputs, Hash[Symbol, untyped] environment, Hash[String, String] skipped) -> Bench::Report
+end

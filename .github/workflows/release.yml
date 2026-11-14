@@ -1,5 +1,6 @@
 # Each push to main updates release-please's release PR. Merging that PR
-# creates the vX.Y.Z release, and this workflow then publishes every gem.
+# creates the vX.Y.Z release, and this workflow then publishes every gem and
+# attaches a run of bin/bench to the release.
 # Publishing lives here rather than on a `release` event because releases
 # created with the default GITHUB_TOKEN don't trigger other workflows. Each
 # gem's RubyGems trusted publisher is pinned to this file name and the
@@ -45,7 +46,7 @@ jobs:
           ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
       - uses: ruby/setup-ruby@v1
       - run: |
-          for dir in . skyward-core skyward-api skyward-orm skyward examples/todos examples/todos_postgres; do
+          for dir in . skyward-core skyward-api skyward-orm skyward examples/todos examples/todos_postgres benchmarks; do
             (cd "$dir" && bundle lock)
           done
       - run: |
@@ -137,3 +138,72 @@ jobs:
           for gem in skyward-core skyward-api skyward-orm skyward; do
             gem push "pkg/${gem}-${TAG#v}.gem"
           done
+
+  # Runs bin/bench on the code the release tagged. It runs the benchmarks'
+  # third-party gems, so it can only read, for the reason verify is split from
+  # publish, and attach, which writes, runs none of them. Publishing doesn't
+  # wait for it.
+  benchmarks:
+    needs: [release-please, verify]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          working-directory: benchmarks
+      - run: bin/bench
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmarks
+          path: tmp/bench/
+          if-no-files-found: error
+
+  attach:
+    needs: [release-please, benchmarks]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: benchmarks
+          path: bench
+      - run: |
+          mv bench/results.json "benchmarks-${TAG}.json"
+          mv bench/results.md "benchmarks-${TAG}.md"
+          gh release upload "$TAG" "benchmarks-${TAG}.json" "benchmarks-${TAG}.md" --repo "$GITHUB_REPOSITORY"

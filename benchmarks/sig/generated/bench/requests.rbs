@@ -1,0 +1,34 @@
+# Generated from lib/bench/requests.rb with RBS::Inline
+
+use Skyward::API::*
+
+# The api group: requests through Skyward.app, called in-process as a Rack
+# server would call it, without a server or the test client's JSON.
+module Bench::Requests
+  # Bench::RoutesAPI is mounted at each, so the routes app has 200 endpoints.
+  PREFIXES: Array[String]
+
+  TODOS: Hash[Integer, Bench::TodosAPI::Todo]
+
+  NEW_TODO: String
+
+  # @rbs return: Array[Bench::Scenario]
+  def scenarios: () -> Array[Bench::Scenario]
+
+  # @rbs (String name, _RackApp app, String method, String path, Hash[Symbol, untyped] expected, ?body: String) -> Bench::Scenario
+  def scenario: (String name, _RackApp app, String method, String path, Hash[Symbol, untyped] expected, ?body: String) -> Bench::Scenario
+
+  # @rbs method: String
+  # @rbs path: String
+  # @rbs body: String
+  # @rbs return: Hash[String, untyped]
+  def env: (String method, String path, String body) -> Hash[String, untyped]
+
+  # A server gives each request an env of its own, which the app may write to.
+  # @rbs (_RackApp app, Hash[String, untyped] env, String body) -> [Integer, String]
+  def call: (_RackApp app, Hash[String, untyped] env, String body) -> [ Integer, String ]
+
+  # @rbs body: untyped
+  # @rbs return: String
+  def read: (untyped body) -> String
+end

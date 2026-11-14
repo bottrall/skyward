@@ -1,0 +1,3 @@
+module Bench::Measure
+  extend ::Bench::Measure
+end

@@ -16,7 +16,10 @@ GEMS = %w[skyward-core skyward-api skyward-orm skyward].freeze
 # but is never packaged or released.
 EXAMPLES = %w[examples/todos examples/todos_postgres].freeze
 
-BUNDLES = [*GEMS, *EXAMPLES].freeze
+# bin/bench's, laid out like an example.
+BENCHMARKS = "benchmarks"
+
+BUNDLES = [*GEMS, *EXAMPLES, BENCHMARKS].freeze
 
 PKG = "pkg"
 
@@ -93,8 +96,20 @@ unless tooling_tests.empty?
   end
 end
 
-desc "Run every gem's and example's tests, each in its own bundle, and the tooling's"
+desc "Run every gem's, example's and the benchmarks' tests, each in its own bundle, and the tooling's"
 task test: [*bundle_test_tasks, *("test:tooling" unless tooling_tests.empty?)]
+
+desc "Run the benchmarks whose names start with one of BENCH_ARGS's, or every one, in their own bundle"
+task :bench do
+  # YJIT is on unless the environment says otherwise, as apps run in
+  # production. Read first: the unbundled env is the one rake started with,
+  # before it set BENCH_ARGS from its arguments.
+  env = { "RUBY_YJIT_ENABLE" => ENV.fetch("RUBY_YJIT_ENABLE", "1") }
+  names = ENV.fetch("BENCH_ARGS", "").split
+  Bundler.with_unbundled_env do
+    sh env, "bundle", "exec", "ruby", "run.rb", *names, chdir: BENCHMARKS
+  end
+end
 
 RuboCop::RakeTask.new(:lint) do |t|
   # RuboCop also applies AllCops/Exclude from every .rubocop.yml above the
@@ -103,13 +118,13 @@ RuboCop::RakeTask.new(:lint) do |t|
   t.options = ["--ignore-parent-exclusion", *ENV.fetch("RUBOCOP_OPTS", "").split]
 end
 
-desc "Install each gem's and example's own bundle, then the gem signatures the collection locks"
+desc "Install each gem's and example's own bundle and the benchmarks', then the gem signatures the collection locks"
 task :setup do
   Bundler.with_unbundled_env { BUNDLES.each { |dir| sh "bundle", "install", chdir: dir } }
   sh "rbs collection install"
 end
 
-desc "Generate RBS signatures from inline annotations in every gem and example"
+desc "Generate RBS signatures from inline annotations in every gem, example and the benchmarks"
 task :generate do
   BUNDLES.each { |dir| write_signatures(dir, "sig/generated") }
 end
@@ -136,7 +151,7 @@ namespace :rbs do
     abort "rbs_collection.lock.yaml is out of date; run `bin/setup` and commit the result"
   end
 
-  desc "Fail if any gem's or example's rbs-inline output is out of date with its Ruby"
+  desc "Fail if any gem's, example's or the benchmarks' rbs-inline output is out of date with its Ruby"
   task :check do
     BUNDLES.each do |source|
       Dir.mktmpdir("rbs-check") do |dir|
@@ -199,7 +214,7 @@ task :build do
   end
 end
 
-desc "Update every lockfile (the dev bundle's, each gem's and each example's) after a version change"
+desc "Update every lockfile (the dev bundle's, each gem's, each example's and the benchmarks') after a version change"
 task :lock do
   Bundler.with_unbundled_env { [".", *BUNDLES].each { |dir| sh "bundle", "lock", chdir: dir } }
 end

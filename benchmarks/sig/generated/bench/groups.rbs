@@ -1,0 +1,31 @@
+# Generated from lib/bench/groups.rb with RBS::Inline
+
+# Each group runs in a Ruby of its own, since an app connects to one database,
+# and so no group's garbage or JIT warmup lands in another's numbers. A
+# scenario's name starts with its group's.
+module Bench::Groups
+  ALL: Array[String]
+
+  # @rbs group: String
+  # @rbs return: Array[Bench::Scenario]
+  def scenarios: (String group) -> Array[Bench::Scenario]
+
+  # @rbs names: Array[String]
+  # @rbs scenario_names: Array[String]
+  # @rbs return: Array[String]
+  def unmatched: (Array[String] names, Array[String] scenario_names) -> Array[String]
+
+  # @rbs names: Array[String]
+  # @rbs return: Array[String]
+  def selected: (Array[String] names) -> Array[String]
+
+  # @rbs groups: Array[String]
+  # @rbs postgres_url: String?
+  # @rbs return: Hash[String, String]
+  def skipped: (Array[String] groups, String? postgres_url) -> Hash[String, String]
+
+  # @rbs scenarios: Array[Bench::Scenario]
+  # @rbs names: Array[String]
+  # @rbs return: Array[Bench::Scenario]
+  def matching: (Array[Bench::Scenario] scenarios, Array[String] names) -> Array[Bench::Scenario]
+end

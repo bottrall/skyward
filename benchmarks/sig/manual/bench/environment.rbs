@@ -1,0 +1,3 @@
+module Bench::Environment
+  extend ::Bench::Environment
+end

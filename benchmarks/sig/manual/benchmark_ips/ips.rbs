@@ -1,0 +1,23 @@
+# The RBS collection has no signatures for benchmark-ips, so these declare the
+# methods the benchmarks call.
+module Benchmark
+  extend Benchmark::IPS
+
+  module IPS
+    def ips: (?time: Numeric, ?warmup: Numeric, ?quiet: bool) { (Job job) -> void } -> Report
+
+    class Job
+      def report: (String label) { () -> untyped } -> void
+    end
+
+    class Report
+      def entries: () -> Array[Entry]
+
+      class Entry
+        def label: () -> String
+        def ips: () -> Float
+        def ips_sd: () -> (Integer | Float)
+      end
+    end
+  end
+end

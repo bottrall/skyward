@@ -1,0 +1,7 @@
+# Generated from lib/bench/requests/discard.rb with RBS::Inline
+
+# The app's logger: each request still builds its log line, and this drops it.
+module Bench::Requests::Discard
+  # @rbs (String _line) -> void
+  def info: (String _line) -> void
+end

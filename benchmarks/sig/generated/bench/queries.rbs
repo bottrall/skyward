@@ -1,0 +1,43 @@
+# Generated from lib/bench/queries.rb with RBS::Inline
+
+# The orm groups: Bench::Task's rows, read and queried on the database the
+# process connected to.
+module Bench::Queries
+  ROWS: Integer
+
+  MIGRATIONS: String
+
+  VERSIONS: Hash[String, String]
+
+  # SQLite's database is in memory, so it starts empty. PostgreSQL's keeps the
+  # table from the last run, and the version of the migration that created it,
+  # so both go first.
+  # @rbs database: String
+  # @rbs return: void
+  def prepare: (String database) -> void
+
+  # @rbs migrations: String
+  # @rbs return: void
+  def forget: (String migrations) -> void
+
+  # @rbs count: Integer
+  # @rbs return: Array[Hash[Symbol, untyped]]
+  def rows: (Integer count) -> Array[Hash[Symbol, untyped]]
+
+  # @rbs database: String
+  # @rbs return: String
+  def version: (String database) -> String
+
+  # @rbs group: String
+  # @rbs return: Array[Bench::Scenario]
+  def scenarios: (String group) -> Array[Bench::Scenario]
+
+  # @rbs group: String
+  # @rbs count: Integer
+  # @rbs return: Bench::Scenario
+  def rows_scenario: (String group, Integer count) -> Bench::Scenario
+
+  # @rbs tasks: Array[Bench::Task]
+  # @rbs return: Hash[Symbol, untyped]
+  def summary: (Array[Bench::Task] tasks) -> Hash[Symbol, untyped]
+end

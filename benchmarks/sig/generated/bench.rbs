@@ -1,0 +1,4 @@
+# Generated from lib/bench.rb with RBS::Inline
+
+module Bench
+end

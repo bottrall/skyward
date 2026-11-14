@@ -1,0 +1,19 @@
+# Generated from lib/bench/report.rb with RBS::Inline
+
+module Bench
+  # skipped holds each group that didn't run, and why.
+  class Report < Data
+    attr_reader environment(): Hash[Symbol, untyped]
+
+    attr_reader results(): Array[Bench::Result]
+
+    attr_reader skipped(): Hash[String, String]
+
+    def self.new: (Hash[Symbol, untyped] environment, Array[Bench::Result] results, Hash[String, String] skipped) -> instance
+                | (environment: Hash[Symbol, untyped], results: Array[Bench::Result], skipped: Hash[String, String]) -> instance
+
+    def self.members: () -> [ :environment, :results, :skipped ]
+
+    def members: () -> [ :environment, :results, :skipped ]
+  end
+end

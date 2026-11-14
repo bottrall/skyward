@@ -1,0 +1,56 @@
+# Generated from lib/bench/todos_api.rb with RBS::Inline
+
+use Skyward::API::*
+
+class Bench::TodosAPI < Skyward::API
+  class Todo < Data
+    attr_reader id(): Integer
+
+    attr_reader title(): String
+
+    attr_reader done(): bool
+
+    attr_reader due_on(): Date?
+
+    attr_reader tags(): Array[String]
+
+    def self.new: (Integer id, String title, bool done, Date? due_on, Array[String] tags) -> instance
+                | (id: Integer, title: String, done: bool, due_on: Date?, tags: Array[String]) -> instance
+
+    def self.members: () -> [ :id, :title, :done, :due_on, :tags ]
+
+    def members: () -> [ :id, :title, :done, :due_on, :tags ]
+  end
+
+  class NewTodo < Data
+    attr_reader title(): String
+
+    attr_reader done(): bool
+
+    attr_reader due_on(): Date?
+
+    attr_reader tags(): Array[String]
+
+    def self.new: (String title, bool done, Date? due_on, Array[String] tags) -> instance
+                | (title: String, done: bool, due_on: Date?, tags: Array[String]) -> instance
+
+    def self.members: () -> [ :title, :done, :due_on, :tags ]
+
+    def members: () -> [ :title, :done, :due_on, :tags ]
+  end
+
+  @todos: Hash[Integer, Todo]
+
+  # @rbs todos: Hash[Integer, Todo]
+  # @rbs return: void
+  def initialize: (todos: Hash[Integer, Todo]) -> void
+
+  # @rbs id: Integer
+  # @rbs return: Todo | Responses::NotFound
+  def show: (id: Integer) -> (Todo | Responses::NotFound)
+
+  # Nothing is kept, so timing millions of posts doesn't grow the store.
+  # @rbs body: NewTodo
+  # @rbs return: Responses::Created[Todo]
+  def create: (body: NewTodo) -> Responses::Created[Todo]
+end

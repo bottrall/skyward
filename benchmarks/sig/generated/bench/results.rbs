@@ -1,0 +1,33 @@
+# Generated from lib/bench/results.rb with RBS::Inline
+
+# Writes a run's report as JSON, and as Markdown for a PR's Proof or a
+# release.
+module Bench::Results
+  ENVIRONMENT: Hash[Symbol, String]
+
+  # @rbs report: Bench::Report
+  # @rbs directory: String
+  # @rbs return: void
+  def write: (Bench::Report report, String directory) -> void
+
+  # @rbs report: Bench::Report
+  # @rbs return: String
+  def json: (Bench::Report report) -> String
+
+  # @rbs report: Bench::Report
+  # @rbs return: String
+  def markdown: (Bench::Report report) -> String
+
+  # @rbs result: Bench::Result
+  # @rbs return: String
+  def row: (Bench::Result result) -> String
+
+  # @rbs value: untyped
+  # @rbs return: String
+  def value: (untyped value) -> String
+
+  # @rbs value: Float
+  # @rbs digits: Integer
+  # @rbs return: String
+  def number: (Float value, Integer digits) -> String
+end

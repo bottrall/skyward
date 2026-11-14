@@ -14,13 +14,14 @@ Everything runs through its `bin/` script, never a tool directly (`rake`, `ruboc
 | `bin/typecheck`               | Type-check the code                                                           |
 | `bin/generate [--watch]`      | Regenerate the generated files; `--watch` keeps them current                  |
 | `bin/build`                   | Build what the repo ships                                                     |
+| `bin/bench [names]`           | Run the benchmarks; pass names to run only those whose names start with one   |
 | `bin/check`                   | `bin/lint --fix`, `bin/typecheck`, `bin/test`: run before calling a change done |
 | `bin/ci`                      | Run exactly what CI runs, without fixes: run before pushing                   |
 
 ## Workflow
 
 - `bin/test`, and so `bin/ci`, need a PostgreSQL at `TEST_POSTGRES_URL`; [CONTRIBUTING.md](CONTRIBUTING.md#postgresql) says how to run one.
-- `bin/typecheck` fails when any gem's or example's `sig/generated` is out of date with its Ruby.
+- `bin/typecheck` fails when any gem's, example's or the benchmarks' `sig/generated` is out of date with its Ruby.
 - PR titles are Conventional Commits with a scope naming the gem (`feat(api): ...`, `fix(orm): ...`, `core`, `skyward`), and become the squash commit on `main`. release-please builds the changelog from them.
 - Build each gem only as far as its README specifies. The gems never require a Skyward gem they don't depend on: `skyward-api` and `skyward-orm` depend on `skyward-core` only, and never on each other.
 - Work headless: never open a browser window or GUI app. Start a server on a non-default port, and stop it when you're done.

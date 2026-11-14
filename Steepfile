@@ -29,13 +29,13 @@ GEMS.each do |name, gem|
   end
 end
 
-%i[todos todos_postgres].each do |example|
-  target example do
+{ todos: "examples/todos", todos_postgres: "examples/todos_postgres", benchmarks: "benchmarks" }.each do |name, dir|
+  target name do
     unreferenced!
 
-    signature "examples/#{example}/sig"
+    signature "#{dir}/sig"
 
-    check "examples/#{example}/*.rb", "examples/#{example}/lib", "examples/#{example}/modules"
+    check "#{dir}/*.rb", "#{dir}/lib", "#{dir}/modules"
 
     # A library resolves its superclasses among the libraries alone, so orm's,
     # which subclass core's, need core's as a library too.
