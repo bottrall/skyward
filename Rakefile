@@ -55,7 +55,10 @@ def prepare_test_database(dir)
   url = ENV.fetch("TEST_POSTGRES_URL") do
     abort "Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how."
   end
-  sh "bundle", "exec", "ruby", "-rpg", "-e", <<~RUBY, url, chdir: dir, verbose: false
+  # Required in the script, once bundler/setup has run: on Ruby head, -rpg
+  # couldn't find the bundle's pg.
+  sh "bundle", "exec", "ruby", "-e", <<~RUBY, url, chdir: dir, verbose: false
+    require "pg"
     PG.connect(ARGV.fetch(0)).exec("SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public")
   RUBY
   { "TEST_DATABASE_URL" => url }
