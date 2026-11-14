@@ -4,7 +4,7 @@ module Skyward
   module Core
     # x-release-please-start-version
 
-    VERSION = "0.3.0" #: String
+    VERSION = "0.4.0" #: String
 
     # x-release-please-end
   end

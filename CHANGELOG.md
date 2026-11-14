@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.4.0](https://github.com/bottrall/skyward/compare/v0.3.0...v0.4.0) (2026-11-14)
+
+
+### Features
+
+* **api:** keep String keys at every level of a Hash[String, untyped] ([#194](https://github.com/bottrall/skyward/issues/194)) ([74274f8](https://github.com/bottrall/skyward/commit/74274f8bf9b94264a70523c881a2528b295b95cb)), closes [#166](https://github.com/bottrall/skyward/issues/166)
+* **api:** read and write BigDecimal as a decimal string ([#204](https://github.com/bottrall/skyward/issues/204)) ([1e4f27c](https://github.com/bottrall/skyward/commit/1e4f27ceb0a92a40e95219e24fcb68e11ac3dc23))
+* **api:** send Rack triples from untyped endpoints ([#193](https://github.com/bottrall/skyward/issues/193)) ([9da87ea](https://github.com/bottrall/skyward/commit/9da87ea75069de6e2b5de0ff7a8e44e821b79f0a)), closes [#178](https://github.com/bottrall/skyward/issues/178)
+* **api:** show source excerpts and Did you mean hints in boot errors ([#208](https://github.com/bottrall/skyward/issues/208)) ([c85a0dc](https://github.com/bottrall/skyward/commit/c85a0dcd1a3a312e614b8c4020403f41d8015b31))
+* **core:** keep the aliases a reader is given when reading types ([#190](https://github.com/bottrall/skyward/issues/190)) ([4b6d3eb](https://github.com/bottrall/skyward/commit/4b6d3ebed101ece282448a86a8ec38307c6e31f7)), closes [#157](https://github.com/bottrall/skyward/issues/157)
+* **core:** point boot errors at the source ([#201](https://github.com/bottrall/skyward/issues/201)) ([582e8a0](https://github.com/bottrall/skyward/commit/582e8a01f39c5ad2491aa1f513a0a088985ef739))
+* **core:** read BigDecimal as a decimal scalar ([#197](https://github.com/bottrall/skyward/issues/197)) ([b75483b](https://github.com/bottrall/skyward/commit/b75483b31c0fcedddd94e3f0a239e5529e15180a)), closes [#164](https://github.com/bottrall/skyward/issues/164)
+* **orm:** add an instrument: hook to Skyward.connect ([#209](https://github.com/bottrall/skyward/issues/209)) ([4708eed](https://github.com/bottrall/skyward/commit/4708eed37e52e734f908002d1d3b3bb6356a15ce))
+* **orm:** add Array[T] columns ([#215](https://github.com/bottrall/skyward/issues/215)) ([83f5088](https://github.com/bottrall/skyward/commit/83f508831ec3d1c6eb41459d5a9f1b319e40271f))
+* **orm:** add BigDecimal columns ([#212](https://github.com/bottrall/skyward/issues/212)) ([22cc69b](https://github.com/bottrall/skyward/commit/22cc69b058e4c96b12cd955130920770c191e16e))
+* **orm:** add Hash[String, untyped] columns ([#202](https://github.com/bottrall/skyward/issues/202)) ([c7ac175](https://github.com/bottrall/skyward/commit/c7ac175ff3a24533895ce803e11ea1062e7d0edb))
+* **orm:** add insert_all and insert_all! ([#200](https://github.com/bottrall/skyward/issues/200)) ([6357dd8](https://github.com/bottrall/skyward/commit/6357dd857536210bbc44d03cafa1380833ee296a)), closes [#173](https://github.com/bottrall/skyward/issues/173)
+* **orm:** add merge, to combine two queries ([#198](https://github.com/bottrall/skyward/issues/198)) ([8f5b790](https://github.com/bottrall/skyward/commit/8f5b790033df94ce3f28cebe6609fa5299f17077)), closes [#174](https://github.com/bottrall/skyward/issues/174)
+* **orm:** add skyward scaffold, printing a table class for an existing table ([#210](https://github.com/bottrall/skyward/issues/210)) ([1a58c35](https://github.com/bottrall/skyward/commit/1a58c3517cb2ad9224517e886ccbd5084b7b88cc))
+* **orm:** add Skyward.using to switch databases for a block ([#203](https://github.com/bottrall/skyward/issues/203)) ([ec6157c](https://github.com/bottrall/skyward/commit/ec6157cc570eff54a65324eb9eabcae79e028cb0))
+* **orm:** add the uuid, int32 and int16 column types ([#196](https://github.com/bottrall/skyward/issues/196)) ([33b6edb](https://github.com/bottrall/skyward/commit/33b6edbedc933d8c93e0f9ad186e82ce99e97925)), closes [#158](https://github.com/bottrall/skyward/issues/158)
+* **orm:** show source excerpts and Did you mean hints in boot errors ([#207](https://github.com/bottrall/skyward/issues/207)) ([4b620b0](https://github.com/bottrall/skyward/commit/4b620b0f8576f44d73445555bec147b0a91ec9e8))
+
+
+### Bug Fixes
+
+* **orm:** accept SQLite BOOLEAN, DATE and DATETIME columns ([#195](https://github.com/bottrall/skyward/issues/195)) ([ebc83d3](https://github.com/bottrall/skyward/commit/ebc83d34218a07dc43164ce5ca1f5b82a2330621)), closes [#182](https://github.com/bottrall/skyward/issues/182)
+* **orm:** keep the indexes and constraints a table class can't declare ([#199](https://github.com/bottrall/skyward/issues/199)) ([9ad5d26](https://github.com/bottrall/skyward/commit/9ad5d268b644bf6f6b8aade3c6a887d2fc521448)), closes [#179](https://github.com/bottrall/skyward/issues/179)
+* **orm:** read generated columns, and never write or drop one ([#205](https://github.com/bottrall/skyward/issues/205)) ([ba2e740](https://github.com/bottrall/skyward/commit/ba2e740b7ba678c5f05c6891782af406bd2759ce))
+* **orm:** rename a matching constraint instead of dropping and re-adding it ([#206](https://github.com/bottrall/skyward/issues/206)) ([5b8ba20](https://github.com/bottrall/skyward/commit/5b8ba2060a7acfb4f347e109e04947decba0da1c))
+* **orm:** scaffold jsonb and json columns as Hash[String, untyped] ([#214](https://github.com/bottrall/skyward/issues/214)) ([15490e8](https://github.com/bottrall/skyward/commit/15490e8e6a8d4692f4091502e857e2d1a6f00c3d))
+
 ## [0.3.0](https://github.com/bottrall/skyward/compare/v0.2.0...v0.3.0) (2026-11-11)
 
 
