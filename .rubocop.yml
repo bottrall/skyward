@@ -1,112 +1,64 @@
 require:
-  - ./lint/rubocop/cop/local/no_inheritance
-  - ./lint/rubocop/cop/local/no_mocking
   - ./lint/rubocop/cop/local/no_raw_sql
-  - ./lint/rubocop/cop/local/require_disable_reason
   - ./lint/rubocop/cop/local/typed_constant_alias
 
 plugins:
-  - rubocop-minitest
-  - rubocop-performance
-  - rubocop-rake
+  - rubocop-bottrall
+
+inherit_gem:
+  rubocop-bottrall:
+    - config/base.yml
+    - config/rbs-inline.yml
+
+inherit_mode:
+  merge:
+    - Exclude
 
 AllCops:
   # The oldest Ruby that isn't end-of-life.
   TargetRubyVersion: 3.3
-  NewCops: enable
   Exclude:
-    - ".claude/**/*"
-    - "bin/**/*"
-    - "**/sig/**/*"
-    - "pkg/**/*"
-    - "tmp/**/*"
-    - "vendor/**/*"
-    - "*/vendor/**/*"
-    - "examples/*/vendor/**/*"
+    - '*/vendor/**/*'
+    - 'examples/*/vendor/**/*'
     # The README's opening example, copied as it's written so a test can run it.
-    - "skyward-api/test/fixtures/hello/config.ru"
+    - 'skyward-api/test/fixtures/hello/config.ru'
 
-Layout/FirstMethodArgumentLineBreak:
-  Enabled: true
-
-Layout/FirstMethodParameterLineBreak:
-  Enabled: true
-
-Layout/LeadingCommentSpace:
-  AllowRBSInlineAnnotation: true
-
-Layout/MultilineMethodArgumentLineBreaks:
-  Enabled: true
-
-Layout/MultilineMethodParameterLineBreaks:
-  Enabled: true
-
-Layout/RedundantLineBreak:
-  Enabled: true
-  InspectBlocks: false
-
-Metrics:
-  Enabled: false
-
-Metrics/BlockNesting:
-  Enabled: true
-
-Minitest/MultipleAssertions:
-  Max: 1
-
-Local/NoInheritance:
-  Enabled: true
+Bottrall/NoInheritance:
   AllowedParents:
     - Skyward::API
     - Skyward::ORM::Record
   Include:
-    - "*/lib/**/*.rb"
-    - "examples/*/**/*.rb"
-    - "**/test/**/*.rb"
+    - '*/lib/**/*.rb'
+    - 'examples/*/**/*.rb'
+    - '**/test/**/*.rb'
 
-Local/NoMocking:
-  Enabled: true
+Bottrall/NoMocking:
+  OwnedNamespaces:
+    - Skyward
   Include:
-    - "**/test/**/*_test.rb"
+    - '**/test/**/*_test.rb'
 
 Local/NoRawSql:
   Enabled: true
   Exclude:
-    - "skyward-orm/**/*"
-
-Local/RequireDisableReason:
-  Enabled: true
+    - 'skyward-orm/**/*'
 
 Local/TypedConstantAlias:
   Enabled: true
   Include:
-    - "*/lib/**/*.rb"
-    - "examples/*/**/*.rb"
+    - '*/lib/**/*.rb'
+    - 'examples/*/**/*.rb'
 
 Style/ClassAndModuleChildren:
-  EnforcedStyle: compact
   Exclude:
     # The gemspec loads version.rb before the namespace exists.
-    - "*/lib/skyward/*/version.rb"
+    - '*/lib/skyward/*/version.rb'
     # The cop files define the `Local` department itself, which the compact
     # form can't open.
-    - "lint/rubocop/**/*"
-
-Style/Documentation:
-  Enabled: false
-
-Style/ModuleFunction:
-  EnforcedStyle: extend_self
+    - 'lint/rubocop/**/*'
 
 # A gem's entry file opens Skyward beside its own class to add the gem's
 # methods on Skyward itself (Skyward.app, Skyward.connect).
 Style/OneClassPerFile:
   AllowedClasses:
     - Skyward
-
-# Matches the READMEs, which are the spec.
-Style/StringLiterals:
-  EnforcedStyle: double_quotes
-
-Style/StringLiteralsInInterpolation:
-  EnforcedStyle: double_quotes

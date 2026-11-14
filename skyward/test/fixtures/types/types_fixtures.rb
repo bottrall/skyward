@@ -36,8 +36,8 @@ module TypesFixtures
   end
 
   class EverythingAPI < Skyward::API
-    get "/everythings/:id", to: :show
-    post "/everythings", to: :receive
+    get '/everythings/:id', to: :show
+    post '/everythings', to: :receive
 
     def initialize(received:)
       super()
@@ -59,7 +59,7 @@ module TypesFixtures
   end
 
   class Body < Skyward::API
-    post "/", to: :echo
+    post '/', to: :echo
 
     def echo(body:) = body
   end

@@ -32,8 +32,8 @@ module Skyward::ORM::Migrations::Script
         next if generated.empty? || in_place?(change, adapter)
 
         "Changing table :#{change.table.name} rebuilds it, which would lose its generated " \
-          "#{generated.one? ? "column" : "columns"} #{generated.join(", ")}. " \
-          "Write this migration yourself with `skyward migration --empty`."
+          "#{generated.one? ? 'column' : 'columns'} #{generated.join(', ')}. " \
+          'Write this migration yourself with `skyward migration --empty`.'
       end
     end
     raise Skyward::Core::BootError, problems.join("\n") unless problems.empty?
@@ -207,7 +207,7 @@ module Skyward::ORM::Migrations::Script
   # @rbs from: Array[Symbol]
   # @rbs return: String
   def copy(table, into, from)
-    "INSERT INTO #{table}_new (#{into.join(", ")}) SELECT #{from.join(", ")} FROM #{table};\n" \
+    "INSERT INTO #{table}_new (#{into.join(', ')}) SELECT #{from.join(', ')} FROM #{table};\n" \
       "DROP TABLE #{table};\n" \
       "ALTER TABLE #{table}_new RENAME TO #{table};\n"
   end
@@ -240,7 +240,7 @@ module Skyward::ORM::Migrations::Script
     entries = [*lines, *table_constraints]
     last = entries.rindex { |definition, _| definition }
     body = entries.each_with_index.map do |(definition, text), index|
-      "  #{text}#{"," if definition && index != last}\n"
+      "  #{text}#{',' if definition && index != last}\n"
     end
     ["CREATE TABLE #{name} (\n", *body, ");\n"].join
   end
@@ -281,12 +281,12 @@ module Skyward::ORM::Migrations::Script
     generated = generated?(klass.schema, column)
     default = Skyward::ORM::Migrations::Definitions.default(klass, column, adapter)
     clauses = [
-      ("NOT NULL" unless (typed ? column.nullable : kept&.nullable) || generated),
+      ('NOT NULL' unless (typed ? column.nullable : kept&.nullable) || generated),
       ("DEFAULT #{default}" if default),
       *constraints.select { |constraint| constraint.columns == [name] }
                   .map { |constraint| Skyward::ORM::Migrations::Definitions.inline(constraint) }
     ].compact
-    [[sql_type, (adapter.identity if generated)].compact.join(" "), clauses.join(" ")]
+    [[sql_type, (adapter.identity if generated)].compact.join(' '), clauses.join(' ')]
   end
 
   # @rbs schema: Skyward::ORM::Tables::Schema
@@ -297,12 +297,12 @@ module Skyward::ORM::Migrations::Script
   # A column as the database has it.
   # @rbs column: Skyward::ORM::Catalog::Column
   # @rbs return: String
-  def column(column) = [column.name, (column.type unless column.type.empty?), clauses(column)].compact.join(" ").rstrip
+  def column(column) = [column.name, (column.type unless column.type.empty?), clauses(column)].compact.join(' ').rstrip
 
   # @rbs column: Skyward::ORM::Catalog::Column
   # @rbs return: String
   def clauses(column)
-    [("NOT NULL" unless column.nullable), ("DEFAULT #{column.default}" if column.default)].compact.join(" ")
+    [('NOT NULL' unless column.nullable), ("DEFAULT #{column.default}" if column.default)].compact.join(' ')
   end
 
   # @rbs table: Symbol
@@ -334,7 +334,7 @@ module Skyward::ORM::Migrations::Script
   # @rbs value: String?
   # @rbs return: String
   def default(table, column, value)
-    "ALTER TABLE #{table} ALTER COLUMN #{column} #{value ? "SET DEFAULT #{value}" : "DROP DEFAULT"};\n"
+    "ALTER TABLE #{table} ALTER COLUMN #{column} #{value ? "SET DEFAULT #{value}" : 'DROP DEFAULT'};\n"
   end
 
   # @rbs table: Symbol

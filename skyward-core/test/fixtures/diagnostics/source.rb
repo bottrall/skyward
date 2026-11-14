@@ -17,10 +17,10 @@ class DiagnosticsFixtures
   end
 
   def routes
-    get "/:id", to: :show
+    get '/:id', to: :show
     default lsit_id: 0
     index :lsit_id
-    get "/café/:id", to: :show
+    get '/café/:id', to: :show
     clear
   end
 end

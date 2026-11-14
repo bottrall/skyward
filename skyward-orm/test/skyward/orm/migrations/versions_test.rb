@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Skyward::ORM::Migrations::Versions do
-  signatures = File.expand_path("../../../fixtures/tables/sig", __dir__)
+  signatures = File.expand_path('../../../fixtures/tables/sig', __dir__)
   column_types = Skyward::ORM::Tables::ColumnTypes.new(
     Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))
   )
@@ -21,7 +21,7 @@ describe Skyward::ORM::Migrations::Versions do
     )
   end
 
-  describe ".checksums" do
+  describe '.checksums' do
     it "has none on a database that's never been migrated, without making schema_migrations" do
       assert_equal [{}, []], [Skyward::ORM::Migrations::Versions.checksums(database), empty.adapter.tables(connection)]
     end
@@ -31,7 +31,7 @@ describe Skyward::ORM::Migrations::Versions do
       connection.execute("CREATE TABLE schema_migrations (version #{version} PRIMARY KEY, checksum TEXT NOT NULL)")
       connection.execute("INSERT INTO schema_migrations (version, checksum) VALUES (20261018093000, 'abc')")
 
-      assert_equal({ "20261018093000" => "abc" }, Skyward::ORM::Migrations::Versions.checksums(database))
+      assert_equal({ '20261018093000' => 'abc' }, Skyward::ORM::Migrations::Versions.checksums(database))
     end
   end
 end

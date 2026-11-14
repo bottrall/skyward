@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require "skyward/generator"
+require 'skyward/generator'
 
 Skyward::Core::CLI.register(
-  "new",
-  "Write a new app in NAME/ and install its gems, unless given --skip-bundle"
+  'new',
+  'Write a new app in NAME/ and install its gems, unless given --skip-bundle'
 ) do |args|
   # Under bundle exec, the app's bundle install would otherwise read the
   # Gemfile skyward runs under, not the app's.

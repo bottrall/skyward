@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "skyward/core"
+require 'skyward/core'
 
-Skyward::Core::CLI.first_per_gem(Gem.find_files("skyward/*/commands.rb")).each { |file| load file }
+Skyward::Core::CLI.first_per_gem(Gem.find_files('skyward/*/commands.rb')).each { |file| load file }
 exit Skyward::Core::CLI.run(ARGV, registry: Skyward::Core::CLI::REGISTRY, out: $stdout)

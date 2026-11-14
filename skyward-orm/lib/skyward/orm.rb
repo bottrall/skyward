@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "bigdecimal"
-require "date"
-require "json"
-require "skyward/core"
-require "zeitwerk"
-require_relative "orm/version"
+require 'bigdecimal'
+require 'date'
+require 'json'
+require 'skyward/core'
+require 'zeitwerk'
+require_relative 'orm/version'
 
 loader = Zeitwerk::Loader.for_gem_extension(Skyward)
 loader.inflector.inflect(
-  "orm" => "ORM", "sql" => "SQL", "sqlite" => "SQLite", "postgresql" => "PostgreSQL", "cli" => "CLI"
+  'orm' => 'ORM', 'sql' => 'SQL', 'sqlite' => 'SQLite', 'postgresql' => 'PostgreSQL', 'cli' => 'CLI'
 )
 # The skyward executable loads it, and it defines no constant.
 loader.ignore("#{__dir__}/orm/commands.rb")
@@ -17,14 +17,14 @@ loader.setup
 
 # An app's signatures subclass Skyward::ORM::Record, so RBS needs its declaration.
 dir = __dir__ #: String
-Skyward::Core::Signatures.register(File.expand_path("../../sig", dir))
+Skyward::Core::Signatures.register(File.expand_path('../../sig', dir))
 
 module Skyward
   # @rbs (String url, ?signatures: String, ?pool: Integer, ?check: bool, ?default: bool,
   #   ?instrument: ORM::_Instrument?) -> ORM::Database
   def self.connect(
     url,
-    signatures: "sig",
+    signatures: 'sig',
     pool: 5,
     check: ORM::Connection::SESSION.check?,
     default: true,
@@ -66,7 +66,7 @@ module Skyward
     unless database.is_a?(ORM::Database) # steep:ignore UnreachableBranch
       raise ArgumentError, "Skyward.using takes a database Skyward.connect returned, not a #{database.class}"
     end
-    raise ArgumentError, "Skyward.using takes a block to run on the database" unless block_given?
+    raise ArgumentError, 'Skyward.using takes a block to run on the database' unless block_given?
 
     ORM::Connection::SESSION.using(database, &)
   end
@@ -86,7 +86,7 @@ module Skyward
     case row
     when String then database.hashes(row, arguments)
     when Class then database.rows(row, arguments.fetch(0), arguments.drop(1))
-    else raise ArgumentError, "Skyward.query takes a row class or the SQL as its first argument"
+    else raise ArgumentError, 'Skyward.query takes a row class or the SQL as its first argument'
     end
   end
 

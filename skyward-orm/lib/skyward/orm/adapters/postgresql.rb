@@ -4,54 +4,54 @@ module Skyward::ORM::Adapters::PostgreSQL
   extend self
 
   SQL_TYPES = {
-    integer: "bigint",
-    float: "double precision",
-    decimal: "numeric",
-    string: "text",
-    bool: "boolean",
-    date: "date",
-    time: "timestamptz",
-    enum: "text",
-    uuid: "uuid",
-    int32: "integer",
-    int16: "smallint",
-    json: "jsonb"
+    integer: 'bigint',
+    float: 'double precision',
+    decimal: 'numeric',
+    string: 'text',
+    bool: 'boolean',
+    date: 'date',
+    time: 'timestamptz',
+    enum: 'text',
+    uuid: 'uuid',
+    int32: 'integer',
+    int16: 'smallint',
+    json: 'jsonb'
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # As the catalog spells each type, which compatible? is given.
   COMPATIBLE = {
     integer: %w[bigint integer smallint],
-    float: ["double precision", "real"],
-    decimal: ["numeric"],
-    string: ["text", "character varying", "uuid", "citext"],
-    bool: ["boolean"],
-    date: ["date"],
-    time: ["timestamp with time zone", "timestamp without time zone"],
-    enum: ["text", "character varying"],
-    uuid: ["uuid"],
-    int32: ["integer"],
-    int16: ["smallint"],
+    float: ['double precision', 'real'],
+    decimal: ['numeric'],
+    string: ['text', 'character varying', 'uuid', 'citext'],
+    bool: ['boolean'],
+    date: ['date'],
+    time: ['timestamp with time zone', 'timestamp without time zone'],
+    enum: ['text', 'character varying'],
+    uuid: ['uuid'],
+    int32: ['integer'],
+    int16: ['smallint'],
     json: %w[jsonb json]
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, Array[String]]
 
   # COMPATIBLE read backwards, taking the narrowest type for each.
   COLUMN_TYPES = {
-    "bigint" => :integer,
-    "integer" => :int32,
-    "smallint" => :int16,
-    "double precision" => :float,
-    "real" => :float,
-    "numeric" => :decimal,
-    "text" => :string,
-    "character varying" => :string,
-    "citext" => :string,
-    "uuid" => :uuid,
-    "boolean" => :bool,
-    "date" => :date,
-    "timestamp with time zone" => :time,
-    "timestamp without time zone" => :time,
-    "jsonb" => :json,
-    "json" => :json
+    'bigint' => :integer,
+    'integer' => :int32,
+    'smallint' => :int16,
+    'double precision' => :float,
+    'real' => :float,
+    'numeric' => :decimal,
+    'text' => :string,
+    'character varying' => :string,
+    'citext' => :string,
+    'uuid' => :uuid,
+    'boolean' => :bool,
+    'date' => :date,
+    'timestamp with time zone' => :time,
+    'timestamp without time zone' => :time,
+    'jsonb' => :json,
+    'json' => :json
   }.freeze #: Hash[String, Skyward::ORM::Tables::column_type]
 
   # The catalog puts a length or precision in parentheses.
@@ -60,7 +60,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   # UTC, so a timestamp column, which has no zone, holds the same instant as a
   # timestamptz, and to the microsecond, as PostgreSQL keeps it. Its trailing
   # zeros go, as PostgreSQL writes a time back, so a default compares as text.
-  TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%6N" #: String
+  TIME_FORMAT = '%Y-%m-%d %H:%M:%S.%6N' #: String
   TRAILING_ZEROS = /\.?0+\z/ #: Regexp
 
   # PostgreSQL reads a literal default back cast to its type, as 'normal'::text
@@ -71,34 +71,34 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   # Float() refuses the special values PostgreSQL writes out.
   SPECIAL_FLOATS = {
-    "Infinity" => Float::INFINITY,
-    "-Infinity" => -Float::INFINITY,
-    "NaN" => Float::NAN
+    'Infinity' => Float::INFINITY,
+    '-Infinity' => -Float::INFINITY,
+    'NaN' => Float::NAN
   }.freeze #: Hash[String, Float]
 
   MIGRATION_LOCK = 7_310_420_115 #: Integer
 
   # Each value comes back as text, and a boolean as t or f.
-  TRUE_TEXT = "t" #: String
-  FALSE_TEXT = "f" #: String
+  TRUE_TEXT = 't' #: String
+  FALSE_TEXT = 'f' #: String
 
   VIOLATIONS = {
-    "23505" => :unique,
-    "23503" => :foreign_key,
-    "23502" => :not_null,
-    "23514" => :check
+    '23505' => :unique,
+    '23503' => :foreign_key,
+    '23502' => :not_null,
+    '23514' => :check
   }.freeze #: Hash[String, Skyward::ORM::violation_kind]
 
   CONSTRAINT_KINDS = {
-    "p" => :primary_key,
-    "u" => :unique,
-    "f" => :foreign_key,
-    "c" => :check
+    'p' => :primary_key,
+    'u' => :unique,
+    'f' => :foreign_key,
+    'c' => :check
   }.freeze #: Hash[String, Skyward::ORM::Catalog::constraint_kind]
 
   # The tables an unqualified name finds, as every query names them.
   TABLES = "t.relkind IN ('r', 'p') AND t.relnamespace <> 'pg_catalog'::regnamespace " \
-           "AND pg_table_is_visible(t.oid)" #: String
+           'AND pg_table_is_visible(t.oid)' #: String
 
   # pg_attrdef holds a generated column's expression as if it were its default.
   COLUMNS = <<~SQL.freeze #: String
@@ -139,7 +139,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   SQL
 
   # @rbs return: String
-  def driver = "pg"
+  def driver = 'pg'
 
   # @rbs return: Symbol
   def adapter_name = :postgresql
@@ -179,7 +179,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   end
 
   # @rbs return: String?
-  def identity = "GENERATED ALWAYS AS IDENTITY"
+  def identity = 'GENERATED ALWAYS AS IDENTITY'
 
   # @rbs return: bool
   def alters_in_place? = true
@@ -218,7 +218,7 @@ module Skyward::ORM::Adapters::PostgreSQL
     element = column.element
     return accepts?(column.type, sql_type) unless element
 
-    sql_type.end_with?("[]") && accepts?(element, sql_type.delete_suffix("[]"))
+    sql_type.end_with?('[]') && accepts?(element, sql_type.delete_suffix('[]'))
   end
 
   # PostgreSQL compares numeric as it is.
@@ -227,7 +227,7 @@ module Skyward::ORM::Adapters::PostgreSQL
 
   # @rbs sql_type: String
   # @rbs return: Skyward::ORM::Tables::column_type?
-  def column_type(sql_type) = COLUMN_TYPES[sql_type.sub(MODIFIER, "")]
+  def column_type(sql_type) = COLUMN_TYPES[sql_type.sub(MODIFIER, '')]
 
   # The driver sends every other value as its to_s, which PostgreSQL reads.
   # @rbs value: untyped
@@ -238,8 +238,8 @@ module Skyward::ORM::Adapters::PostgreSQL
     # Without the exponent BigDecimal#to_s writes, as 0.15e1, so both adapters
     # bind the same text.
     # -0.0 is 0, but would be written "-0.0" and miss an = against 0 on SQLite.
-    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s("F")
-    when Time then "#{value.getutc.strftime(TIME_FORMAT).sub(TRAILING_ZEROS, "")}+00"
+    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s('F')
+    when Time then "#{value.getutc.strftime(TIME_FORMAT).sub(TRAILING_ZEROS, '')}+00"
     else value
     end
   end
@@ -321,7 +321,7 @@ module Skyward::ORM::Adapters::PostgreSQL
   # @rbs return: bool
   def accepts?(type, sql_type)
     accepted = COMPATIBLE[type]
-    accepted.nil? || accepted.include?(sql_type.sub(MODIFIER, ""))
+    accepted.nil? || accepted.include?(sql_type.sub(MODIFIER, ''))
   end
 
   # @rbs type: Skyward::ORM::Tables::column_type
@@ -335,7 +335,7 @@ module Skyward::ORM::Adapters::PostgreSQL
     when :bool then value == TRUE_TEXT
     when :date then Date.iso8601(value)
     # A timestamp column's text has no zone, so it's read as the UTC it was written in.
-    when :time then Time.new(value, in: "UTC").getutc
+    when :time then Time.new(value, in: 'UTC').getutc
     # An Array's item may be NULL, or an Array of its own, which names no Symbol.
     when :enum then String.try_convert(value)&.to_sym
     when :json then JSON.parse(value, freeze: true)

@@ -102,12 +102,12 @@ module Skyward::ORM::Queries::Clauses
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs **on: Symbol
   # @rbs return: self
-  def join(table, **on) = with(joins: [*@joins, joined("JOIN", table, on)])
+  def join(table, **on) = with(joins: [*@joins, joined('JOIN', table, on)])
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs **on: Symbol
   # @rbs return: self
-  def left_join(table, **on) = with(joins: [*@joins, joined("LEFT JOIN", table, on)])
+  def left_join(table, **on) = with(joins: [*@joins, joined('LEFT JOIN', table, on)])
 
   # @rbs sql: String?
   # @rbs *values: untyped
@@ -307,7 +307,7 @@ module Skyward::ORM::Queries::Clauses
     if other.is_a?(Skyward::ORM::Projection)
       raise ArgumentError,
             "#{@table} can't merge a projection, whose row class and expressions would have nowhere to go. " \
-            "Merge the query before its into."
+            'Merge the query before its into.'
     end
     return if other.is_a?(Skyward::ORM::Query)
 
@@ -353,11 +353,11 @@ module Skyward::ORM::Queries::Clauses
   # @rbs value: untyped
   # @rbs return: Array[Comparison]
   def comparisons(column, value)
-    return [Comparison.new(column:, operator: "=", value:)] unless value.is_a?(Range)
+    return [Comparison.new(column:, operator: '=', value:)] unless value.is_a?(Range)
 
     ends = [
-      (Comparison.new(column:, operator: ">=", value: value.begin) unless value.begin.nil?),
-      (Comparison.new(column:, operator: value.exclude_end? ? "<" : "<=", value: value.end) unless value.end.nil?)
+      (Comparison.new(column:, operator: '>=', value: value.begin) unless value.begin.nil?),
+      (Comparison.new(column:, operator: value.exclude_end? ? '<' : '<=', value: value.end) unless value.end.nil?)
     ].compact
     raise ArgumentError, "#{@table} can't match #{column} to #{value.inspect}, a range with neither end" if ends.empty?
 
@@ -367,12 +367,12 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: Array[String]
   def clauses
     [
-      ("into expressions" unless @expressions.empty?),
-      ("join" unless @joins.empty?),
-      ("order" unless @orders.empty?),
-      ("group" unless @groups.empty?),
-      ("limit" if @limit),
-      ("offset" if @offset)
+      ('into expressions' unless @expressions.empty?),
+      ('join' unless @joins.empty?),
+      ('order' unless @orders.empty?),
+      ('group' unless @groups.empty?),
+      ('limit' if @limit),
+      ('offset' if @offset)
     ].compact
   end
 
@@ -380,7 +380,7 @@ module Skyward::ORM::Queries::Clauses
   # @rbs return: String
   def listing(clauses)
     *others, last = clauses
-    others.empty? ? last.to_s : "#{others.join(", ")} or #{last}"
+    others.empty? ? last.to_s : "#{others.join(', ')} or #{last}"
   end
 
   # Neither PostgreSQL nor SQLite (as it's usually built) takes a JOIN,
@@ -416,12 +416,12 @@ module Skyward::ORM::Queries::Clauses
   def require_members(row, expressions)
     members = Skyward::ORM::Tables::Members.of(row)
     unknown = expressions.keys - members
-    raise ArgumentError, "#{row} has no member #{unknown.join(", ")} to take an expression" unless unknown.empty?
+    raise ArgumentError, "#{row} has no member #{unknown.join(', ')} to take an expression" unless unknown.empty?
 
     unread = members - @table.schema.columns - expressions.keys
     return if unread.empty?
 
-    raise ArgumentError, "#{@table} has no column #{unread.join(", ")}, so #{row} needs an expression for it"
+    raise ArgumentError, "#{@table} has no column #{unread.join(', ')}, so #{row} needs an expression for it"
   end
 
   # @rbs database: Skyward::ORM::Database
@@ -433,7 +433,7 @@ module Skyward::ORM::Queries::Clauses
     columns = Skyward::ORM::Tables::Members.of(@row).map do |member|
       expression = @expressions.fetch(member, nil)
       expression ? "#{expression} AS #{Skyward::ORM::Statements.quote(member)}" : qualified(member)
-    end.join(", ")
+    end.join(', ')
     ["SELECT #{columns} #{sql}", binds]
   end
 
@@ -455,18 +455,18 @@ module Skyward::ORM::Queries::Clauses
       "FROM #{Skyward::ORM::Statements.quote(@table.table_name)}",
       *@joins.map { |join| joining(join) },
       where,
-      ("GROUP BY #{@groups.map { |column| qualified(column) }.join(", ")}" unless @groups.empty?),
-      ("ORDER BY #{ordered.join(", ")}" unless orders.empty?),
+      ("GROUP BY #{@groups.map { |column| qualified(column) }.join(', ')}" unless @groups.empty?),
+      ("ORDER BY #{ordered.join(', ')}" unless orders.empty?),
       limit ? "LIMIT #{adapter.placeholder(binds.size + 1)}" : (adapter.unlimited if @offset),
       ("OFFSET #{adapter.placeholder(binds.size + paging.size)}" if @offset)
-    ].compact.join(" ")
+    ].compact.join(' ')
     [sql, [*binds, *paging]]
   end
 
   # @rbs join: Join
   # @rbs return: String
   def joining(join)
-    on = join.on.map { |column, joined| "#{qualified(column)} = #{qualified(joined, join.table)}" }.join(" AND ")
+    on = join.on.map { |column, joined| "#{qualified(column)} = #{qualified(joined, join.table)}" }.join(' AND ')
     "#{join.keyword} #{Skyward::ORM::Statements.quote(join.table.table_name)} ON #{on}"
   end
 
@@ -490,7 +490,7 @@ module Skyward::ORM::Queries::Clauses
       sql, bound = render(database, condition, position + values.size)
       [[*sqls, condition.is_a?(Disjunction) && conditions.size > 1 ? "(#{sql})" : sql], [*values, *bound]]
     end
-    [clauses.join(" AND "), binds]
+    [clauses.join(' AND '), binds]
   end
 
   # @rbs database: Skyward::ORM::Database
@@ -524,7 +524,7 @@ module Skyward::ORM::Queries::Clauses
     else
       # = compares exactly as the column stores its values, and only a range's
       # ends need them in order.
-      compared = comparison.operator == "=" ? name : adapter.comparable(column.type, name)
+      compared = comparison.operator == '=' ? name : adapter.comparable(column.type, name)
       bound = Skyward::ORM::Statements.encode(adapter, column, value)
       ["#{compared} #{comparison.operator} #{adapter.placeholder(position)}", [bound]]
     end
@@ -537,13 +537,13 @@ module Skyward::ORM::Queries::Clauses
   def fragment(database, fragment, position)
     adapter = database.adapter
     binds = fragment.values.map { |value| adapter.encode(value) }
-    Skyward::ORM::Statements::Placeholders.require_scalars(binds, "An SQL condition")
+    Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'An SQL condition')
     sql = Skyward::ORM::Statements::Placeholders.replace(fragment.sql, binds.size) do |index|
       adapter.placeholder(position + index - 1)
     end
     # A -- comment runs to the end of its line, so the closing parenthesis
     # goes on a line of its own.
-    ["(#{sql}#{"\n" if sql.include?("--")})", binds]
+    ["(#{sql}#{"\n" if sql.include?('--')})", binds]
   end
 
   # NOT of an unknown is unknown, so a row whose column is NULL would be left
@@ -586,8 +586,8 @@ module Skyward::ORM::Queries::Clauses
   def within(adapter, column, name, values, position)
     present = values.compact
     placeholders = Array.new(present.size) { |index| adapter.placeholder(position + index) }
-    list = "#{name} IN (#{placeholders.join(", ")})"
-    sql = if values.empty? then "1 = 0"
+    list = "#{name} IN (#{placeholders.join(', ')})"
+    sql = if values.empty? then '1 = 0'
           elsif present.empty? then "#{name} IS NULL"
           elsif values.include?(nil) then "(#{list} OR #{name} IS NULL)"
           else list
@@ -645,7 +645,7 @@ module Skyward::ORM::Queries::Clauses
     end
     changing(
       :update,
-      "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(", ")}",
+      "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(', ')}",
       Skyward::ORM::Statements.binds(database.adapter, column_types, @table, values)
     )
   end
@@ -660,7 +660,7 @@ module Skyward::ORM::Queries::Clauses
   def changing(method, sql, set)
     require_writable(method)
     where, binds = filter(@session.database, set.size + 1)
-    [[sql, where].compact.join(" "), [*set, *binds]]
+    [[sql, where].compact.join(' '), [*set, *binds]]
   end
 
   # @rbs [T] (T | Skyward::ORM::Violation written) -> T

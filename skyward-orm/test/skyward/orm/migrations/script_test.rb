@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require "pg"
-require "sqlite3"
-require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/tables/tables_fixtures"
-require_relative "../../../fixtures/changes/changes_fixtures"
+require 'test_helper'
+require 'pg'
+require 'sqlite3'
+require_relative '../../../fixtures/migrations/migrations_fixtures'
+require_relative '../../../fixtures/tables/tables_fixtures'
+require_relative '../../../fixtures/changes/changes_fixtures'
 
 describe Skyward::ORM::Migrations::Script do
   fixtures = MigrationsFixtures
@@ -20,8 +20,8 @@ describe Skyward::ORM::Migrations::Script do
     [name, Skyward::Core::Types::Reader.new(builder, refinements: Skyward::ORM::Tables::ColumnTypes::REFINEMENTS)]
   end
 
-  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
-  let(:changes_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("changes")) }
+  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('migrations')) }
+  let(:changes_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('changes')) }
 
   def create(klass) = Skyward::ORM::Migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
 
@@ -44,12 +44,12 @@ describe Skyward::ORM::Migrations::Script do
     Skyward::ORM::Migrations::Script.write(changes, adapter)
   end
 
-  describe ".write" do
+  describe '.write' do
     it "writes the README's create_todos for PostgreSQL" do
-      readme = File.read(File.expand_path("../../../../README.md", __dir__))
+      readme = File.read(File.expand_path('../../../../README.md', __dir__))
       example = readme[%r{^-- db/migrate/\d+_create_todos\.sql\n(.*?)^```}m, 1]
       todo = TablesFixtures::Todo
-      columns = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("tables")).columns(todo)
+      columns = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('tables')).columns(todo)
 
       assert_equal example, write([migrations::CreateTable.new(klass: todo, columns:)], postgres)
     end
@@ -74,7 +74,7 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write([create(fixtures::Todo)])
     end
 
-    it "writes every other declaration, naming each constraint" do
+    it 'writes every other declaration, naming each constraint' do
       expected = <<~SQL
         CREATE TABLE members (
           email         TEXT    NOT NULL CONSTRAINT members_pkey PRIMARY KEY,
@@ -96,7 +96,7 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write([create(fixtures::Member)])
     end
 
-    it "writes a JSON column as jsonb on PostgreSQL and TEXT on SQLite, with its default as JSON" do
+    it 'writes a JSON column as jsonb on PostgreSQL and TEXT on SQLite, with its default as JSON' do
       default = %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}')
       columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Webhook)], adapter).lines[2..3].join }
 
@@ -107,7 +107,7 @@ describe Skyward::ORM::Migrations::Script do
                    columns
     end
 
-    it "writes a BigDecimal column as numeric on PostgreSQL and TEXT on SQLite, with its default unquoted" do
+    it 'writes a BigDecimal column as numeric on PostgreSQL and TEXT on SQLite, with its default unquoted' do
       columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Product)], adapter).lines[2..4].join }
 
       assert_equal [
@@ -121,7 +121,7 @@ describe Skyward::ORM::Migrations::Script do
       columns = [postgres, sqlite].map { |adapter| write([create(fixtures::Shelf)], adapter).lines[2..10].join }
 
       assert_equal [
-        <<~PG.gsub(/^/, "  "),
+        <<~PG.gsub(/^/, '  '),
           integers  bigint[]           NOT NULL DEFAULT '{}',
           floats    double precision[] NOT NULL DEFAULT '{1.0e+20,-1.5}',
           decimals  numeric[]          NOT NULL DEFAULT '{2.0,0.5}',
@@ -132,7 +132,7 @@ describe Skyward::ORM::Migrations::Script do
           weekdays  text[]             NOT NULL DEFAULT '{mon}',
           tags      text[]
         PG
-        <<~SQLITE.gsub(/^/, "  ")
+        <<~SQLITE.gsub(/^/, '  ')
           integers  TEXT    NOT NULL DEFAULT '[]',
           floats    TEXT    NOT NULL DEFAULT '#{JSON.generate([1e20, -1.5])}',
           decimals  TEXT    NOT NULL DEFAULT '["2.0","0.5"]',
@@ -147,11 +147,11 @@ describe Skyward::ORM::Migrations::Script do
                    columns
     end
 
-    it "quotes a default its adapter passes through as its text" do
+    it 'quotes a default its adapter passes through as its text' do
       assert_match(/^  joined_on +date +NOT NULL DEFAULT '2026-10-18',$/, write([create(fixtures::Member)], postgres))
     end
 
-    it "leaves a column with no type for you to write, with no comma after the column before it" do
+    it 'leaves a column with no type for you to write, with no comma after the column before it' do
       expected = <<~SQL
         CREATE TABLE scraps (
           id       INTEGER CONSTRAINT scraps_pkey PRIMARY KEY
@@ -219,7 +219,7 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write(created)
     end
 
-    it "adds columns, asking for a type, or a default for a required column with none" do
+    it 'adds columns, asking for a type, or a default for a required column with none' do
       expected = <<~SQL
         ALTER TABLE todos ADD COLUMN notes TEXT;
         ALTER TABLE todos ADD COLUMN rank INTEGER NOT NULL DEFAULT 0;
@@ -237,7 +237,7 @@ describe Skyward::ORM::Migrations::Script do
       assert_equal expected, write([add(fixtures::NotedTodo, :notes, :rank, :code, :extra)])
     end
 
-    it "separates each change with a blank line, and reverses them in the down section" do
+    it 'separates each change with a blank line, and reverses them in the down section' do
       expected = <<~SQL
         CREATE TABLE lists (
           id    INTEGER CONSTRAINT lists_pkey PRIMARY KEY,
@@ -255,36 +255,36 @@ describe Skyward::ORM::Migrations::Script do
     end
 
     it "writes the README's rework_todos for PostgreSQL" do
-      readme = File.read(File.expand_path("../../../../README.md", __dir__))
+      readme = File.read(File.expand_path('../../../../README.md', __dir__))
       example = readme[%r{^-- db/migrate/\d+_rework_todos\.sql\n(.*?)^```}m, 1]
 
       assert_equal example, write([alter(fixtures::Todo, MigrationsFixtures.rework_todos)], postgres)
     end
 
-    describe "where a database alters a table in place, as PostgreSQL does" do
-      note = catalog::Column.new(name: :note, type: "text", nullable: false, default: "'none'", generated: nil)
+    describe 'where a database alters a table in place, as PostgreSQL does' do
+      note = catalog::Column.new(name: :note, type: 'text', nullable: false, default: "'none'", generated: nil)
       check = catalog::Constraint.new(
-        name: "todos_title_check", kind: :check, columns: [:title], references: nil, definition: "CHECK (title <> '')"
+        name: 'todos_title_check', kind: :check, columns: [:title], references: nil, definition: "CHECK (title <> '')"
       )
       index = catalog::Index.new(
-        name: "todos_done_index",
+        name: 'todos_done_index',
         columns: [:done],
         unique: false,
-        definition: "CREATE INDEX todos_done_index ON todos (done)"
+        definition: 'CREATE INDEX todos_done_index ON todos (done)'
       )
 
-      it "makes each change with ALTER TABLE, undoing them in reverse" do
+      it 'makes each change with ALTER TABLE, undoing them in reverse' do
         edits = [
           migrations::DropIndex.new(index:),
           migrations::DropConstraint.new(constraint: check),
           migrations::DropColumn.new(column: note),
           migrations::RenameColumn.new(from: :due, to: :due_on),
-          migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "todos_list_id_fkey"),
-          migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
-          migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
+          migrations::RenameConstraint.new(from: 'fk_rails_0123456789', to: 'todos_list_id_fkey'),
+          migrations::ChangeType.new(column: :rank, from: 'integer', to: 'text'),
+          migrations::ChangeDefault.new(column: :done, from: nil, to: 'false'),
           migrations::ChangeNullable.new(column: :title, nullable: false),
-          migrations::AddConstraint.new(constraint: check.with(name: "todos_title_check1")),
-          migrations::AddIndex.new(index: index.with(name: "todos_done_index1"))
+          migrations::AddConstraint.new(constraint: check.with(name: 'todos_title_check1')),
+          migrations::AddIndex.new(index: index.with(name: 'todos_done_index1'))
         ]
         expected = <<~SQL
           DROP INDEX todos_done_index;
@@ -316,7 +316,7 @@ describe Skyward::ORM::Migrations::Script do
         assert_equal expected, write([alter(fixtures::Todo, edits)], postgres)
       end
 
-      it "undoes making a column nullable by asking for its NULLs to be backfilled" do
+      it 'undoes making a column nullable by asking for its NULLs to be backfilled' do
         down = write(
           [alter(fixtures::Todo, [migrations::ChangeNullable.new(column: :title, nullable: true)])],
           postgres
@@ -328,7 +328,7 @@ describe Skyward::ORM::Migrations::Script do
                      down
       end
 
-      it "asks for a default before it adds back a required column that had none" do
+      it 'asks for a default before it adds back a required column that had none' do
         dropped = migrations::DropColumn.new(column: note.with(default: nil))
 
         assert_equal "ALTER TABLE todos DROP COLUMN note;\n\n-- down\n" \
@@ -338,11 +338,11 @@ describe Skyward::ORM::Migrations::Script do
                      write([alter(fixtures::Todo, [dropped])], postgres)
       end
 
-      it "drops a default, and adds back one with no type and no name" do
+      it 'drops a default, and adds back one with no type and no name' do
         unnamed = check.with(name: nil)
         edits = [
-          migrations::ChangeDefault.new(column: :done, from: "false", to: nil),
-          migrations::DropColumn.new(column: note.with(type: "", nullable: true, default: nil)),
+          migrations::ChangeDefault.new(column: :done, from: 'false', to: nil),
+          migrations::DropColumn.new(column: note.with(type: '', nullable: true, default: nil)),
           migrations::DropConstraint.new(constraint: unnamed)
         ]
 
@@ -381,7 +381,7 @@ describe Skyward::ORM::Migrations::Script do
         end
       end
 
-      def rows = connection.execute("SELECT owner_id, title, code FROM items")
+      def rows = connection.execute('SELECT owner_id, title, code FROM items')
 
       def constraint_names = schema.find { |table| table.name == :items }&.constraints.to_a.filter_map(&:name)
 
@@ -397,7 +397,7 @@ describe Skyward::ORM::Migrations::Script do
         adapter.violation(e, adapter.tables(connection), :todos)
       end
 
-      it "runs up, to match each class, and down, to undo it" do
+      it 'runs up, to match each class, and down, to undo it' do
         created = [fixtures::List, fixtures::Todo, fixtures::Attachment, fixtures::Member].map { |klass| create(klass) }
         added = [add(fixtures::NotedTodo, :notes, :rank)]
         migrate(section(created, :up))
@@ -410,7 +410,7 @@ describe Skyward::ORM::Migrations::Script do
         assert_equal [%i[notes rank], []], [notes, adapter.tables(connection)]
       end
 
-      it "creates a JSON column, and then finds nothing to change, its default included" do
+      it 'creates a JSON column, and then finds nothing to change, its default included' do
         diff = lambda do
           Skyward::ORM::Migrations::Diff.changes(
             [fixtures::Webhook], column_types, adapter.tables(connection), adapter, ->(*) { true }
@@ -421,7 +421,7 @@ describe Skyward::ORM::Migrations::Script do
         assert_empty diff.call
       end
 
-      it "creates Array columns, and then finds nothing to change, their defaults included" do
+      it 'creates Array columns, and then finds nothing to change, their defaults included' do
         diff = lambda do
           Skyward::ORM::Migrations::Diff.changes(
             [fixtures::Shelf], column_types, adapter.tables(connection), adapter, ->(*) { true }
@@ -432,7 +432,7 @@ describe Skyward::ORM::Migrations::Script do
         assert_empty diff.call
       end
 
-      it "creates BigDecimal columns, and then finds nothing to change, their defaults included" do
+      it 'creates BigDecimal columns, and then finds nothing to change, their defaults included' do
         diff = lambda do
           Skyward::ORM::Migrations::Diff.changes(
             [fixtures::Product], column_types, adapter.tables(connection), adapter, ->(*) { true }
@@ -443,12 +443,12 @@ describe Skyward::ORM::Migrations::Script do
         assert_empty diff.call
       end
 
-      it "names a check, so its violation names it" do
+      it 'names a check, so its violation names it' do
         migrate(section([create(fixtures::List), create(fixtures::Todo)], :up))
         connection.execute("INSERT INTO lists (name) VALUES ('Home')")
         found = violation("INSERT INTO todos (list_id, title) VALUES (1, '')")
 
-        assert_equal ["todos_title_check", [:title]], [found&.constraint, found&.columns]
+        assert_equal ['todos_title_check', [:title]], [found&.constraint, found&.columns]
       end
 
       %i[
@@ -469,8 +469,8 @@ describe Skyward::ORM::Migrations::Script do
         end
       end
 
-      it "renames a foreign key and a unique constraint under other names, and renames them back" do
-        names = { "items_owner_id_fkey" => "fk_rails_0123456789", "items_code_key" => "index_items_on_code" }
+      it 'renames a foreign key and a unique constraint under other names, and renames them back' do
+        names = { 'items_owner_id_fkey' => 'fk_rails_0123456789', 'items_code_key' => 'index_items_on_code' }
         migrate(section(diff([changed::Owner, changed::Item]), :up).gsub(Regexp.union(names.keys), names))
         had = schema
         before = constraint_names
@@ -493,74 +493,74 @@ describe Skyward::ORM::Migrations::Script do
         items
         migrate(section(diff([changed::Owner, changed::Renamed]), :up))
 
-        assert_equal [["two"]], connection.execute("SELECT remark FROM items")
+        assert_equal [['two']], connection.execute('SELECT remark FROM items')
       end
 
-      it "numbers an int32 or int16 primary key" do
+      it 'numbers an int32 or int16 primary key' do
         migrate(section([create(fixtures::Counter), create(fixtures::Tally)], :up))
-        ids = ["INSERT INTO counters (hits) VALUES (1) RETURNING id", "INSERT INTO tallies DEFAULT VALUES RETURNING id"]
+        ids = ['INSERT INTO counters (hits) VALUES (1) RETURNING id', 'INSERT INTO tallies DEFAULT VALUES RETURNING id']
               .map { |sql| adapter.decode(TestDatabase.column(:int32), connection.execute(sql).dig(0, 0)) }
 
         assert_equal [1, 1], ids
       end
     end
 
-    describe "on PostgreSQL" do
+    describe 'on PostgreSQL' do
       let(:adapter) { postgres }
-      let(:connection) { TestDatabase.empty("postgresql").connect }
+      let(:connection) { TestDatabase.empty('postgresql').connect }
 
       # Every statement in one transaction, as `skyward migrate` runs it.
       def migrate(sql)
-        connection.execute("BEGIN")
+        connection.execute('BEGIN')
         connection.execute_batch(sql)
-        connection.execute("COMMIT")
+        connection.execute('COMMIT')
       end
 
       class_exec(&running)
 
-      it "fills a uuid primary key from its default" do
+      it 'fills a uuid primary key from its default' do
         migrate(section([create(fixtures::Visit)], :up))
-        id = connection.execute("INSERT INTO visits DEFAULT VALUES RETURNING id").dig(0, 0)
+        id = connection.execute('INSERT INTO visits DEFAULT VALUES RETURNING id').dig(0, 0)
 
         assert_match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/, id)
       end
     end
 
-    describe "on SQLite" do
+    describe 'on SQLite' do
       let(:adapter) { sqlite }
-      let(:connection) { sqlite.connect(":memory:") }
+      let(:connection) { sqlite.connect(':memory:') }
 
       # As `skyward migrate` runs a migration on SQLite: with foreign keys off,
       # since SQLite can't turn them off inside a transaction, and checked before
       # it commits.
       def migrate(sql)
-        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.execute('PRAGMA foreign_keys = OFF')
         connection.transaction do
           connection.execute_batch(sql)
-          problems = connection.execute("PRAGMA foreign_key_check")
+          problems = connection.execute('PRAGMA foreign_key_check')
           raise SQLite3::ConstraintException, "foreign_key_check: #{problems.inspect}" unless problems.empty?
         end
       ensure
-        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute('PRAGMA foreign_keys = ON')
       end
 
       class_exec(&running)
 
-      it "refuses to rebuild a table with a generated column, which the rebuild would lose" do
+      it 'refuses to rebuild a table with a generated column, which the rebuild would lose' do
         connection.execute(
-          "CREATE TABLE scraps (id INTEGER, payload BLOB NOT NULL, " \
-          "low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)"
+          'CREATE TABLE scraps (id INTEGER, payload BLOB NOT NULL, ' \
+          'low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)'
         )
         scraps = sqlite.tables(connection).fetch(0)
         both = scraps.with(
           columns: [
             *scraps.columns,
-            catalog::Column.new(name: :up, type: "TEXT", nullable: true, default: nil, generated: "upper(payload)")
+            catalog::Column.new(name: :up, type: 'TEXT', nullable: true, default: nil, generated: 'upper(payload)')
           ]
         )
         keyed = migrations::AddConstraint.new(
           constraint: catalog::Constraint.new(
-            name: "scraps_pkey", kind: :primary_key, columns: [:id], references: nil, definition: "PRIMARY KEY (id)"
+            name: 'scraps_pkey', kind: :primary_key, columns: [:id], references: nil, definition: 'PRIMARY KEY (id)'
           )
         )
         error = assert_raises(Skyward::Core::BootError) do
@@ -575,8 +575,8 @@ describe Skyward::ORM::Migrations::Script do
 
       it "alters a table with a generated column in place, where it doesn't rebuild it" do
         connection.execute(
-          "CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT, " \
-          "low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)"
+          'CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT, ' \
+          'low TEXT GENERATED ALWAYS AS (lower(payload)) STORED)'
         )
         scraps = sqlite.tables(connection).fetch(0)
         dropped = migrations::DropColumn.new(column: scraps.columns.fetch(2))
@@ -590,14 +590,14 @@ describe Skyward::ORM::Migrations::Script do
         SQL
       end
 
-      it "keeps the rows that reference a table it rebuilds, whatever they do ON DELETE" do
+      it 'keeps the rows that reference a table it rebuilds, whatever they do ON DELETE' do
         items
         changes = diff([changed::CheckedOwner, changed::Item])
         migrate(section(changes, :up))
         kept = rows
         migrate(section(changes, :down))
 
-        assert_equal [[[1, "Milk", "milk"]], [[1, "Milk", "milk"]]], [kept, rows]
+        assert_equal [[[1, 'Milk', 'milk']], [[1, 'Milk', 'milk']]], [kept, rows]
       end
 
       it "keeps what the class can't declare when it rebuilds, recreating each index and copying each constraint" do
@@ -617,7 +617,7 @@ describe Skyward::ORM::Migrations::Script do
         migrate(section(changes, :down))
 
         assert_equal(
-          [["CHECK (1 = 1)", "CHECK (rank < length(title))"], %w[items_lower_title_index items_noted_index], [], had],
+          [['CHECK (1 = 1)', 'CHECK (rank < length(title))'], %w[items_lower_title_index items_noted_index], [], had],
           [
             kept&.constraints.to_a.map(&:definition).grep(/rank|1 = 1/).sort,
             kept&.indexes.to_a.map(&:name).grep(/lower|noted/),
@@ -644,7 +644,7 @@ describe Skyward::ORM::Migrations::Script do
         SQL
       end
 
-      it "rebuilds a table to change a column, and rebuilds it as it was to undo it" do
+      it 'rebuilds a table to change a column, and rebuilds it as it was to undo it' do
         items
         sql = write(diff([changed::Owner, changed::Required]))
 
@@ -689,21 +689,21 @@ describe Skyward::ORM::Migrations::Script do
       it "rebuilds to add a unique column, or one whose default is an expression, which ALTER TABLE can't" do
         items
         rebuilt = [changed::Added, changed::Serialed, changed::Stamped].map do |variant|
-          write(diff([changed::Owner, variant])).start_with?("CREATE TABLE items_new")
+          write(diff([changed::Owner, variant])).start_with?('CREATE TABLE items_new')
         end
 
         assert_equal [false, true, true], rebuilt
       end
 
-      it "keeps the type an untyped column has when it rebuilds, and drops a column the class no longer has" do
-        connection.execute("CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT NOT NULL)")
+      it 'keeps the type an untyped column has when it rebuilds, and drops a column the class no longer has' do
+        connection.execute('CREATE TABLE scraps (id INTEGER PRIMARY KEY, payload BLOB NOT NULL, old TEXT NOT NULL)')
         scraps = sqlite.tables(connection).fetch(0)
         scrap = fixtures::Scrap
         edits = [
           migrations::DropColumn.new(column: scraps.columns.fetch(2)),
           migrations::AddConstraint.new(
             constraint: catalog::Constraint.new(
-              name: "scraps_pkey", kind: :primary_key, columns: [:id], references: nil, definition: "PRIMARY KEY (id)"
+              name: 'scraps_pkey', kind: :primary_key, columns: [:id], references: nil, definition: 'PRIMARY KEY (id)'
             )
           )
         ]

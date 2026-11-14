@@ -2,7 +2,7 @@
 
 module RuboCop::Cop::Local
   class NoRawSql < RuboCop::Cop::Base
-    MSG = "Only Skyward ORM talks to the database."
+    MSG = 'Only Skyward ORM talks to the database.'
 
     DRIVERS = %r{\A(?:sqlite3|pg)(?:/|\z)}
     DRIVER_CONSTANTS = %i[SQLite3 PG].freeze

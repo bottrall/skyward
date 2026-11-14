@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "test_helper"
-require "tmpdir"
-require_relative "../fixtures/types/types_fixtures"
+require 'fileutils'
+require 'test_helper'
+require 'tmpdir'
+require_relative '../fixtures/types/types_fixtures'
 
 # Both READMEs promise that a row read from the database and the same class
 # sent as JSON are the same thing. These hold the two gems to it.
 describe "Skyward's types" do
-  signatures = File.expand_path("../fixtures/types/sig", __dir__)
+  signatures = File.expand_path('../fixtures/types/sig', __dir__)
 
-  let(:directory) { Dir.mktmpdir("skyward-types") }
+  let(:directory) { Dir.mktmpdir('skyward-types') }
 
   after { FileUtils.rm_rf(directory) }
 
@@ -31,34 +31,34 @@ describe "Skyward's types" do
         [TypesFixtures::Everything], database.column_types, database.tables, database.adapter, ->(*) { false }
       )
       script = Skyward::ORM::Migrations::Script.write(changes, database.adapter)
-      Skyward::ORM::Migrations::Directory.write(directory, Time.now, "create_everythings", script)
+      Skyward::ORM::Migrations::Directory.write(directory, Time.now, 'create_everythings', script)
       Skyward.migrate(File.join(directory, Skyward::ORM::Migrations::Directory::PATH))
     end
 
-    describe "a row the API returns and takes back" do
+    describe 'a row the API returns and takes back' do
       # A fraction of a second and an offset, so neither side can round the
       # time or lose its zone without the round trip noticing.
-      due_at = Time.new(2026, 11, 9, 21, 45, Rational("7.123456"), "+10:30")
+      due_at = Time.new(2026, 11, 9, 21, 45, Rational('7.123456'), '+10:30')
 
       values = {
         count: -42,
         ratio: 0.1,
         # More digits than a Float holds.
-        amount: BigDecimal("12345678901234567890.123456789"),
-        title: "Ünïcode \"quoted\" ✓",
+        amount: BigDecimal('12345678901234567890.123456789'),
+        title: 'Ünïcode "quoted" ✓',
         done: true,
         due_on: Date.new(2028, 2, 29),
         due_at:,
         priority: :high,
         settings: {
-          "retries" => [{ "delay" => 0.5, "limit" => 2**64, "until" => nil, "on" => false, "headers" => {} }],
-          "ünïcode" => "✓"
+          'retries' => [{ 'delay' => 0.5, 'limit' => 2**64, 'until' => nil, 'on' => false, 'headers' => {} }],
+          'ünïcode' => '✓'
         },
         counts: [-42, 2**62],
         ratios: [0.1, -2.5e-8],
-        amounts: [BigDecimal("12345678901234567890.123456789"), BigDecimal("-0.5")],
+        amounts: [BigDecimal('12345678901234567890.123456789'), BigDecimal('-0.5')],
         # The characters PostgreSQL's array text quotes, and the string it reads as NULL unquoted.
-        titles: ["a,b", "say \"hi\"", "{braced}", "back\\slash", "NULL", "", "Ünïcode"],
+        titles: ['a,b', 'say "hi"', '{braced}', 'back\\slash', 'NULL', '', 'Ünïcode'],
         flags: [true, false],
         due_ons: [Date.new(2028, 2, 29), Date.new(1970, 1, 1)],
         due_ats: [due_at],
@@ -73,22 +73,22 @@ describe "Skyward's types" do
 
         assert_equal 200, shown.status, shown.body
 
-        posted = client.post("/everythings", json: shown.json)
+        posted = client.post('/everythings', json: shown.json)
 
         assert_equal 204, posted.status, posted.body
 
         [received.pop(true), TypesFixtures::Everything.find_by(id:)]
       end
 
-      it "is the row the database holds, with its nullable columns filled" do
+      it 'is the row the database holds, with its nullable columns filled' do
         nullables = {
           nullable_count: 0,
           nullable_ratio: -2.5e-8,
-          nullable_amount: BigDecimal("-0.000000000000000001"),
-          nullable_title: "",
+          nullable_amount: BigDecimal('-0.000000000000000001'),
+          nullable_title: '',
           nullable_done: false,
           nullable_due_on: Date.new(1970, 1, 1),
-          nullable_due_at: Time.new(1999, 12, 31, 23, 59, Rational("59.999999"), "-03:00"),
+          nullable_due_at: Time.new(1999, 12, 31, 23, 59, Rational('59.999999'), '-03:00'),
           nullable_priority: :low,
           nullable_settings: {},
           nullable_titles: []
@@ -99,7 +99,7 @@ describe "Skyward's types" do
         assert_equal nullables, got.to_h.slice(*nullables.keys)
       end
 
-      it "is the row the database holds, with its nullable columns nil" do
+      it 'is the row the database holds, with its nullable columns nil' do
         got, row = round_trip(values.merge(done: false))
 
         assert_equal row, got
@@ -110,29 +110,29 @@ describe "Skyward's types" do
     describe "the class's OpenAPI component" do
       # Each column type as Skyward API documents it, from the two READMEs' tables.
       documented = {
-        integer: { type: "integer" },
-        float: { type: "number" },
-        decimal: { type: "string", format: "decimal" },
-        string: { type: "string" },
-        bool: { type: "boolean" },
-        date: { type: "string", format: "date" },
-        time: { type: "string", format: "date-time" },
-        json: { type: "object", additionalProperties: {} }
+        integer: { type: 'integer' },
+        float: { type: 'number' },
+        decimal: { type: 'string', format: 'decimal' },
+        string: { type: 'string' },
+        bool: { type: 'boolean' },
+        date: { type: 'string', format: 'date' },
+        time: { type: 'string', format: 'date-time' },
+        json: { type: 'object', additionalProperties: {} }
       }
 
       it "agrees with the ORM's columns on each name, type, nullability and enum" do
-        component = client.get("/openapi.json").json.dig(:components, :schemas, :"TypesFixtures.Everything")
+        component = client.get('/openapi.json').json.dig(:components, :schemas, :'TypesFixtures.Everything')
         columns = database.column_types.columns(TypesFixtures::Everything)
-        enum = ->(column) { { type: "string", enum: column.symbols.map(&:name) } }
+        enum = ->(column) { { type: 'string', enum: column.symbols.map(&:name) } }
         expected = columns.to_h do |column|
           type = if column.type == :array
-                   { type: "array", items: documented.fetch(column.element) { enum.call(column) } }
+                   { type: 'array', items: documented.fetch(column.element) { enum.call(column) } }
                  else
                    documented.fetch(column.type) { enum.call(column) }
                  end
           schema = if !column.nullable then type
-                   elsif column.type == :enum then { anyOf: [type, { type: "null" }] }
-                   else type.merge(type: [type.fetch(:type), "null"])
+                   elsif column.type == :enum then { anyOf: [type, { type: 'null' }] }
+                   else type.merge(type: [type.fetch(:type), 'null'])
                    end
           [column.name, schema]
         end
@@ -143,23 +143,23 @@ describe "Skyward's types" do
     end
   end
 
-  describe "types only one gem reads" do
+  describe 'types only one gem reads' do
     # Every type either README maps, written as RBS.
     candidates = [
-      "Integer", "Float", "String", "bool", "Date", "Time", ":low | :high",
-      "Integer?", "Float?", "String?", "bool?", "Date?", "Time?", "(:low | :high)?",
-      "BigDecimal", "Hash[String, untyped]", "Hash[String, Integer]", "Array[Integer]",
-      "{ id: Integer }", "TypesFixtures::Item", "TypesFixtures::Item | TypesFixtures::Tag", '"draft"'
+      'Integer', 'Float', 'String', 'bool', 'Date', 'Time', ':low | :high',
+      'Integer?', 'Float?', 'String?', 'bool?', 'Date?', 'Time?', '(:low | :high)?',
+      'BigDecimal', 'Hash[String, untyped]', 'Hash[String, Integer]', 'Array[Integer]',
+      '{ id: Integer }', 'TypesFixtures::Item', 'TypesFixtures::Item | TypesFixtures::Tag', '"draft"'
     ]
 
     # The candidates that aren't read by both gems, and which gems read each.
     # Teaching either gem a type moves it in or out of this list, so the test
     # fails until the list says which gems read it.
     known = {
-      "Hash[String, Integer]" => %i[api],
-      "{ id: Integer }" => %i[api],
-      "TypesFixtures::Item" => %i[api],
-      "TypesFixtures::Item | TypesFixtures::Tag" => %i[api],
+      'Hash[String, Integer]' => %i[api],
+      '{ id: Integer }' => %i[api],
+      'TypesFixtures::Item' => %i[api],
+      'TypesFixtures::Item | TypesFixtures::Tag' => %i[api],
       '"draft"' => %i[api]
     }
 
@@ -175,7 +175,7 @@ describe "Skyward's types" do
     # The gems that read the type, as a body and as a column.
     def readers(type, signatures)
       FileUtils.mkdir_p(signatures)
-      File.write(File.join(signatures, "probes.rbs"), <<~RBS)
+      File.write(File.join(signatures, 'probes.rbs'), <<~RBS)
         module TypesFixtures
           class Column < ::Skyward::ORM::Record
             attr_reader value: #{type}
@@ -196,12 +196,12 @@ describe "Skyward's types" do
       RBS
       api = boots? { Skyward.app(signatures:, logger: nil) { |builder| builder.mount TypesFixtures::Body.new } }
       orm = boots? do
-        Skyward.connect("sqlite://:memory:", signatures:, check: false).column_types.columns(TypesFixtures::Column)
+        Skyward.connect('sqlite://:memory:', signatures:, check: false).column_types.columns(TypesFixtures::Column)
       end
       { api:, orm: }.select { |_, reads| reads }.keys
     end
 
-    it "are only the ones listed" do
+    it 'are only the ones listed' do
       read = candidates.each_with_index.to_h { |type, index| [type, readers(type, File.join(directory, index.to_s))] }
 
       assert_equal(known, read.reject { |_, gems| gems == %i[api orm] })

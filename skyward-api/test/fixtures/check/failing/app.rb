@@ -2,15 +2,15 @@
 
 # rbs_inline: enabled
 
-require "skyward/api"
+require 'skyward/api'
 
 class Hello < Skyward::API
-  get "/", to: :greet
+  get '/', to: :greet
 
-  def greet = { message: "Hello" }
+  def greet = { message: 'Hello' }
 
   # @rbs return: Integer
-  def count = "many"
+  def count = 'many'
 end
 
 App = Skyward.app(strict: false, logger: nil) { |app| app.mount Hello.new }

@@ -4,28 +4,28 @@ module Skyward::ORM::Adapters::SQLite
   extend self
 
   # The first SQLite with RETURNING, which every write into a row class uses.
-  MINIMUM_VERSION = Gem::Version.new("3.35") #: Gem::Version
+  MINIMUM_VERSION = Gem::Version.new('3.35') #: Gem::Version
 
   SQL_TYPES = {
-    integer: "INTEGER",
-    float: "REAL",
-    decimal: "TEXT",
-    string: "TEXT",
-    bool: "INTEGER",
-    date: "TEXT",
-    time: "TEXT",
-    enum: "TEXT",
-    uuid: "TEXT",
-    int32: "INTEGER",
-    int16: "INTEGER",
-    json: "TEXT",
-    array: "TEXT"
+    integer: 'INTEGER',
+    float: 'REAL',
+    decimal: 'TEXT',
+    string: 'TEXT',
+    bool: 'INTEGER',
+    date: 'TEXT',
+    time: 'TEXT',
+    enum: 'TEXT',
+    uuid: 'TEXT',
+    int32: 'INTEGER',
+    int16: 'INTEGER',
+    json: 'TEXT',
+    array: 'TEXT'
   }.freeze #: Hash[Skyward::ORM::Tables::column_type, String]
 
   # Fixed width and UTC, so text order is time order, and to the microsecond,
   # as PostgreSQL keeps it. It's the format of SQLite's own CURRENT_TIMESTAMP,
   # with the fraction added, so the two compare.
-  TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%6N" #: String
+  TIME_FORMAT = '%Y-%m-%d %H:%M:%S.%6N' #: String
 
   # SQLite's extended result codes: SQLITE_CONSTRAINT_CHECK, _FOREIGNKEY,
   # _NOTNULL, _PRIMARYKEY and _UNIQUE.
@@ -40,7 +40,7 @@ module Skyward::ORM::Adapters::SQLite
   # SQLite enforces a RESTRICT foreign key as a trigger would, so it reports
   # SQLITE_CONSTRAINT_TRIGGER, and only the message tells it from a trigger's RAISE.
   TRIGGER = 1811 #: Integer
-  RESTRICTED = "FOREIGN KEY constraint failed" #: String
+  RESTRICTED = 'FOREIGN KEY constraint failed' #: String
 
   # Types whose values keep their meaning under NUMERIC affinity, which Rails
   # gives BOOLEAN, DATE and DATETIME. A boolean is already a number, and a date
@@ -52,9 +52,9 @@ module Skyward::ORM::Adapters::SQLite
   # in DATETIME(6). Nothing else in the catalog tells a bool, Date or Time from
   # an Integer or String, since a migration stores them as INTEGER and TEXT.
   NUMERIC_NAMES = {
-    "BOOLEAN" => :bool,
-    "DATE" => :date,
-    "DATETIME" => :time
+    'BOOLEAN' => :bool,
+    'DATE' => :date,
+    'DATETIME' => :time
   }.freeze #: Hash[String, Skyward::ORM::Tables::column_type]
   PRECISION = /\s*\(.*\)\z/ #: Regexp
 
@@ -90,7 +90,7 @@ module Skyward::ORM::Adapters::SQLite
   LITERAL = /\A(?:'(?:[^']|'')*'|x'\h*'|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?|0x\h+|null|true|false)\z/i #: Regexp
 
   # @rbs return: String
-  def driver = "sqlite3"
+  def driver = 'sqlite3'
 
   # @rbs return: Symbol
   def adapter_name = :sqlite
@@ -103,8 +103,8 @@ module Skyward::ORM::Adapters::SQLite
     # busy_timeout= would hold the GVL while it waits, so no other thread or
     # fiber could run, including the one holding the lock.
     connection.busy_handler_timeout = BUSY_TIMEOUT_MS
-    connection.execute("PRAGMA foreign_keys = ON")
-    require_version(connection.execute("SELECT sqlite_version()").dig(0, 0).to_s)
+    connection.execute('PRAGMA foreign_keys = ON')
+    require_version(connection.execute('SELECT sqlite_version()').dig(0, 0).to_s)
     connection
   end
 
@@ -113,7 +113,7 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs location: String
   # @rbs size: Integer
   # @rbs return: Integer
-  def pool_size(location, size) = location == ":memory:" ? 1 : size
+  def pool_size(location, size) = location == ':memory:' ? 1 : size
 
   # @rbs version: String
   # @rbs return: void
@@ -126,7 +126,7 @@ module Skyward::ORM::Adapters::SQLite
   end
 
   # @rbs (Integer _position) -> String
-  def placeholder(_position) = "?"
+  def placeholder(_position) = '?'
 
   # SQLITE_MAX_VARIABLE_NUMBER's default since 3.32. A SQLite built with a
   # lower one refuses with its own error, since the sqlite3 gem doesn't expose
@@ -136,7 +136,7 @@ module Skyward::ORM::Adapters::SQLite
 
   # SQLite takes an OFFSET only after a LIMIT, and a negative one is no limit.
   # @rbs return: String
-  def unlimited = "LIMIT -1"
+  def unlimited = 'LIMIT -1'
 
   # @rbs column: Skyward::ORM::Tables::Column
   # @rbs return: String?
@@ -184,7 +184,7 @@ module Skyward::ORM::Adapters::SQLite
 
   # @rbs sql_type: String
   # @rbs return: Skyward::ORM::Tables::column_type?
-  def column_type(sql_type) = NUMERIC_NAMES[sql_type.upcase.sub(PRECISION, "")] || AFFINITY_TYPES[affinity(sql_type)]
+  def column_type(sql_type) = NUMERIC_NAMES[sql_type.upcase.sub(PRECISION, '')] || AFFINITY_TYPES[affinity(sql_type)]
 
   # @rbs value: untyped
   # @rbs return: untyped
@@ -196,7 +196,7 @@ module Skyward::ORM::Adapters::SQLite
     # A decimal is stored as text, which = compares, so it's always written the
     # same way, without the exponent BigDecimal#to_s writes, as 0.15e1.
     # -0.0 is 0, but would be written "-0.0" and miss an = against 0 on SQLite.
-    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s("F")
+    when BigDecimal then (value.zero? ? BigDecimal(0) : value).to_s('F')
     when Time then value.getutc.strftime(TIME_FORMAT)
     when Date then value.iso8601
     else value
@@ -262,17 +262,17 @@ module Skyward::ORM::Adapters::SQLite
   # IMMEDIATE takes the write lock as the transaction begins rather than at its
   # first write, so a second migrator waits there, and then sees what the first ran.
   # @rbs return: String
-  def begin_migration = "PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE"
+  def begin_migration = 'PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE'
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[String]
   def foreign_key_violations(connection)
-    connection.execute("PRAGMA foreign_key_check").map do |table, rowid, parent, key|
+    connection.execute('PRAGMA foreign_key_check').map do |table, rowid, parent, key|
       "#{table} row #{rowid} refers to a missing #{parent} row (foreign key #{key})"
     end
   end
 
   # @rbs return: String
-  def end_migration = "PRAGMA foreign_keys = ON"
+  def end_migration = 'PRAGMA foreign_keys = ON'
 
   # The code says which kind of constraint failed. The message names the
   # columns of a unique or not-null one, and the name of a check, and the rest
@@ -309,7 +309,7 @@ module Skyward::ORM::Adapters::SQLite
     when :bool then value != 0
     when :decimal then BigDecimal(value)
     when :date then Date.iso8601(value)
-    when :time then Time.new(value, in: "UTC")
+    when :time then Time.new(value, in: 'UTC')
     when :enum then value.to_sym
     when :json then JSON.parse(value, freeze: true)
     # Rows are values, so even what the driver returns as it is comes back frozen.
@@ -335,9 +335,9 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs return: Symbol
   def affinity(sql_type)
     declared = sql_type.upcase
-    if declared.include?("INT") then :integer
+    if declared.include?('INT') then :integer
     elsif declared.match?(/CHAR|CLOB|TEXT/) then :text
-    elsif declared.empty? || declared.include?("BLOB") then :blob
+    elsif declared.empty? || declared.include?('BLOB') then :blob
     elsif declared.match?(/REAL|FLOA|DOUB/) then :real
     else :numeric
     end
@@ -416,11 +416,11 @@ module Skyward::ORM::Adapters::SQLite
   # @rbs message: String
   # @rbs return: [Symbol, Array[Symbol]]
   def failed_columns(message)
-    names = detail(message).split(", ").map { |name| name.split(".", 2) }
+    names = detail(message).split(', ').map { |name| name.split('.', 2) }
     [names.fetch(0).fetch(0).to_sym, names.map { |name| name.fetch(-1).to_sym }]
   end
 
   # @rbs message: String
   # @rbs return: String
-  def detail(message) = message.split(": ", 2).last.to_s
+  def detail(message) = message.split(': ', 2).last.to_s
 end

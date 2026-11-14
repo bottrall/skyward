@@ -45,8 +45,8 @@ NewTodo = Data.define(
 )
 
 class TodosAPI < Skyward::API
-  get  "/todos/:id", to: :show
-  post "/todos",     to: :create
+  get  '/todos/:id', to: :show
+  post '/todos',     to: :create
 
   # @rbs id: Integer
   # @rbs return: Todo | Responses::NotFound

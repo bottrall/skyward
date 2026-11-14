@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "date"
+require 'date'
 
 module MigrationsFixtures
   class List < Skyward::ORM::Record
@@ -13,7 +13,7 @@ module MigrationsFixtures
   class Todo < Skyward::ORM::Record
     table :todos
     references :list_id, List, on_delete: :cascade
-    default priority: :normal, done: false, created_at: Skyward.sql("CURRENT_TIMESTAMP")
+    default priority: :normal, done: false, created_at: Skyward.sql('CURRENT_TIMESTAMP')
     check :title, length: 1..200
     index :list_id, :done
 
@@ -46,7 +46,7 @@ module MigrationsFixtures
     unique :handle
     unique :list_id, :handle
     check :handle, length: (3..)
-    check :handle, Skyward.sql("handle = lower(handle)")
+    check :handle, Skyward.sql('handle = lower(handle)')
     check :nickname, length: ..20
 
     attr_reader :email, :list_id, :mentor_email, :handle, :nickname, :score, :joined_on, :role, :note
@@ -76,7 +76,7 @@ module MigrationsFixtures
   # Keyed by a uuid its default fills.
   class Visit < Skyward::ORM::Record
     table :visits
-    default id: Skyward.sql("gen_random_uuid()")
+    default id: Skyward.sql('gen_random_uuid()')
 
     attr_reader :id, :invited_by
   end
@@ -85,7 +85,7 @@ module MigrationsFixtures
   # and one without.
   class Webhook < Skyward::ORM::Record
     table :webhooks
-    default settings: { "retries" => 3, "it's" => [1.5, nil, { "on" => true }], "ü" => "" }
+    default settings: { 'retries' => 3, "it's" => [1.5, nil, { 'on' => true }], 'ü' => '' }
 
     attr_reader :id, :settings, :payload
   end
@@ -94,7 +94,7 @@ module MigrationsFixtures
   # PostgreSQL reads back cast, and without one.
   class Product < Skyward::ORM::Record
     table :products
-    default price: BigDecimal("1.5"), fee: -2
+    default price: BigDecimal('1.5'), fee: -2
 
     attr_reader :id, :price, :fee, :discount
   end
@@ -105,8 +105,8 @@ module MigrationsFixtures
     table :shelves
     default integers: [],
             floats: [1e20, -1.5],
-            decimals: [2, BigDecimal("0.5")],
-            strings: ["it's", "a,b", 'say "hi"', "NULL", ""],
+            decimals: [2, BigDecimal('0.5')],
+            strings: ["it's", 'a,b', 'say "hi"', 'NULL', ''],
             bools: [true, false],
             dates: [Date.new(2026, 10, 18)],
             times: [Time.utc(2026, 10, 18, 9, 30, 1/2r)],
@@ -133,10 +133,10 @@ module MigrationsFixtures
       Skyward::ORM::Migrations::ChangeNullable.new(column: :due_on, nullable: false),
       Skyward::ORM::Migrations::AddIndex.new(
         index: Skyward::ORM::Catalog::Index.new(
-          name: "todos_due_on_index",
+          name: 'todos_due_on_index',
           columns: [:due_on],
           unique: false,
-          definition: "CREATE INDEX todos_due_on_index ON todos (due_on)"
+          definition: 'CREATE INDEX todos_due_on_index ON todos (due_on)'
         )
       )
     ]

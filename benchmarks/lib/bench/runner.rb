@@ -18,13 +18,13 @@ module Bench::Runner
   # @rbs return: Bench::Report | String
   def call(names, scenario_names:, postgres_url:, environment:, scratch:, run:, say:)
     unmatched = Bench::Groups.unmatched(names, scenario_names)
-    return "No benchmark's name starts with #{unmatched.join(" or ")}" unless unmatched.empty?
+    return "No benchmark's name starts with #{unmatched.join(' or ')}" unless unmatched.empty?
 
     groups = Bench::Groups.selected(names)
     skipped = Bench::Groups.skipped(groups, postgres_url)
     skipped.each { |group, reason| say.call("Skipping #{group}: #{reason}") }
     running = groups - skipped.keys
-    joined = names.join(",")
+    joined = names.join(',')
     # Every check runs, and all of them pass, before anything is timed.
     checked = running.map { |group| run.call(group, joined, nil) }
     return "A scenario's check failed, so nothing was timed" unless checked.all?

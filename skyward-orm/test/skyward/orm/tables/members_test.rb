@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require_relative "../../../fixtures/tables/tables_fixtures"
+require 'test_helper'
+require_relative '../../../fixtures/tables/tables_fixtures'
 
 describe Skyward::ORM::Tables::Members do
   members = Skyward::ORM::Tables::Members
 
-  describe ".of" do
+  describe '.of' do
     it "is a Data class's members" do
       assert_equal %i[title days_late], members.of(TablesFixtures::Overdue)
     end

@@ -5,12 +5,12 @@ class Skyward::Core::Types::Reader
   # @rbs @refinements: Hash[String, Symbol]
 
   SCALARS = {
-    "::Integer" => :integer,
-    "::Float" => :float,
-    "::String" => :string,
-    "::Date" => :date,
-    "::Time" => :time,
-    "::BigDecimal" => :decimal
+    '::Integer' => :integer,
+    '::Float' => :float,
+    '::String' => :string,
+    '::Date' => :date,
+    '::Time' => :time,
+    '::BigDecimal' => :decimal
   }.freeze #: Hash[String, Skyward::Core::Types::scalar]
 
   NIL_LITERAL = Skyward::Core::Types::Literal.new(value: nil) #: Skyward::Core::Types::Literal
@@ -98,7 +98,7 @@ class Skyward::Core::Types::Reader
     when RBS::Types::Alias then alias_type(type, path)
     when RBS::Types::Record then record(type, path)
     when RBS::Types::ClassInstance then instance(type, path)
-    when RBS::Types::Tuple then unreadable(type, "Array[T], or a record")
+    when RBS::Types::Tuple then unreadable(type, 'Array[T], or a record')
     else unreadable(type)
     end
   end
@@ -164,12 +164,12 @@ class Skyward::Core::Types::Reader
     name = type.name.to_s
     scalar = SCALARS.fetch(name, nil)
     if scalar then Skyward::Core::Types::Scalar.new(name: scalar)
-    elsif name == "::Array" && type.args.size != 1 then unreadable(type, "Array[T]")
-    elsif name == "::Array"
+    elsif name == '::Array' && type.args.size != 1 then unreadable(type, 'Array[T]')
+    elsif name == '::Array'
       all_readable(type.args.map { |arg| read_within(arg, path) }) do |items|
         Skyward::Core::Types::ArrayOf.new(type: items.fetch(0))
       end
-    elsif name == "::Hash" then hash_of(type, path)
+    elsif name == '::Hash' then hash_of(type, path)
     else named(type, path)
     end
   end
@@ -180,7 +180,7 @@ class Skyward::Core::Types::Reader
   def hash_of(type, path)
     key, *values = type.args.map { |arg| read_within(arg, path) }
     unless key == Skyward::Core::Types::Scalar.new(name: :string) && values.size == 1
-      return unreadable(type, "Hash[String, T] (only String keys are supported)")
+      return unreadable(type, 'Hash[String, T] (only String keys are supported)')
     end
 
     all_readable(values) { |read| Skyward::Core::Types::HashOf.new(type: read.fetch(0)) }
@@ -253,7 +253,7 @@ class Skyward::Core::Types::Reader
     return [*path, name] unless path.include?(name)
 
     cycle = [*path.drop_while { |entered| entered != name }, name]
-    raise Skyward::Core::BootError, "Can't read #{name}: it refers to itself through #{cycle.join(" -> ")}"
+    raise Skyward::Core::BootError, "Can't read #{name}: it refers to itself through #{cycle.join(' -> ')}"
   end
 
   # @rbs keys: Array[[Symbol, bool]]
@@ -287,10 +287,10 @@ class Skyward::Core::Types::Reader
   # @rbs instead: String
   # @rbs suggestion: String?
   # @rbs return: Skyward::Core::Types::Unreadable
-  def unreadable(type, instead = "a record, or a class with public typed attr_readers", suggestion: nil)
+  def unreadable(type, instead = 'a record, or a class with public typed attr_readers', suggestion: nil)
     Skyward::Core::Types::Unreadable.new(type: written(type), at: nil, instead:, suggestion:)
   end
 
   # @rbs (_ToS name) -> String
-  def written(name) = name.to_s.gsub(/(?<!\w)::/, "")
+  def written(name) = name.to_s.gsub(/(?<!\w)::/, '')
 end

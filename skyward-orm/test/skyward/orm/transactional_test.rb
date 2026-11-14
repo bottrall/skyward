@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Skyward::ORM::Transactional do
-  signatures = File.expand_path("../../fixtures/tables/sig", __dir__)
+  signatures = File.expand_path('../../fixtures/tables/sig', __dir__)
   insert = lambda do |name|
     database = Skyward::ORM::Connection::SESSION.database
     database.connection do |connection|
       connection.execute("INSERT INTO lists (name) VALUES (#{database.adapter.placeholder(1)})", [name])
     end
   end
-  names = -> { Skyward::ORM::Connection::SESSION.database.execute("SELECT name FROM lists ORDER BY id") }
+  names = -> { Skyward::ORM::Connection::SESSION.database.execute('SELECT name FROM lists ORDER BY id') }
 
   let(:empty) { TestDatabase.empty }
   let(:database) { Skyward.connect(empty.url, signatures:, check: false) }
@@ -24,11 +24,11 @@ describe Skyward::ORM::Transactional do
     test.new(:example).run
   end
 
-  describe "#before_setup" do
-    it "rolls back rows from before and let blocks with the test" do
+  describe '#before_setup' do
+    it 'rolls back rows from before and let blocks with the test' do
       run_test do
-        let(:list) { insert.call("Home") }
-        before { insert.call("Work") }
+        let(:list) { insert.call('Home') }
+        before { insert.call('Work') }
         define_method(:example) { list }
       end
 
@@ -36,17 +36,17 @@ describe Skyward::ORM::Transactional do
     end
   end
 
-  describe "#after_teardown" do
-    it "rolls back after a test that passed" do
-      run_test { define_method(:example) { insert.call("Work") } }
+  describe '#after_teardown' do
+    it 'rolls back after a test that passed' do
+      run_test { define_method(:example) { insert.call('Work') } }
 
       assert_empty names.call
     end
 
-    it "rolls back after a test that failed" do
+    it 'rolls back after a test that failed' do
       run_test do
         define_method(:example) do
-          insert.call("Work")
+          insert.call('Work')
 
           flunk
         end
@@ -55,29 +55,29 @@ describe Skyward::ORM::Transactional do
       assert_empty names.call
     end
 
-    it "rolls back after a test that raised" do
+    it 'rolls back after a test that raised' do
       run_test do
         define_method(:example) do
-          insert.call("Work")
-          raise "failed"
+          insert.call('Work')
+          raise 'failed'
         end
       end
 
       assert_empty names.call
     end
 
-    it "rolls back when an after_teardown it calls raises" do
+    it 'rolls back when an after_teardown it calls raises' do
       run_test do
-        include(Module.new { define_method(:after_teardown) { raise "failed" } })
+        include(Module.new { define_method(:after_teardown) { raise 'failed' } })
 
-        define_method(:example) { insert.call("Work") }
+        define_method(:example) { insert.call('Work') }
       end
 
       assert_empty names.call
     end
   end
 
-  describe "with a second database" do
+  describe 'with a second database' do
     let(:second) { TestDatabase.empty(second: true) }
     let(:switched) { Skyward.connect(second.url, signatures:, check: false, default: false) }
 
@@ -87,8 +87,8 @@ describe Skyward::ORM::Transactional do
       database = switched
       run_test do
         define_method(:example) do
-          insert.call("Home")
-          Skyward.using(database) { insert.call("Work") }
+          insert.call('Home')
+          Skyward.using(database) { insert.call('Work') }
         end
       end
 

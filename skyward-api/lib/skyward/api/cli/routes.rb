@@ -9,7 +9,7 @@ module Skyward::API::CLI::Routes
   # @rbs return: String
   def table(endpoints)
     rows = endpoints.map do |endpoint|
-      [endpoint.verb, path(endpoint.pattern), handler(endpoint), endpoint.signature.gsub(/\s*\R\s*/, " ")]
+      [endpoint.verb, path(endpoint.pattern), handler(endpoint), endpoint.signature.gsub(/\s*\R\s*/, ' ')]
     end
     widths = rows.transpose.map { |column| (column.map(&:length).max || 0) + GAP }
     rows.map do |row|
@@ -22,7 +22,7 @@ module Skyward::API::CLI::Routes
 
   # @rbs pattern: Array[String | Symbol]
   # @rbs return: String
-  def path(pattern) = pattern.map { |part| part.is_a?(Symbol) ? ":#{part}" : part }.join("/")
+  def path(pattern) = pattern.map { |part| part.is_a?(Symbol) ? ":#{part}" : part }.join('/')
 
   # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String

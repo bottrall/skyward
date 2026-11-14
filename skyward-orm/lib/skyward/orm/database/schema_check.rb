@@ -52,7 +52,7 @@ module Skyward::ORM::Database::SchemaCheck
   # @rbs return: String
   def suggest(name, names)
     suggestion = Skyward::Core::Diagnostics::Suggestion.closest(name.to_s, names.map(&:to_s))
-    suggestion ? " Did you mean #{suggestion}?" : ""
+    suggestion ? " Did you mean #{suggestion}?" : ''
   end
 
   # @rbs stored: String
@@ -72,8 +72,8 @@ module Skyward::ORM::Database::SchemaCheck
   def report(klass, table, problems)
     width = problems.map { |label, _, _| label.length }.max.to_i
     lines = problems.flat_map do |label, problem, fix|
-      ["  #{label.ljust(width)}  #{problem}", "  #{" " * width}  #{fix}"]
+      ["  #{label.ljust(width)}  #{problem}", "  #{' ' * width}  #{fix}"]
     end
-    ["#{klass} doesn't match the #{table} table", "", *lines].join("\n")
+    ["#{klass} doesn't match the #{table} table", '', *lines].join("\n")
   end
 end

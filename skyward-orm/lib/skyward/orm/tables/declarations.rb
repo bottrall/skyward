@@ -144,7 +144,7 @@ module Skyward::ORM::Tables::Declarations
   # @rbs problem: String
   # @rbs return: bot
   def refuse(declaration, arguments, problem)
-    raise ArgumentError, "#{self} #{"#{declaration} #{arguments.map(&:inspect).join(", ")}".rstrip}: #{problem}"
+    raise ArgumentError, "#{self} #{"#{declaration} #{arguments.map(&:inspect).join(', ')}".rstrip}: #{problem}"
   end
 
   # @rbs value: untyped
@@ -154,7 +154,7 @@ module Skyward::ORM::Tables::Declarations
   # @rbs columns: Array[untyped]
   # @rbs return: String?
   def unnamed(columns)
-    if columns.empty? then "it needs at least one column"
+    if columns.empty? then 'it needs at least one column'
     elsif !columns.all?(Symbol) then "a column's name must be a Symbol, such as :title"
     end
   end
@@ -166,7 +166,7 @@ module Skyward::ORM::Tables::Declarations
     if !table.is_a?(Class) || !(table < Skyward::ORM::Record)
       "it references #{table.inspect}, which isn't a table class"
     elsif !on_delete.nil? && !ON_DELETE.include?(on_delete)
-      "on_delete: is #{on_delete.inspect}, but it can only be :#{ON_DELETE.join(", :")} or nil"
+      "on_delete: is #{on_delete.inspect}, but it can only be :#{ON_DELETE.join(', :')} or nil"
     end
   end
 
@@ -174,11 +174,11 @@ module Skyward::ORM::Tables::Declarations
   # @rbs length: untyped
   # @rbs return: Skyward::ORM::Tables::SQL | Skyward::ORM::Tables::Length | String
   def check_rule(sql, length)
-    if sql && length then "it takes Skyward.sql(\"...\") or length:, not both"
+    if sql && length then 'it takes Skyward.sql("...") or length:, not both'
     elsif sql.is_a?(Skyward::ORM::Tables::SQL) then sql
     elsif sql.is_a?(String) then "write the SQL as Skyward.sql(#{sql.inspect}), not a plain String"
     elsif sql then "it takes Skyward.sql(\"...\") or length:, not #{sql.inspect}"
-    elsif length.nil? then "it needs Skyward.sql(\"...\") or length:"
+    elsif length.nil? then 'it needs Skyward.sql("...") or length:'
     else length_rule(length)
     end
   end

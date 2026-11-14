@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require "bigdecimal"
-require "securerandom"
-require "skyward/core"
-require "zeitwerk"
-require_relative "api/version"
+require 'bigdecimal'
+require 'securerandom'
+require 'skyward/core'
+require 'zeitwerk'
+require_relative 'api/version'
 
 loader = Zeitwerk::Loader.for_gem_extension(Skyward)
-loader.inflector.inflect("api" => "API", "cli" => "CLI", "openapi" => "OpenAPI")
+loader.inflector.inflect('api' => 'API', 'cli' => 'CLI', 'openapi' => 'OpenAPI')
 # The skyward executable loads it, and it defines no constant.
 loader.ignore("#{__dir__}/api/commands.rb")
 loader.setup
 
 # An app's signatures subclass Skyward::API, so RBS needs its declaration.
 dir = __dir__ #: String
-Skyward::Core::Signatures.register(File.expand_path("../../sig", dir))
+Skyward::Core::Signatures.register(File.expand_path('../../sig', dir))
 
 class Skyward::API
   # @rbs! type rack_response = [Integer, Hash[String, untyped], untyped]
@@ -29,11 +29,11 @@ module Skyward
   #   ?schema_names: Hash[Class, String], ?scalar_url: String, ?logger: API::_Logger?, ?on_error: API::_OnError?,
   #   ?max_body_size: Integer) { (API::Assembly::Builder) -> void } -> API::Assembly::Application
   def self.app(
-    signatures: "sig",
+    signatures: 'sig',
     strict: false,
     docs: false,
-    title: "API",
-    version: "0.1.0",
+    title: 'API',
+    version: '0.1.0',
     description: nil,
     schema_names: {},
     scalar_url: API::OpenAPI::Docs::SCALAR_URL,
@@ -53,7 +53,7 @@ module Skyward
       providers: builder.providers,
       reader:,
       max_body_size:,
-      strict: strict || ENV.fetch("SKYWARD_STRICT", nil) == "1"
+      strict: strict || ENV.fetch('SKYWARD_STRICT', nil) == '1'
     )
     static = API::Assembly::Static.new(builder.statics)
     openapi = -> { API::OpenAPI.document(endpoints, title:, version:, description:, schema_names:) }
@@ -73,7 +73,7 @@ module Skyward
       API::Assembly::Dispatcher.new(API::Routing::Router.new(endpoints), static, builder.middleware, documents),
       logger:,
       on_error:,
-      development: ENV.fetch("RACK_ENV") { ENV.fetch("APP_ENV", nil) } == "development"
+      development: ENV.fetch('RACK_ENV') { ENV.fetch('APP_ENV', nil) } == 'development'
     )
     logged =
       if logger
@@ -116,7 +116,7 @@ module Skyward
   def self.redirect(to, status: 303, headers: {})
     statuses = API::Responses::Redirect::STATUSES
     unless statuses.include?(status)
-      raise ArgumentError, "A redirect's status must be one of #{statuses.join(", ")}, not #{status}"
+      raise ArgumentError, "A redirect's status must be one of #{statuses.join(', ')}, not #{status}"
     end
 
     # A line break in the location would let it smuggle in headers of its own.

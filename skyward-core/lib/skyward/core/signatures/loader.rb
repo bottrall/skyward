@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "rbs"
+require 'rbs'
 
 class Skyward::Core::Signatures::Loader
   # @rbs @gems: Array[String]
@@ -30,7 +30,7 @@ class Skyward::Core::Signatures::Loader
     raise Skyward::Core::BootError, failure("Syntax error: #{e.error_message}.", [e.location])
   rescue RBS::DuplicatedDeclarationError => e
     names = e.decls.filter_map { |decl| name_location(decl) }
-    raise Skyward::Core::BootError, failure("#{e.name.to_s.delete_prefix("::")} is declared twice.", names)
+    raise Skyward::Core::BootError, failure("#{e.name.to_s.delete_prefix('::')} is declared twice.", names)
   rescue RBS::GenericParameterMismatchError => e
     location = e.decl.location
     message = e.message.delete_prefix("#{RBS::Location.to_string(location)}: ")

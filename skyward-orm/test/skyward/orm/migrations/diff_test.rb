@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require "pg"
-require "sqlite3"
-require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/changes/changes_fixtures"
-require_relative "../../../fixtures/tables/tables_fixtures"
+require 'test_helper'
+require 'pg'
+require 'sqlite3'
+require_relative '../../../fixtures/migrations/migrations_fixtures'
+require_relative '../../../fixtures/changes/changes_fixtures'
+require_relative '../../../fixtures/tables/tables_fixtures'
 
 describe Skyward::ORM::Migrations::Diff do
   fixtures = MigrationsFixtures
   fixture = File.expand_path(
-    "../../../fixtures/migrations/migrations_fixtures.rb",
+    '../../../fixtures/migrations/migrations_fixtures.rb',
     __dir__
   ).delete_prefix("#{Dir.pwd}/")
-  todos_line = File.readlines(fixture).index { |text| text.include?("table :todos") }.to_i + 1
+  todos_line = File.readlines(fixture).index { |text| text.include?('table :todos') }.to_i + 1
   changed = ChangesFixtures
   migrations = Skyward::ORM::Migrations
   catalog = Skyward::ORM::Catalog
@@ -22,8 +22,8 @@ describe Skyward::ORM::Migrations::Diff do
     [name, Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))]
   end
 
-  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
-  let(:changes_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("changes")) }
+  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('migrations')) }
+  let(:changes_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('changes')) }
   let(:asked) { [] }
   let(:yes) { [] }
 
@@ -43,7 +43,7 @@ describe Skyward::ORM::Migrations::Diff do
     Skyward::ORM::Catalog::Table.new(
       name:,
       columns: columns.map do |column|
-        Skyward::ORM::Catalog::Column.new(name: column, type: "TEXT", nullable: true, default: nil, generated: nil)
+        Skyward::ORM::Catalog::Column.new(name: column, type: 'TEXT', nullable: true, default: nil, generated: nil)
       end,
       indexes: [],
       constraints: []
@@ -53,7 +53,7 @@ describe Skyward::ORM::Migrations::Diff do
   # The owners and items tables as a migration creates them for Item, read
   # back from SQLite, with the items table changed by the block.
   def items(&change)
-    connection = Skyward::ORM::Adapters::SQLite.connect(":memory:")
+    connection = Skyward::ORM::Adapters::SQLite.connect(':memory:')
     created = [ChangesFixtures::Owner, ChangesFixtures::Item].map do |klass|
       Skyward::ORM::Migrations::CreateTable.new(klass:, columns: changes_types.columns(klass))
     end
@@ -110,7 +110,7 @@ describe Skyward::ORM::Migrations::Diff do
     [adapter, adapter.tables(connection)]
   end
 
-  describe ".changes" do
+  describe '.changes' do
     it "checks each class's declarations name its columns" do
       broken = Class.new(Skyward::ORM::Record) do
         index :missing
@@ -120,11 +120,11 @@ describe Skyward::ORM::Migrations::Diff do
       error = assert_raises(Skyward::Core::BootError) { changes([broken]) }
 
       assert_equal "#{broken} has no column missing, which its index names. " \
-                   "Add `attr_reader :missing`, or fix the name.",
+                   'Add `attr_reader :missing`, or fix the name.',
                    error.message
     end
 
-    it "refuses classes that share a table" do
+    it 'refuses classes that share a table' do
       error = assert_raises(Skyward::Core::BootError) { changes([fixtures::Todo, fixtures::List, fixtures::NotedTodo]) }
 
       expected = <<~MESSAGE.chomp
@@ -146,13 +146,13 @@ describe Skyward::ORM::Migrations::Diff do
                    changes([fixtures::List])
     end
 
-    it "creates each new table after the new tables it references, except itself, and otherwise by name" do
+    it 'creates each new table after the new tables it references, except itself, and otherwise by name' do
       created = changes([fixtures::Attachment, fixtures::Todo, fixtures::Member, fixtures::List])
 
       assert_equal(%i[lists members todos attachments], created.map { |change| change.klass.table_name })
     end
 
-    it "goes on by name when new tables reference each other" do
+    it 'goes on by name when new tables reference each other' do
       second = Class.new(Skyward::ORM::Record) { table :cycle_b }
       first = Class.new(Skyward::ORM::Record) { table :cycle_a }
       first.references :b_id, second
@@ -163,7 +163,7 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal(%i[cycle_a cycle_b], changes([second, first]).map { |change| change.klass.table_name })
     end
 
-    it "alters each table that differs from its class after every new table, with its columns and the table it has" do
+    it 'alters each table that differs from its class after every new table, with its columns and the table it has' do
       todos = table(:todos, %i[id list_id title priority due_on done created_at])
       created, altered = changes([fixtures::NotedTodo, fixtures::Attachment], [todos])
 
@@ -171,11 +171,11 @@ describe Skyward::ORM::Migrations::Diff do
                    [created.class, created.klass.table_name, altered.klass.table_name, altered.columns, altered.table]
     end
 
-    it "has nothing for a table that matches its class" do
+    it 'has nothing for a table that matches its class' do
       assert_empty changes([changed::Owner, changed::Item], items, types: changes_types)
     end
 
-    it "leaves alone a table with no class, which may only not be loaded" do
+    it 'leaves alone a table with no class, which may only not be loaded' do
       assert_empty changes([changed::Item], items, types: changes_types)
     end
 
@@ -195,7 +195,7 @@ describe Skyward::ORM::Migrations::Diff do
 
     it "never drops a generated column its class doesn't declare, or asks if it was renamed" do
       tables = items do |had|
-        had.with(columns: had.columns.map { |column| column.name == :note ? column.with(generated: "title") : column })
+        had.with(columns: had.columns.map { |column| column.name == :note ? column.with(generated: 'title') : column })
       end
 
       found = edits(changed::Renamed, tables)
@@ -203,7 +203,7 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [[migrations::AddColumn.new(column: column(changed::Renamed, :remark))], []], [found, asked]
     end
 
-    it "asks whether a column that went was renamed to a new one of a compatible type, and renames it on yes" do
+    it 'asks whether a column that went was renamed to a new one of a compatible type, and renames it on yes' do
       yes.push(%i[note remark])
       found = edits(changed::Renamed)
 
@@ -222,7 +222,7 @@ describe Skyward::ORM::Migrations::Diff do
       tables = items do |had|
         had.with(
           columns: had.columns.map do |column|
-            column.name == :rank ? column.with(name: :score, type: "TEXT") : column
+            column.name == :rank ? column.with(name: :score, type: 'TEXT') : column
           end
         )
       end
@@ -244,9 +244,9 @@ describe Skyward::ORM::Migrations::Diff do
         renamed = renamed_columns(had, { owner_id: :owner })
         renamed.with(
           constraints: had.constraints.map do |constraint|
-            next constraint unless constraint.name == "items_owner_id_fkey"
+            next constraint unless constraint.name == 'items_owner_id_fkey'
 
-            constraint.with(name: "items_owner_fkey", columns: [:owner])
+            constraint.with(name: 'items_owner_fkey', columns: [:owner])
           end,
           indexes: had.indexes.map { |index| index.with(columns: [:owner]) }
         )
@@ -256,28 +256,28 @@ describe Skyward::ORM::Migrations::Diff do
 
       assert_equal [
         migrations::RenameColumn.new(from: :owner, to: :owner_id),
-        migrations::RenameConstraint.new(from: "items_owner_fkey", to: "items_owner_id_fkey")
+        migrations::RenameConstraint.new(from: 'items_owner_fkey', to: 'items_owner_id_fkey')
       ],
                    found
     end
 
     it "changes the type of a column whose type isn't compatible, but not one whose type is" do
       tables = items do |had|
-        had.with(columns: had.columns.map { |column| column.name == :owner_id ? column.with(type: "bigint") : column })
+        had.with(columns: had.columns.map { |column| column.name == :owner_id ? column.with(type: 'bigint') : column })
       end
 
-      assert_equal [migrations::ChangeType.new(column: :rank, from: "INTEGER", to: "TEXT")],
+      assert_equal [migrations::ChangeType.new(column: :rank, from: 'INTEGER', to: 'TEXT')],
                    edits(changed::Retyped, tables)
     end
 
-    it "leaves a bool, Date or Time column declared BOOLEAN, DATE or DATETIME as it is" do
-      connection = Skyward::ORM::Adapters::SQLite.connect(":memory:")
+    it 'leaves a bool, Date or Time column declared BOOLEAN, DATE or DATETIME as it is' do
+      connection = Skyward::ORM::Adapters::SQLite.connect(':memory:')
       created = [fixtures::List, fixtures::Todo].map do |klass|
         migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
       end
       sql = migrations::Script.write(created, Skyward::ORM::Adapters::SQLite)
       connection.execute_batch(sql.split("-- down\n").fetch(0))
-      declared = { done: "BOOLEAN", due_on: "DATE", created_at: "DATETIME(6)" }
+      declared = { done: 'BOOLEAN', due_on: 'DATE', created_at: 'DATETIME(6)' }
       tables = Skyward::ORM::Adapters::SQLite.tables(connection).map do |table|
         next table unless table.name == :todos
 
@@ -287,7 +287,7 @@ describe Skyward::ORM::Migrations::Diff do
       assert_empty changes([fixtures::List, fixtures::Todo], tables)
     end
 
-    it "makes a column required, or nullable, as its class says" do
+    it 'makes a column required, or nullable, as its class says' do
       tables = items do |had|
         had.with(columns: had.columns.map { |column| column.name == :title ? column.with(nullable: true) : column })
       end
@@ -299,32 +299,32 @@ describe Skyward::ORM::Migrations::Diff do
                    edits(changed::Required, tables)
     end
 
-    it "has no type or nullability to compare for an untyped column" do
+    it 'has no type or nullability to compare for an untyped column' do
       untyped = Class.new(Skyward::ORM::Record) do
         table :items
         attr_reader :id, :title
       end
       key = catalog::Constraint.new(
-        name: "items_pkey",
+        name: 'items_pkey',
         kind: :primary_key,
         columns: [:id],
         references: nil,
-        definition: "PRIMARY KEY (id)"
+        definition: 'PRIMARY KEY (id)'
       )
       had = table(:items, %i[id title])
-      tables = [had.with(columns: had.columns.map { |column| column.with(type: "BLOB") }, constraints: [key])]
+      tables = [had.with(columns: had.columns.map { |column| column.with(type: 'BLOB') }, constraints: [key])]
 
       assert_empty changes([untyped], tables)
     end
 
-    it "changes a default that differs from the one its class declares, or that it no longer has" do
+    it 'changes a default that differs from the one its class declares, or that it no longer has' do
       tables = items do |had|
-        had.with(columns: had.columns.map { |column| column.name == :rank ? column.with(default: "0") : column })
+        had.with(columns: had.columns.map { |column| column.name == :rank ? column.with(default: '0') : column })
       end
 
       assert_equal [
         migrations::ChangeDefault.new(column: :status, from: "'open'", to: "'closed'"),
-        migrations::ChangeDefault.new(column: :rank, from: "0", to: nil)
+        migrations::ChangeDefault.new(column: :rank, from: '0', to: nil)
       ],
                    edits(changed::Redefaulted, tables)
     end
@@ -341,7 +341,7 @@ describe Skyward::ORM::Migrations::Diff do
       assert_empty edits(changed::Item, tables)
     end
 
-    it "takes a DEFAULT NULL as no default, since PostgreSQL keeps none for it" do
+    it 'takes a DEFAULT NULL as no default, since PostgreSQL keeps none for it' do
       nulled = changed.item do
         default note: nil
         attr_reader(*changed::COLUMNS)
@@ -350,10 +350,10 @@ describe Skyward::ORM::Migrations::Diff do
       assert_empty edits(nulled).grep(migrations::ChangeDefault)
     end
 
-    describe "for a JSON column" do
+    describe 'for a JSON column' do
       def redefaulted(default)
         columns = [[:id, false, nil], [:settings, false, default], [:payload, true, nil]].map do |name, nullable, had|
-          Skyward::ORM::Catalog::Column.new(name:, type: "TEXT", nullable:, default: had, generated: nil)
+          Skyward::ORM::Catalog::Column.new(name:, type: 'TEXT', nullable:, default: had, generated: nil)
         end
         tables = [Skyward::ORM::Catalog::Table.new(name: :webhooks, columns:, indexes: [], constraints: [])]
         changes([MigrationsFixtures::Webhook], tables).flat_map(&:edits).grep(Skyward::ORM::Migrations::ChangeDefault)
@@ -361,19 +361,19 @@ describe Skyward::ORM::Migrations::Diff do
 
       wanted = %('{"retries":3,"it''s":[1.5,null,{"on":true}],"ü":""}')
 
-      it "compares the default by value, since PostgreSQL respells jsonb" do
+      it 'compares the default by value, since PostgreSQL respells jsonb' do
         assert_empty redefaulted(%('{"ü": "", "it''s": [1.5, null, {"on": true}], "retries": 3}'))
       end
 
-      it "changes a default whose value differs" do
+      it 'changes a default whose value differs' do
         assert_equal [migrations::ChangeDefault.new(column: :settings, from: "'{\"retries\": 4}'", to: wanted)],
                      redefaulted("'{\"retries\": 4}'")
       end
 
       it "changes a default that's an expression, or isn't JSON" do
         assert_equal(
-          [["(json_object())", wanted], ["'nope'", wanted]],
-          ["(json_object())", "'nope'"].flat_map do |had|
+          [['(json_object())', wanted], ["'nope'", wanted]],
+          ['(json_object())', "'nope'"].flat_map do |had|
             redefaulted(had).map do |edit|
               [edit.from, edit.to]
             end
@@ -382,7 +382,7 @@ describe Skyward::ORM::Migrations::Diff do
       end
     end
 
-    describe "for an Array column" do
+    describe 'for an Array column' do
       # The shelves table as the adapter reads back what a migration wrote,
       # but with the floats column's default had.
       def redefaulted(adapter, had)
@@ -404,32 +404,32 @@ describe Skyward::ORM::Migrations::Diff do
       postgres = Skyward::ORM::Adapters::PostgreSQL
       sqlite = Skyward::ORM::Adapters::SQLite
 
-      it "compares the default by value, since PostgreSQL respells a float" do
+      it 'compares the default by value, since PostgreSQL respells a float' do
         assert_empty redefaulted(postgres, "'{1e+20,-1.5}'")
       end
 
-      it "changes a default whose value differs" do
+      it 'changes a default whose value differs' do
         assert_equal [migrations::ChangeDefault.new(column: :floats, from: "'{1e+20}'", to: "'{1.0e+20,-1.5}'")],
                      redefaulted(postgres, "'{1e+20}'")
       end
 
       it "changes a default that's an expression, or that the column can't read" do
         assert_equal(
-          ["ARRAY[]::double precision[]", "'{x}'", "'nope'", "'5'"],
-          [[postgres, "ARRAY[]::double precision[]"], [postgres, "'{x}'"], [sqlite, "'nope'"], [sqlite, "'5'"]]
+          ['ARRAY[]::double precision[]', "'{x}'", "'nope'", "'5'"],
+          [[postgres, 'ARRAY[]::double precision[]'], [postgres, "'{x}'"], [sqlite, "'nope'"], [sqlite, "'5'"]]
             .flat_map { |adapter, had| redefaulted(adapter, had).map(&:from) }
         )
       end
     end
 
     it "drops a constraint its class doesn't declare, and adds one it does" do
-      title_check = item_table.constraints.find { |had| had.name == "items_title_check" }
+      title_check = item_table.constraints.find { |had| had.name == 'items_title_check' }
       note_check = catalog::Constraint.new(
-        name: "items_note_check",
+        name: 'items_note_check',
         kind: :check,
         columns: [:note],
         references: nil,
-        definition: "CHECK (length(note) <= 500)"
+        definition: 'CHECK (length(note) <= 500)'
       )
 
       dropped = migrations::DropConstraint.new(constraint: title_check)
@@ -438,27 +438,27 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [[dropped], [added]], [edits(changed::Unchecked), edits(changed::Checked)]
     end
 
-    it "replaces a unique on other columns, and a reference that does something else ON DELETE" do
+    it 'replaces a unique on other columns, and a reference that does something else ON DELETE' do
       found = [edits(changed::Paired), edits(changed::Restricted)].map do |list|
         list.map { |edit| [edit.class, edit.constraint.definition] }
       end
 
       assert_equal [
-        [[migrations::DropConstraint, "UNIQUE (code)"], [migrations::AddConstraint, "UNIQUE (owner_id, code)"]],
+        [[migrations::DropConstraint, 'UNIQUE (code)'], [migrations::AddConstraint, 'UNIQUE (owner_id, code)']],
         [
-          [migrations::DropConstraint, "FOREIGN KEY (owner_id) REFERENCES owners ON DELETE CASCADE"],
-          [migrations::AddConstraint, "FOREIGN KEY (owner_id) REFERENCES owners ON DELETE RESTRICT"]
+          [migrations::DropConstraint, 'FOREIGN KEY (owner_id) REFERENCES owners ON DELETE CASCADE'],
+          [migrations::AddConstraint, 'FOREIGN KEY (owner_id) REFERENCES owners ON DELETE RESTRICT']
         ]
       ],
                    found
     end
 
-    it "matches a check by its name alone, whatever its expression and columns" do
+    it 'matches a check by its name alone, whatever its expression and columns' do
       tables = items do |had|
         had.with(
           constraints: had.constraints.map do |constraint|
-            if constraint.name == "items_title_check"
-              constraint.with(columns: %i[title code], definition: "CHECK (x)")
+            if constraint.name == 'items_title_check'
+              constraint.with(columns: %i[title code], definition: 'CHECK (x)')
             else
               constraint
             end
@@ -470,7 +470,7 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     it "renames a foreign key or unique constraint that does what the class's does under another name" do
-      names = { "items_owner_id_fkey" => "fk_rails_0123456789", "items_code_key" => "index_items_on_code" }
+      names = { 'items_owner_id_fkey' => 'fk_rails_0123456789', 'items_code_key' => 'index_items_on_code' }
       tables = items do |had|
         had.with(
           constraints: had.constraints.map do |constraint|
@@ -480,14 +480,14 @@ describe Skyward::ORM::Migrations::Diff do
       end
 
       assert_equal [
-        migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "items_owner_id_fkey"),
-        migrations::RenameConstraint.new(from: "index_items_on_code", to: "items_code_key")
+        migrations::RenameConstraint.new(from: 'fk_rails_0123456789', to: 'items_owner_id_fkey'),
+        migrations::RenameConstraint.new(from: 'index_items_on_code', to: 'items_code_key')
       ],
                    edits(changed::Item, tables)
     end
 
     it "renames the first of two that do what the class's does and drops the other, as it drops one beside its own" do
-      fkey = item_table.constraints.find { |constraint| constraint.name == "items_owner_id_fkey" }
+      fkey = item_table.constraints.find { |constraint| constraint.name == 'items_owner_id_fkey' }
       first, second = %w[fk_rails_first fk_rails_second].map { |name| fkey.with(name:) }
       renamed = items { |had| had.with(constraints: [*(had.constraints - [fkey]), first, second]) }
       named = items { |had| had.with(constraints: [*had.constraints, first]) }
@@ -495,7 +495,7 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [
         [
           migrations::DropConstraint.new(constraint: second),
-          migrations::RenameConstraint.new(from: "fk_rails_first", to: "items_owner_id_fkey")
+          migrations::RenameConstraint.new(from: 'fk_rails_first', to: 'items_owner_id_fkey')
         ],
         [migrations::DropConstraint.new(constraint: first)]
       ],
@@ -503,50 +503,50 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     it "drops a check under another name and adds the class's, since its expression can't be compared" do
-      check = item_table.constraints.find { |constraint| constraint.name == "items_title_check" }
+      check = item_table.constraints.find { |constraint| constraint.name == 'items_title_check' }
       tables = items do |had|
         had.with(
           constraints: had.constraints.map do |constraint|
-            constraint == check ? constraint.with(name: "title_length") : constraint
+            constraint == check ? constraint.with(name: 'title_length') : constraint
           end
         )
       end
 
       assert_equal [
-        migrations::DropConstraint.new(constraint: check.with(name: "title_length")),
+        migrations::DropConstraint.new(constraint: check.with(name: 'title_length')),
         migrations::AddConstraint.new(constraint: check)
       ],
                    edits(changed::Item, tables)
     end
 
-    it "matches a constraint with no name, as SQLite can have, by its kind and columns" do
+    it 'matches a constraint with no name, as SQLite can have, by its kind and columns' do
       tables = items { |had| had.with(constraints: had.constraints.map { |constraint| constraint.with(name: nil) }) }
 
       assert_empty edits(changed::Item, tables)
     end
 
-    it "keeps an index on the same columns under another name, and replaces one on other columns" do
-      tables = items { |had| had.with(indexes: had.indexes.map { |index| index.with(name: "items_by_owner") }) }
+    it 'keeps an index on the same columns under another name, and replaces one on other columns' do
+      tables = items { |had| had.with(indexes: had.indexes.map { |index| index.with(name: 'items_by_owner') }) }
       reindexed = edits(changed::Reindexed).map { |edit| [edit.class, edit.index.name] }
       replaced = [
-        [migrations::DropIndex, "items_owner_id_index"],
-        [migrations::AddIndex, "items_owner_id_status_index"]
+        [migrations::DropIndex, 'items_owner_id_index'],
+        [migrations::AddIndex, 'items_owner_id_status_index']
       ]
 
       assert_equal [[], replaced], [edits(changed::Item, tables), reindexed]
     end
 
-    it "leaves alone an index on an expression, with a WHERE, unique, by another method or with INCLUDE" do
+    it 'leaves alone an index on an expression, with a WHERE, unique, by another method or with INCLUDE' do
       tables = items_with(
         indexes: [
-          index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))"),
-          index("items_noted_index", [:id], "CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL"),
-          index("items_title_index", [:title], "CREATE UNIQUE INDEX items_title_index ON items (title)", unique: true),
-          index("items_hashed_index", [:title], "CREATE INDEX items_hashed_index ON public.items USING hash (title)"),
+          index('items_lower_title_index', [], 'CREATE INDEX items_lower_title_index ON items (lower(title))'),
+          index('items_noted_index', [:id], 'CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL'),
+          index('items_title_index', [:title], 'CREATE UNIQUE INDEX items_title_index ON items (title)', unique: true),
+          index('items_hashed_index', [:title], 'CREATE INDEX items_hashed_index ON public.items USING hash (title)'),
           index(
-            "items_covering_index",
+            'items_covering_index',
             [:code],
-            "CREATE INDEX items_covering_index ON public.items USING btree (code) INCLUDE (title)"
+            'CREATE INDEX items_covering_index ON public.items USING btree (code) INCLUDE (title)'
           )
         ]
       )
@@ -554,40 +554,40 @@ describe Skyward::ORM::Migrations::Diff do
       assert_empty edits(changed::Item, tables)
     end
 
-    it "still compares a plain index, however a database writes it, and adds one only a kept index covers" do
+    it 'still compares a plain index, however a database writes it, and adds one only a kept index covers' do
       plain = item_table.indexes.fetch(0)
       written = [
-        "CREATE INDEX items_owner_id_index ON public.items USING btree (owner_id)",
+        'CREATE INDEX items_owner_id_index ON public.items USING btree (owner_id)',
         'CREATE INDEX IF NOT EXISTS "items_owner_id_index" ON "main"."items" ("owner_id")'
       ]
       matched = written.map do |definition|
         edits(changed::Item, items { |had| had.with(indexes: [plain.with(definition:)]) })
       end
       covering = index(
-        "items_owner_title_index",
+        'items_owner_title_index',
         [:owner_id],
-        "CREATE INDEX items_owner_title_index ON items (owner_id, lower(title))"
+        'CREATE INDEX items_owner_title_index ON items (owner_id, lower(title))'
       )
       covered = edits(changed::Item, items { |had| had.with(indexes: [covering]) })
 
       assert_equal [[[], []], [migrations::AddIndex.new(index: plain)]], [matched, covered]
     end
 
-    it "leaves alone a check on no column or on more than one, and a foreign key on more than one column or to a " \
+    it 'leaves alone a check on no column or on more than one, and a foreign key on more than one column or to a ' \
        "column that isn't its table's primary key" do
       tables = items_with(
         constraints: [
-          constraint("items_true_check", :check, [], "CHECK (1 = 1)"),
-          constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))"),
+          constraint('items_true_check', :check, [], 'CHECK (1 = 1)'),
+          constraint(nil, :check, %i[rank title], 'CHECK (rank < length(title))'),
           constraint(
-            "items_owner_title_fkey",
+            'items_owner_title_fkey',
             :foreign_key,
             %i[owner_id title],
-            "FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)",
+            'FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)',
             :owners
           ),
-          constraint("items_code_fkey", :foreign_key, [:code], "FOREIGN KEY (code) REFERENCES owners(name)", :owners),
-          constraint("items_gone_fkey", :foreign_key, [:note], "FOREIGN KEY (note) REFERENCES gone (id)", :gone)
+          constraint('items_code_fkey', :foreign_key, [:code], 'FOREIGN KEY (code) REFERENCES owners(name)', :owners),
+          constraint('items_gone_fkey', :foreign_key, [:note], 'FOREIGN KEY (note) REFERENCES gone (id)', :gone)
         ]
       )
 
@@ -595,7 +595,7 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     it "still compares a foreign key that names its table's primary key" do
-      named = ["REFERENCES owners(id) ON DELETE CASCADE", 'REFERENCES "public"."owners" ("id") ON DELETE CASCADE']
+      named = ['REFERENCES owners(id) ON DELETE CASCADE', 'REFERENCES "public"."owners" ("id") ON DELETE CASCADE']
       found = named.map do |references|
         tables = items do |had|
           had.with(
@@ -612,9 +612,9 @@ describe Skyward::ORM::Migrations::Diff do
       assert_equal [[migrations::DropConstraint, migrations::AddConstraint]] * 2, found
     end
 
-    it "keeps on the change what the table keeps, for a rebuild" do
-      expression = index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))")
-      pair = constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))")
+    it 'keeps on the change what the table keeps, for a rebuild' do
+      expression = index('items_lower_title_index', [], 'CREATE INDEX items_lower_title_index ON items (lower(title))')
+      pair = constraint(nil, :check, %i[rank title], 'CHECK (rank < length(title))')
       change = changes(
         [changed::Owner, changed::Unchecked],
         items_with(indexes: [expression], constraints: [pair]),
@@ -626,23 +626,23 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     {
-      "sqlite" => [],
-      "postgresql" => [
-        "CREATE INDEX items_hashed_index ON items USING hash (title)",
-        "CREATE INDEX items_covering_index ON items (code) INCLUDE (title)"
+      'sqlite' => [],
+      'postgresql' => [
+        'CREATE INDEX items_hashed_index ON items USING hash (title)',
+        'CREATE INDEX items_covering_index ON items (code) INCLUDE (title)'
       ]
     }.each do |kind, only|
       it "leaves alone what Item can't declare on #{kind}, as the database reads it back" do
         constraints = [
-          "CONSTRAINT items_pair_check CHECK (rank < length(title))",
-          "CONSTRAINT items_true_check CHECK (1 = 1)",
-          "CONSTRAINT items_owner_title_fkey FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)",
-          "CONSTRAINT items_code_fkey FOREIGN KEY (code) REFERENCES owners (name)"
+          'CONSTRAINT items_pair_check CHECK (rank < length(title))',
+          'CONSTRAINT items_true_check CHECK (1 = 1)',
+          'CONSTRAINT items_owner_title_fkey FOREIGN KEY (owner_id, title) REFERENCES owners (id, name)',
+          'CONSTRAINT items_code_fkey FOREIGN KEY (code) REFERENCES owners (name)'
         ]
         sql = [
-          "CREATE INDEX items_lower_title_index ON items (lower(title))",
-          "CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL",
-          "CREATE UNIQUE INDEX items_title_index ON items (title)",
+          'CREATE INDEX items_lower_title_index ON items (lower(title))',
+          'CREATE INDEX items_noted_index ON items (id) WHERE note IS NOT NULL',
+          'CREATE UNIQUE INDEX items_title_index ON items (title)',
           *only
         ]
         adapter, tables = made(kind, constraints, sql.map { |statement| "#{statement};\n" }.join)
@@ -654,7 +654,7 @@ describe Skyward::ORM::Migrations::Diff do
       end
     end
 
-    it "drops what a column has before the column, and adds what a column needs after it" do
+    it 'drops what a column has before the column, and adds what a column needs after it' do
       extra = catalog::Constraint.new(
         name: nil,
         kind: :check,
@@ -662,12 +662,12 @@ describe Skyward::ORM::Migrations::Diff do
         references: nil,
         definition: "CHECK (code <> '')"
       )
-      gone = catalog::Column.new(name: :gone, type: "TEXT", nullable: true, default: nil, generated: nil)
-      changed_columns = { title: { nullable: true }, rank: { default: "0" } }
+      gone = catalog::Column.new(name: :gone, type: 'TEXT', nullable: true, default: nil, generated: nil)
+      changed_columns = { title: { nullable: true }, rank: { default: '0' } }
       tables = items do |had|
         had.with(
           columns: [*had.columns.map { |column| column.with(**changed_columns.fetch(column.name, {})) }, gone],
-          constraints: [*had.constraints.reject { |constraint| constraint.name == "items_title_check" }, extra],
+          constraints: [*had.constraints.reject { |constraint| constraint.name == 'items_title_check' }, extra],
           indexes: had.indexes.map { |index| index.with(columns: [:code]) }
         )
       end
@@ -681,33 +681,33 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     it "finds nothing to change once PostgreSQL has run the README's create_todos, and add_notes_to_todos undone" do
-      readme = File.read(File.expand_path("../../../../README.md", __dir__))
+      readme = File.read(File.expand_path('../../../../README.md', __dir__))
       create_todos, add_notes = %w[create_todos add_notes_to_todos].map do |name|
         readme[%r{^-- db/migrate/\d+_#{name}\.sql\n(.*?)^```}m, 1].to_s.split("-- down\n")
       end
-      types = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("tables"))
+      types = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('tables'))
       postgresql = Skyward::ORM::Adapters::PostgreSQL
-      connection = TestDatabase.empty("postgresql").connect
+      connection = TestDatabase.empty('postgresql').connect
       matches = lambda do
         Skyward::ORM::Migrations::Diff.changes(
           [TablesFixtures::Todo], types, postgresql.tables(connection), postgresql, ->(*) { true }
         )
       end
-      connection.execute("CREATE TABLE lists (id bigint PRIMARY KEY)")
+      connection.execute('CREATE TABLE lists (id bigint PRIMARY KEY)')
       connection.execute_batch(create_todos.fetch(0))
       created = matches.call
       connection.execute_batch(add_notes.fetch(0))
       notes = postgresql.tables(connection).find { |table| table.name == :todos }&.columns&.last
       connection.execute_batch(add_notes.fetch(1))
 
-      expected = catalog::Column.new(name: :notes, type: "text", nullable: true, default: nil, generated: nil)
+      expected = catalog::Column.new(name: :notes, type: 'text', nullable: true, default: nil, generated: nil)
 
       assert_equal [[], expected, []], [created, notes, matches.call]
     end
 
-    it "finds nothing to change once PostgreSQL has read back a default it was given as SQL with a cast" do
+    it 'finds nothing to change once PostgreSQL has read back a default it was given as SQL with a cast' do
       postgresql = Skyward::ORM::Adapters::PostgreSQL
-      connection = TestDatabase.empty("postgresql").connect
+      connection = TestDatabase.empty('postgresql').connect
       matches = lambda do
         migrations::Diff.changes([fixtures::Crate], column_types, postgresql.tables(connection), postgresql, rename)
       end
@@ -727,7 +727,7 @@ describe Skyward::ORM::Migrations::Diff do
     end
   end
 
-  describe ".kept" do
+  describe '.kept' do
     def kept(tables)
       item = ChangesFixtures::Item
       Skyward::ORM::Migrations::Diff.kept(
@@ -736,8 +736,8 @@ describe Skyward::ORM::Migrations::Diff do
     end
 
     it "has the indexes and constraints the table has that the class can't declare" do
-      expression = index("items_lower_title_index", [], "CREATE INDEX items_lower_title_index ON items (lower(title))")
-      pair = constraint(nil, :check, %i[rank title], "CHECK (rank < length(title))")
+      expression = index('items_lower_title_index', [], 'CREATE INDEX items_lower_title_index ON items (lower(title))')
+      pair = constraint(nil, :check, %i[rank title], 'CHECK (rank < length(title))')
 
       assert_equal [[expression], [pair]], kept(items_with(indexes: [expression], constraints: [pair]))
     end
@@ -746,7 +746,7 @@ describe Skyward::ORM::Migrations::Diff do
       tables = items do |had|
         had.with(
           constraints: had.constraints.map do |constraint|
-            constraint.name == "items_title_check" ? constraint.with(columns: %i[title code]) : constraint
+            constraint.name == 'items_title_check' ? constraint.with(columns: %i[title code]) : constraint
           end
         )
       end

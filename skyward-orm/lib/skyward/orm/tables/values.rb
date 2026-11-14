@@ -17,17 +17,17 @@ module Skyward::ORM::Tables::Values
   }.freeze #: Hash[Symbol, Array[Module]]
 
   WRITTEN = {
-    integer: "Integer",
-    float: "Float",
-    decimal: "BigDecimal",
-    string: "String",
-    bool: "bool",
-    date: "Date",
-    time: "Time",
-    uuid: "uuid",
-    int32: "int32",
-    int16: "int16",
-    json: "Hash[String, untyped]"
+    integer: 'Integer',
+    float: 'Float',
+    decimal: 'BigDecimal',
+    string: 'String',
+    bool: 'bool',
+    date: 'Date',
+    time: 'Time',
+    uuid: 'uuid',
+    int32: 'int32',
+    int16: 'int16',
+    json: 'Hash[String, untyped]'
   }.freeze #: Hash[Symbol, String]
 
   UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/ #: Regexp
@@ -39,12 +39,12 @@ module Skyward::ORM::Tables::Values
 
   WHOLE = {
     json: "a #{WRITTEN.fetch(:json)}",
-    array: "an Array"
+    array: 'an Array'
   }.freeze #: Hash[Symbol, String]
 
-  UNTYPED = "untyped, which takes any value but a Hash or a nested Array" #: String
+  UNTYPED = 'untyped, which takes any value but a Hash or a nested Array' #: String
 
-  UNTYPED_WRITE = "untyped, which takes any one value but an Array, a Hash or a Range" #: String
+  UNTYPED_WRITE = 'untyped, which takes any one value but an Array, a Hash or a Range' #: String
 
   # @rbs table: singleton(Skyward::ORM::Record)
   # @rbs column: Skyward::ORM::Tables::Column
@@ -57,7 +57,7 @@ module Skyward::ORM::Tables::Values
     whole = WHOLE[column.type]
     if whole && !value.nil?
       return "#{table}.#{column.name} is #{whole} column, which where matches only to nil. " \
-             "Match its contents with an SQL string."
+             'Match its contents with an SQL string.'
     end
 
     refused = candidates(value).reject { |candidate| accepts?(column, candidate) }
@@ -203,10 +203,10 @@ module Skyward::ORM::Tables::Values
     case column.type
     when :untyped then untyped
     when :enum
-      symbols = column.symbols.map(&:inspect).join(" | ")
+      symbols = column.symbols.map(&:inspect).join(' | ')
       column.nullable ? "(#{symbols})?" : symbols
-    when :array then "Array[#{written(item(column), untyped)}]#{"?" if column.nullable}"
-    else "#{WRITTEN.fetch(column.type)}#{"?" if column.nullable}"
+    when :array then "Array[#{written(item(column), untyped)}]#{'?' if column.nullable}"
+    else "#{WRITTEN.fetch(column.type)}#{'?' if column.nullable}"
     end
   end
 end

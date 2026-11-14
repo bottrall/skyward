@@ -114,5 +114,5 @@ class Skyward::ORM::Record
   def deconstruct_keys(keys) = keys ? to_h.slice(*keys) : to_h
 
   # @rbs return: String
-  def inspect = "#<#{self.class} #{to_h.map { |column, value| "#{column}=#{value.inspect}" }.join(", ")}>"
+  def inspect = "#<#{self.class} #{to_h.map { |column, value| "#{column}=#{value.inspect}" }.join(', ')}>"
 end

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 # Time#iso8601 is core only from Ruby 3.4.
-require "time"
+require 'time'
 
 class Skyward::API::Middleware::RequestLog
   # @rbs @app: Skyward::API::_RackApp
@@ -24,9 +24,9 @@ class Skyward::API::Middleware::RequestLog
   def call(env)
     time = @now.call.getutc.iso8601(3)
     # Read before the app runs, because middleware can rewrite the env in place.
-    method = env["REQUEST_METHOD"]
+    method = env['REQUEST_METHOD']
     # Rack's path is raw bytes from the client, and JSON.generate raises on invalid UTF-8.
-    path = String.new("#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}", encoding: Encoding::UTF_8).scrub
+    path = String.new("#{env['SCRIPT_NAME']}#{env['PATH_INFO']}", encoding: Encoding::UTF_8).scrub
     started = @clock_ms.call
     response = @app.call(env)
     @logger.info(
@@ -37,7 +37,7 @@ class Skyward::API::Middleware::RequestLog
           path:,
           status: response.first,
           duration_ms: (@clock_ms.call - started).round(2),
-          request_id: env["skyward.request_id"]
+          request_id: env['skyward.request_id']
         }
       )
     )

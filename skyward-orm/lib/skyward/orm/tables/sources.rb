@@ -40,11 +40,11 @@ module Skyward::ORM::Tables::Sources
   def class_name(klass)
     name = klass.name
     # A class in an anonymous module has a temporary name, which const_source_location refuses.
-    path, line = Object.const_source_location(name) if name && !name.start_with?("#<")
+    path, line = Object.const_source_location(name) if name && !name.start_with?('#<')
     return unless name && path && line && File.file?(path)
 
-    text = File.readlines(path).fetch(line - 1, "").chomp
-    start, finish = text.match(/\bclass\s+\K(?:\w+::)*#{Regexp.escape(name.split("::").last.to_s)}\b/)&.offset(0)
+    text = File.readlines(path).fetch(line - 1, '').chomp
+    start, finish = text.match(/\bclass\s+\K(?:\w+::)*#{Regexp.escape(name.split('::').last.to_s)}\b/)&.offset(0)
     Skyward::Core::Diagnostics::Spot.new(path:, line:, text:, columns: start...finish) if start && finish
   end
 

@@ -17,13 +17,13 @@ module Skyward::ORM::Tables::Rows
         #{mismatch} unless columns.size == #{columns.size}
       end
 
-      def to_h = { #{columns.map { |column| "#{column}: @#{column}" }.join(", ")} }
+      def to_h = { #{columns.map { |column| "#{column}: @#{column}" }.join(', ')} }
 
-      def ==(other) = #{compare(columns, "==")}
+      def ==(other) = #{compare(columns, '==')}
 
-      def eql?(other) = #{compare(columns, "eql?")}
+      def eql?(other) = #{compare(columns, 'eql?')}
 
-      def hash = [#{["self.class", *columns.map { |column| "@#{column}" }].join(", ")}].hash
+      def hash = [#{['self.class', *columns.map { |column| "@#{column}" }].join(', ')}].hash
     RUBY
   end
 
@@ -35,10 +35,10 @@ module Skyward::ORM::Tables::Rows
     missing = columns - given
     unknown = given - columns
     problems = [
-      ("is missing #{missing.join(", ")}" unless missing.empty?),
-      ("has no column #{unknown.join(", ")}" unless unknown.empty?)
+      ("is missing #{missing.join(', ')}" unless missing.empty?),
+      ("has no column #{unknown.join(', ')}" unless unknown.empty?)
     ]
-    "#{klass} #{problems.compact.join(", and ")}"
+    "#{klass} #{problems.compact.join(', and ')}"
   end
 
   private
@@ -47,6 +47,6 @@ module Skyward::ORM::Tables::Rows
   # @rbs method: String
   # @rbs return: String
   def compare(columns, method)
-    ["other.instance_of?(self.class)", *columns.map { |column| "@#{column}.#{method}(other.#{column})" }].join(" && ")
+    ['other.instance_of?(self.class)', *columns.map { |column| "@#{column}.#{method}(other.#{column})" }].join(' && ')
   end
 end

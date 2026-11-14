@@ -7,10 +7,10 @@ module Skyward::ORM::Migrations::Status
   #   type state = :ran | :pending | :edited | :gone
 
   STATES = {
-    ran: "ran",
-    pending: "pending",
-    edited: "edited after it ran",
-    gone: "ran, but its file is gone"
+    ran: 'ran',
+    pending: 'pending',
+    edited: 'edited after it ran',
+    gone: 'ran, but its file is gone'
   }.freeze #: Hash[state, String]
 
   NONE = "No migrations yet.\n" #: String
@@ -53,7 +53,7 @@ module Skyward::ORM::Migrations::Status
       next unless table
 
       indexes, constraints = Skyward::ORM::Migrations::Diff.kept(klass, column_types.columns(klass), table, tables)
-      names = [*indexes.map(&:name), *constraints.map { |constraint| constraint.name || "unnamed" }]
+      names = [*indexes.map(&:name), *constraints.map { |constraint| constraint.name || 'unnamed' }]
       [klass, names] unless names.empty?
     end
   end
@@ -75,7 +75,7 @@ module Skyward::ORM::Migrations::Status
       Skyward::ORM::Migrations::Summary.text(changes, adapter),
       kept_text(kept),
       unowned_text(unowned),
-      clean?(migrations, changes, unowned) ? CLEAN : ""
+      clean?(migrations, changes, unowned) ? CLEAN : ''
     ].join
   end
 
@@ -113,7 +113,7 @@ module Skyward::ORM::Migrations::Status
   # @rbs unowned: Array[Symbol]
   # @rbs return: String
   def unowned_text(unowned)
-    return "" if unowned.empty?
+    return '' if unowned.empty?
 
     ["These tables have no class, so `skyward migration` leaves them alone:\n",
      *unowned.map { |table| "  #{table}\n" },

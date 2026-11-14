@@ -5,16 +5,16 @@
 # @rbs use Skyward::API::*
 
 class Todos::API < Skyward::API
-  description "Things to do, and the satisfaction of ticking them off."
+  description 'Things to do, and the satisfaction of ticking them off.'
 
-  get    "/",             to: :index,    summary: "List todos, newest first."
-  get    "/:id",          to: :show,     summary: "Fetch a single todo."
-  post   "/",             to: :create,   summary: "Create a todo."
-  post   "/:id/complete", to: :complete, summary: "Mark a todo as done.", description: <<~TEXT
+  get    '/',             to: :index,    summary: 'List todos, newest first.'
+  get    '/:id',          to: :show,     summary: 'Fetch a single todo.'
+  post   '/',             to: :create,   summary: 'Create a todo.'
+  post   '/:id/complete', to: :complete, summary: 'Mark a todo as done.', description: <<~TEXT
     Marking a todo that's already done is fine: it stays done, and the
     response is the same.
   TEXT
-  delete "/:id", to: :destroy, summary: "Delete a todo."
+  delete '/:id', to: :destroy, summary: 'Delete a todo.'
 
   NewTodo = Data.define(
     :title,     #: String
@@ -52,7 +52,7 @@ class Todos::API < Skyward::API
     case todo
     when Todos::Record then created todo
     when :no_such_list then not_found "List #{body.list_id} doesn't exist"
-    else unprocessable "A title needs 1 to 200 characters"
+    else unprocessable 'A title needs 1 to 200 characters'
     end
   end
 

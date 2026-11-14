@@ -11,7 +11,7 @@ It's half of Skyward. The other half is [Skyward API](../skyward-api/README.md),
 
 ```ruby
 # rbs_inline: enabled
-require "skyward/orm"
+require 'skyward/orm'
 
 class Todo < Skyward::ORM::Record
   table :todos
@@ -23,9 +23,9 @@ class Todo < Skyward::ORM::Record
   attr_reader :done   #: bool
 end
 
-Skyward.connect("sqlite://todos.db")
+Skyward.connect('sqlite://todos.db')
 
-Todo.into(Todo).insert(title: "Buy milk")
+Todo.into(Todo).insert(title: 'Buy milk')
 # => #<Todo id=1, title="Buy milk", done=false>
 
 Todo.where(done: false).map(&:title)
@@ -67,8 +67,8 @@ $ skyward migrate
 
 ```ruby
 # Gemfile
-gem "skyward-orm"
-gem "pg"       # or "sqlite3"
+gem 'skyward-orm'
+gem 'pg'       # or 'sqlite3'
 ```
 
 Skyward ORM supports every Ruby that isn't end-of-life (3.3 and later, as of November 2026), and PostgreSQL and SQLite.
@@ -85,7 +85,7 @@ A table is a plain Ruby class that subclasses `Skyward::ORM::Record`. Each `attr
 class Todo < Skyward::ORM::Record
   table :todos
   references :list_id, List, on_delete: :cascade
-  default priority: :normal, done: false, created_at: Skyward.sql("now()")
+  default priority: :normal, done: false, created_at: Skyward.sql('now()')
   check :title, length: 1..200
   index :list_id, :done
 
@@ -143,7 +143,7 @@ An `Integer` is a `bigint` and a `String` is `text`, so for a `uuid` column, or 
 
 class User < Skyward::ORM::Record
   table :users
-  default id: Skyward.sql("gen_random_uuid()")
+  default id: Skyward.sql('gen_random_uuid()')
 
   # @dynamic id, logins, invited_by
   attr_reader :id          #: uuid
@@ -249,7 +249,7 @@ Business rules like the title length live in the database, where they hold for e
 ## Connecting
 
 ```ruby
-Skyward.connect(ENV.fetch("DATABASE_URL"), pool: 10)
+Skyward.connect(ENV.fetch('DATABASE_URL'), pool: 10)
 ```
 
 Call it once, where your app boots. Skyward ORM reads your column types from the `.rbs` files under `sig/`, or the directory you pass as `signatures:`.
@@ -274,8 +274,8 @@ It looks for each table and column the class declares, and for a typed column, a
 A read replica, or a second primary, is another `Skyward.connect`, with `default: false` so it doesn't replace the database every query uses. It returns the database, which you keep in a constant or inject into what needs it:
 
 ```ruby
-Skyward.connect(ENV.fetch("DATABASE_URL"), pool: 10)
-REPLICA = Skyward.connect(ENV.fetch("REPLICA_URL"), pool: 10, default: false) #: Skyward::ORM::Database
+Skyward.connect(ENV.fetch('DATABASE_URL'), pool: 10)
+REPLICA = Skyward.connect(ENV.fetch('REPLICA_URL'), pool: 10, default: false) #: Skyward::ORM::Database
 
 Skyward.using(REPLICA) { Todo.where(done: false).to_a }
 ```
@@ -293,16 +293,16 @@ The switch is held in fiber storage, so another request under Puma or Falcon kee
 ```ruby
 log_sql = lambda do |execution, &run|
   ms = run.call
-  LOGGER.debug(format("%.1fms  %s", ms, execution.sql))
+  LOGGER.debug(format('%.1fms  %s', ms, execution.sql))
 end
 
-Skyward.connect(ENV.fetch("DATABASE_URL"), instrument: log_sql)
+Skyward.connect(ENV.fetch('DATABASE_URL'), instrument: log_sql)
 ```
 
 ```ruby
 trace_sql = lambda do |execution, &run|
-  attributes = { "db.system.name" => execution.adapter.to_s, "db.query.text" => execution.sql }
-  TRACER.in_span("sql", kind: :client, attributes:) { run.call }
+  attributes = { 'db.system.name' => execution.adapter.to_s, 'db.query.text' => execution.sql }
+  TRACER.in_span('sql', kind: :client, attributes:) { run.call }
 end
 ```
 
@@ -333,19 +333,19 @@ class RequestIdInFiber
   end
 
   def call(env)
-    Fiber[:request_id] = env["skyward.request_id"]
+    Fiber[:request_id] = env['skyward.request_id']
     @app.call(env)
   end
 end
 
 App = Skyward.app do |app|
   app.use RequestIdInFiber
-  app.mount TodosAPI.new, at: "/todos"
+  app.mount TodosAPI.new, at: '/todos'
 end
 
 log_sql = lambda do |execution, &run|
   ms = run.call
-  LOGGER.debug(format("[%s] %.1fms  %s", Fiber[:request_id], ms, execution.sql))
+  LOGGER.debug(format('[%s] %.1fms  %s', Fiber[:request_id], ms, execution.sql))
 end
 ```
 
@@ -465,13 +465,13 @@ A member reads the column with the same name. Anything else takes an SQL express
 ```ruby
 TodoWithList = Data.define(:id, :title, :list_name)
 
-Todo.join(List, list_id: :id).into(TodoWithList, list_name: "lists.name")
+Todo.join(List, list_id: :id).into(TodoWithList, list_name: 'lists.name')
 # SELECT todos.id, todos.title, lists.name AS list_name
 # FROM todos JOIN lists ON todos.list_id = lists.id
 
 OpenCount = Data.define(:list_id, :open)
 
-Todo.where(done: false).group(:list_id).into(OpenCount, open: "count(*)")
+Todo.where(done: false).group(:list_id).into(OpenCount, open: 'count(*)')
 # SELECT list_id, count(*) AS open FROM todos WHERE done = false GROUP BY list_id
 ```
 
@@ -508,8 +508,8 @@ Values are always bound as parameters, never interpolated. If you leave out the 
 A write returns how many rows it changed, unless you ask for rows with `into`. [Drizzle](https://orm.drizzle.team) is the model: a write gives nothing back unless you ask, so it never reads more than you use.
 
 ```ruby
-Todo.insert(title: "Buy milk", list_id: 1)              # => 1
-Todo.insert_all([{ title: "Eggs", list_id: 1 }, ...])   # => Integer, the rows inserted
+Todo.insert(title: 'Buy milk', list_id: 1)              # => 1
+Todo.insert_all([{ title: 'Eggs', list_id: 1 }, ...])   # => Integer, the rows inserted
 Todo.where(id: 42).update(done: true)                   # => Integer, the rows updated
 Todo.where(done: true).delete                           # => Integer, the rows deleted
 ```
@@ -519,9 +519,9 @@ Todo.where(done: true).delete                           # => Integer, the rows d
 ```ruby
 Id = Data.define(:id)
 
-Todo.into(Todo).insert(title: "Buy milk", list_id: 1)            # => Todo, every column
-Todo.into(Id).insert(title: "Buy milk", list_id: 1)              # => Id, RETURNING "id"
-Todo.into(Id).insert_all([{ title: "Eggs", list_id: 1 }, ...])   # => Array[Id], the inserted rows' ids
+Todo.into(Todo).insert(title: 'Buy milk', list_id: 1)            # => Todo, every column
+Todo.into(Id).insert(title: 'Buy milk', list_id: 1)              # => Id, RETURNING "id"
+Todo.into(Id).insert_all([{ title: 'Eggs', list_id: 1 }, ...])   # => Array[Id], the inserted rows' ids
 Todo.where(id: 42).into(Todo).update(done: true)                 # => Array[Todo], the updated rows
 Todo.where(done: true).into(Id).delete                           # => Array[Id], the deleted rows' ids
 ```
@@ -553,7 +553,7 @@ A duplicate email or a missing parent row is an outcome your code should handle,
 result = User.into(User).insert(email:)
 case result
 when User then created result
-else result.kind == :unique ? conflict("That email is already registered") : unprocessable(result.message)
+else result.kind == :unique ? conflict('That email is already registered') : unprocessable(result.message)
 end
 ```
 
@@ -566,7 +566,7 @@ Deleting a row that other rows still reference returns a `:foreign_key` violatio
 When a violation would mean a bug, use the bang version: `insert!`, `insert_all!`, `update!` or `delete!`. It returns the same count or rows, or raises `Skyward::ORM::ViolationError`, which carries the violation, the way `save` and `save!` work in ActiveRecord:
 
 ```ruby
-Todo.into(Todo).insert!(title: "Buy milk", list_id: 1)   # => Todo
+Todo.into(Todo).insert!(title: 'Buy milk', list_id: 1)   # => Todo
 Todo.where(id: 42).update!(done: true)                   # => Integer
 Todo.where(done: true).into(Id).delete!                  # => Array[Id]
 ```
@@ -577,8 +577,8 @@ Todo.where(done: true).into(Id).delete!                  # => Array[Id]
 
 ```ruby
 Skyward.transaction do
-  list = List.into(List).insert!(name: "Groceries")
-  Todo.insert!(title: "Milk", list_id: list.id)
+  list = List.into(List).insert!(name: 'Groceries')
+  Todo.insert!(title: 'Milk', list_id: list.id)
 end
 ```
 
@@ -674,20 +674,20 @@ Test against a real database. In-memory SQLite or a local PostgreSQL is fast eno
 
 ```ruby
 # test/test_helper.rb
-Skyward.connect(ENV.fetch("TEST_DATABASE_URL"), check: false)
-Skyward.migrate("db/migrate") # runs any migration the test database hasn't had, then checks the schema
+Skyward.connect(ENV.fetch('TEST_DATABASE_URL'), check: false)
+Skyward.migrate('db/migrate') # runs any migration the test database hasn't had, then checks the schema
 ```
 
 ```ruby
 describe Todo do
   include Skyward::ORM::Transactional # each test runs in a transaction that's rolled back afterwards
 
-  let(:list) { List.into(List).insert!(name: "Home") }
+  let(:list) { List.into(List).insert!(name: 'Home') }
 
-  describe ".overdue" do
-    it "skips todos that are done" do
-      late = Todo.into(Todo).insert!(title: "Milk", list_id: list.id, due_on: Date.new(2026, 10, 1))
-      Todo.insert!(title: "Eggs", list_id: list.id, due_on: Date.new(2026, 10, 1), done: true)
+  describe '.overdue' do
+    it 'skips todos that are done' do
+      late = Todo.into(Todo).insert!(title: 'Milk', list_id: list.id, due_on: Date.new(2026, 10, 1))
+      Todo.insert!(title: 'Eggs', list_id: list.id, due_on: Date.new(2026, 10, 1), done: true)
 
       assert_equal [late], Todo.overdue(today: Date.new(2026, 10, 18)).to_a
     end

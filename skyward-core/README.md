@@ -20,7 +20,7 @@ The plumbing that [Skyward API](../skyward-api/README.md) and [Skyward ORM](../s
 The `skyward` executable finds each installed gem's `lib/skyward/<gem>/commands.rb` with `Gem.find_files` and loads it, and that file registers the gem's commands:
 
 ```ruby
-Skyward::Core::CLI.register("routes", "List every route and the method that serves it") do |args|
+Skyward::Core::CLI.register('routes', 'List every route and the method that serves it') do |args|
   # ...
 end
 ```

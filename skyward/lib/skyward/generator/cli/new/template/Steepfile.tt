@@ -3,13 +3,13 @@
 D = Steep::Diagnostic
 
 target :app do
-  signature "sig"
+  signature 'sig'
 
-  check "*.rb", "lib", "modules"
+  check '*.rb', 'lib', 'modules'
 
   # The Skyward gems' signatures come with the gems, and the rest from the RBS
   # collection, which bin/setup installs.
-  collection_config "rbs_collection.yaml"
+  collection_config 'rbs_collection.yaml'
 
   configure_code_diagnostics(D::Ruby.all_error)
 end

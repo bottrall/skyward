@@ -4,26 +4,26 @@
 
 # The app has no docs, so routes can share their methods.
 class Bench::RoutesAPI < Skyward::API
-  get    "/items",                        to: :list
-  post   "/items",                        to: :list
-  get    "/items/:id",                    to: :show
-  put    "/items/:id",                    to: :show
-  patch  "/items/:id",                    to: :show
-  delete "/items/:id",                    to: :show
-  get    "/items/:id/parts",              to: :show
-  post   "/items/:id/parts",              to: :show
-  get    "/items/:id/parts/:part_id",     to: :part
-  delete "/items/:id/parts/:part_id",     to: :part
-  get    "/orders",                       to: :list
-  post   "/orders",                       to: :list
-  get    "/orders/:id",                   to: :show
-  put    "/orders/:id",                   to: :show
-  patch  "/orders/:id",                   to: :show
-  delete "/orders/:id",                   to: :show
-  get    "/orders/:id/lines",             to: :show
-  post   "/orders/:id/lines",             to: :show
-  delete "/orders/:id/lines/:line_id",    to: :line
-  get    "/orders/:id/lines/:line_id",    to: :line
+  get    '/items',                        to: :list
+  post   '/items',                        to: :list
+  get    '/items/:id',                    to: :show
+  put    '/items/:id',                    to: :show
+  patch  '/items/:id',                    to: :show
+  delete '/items/:id',                    to: :show
+  get    '/items/:id/parts',              to: :show
+  post   '/items/:id/parts',              to: :show
+  get    '/items/:id/parts/:part_id',     to: :part
+  delete '/items/:id/parts/:part_id',     to: :part
+  get    '/orders',                       to: :list
+  post   '/orders',                       to: :list
+  get    '/orders/:id',                   to: :show
+  put    '/orders/:id',                   to: :show
+  patch  '/orders/:id',                   to: :show
+  delete '/orders/:id',                   to: :show
+  get    '/orders/:id/lines',             to: :show
+  post   '/orders/:id/lines',             to: :show
+  delete '/orders/:id/lines/:line_id',    to: :line
+  get    '/orders/:id/lines/:line_id',    to: :line
 
   # @rbs return: Array[{ id: Integer }]
   def list = []

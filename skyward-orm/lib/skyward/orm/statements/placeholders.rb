@@ -14,7 +14,7 @@ module Skyward::ORM::Statements::Placeholders
   # @rbs return: String
   def replace(sql, count)
     marks = 0
-    replaced = sql.gsub(MARKS) { |match| match == "?" ? yield(marks += 1) : match }
+    replaced = sql.gsub(MARKS) { |match| match == '?' ? yield(marks += 1) : match }
     return replaced if marks == count
 
     raise ArgumentError, "The SQL has #{marks} ?, each taking one value, but was given #{count}"
@@ -28,8 +28,8 @@ module Skyward::ORM::Statements::Placeholders
   def require_scalars(binds, subject)
     binds.each.with_index(1) do |bind, index|
       kind = case bind
-             when Array then "an Array"
-             when Hash then "a Hash"
+             when Array then 'an Array'
+             when Hash then 'a Hash'
              end
       raise ArgumentError, "#{subject} binds one value to each ?, but value #{index} is #{kind}" if kind
     end

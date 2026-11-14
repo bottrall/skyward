@@ -1,12 +1,12 @@
 # config.ru
-require "skyward/api"
+require 'skyward/api'
 
 class Hello < Skyward::API
-  get "/hello/:name", to: :greet
+  get '/hello/:name', to: :greet
 
-  def greet(name:, shout: "false")
+  def greet(name:, shout: 'false')
     message = "Hello, #{name}"
-    { message: shout == "true" ? message.upcase : message }
+    { message: shout == 'true' ? message.upcase : message }
   end
 end
 

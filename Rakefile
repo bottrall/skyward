@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "bundler"
-require "fileutils"
-require "open3"
-require "rake/testtask"
-require "rubocop/rake_task"
-require "tmpdir"
-require_relative "tooling/lib/release"
+require 'bundler'
+require 'fileutils'
+require 'open3'
+require 'rake/testtask'
+require 'rubocop/rake_task'
+require 'tmpdir'
+require_relative 'tooling/lib/release'
 
 # In dependency order, which is the order they're built, installed and
 # published in.
@@ -17,15 +17,15 @@ GEMS = %w[skyward-core skyward-api skyward-orm skyward].freeze
 EXAMPLES = %w[examples/todos examples/todos_postgres].freeze
 
 # bin/bench's, laid out like an example.
-BENCHMARKS = "benchmarks"
+BENCHMARKS = 'benchmarks'
 
 BUNDLES = [*GEMS, *EXAMPLES, BENCHMARKS].freeze
 
-PKG = "pkg"
+PKG = 'pkg'
 
 # Each bundle runs its own tests, so bin/test's comma-separated list is taken
 # out of ENV and split by the directory each file is in.
-REQUESTED_TESTS = ENV.delete("TEST")&.split(",")
+REQUESTED_TESTS = ENV.delete('TEST')&.split(',')
 
 def requested_in(dir)
   return unless REQUESTED_TESTS
@@ -46,25 +46,25 @@ def write_signatures(dir, output)
   FileUtils.mkdir_p(File.expand_path(output, dir))
   return if sources.empty?
 
-  sh "rbs-inline", "--opt-out", "--output=#{output}", *sources, chdir: dir, verbose: false
+  sh 'rbs-inline', '--opt-out', "--output=#{output}", *sources, chdir: dir, verbose: false
 end
 
 # examples/todos_postgres's tests run on TEST_POSTGRES_URL, the database
 # Skyward ORM's PostgreSQL tests use. Those leave their tables behind, todos
 # among them, so it's emptied first, in the example's bundle, which has pg.
 def prepare_test_database(dir)
-  return {} unless dir == "examples/todos_postgres"
+  return {} unless dir == 'examples/todos_postgres'
 
-  url = ENV.fetch("TEST_POSTGRES_URL") do
-    abort "Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how."
+  url = ENV.fetch('TEST_POSTGRES_URL') do
+    abort 'Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how.'
   end
   # Required in the script, once bundler/setup has run: on Ruby head, -rpg
   # couldn't find the bundle's pg.
-  sh "bundle", "exec", "ruby", "-e", <<~RUBY, url, chdir: dir, verbose: false
+  sh 'bundle', 'exec', 'ruby', '-e', <<~RUBY, url, chdir: dir, verbose: false
     require "pg"
     PG.connect(ARGV.fetch(0)).exec("SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public")
   RUBY
-  { "TEST_DATABASE_URL" => url }
+  { 'TEST_DATABASE_URL' => url }
 end
 
 # Each gem's tests run in that gem's own bundle, which holds only the gem and
@@ -78,36 +78,36 @@ bundle_test_tasks = BUNDLES.filter_map do |dir|
   task "test:#{dir}" do
     # The unbundled environment predates rake setting TESTOPTS from its
     # arguments, so it's passed on.
-    options = ENV.fetch("TESTOPTS", nil)
+    options = ENV.fetch('TESTOPTS', nil)
     Bundler.with_unbundled_env do
-      env = { "TEST" => files&.join(","), "TESTOPTS" => options, **prepare_test_database(dir) }.compact
-      sh env, "bundle", "exec", "rake", "test", chdir: dir
+      env = { 'TEST' => files&.join(','), 'TESTOPTS' => options, **prepare_test_database(dir) }.compact
+      sh env, 'bundle', 'exec', 'rake', 'test', chdir: dir
     end
   end
   "test:#{dir}"
 end
 
-tooling_tests = requested_in("tooling") || Dir.glob("test/**/*_test.rb", base: "tooling")
+tooling_tests = requested_in('tooling') || Dir.glob('test/**/*_test.rb', base: 'tooling')
 unless tooling_tests.empty?
-  Rake::TestTask.new("test:tooling") do |t|
+  Rake::TestTask.new('test:tooling') do |t|
     t.libs = %w[tooling/lib tooling/test]
-    t.test_files = tooling_tests.map { |file| File.expand_path(file, "tooling") }
+    t.test_files = tooling_tests.map { |file| File.expand_path(file, 'tooling') }
     t.warning = false
   end
 end
 
 desc "Run every gem's, example's and the benchmarks' tests, each in its own bundle, and the tooling's"
-task test: [*bundle_test_tasks, *("test:tooling" unless tooling_tests.empty?)]
+task test: [*bundle_test_tasks, *('test:tooling' unless tooling_tests.empty?)]
 
 desc "Run the benchmarks whose names start with one of BENCH_ARGS's, or every one, in their own bundle"
 task :bench do
   # YJIT is on unless the environment says otherwise, as apps run in
   # production. Read first: the unbundled env is the one rake started with,
   # before it set BENCH_ARGS from its arguments.
-  env = { "RUBY_YJIT_ENABLE" => ENV.fetch("RUBY_YJIT_ENABLE", "1") }
-  names = ENV.fetch("BENCH_ARGS", "").split
+  env = { 'RUBY_YJIT_ENABLE' => ENV.fetch('RUBY_YJIT_ENABLE', '1') }
+  names = ENV.fetch('BENCH_ARGS', '').split
   Bundler.with_unbundled_env do
-    sh env, "bundle", "exec", "ruby", "run.rb", *names, chdir: BENCHMARKS
+    sh env, 'bundle', 'exec', 'ruby', 'run.rb', *names, chdir: BENCHMARKS
   end
 end
 
@@ -115,46 +115,46 @@ RuboCop::RakeTask.new(:lint) do |t|
   # RuboCop also applies AllCops/Exclude from every .rubocop.yml above the
   # project, so a checkout inside another one (a worktree under .claude/)
   # would otherwise inspect nothing and pass.
-  t.options = ["--ignore-parent-exclusion", *ENV.fetch("RUBOCOP_OPTS", "").split]
+  t.options = ['--ignore-parent-exclusion', *ENV.fetch('RUBOCOP_OPTS', '').split]
 end
 
 desc "Install each gem's and example's own bundle and the benchmarks', then the gem signatures the collection locks"
 task :setup do
-  Bundler.with_unbundled_env { BUNDLES.each { |dir| sh "bundle", "install", chdir: dir } }
-  sh "rbs collection install"
+  Bundler.with_unbundled_env { BUNDLES.each { |dir| sh 'bundle', 'install', chdir: dir } }
+  sh 'rbs collection install'
 end
 
-desc "Generate RBS signatures from inline annotations in every gem, example and the benchmarks"
+desc 'Generate RBS signatures from inline annotations in every gem, example and the benchmarks'
 task :generate do
-  BUNDLES.each { |dir| write_signatures(dir, "sig/generated") }
+  BUNDLES.each { |dir| write_signatures(dir, 'sig/generated') }
 end
 
 namespace :generate do
   desc "Watch every gem's Ruby and regenerate RBS files on change"
   task :watch do
-    require "guard"
-    require "guard/commander"
+    require 'guard'
+    require 'guard/commander'
 
     Guard.start(no_interactions: true)
   end
 end
 
 namespace :rbs do
-  desc "Fail if rbs_collection.lock.yaml is out of date with rbs_collection.yaml or Gemfile.lock"
+  desc 'Fail if rbs_collection.lock.yaml is out of date with rbs_collection.yaml or Gemfile.lock'
   task :collection_check do
-    before = File.read("rbs_collection.lock.yaml")
-    sh "rbs collection update", verbose: false
-    after = File.read("rbs_collection.lock.yaml")
+    before = File.read('rbs_collection.lock.yaml')
+    sh 'rbs collection update', verbose: false
+    after = File.read('rbs_collection.lock.yaml')
     next if before == after
 
-    File.write("rbs_collection.lock.yaml", before)
-    abort "rbs_collection.lock.yaml is out of date; run `bin/setup` and commit the result"
+    File.write('rbs_collection.lock.yaml', before)
+    abort 'rbs_collection.lock.yaml is out of date; run `bin/setup` and commit the result'
   end
 
   desc "Fail if any gem's, example's or the benchmarks' rbs-inline output is out of date with its Ruby"
   task :check do
     BUNDLES.each do |source|
-      Dir.mktmpdir("rbs-check") do |dir|
+      Dir.mktmpdir('rbs-check') do |dir|
         write_signatures(source, dir)
         FileUtils.mkdir_p("#{source}/sig/generated")
         sh "diff -ruN #{source}/sig/generated #{dir}" do |ok, _|
@@ -166,35 +166,35 @@ namespace :rbs do
 end
 
 namespace :steep do
-  desc "Type-check every gem with Steep"
+  desc 'Type-check every gem with Steep'
   task :check do
     # --no-daemon: Steep 2.1 otherwise routes the check through whatever
     # language server holds the project socket, including orphaned ones,
     # which can hang or report stale results.
-    sh "steep check --no-daemon #{ENV.fetch("STEEP_OPTS", "")}".strip
+    sh "steep check --no-daemon #{ENV.fetch('STEEP_OPTS', '')}".strip
   end
 end
 
-desc "Check the RBS signatures and collection are current, then run Steep"
+desc 'Check the RBS signatures and collection are current, then run Steep'
 task typecheck: %w[rbs:check rbs:collection_check steep:check]
 
 desc "Build every gem into #{PKG}/, install them into an empty GEM_HOME, load them and run skyward, then check " \
-     "the app skyward new writes passes its own bin/ci, as a user would"
+     'the app skyward new writes passes its own bin/ci, as a user would'
 task :build do
   FileUtils.rm_rf(PKG)
   FileUtils.mkdir_p(PKG)
   GEMS.each do |gem|
-    sh "gem", "build", "--quiet", "#{gem}.gemspec", chdir: gem
+    sh 'gem', 'build', '--quiet', "#{gem}.gemspec", chdir: gem
     FileUtils.mv(Dir["#{gem}/#{gem}-[0-9]*.gem"], PKG)
   end
 
-  Dir.mktmpdir("skyward-gems") do |home|
-    env = { "GEM_HOME" => home, "GEM_PATH" => home }
-    skyward = File.join(home, "bin", "skyward")
+  Dir.mktmpdir('skyward-gems') do |home|
+    env = { 'GEM_HOME' => home, 'GEM_PATH' => home }
+    skyward = File.join(home, 'bin', 'skyward')
     Bundler.with_unbundled_env do
-      GEMS.each { |gem| sh env, "gem", "install", "--no-document", *Dir["#{PKG}/#{gem}-[0-9]*.gem"] }
+      GEMS.each { |gem| sh env, 'gem', 'install', '--no-document', *Dir["#{PKG}/#{gem}-[0-9]*.gem"] }
       # Eager loading every loader fails on a file the gemspec left out.
-      sh env, Gem.ruby, "-e", <<~RUBY
+      sh env, Gem.ruby, '-e', <<~RUBY
         require "skyward"
         require "skyward/generator"
         Zeitwerk::Loader.eager_load_all
@@ -206,9 +206,9 @@ task :build do
       abort "The installed skyward didn't exit 0 and print its usage" unless status.success? && usage
       # The app's Gemfile pins skyward at this version, which Bundler finds
       # among the gems just installed, released or not.
-      Dir.mktmpdir("skyward-new") do |apps|
-        sh env, skyward, "new", "demo", chdir: apps
-        sh env, "bin/ci", chdir: File.join(apps, "demo")
+      Dir.mktmpdir('skyward-new') do |apps|
+        sh env, skyward, 'new', 'demo', chdir: apps
+        sh env, 'bin/ci', chdir: File.join(apps, 'demo')
       end
     end
   end
@@ -216,15 +216,15 @@ end
 
 desc "Update every lockfile (the dev bundle's, each gem's, each example's and the benchmarks') after a version change"
 task :lock do
-  Bundler.with_unbundled_env { [".", *BUNDLES].each { |dir| sh "bundle", "lock", chdir: dir } }
+  Bundler.with_unbundled_env { ['.', *BUNDLES].each { |dir| sh 'bundle', 'lock', chdir: dir } }
 end
 
 namespace :release do
   desc "Fail unless every gem's version matches TAG (vX.Y.Z), the release being published"
   task :verify, [:tag] do |_task, args|
-    tag = args[:tag] || abort("Usage: rake release:verify[vX.Y.Z]")
+    tag = args[:tag] || abort('Usage: rake release:verify[vX.Y.Z]')
     shared = Release.shared(Release::VERSION_FILES.map { |file| File.read(file) })
-    abort "The gems' versions disagree: #{Release::VERSION_FILES.join(", ")}" unless shared
+    abort "The gems' versions disagree: #{Release::VERSION_FILES.join(', ')}" unless shared
     abort "#{tag} doesn't match the gems' version, #{shared}" unless tag == "v#{shared}"
   end
 end

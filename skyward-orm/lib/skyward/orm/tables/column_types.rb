@@ -6,19 +6,19 @@ class Skyward::ORM::Tables::ColumnTypes
 
   UNTYPED = Skyward::Core::Types::Scalar.new(name: :untyped) #: Skyward::Core::Types::Scalar
 
-  COLUMN_TYPES = "A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, " \
-                 "a union of symbols, Hash[String, untyped] or Array[T], any of them nullable, or untyped." #: String
+  COLUMN_TYPES = 'A column is Integer, Float, BigDecimal, String, bool, Date, Time, uuid, int32, int16, ' \
+                 'a union of symbols, Hash[String, untyped] or Array[T], any of them nullable, or untyped.' #: String
 
   ELEMENTS = %i[integer float decimal string bool date time].freeze #: Array[Skyward::Core::Types::scalar]
 
-  ELEMENT_TYPES = "An Array column is Array[T], where T is Integer, Float, BigDecimal, String, bool, Date, Time " \
+  ELEMENT_TYPES = 'An Array column is Array[T], where T is Integer, Float, BigDecimal, String, bool, Date, Time ' \
                   "or a union of symbols, and isn't nullable." #: String
 
   # The aliases Skyward ORM declares, for its reader to keep as the column type each names.
   REFINEMENTS = {
-    "::Skyward::ORM::uuid" => :uuid,
-    "::Skyward::ORM::int32" => :int32,
-    "::Skyward::ORM::int16" => :int16
+    '::Skyward::ORM::uuid' => :uuid,
+    '::Skyward::ORM::int32' => :int32,
+    '::Skyward::ORM::int16' => :int16
   }.freeze #: Hash[String, Skyward::ORM::Tables::refinement]
 
   # @rbs reader: Skyward::Core::Types::Reader
@@ -42,7 +42,7 @@ class Skyward::ORM::Tables::ColumnTypes
     type_name = @reader.type_name(klass)
     Skyward::ORM::Tables::Members.of(klass).map do |name|
       returned = @reader.method_type(type_name, name)&.type&.return_type if type_name
-      written = returned.to_s.gsub(/(?<!\w)::/, "")
+      written = returned.to_s.gsub(/(?<!\w)::/, '')
       column = returned ? read(name, returned, written) : column(name, UNTYPED, written)
       case column
       when Skyward::ORM::Tables::Column then column

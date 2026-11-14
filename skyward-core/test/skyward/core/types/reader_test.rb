@@ -1,158 +1,158 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require_relative "../../../fixtures/types/reader_fixtures"
+require 'test_helper'
+require_relative '../../../fixtures/types/reader_fixtures'
 
 describe Skyward::Core::Types::Reader do
   types = Skyward::Core::Types
-  builder = Skyward::Core::Signatures::Loader.new.load(File.expand_path("../../../fixtures/types", __dir__))
+  builder = Skyward::Core::Signatures::Loader.new.load(File.expand_path('../../../fixtures/types', __dir__))
   reader = Skyward::Core::Types::Reader.new(builder)
-  others = File.expand_path("../../../fixtures/types/others.rbs", __dir__).delete_prefix("#{Dir.pwd}/")
+  others = File.expand_path('../../../fixtures/types/others.rbs', __dir__).delete_prefix("#{Dir.pwd}/")
   line_of = ->(snippet) { File.readlines(others).index { |line| line.include?(snippet) }.to_i + 1 }
 
   integer = types::Scalar.new(name: :integer)
   string = types::Scalar.new(name: :string)
   priority = types::Enum.new(symbols: %i[low normal high])
-  record_hint = "a record, or a class with public typed attr_readers"
-  hash_hint = "Hash[String, T] (only String keys are supported)"
+  record_hint = 'a record, or a class with public typed attr_readers'
+  hash_hint = 'Hash[String, T] (only String keys are supported)'
 
   define_method(:read) { |source| reader.read(RBS::Parser.parse_type(source)) }
 
-  describe "#read" do
-    it "reads bool" do
-      assert_equal types::Scalar.new(name: :bool), read("bool")
+  describe '#read' do
+    it 'reads bool' do
+      assert_equal types::Scalar.new(name: :bool), read('bool')
     end
 
-    it "reads untyped" do
-      assert_equal types::Scalar.new(name: :untyped), read("untyped")
+    it 'reads untyped' do
+      assert_equal types::Scalar.new(name: :untyped), read('untyped')
     end
 
-    it "reads nil as a literal" do
-      assert_equal types::Literal.new(value: nil), read("nil")
+    it 'reads nil as a literal' do
+      assert_equal types::Literal.new(value: nil), read('nil')
     end
 
-    it "reads a symbol literal as an enum of one" do
-      assert_equal types::Enum.new(symbols: [:low]), read(":low")
+    it 'reads a symbol literal as an enum of one' do
+      assert_equal types::Enum.new(symbols: [:low]), read(':low')
     end
 
-    it "reads String, Integer and boolean literals" do
+    it 'reads String, Integer and boolean literals' do
       assert_equal(
-        [types::Literal.new(value: "ok"), types::Literal.new(value: 1), types::Literal.new(value: true)],
-        ['"ok"', "1", "true"].map { |source| read(source) }
+        [types::Literal.new(value: 'ok'), types::Literal.new(value: 1), types::Literal.new(value: true)],
+        ['"ok"', '1', 'true'].map { |source| read(source) }
       )
     end
 
-    it "reads T? as nullable" do
-      assert_equal types::Nullable.new(type: types::Scalar.new(name: :date)), read("::Date?")
+    it 'reads T? as nullable' do
+      assert_equal types::Nullable.new(type: types::Scalar.new(name: :date)), read('::Date?')
     end
 
-    it "reads T?? as nullable once" do
-      assert_equal types::Nullable.new(type: integer), read("::Integer??")
+    it 'reads T?? as nullable once' do
+      assert_equal types::Nullable.new(type: integer), read('::Integer??')
     end
 
-    it "reads nil? as nil" do
-      assert_equal types::Literal.new(value: nil), read("nil?")
+    it 'reads nil? as nil' do
+      assert_equal types::Literal.new(value: nil), read('nil?')
     end
 
-    it "reads T? of an unreadable type as unreadable" do
-      assert_instance_of types::Unreadable, read("[::Integer]?")
+    it 'reads T? of an unreadable type as unreadable' do
+      assert_instance_of types::Unreadable, read('[::Integer]?')
     end
 
-    it "reads a union of one type, repeated, as that type" do
-      assert_equal integer, read("::Integer | ::Integer")
+    it 'reads a union of one type, repeated, as that type' do
+      assert_equal integer, read('::Integer | ::Integer')
     end
 
-    it "reads T | nil as nullable" do
-      assert_equal types::Nullable.new(type: integer), read("::Integer | nil")
+    it 'reads T | nil as nullable' do
+      assert_equal types::Nullable.new(type: integer), read('::Integer | nil')
     end
 
-    it "reads a union of symbol literals as one enum" do
-      assert_equal priority, read(":low | :normal | :high")
+    it 'reads a union of symbol literals as one enum' do
+      assert_equal priority, read(':low | :normal | :high')
     end
 
-    it "merges symbols from aliases into one enum, without duplicates" do
+    it 'merges symbols from aliases into one enum, without duplicates' do
       assert_equal types::Enum.new(symbols: %i[low normal high urgent]),
-                   read("::ReaderFixtures::priority | :low | :urgent")
+                   read('::ReaderFixtures::priority | :low | :urgent')
     end
 
-    it "reads a union of other types as a union, in written order" do
-      assert_equal types::Union.new(types: [string, integer]), read("::String | ::Integer")
+    it 'reads a union of other types as a union, in written order' do
+      assert_equal types::Union.new(types: [string, integer]), read('::String | ::Integer')
     end
 
-    it "flattens nested unions and drops duplicates" do
+    it 'flattens nested unions and drops duplicates' do
       float = types::Scalar.new(name: :float)
 
       assert_equal types::Union.new(types: [integer, float, string]),
-                   read("::ReaderFixtures::number | ::String | ::Integer")
+                   read('::ReaderFixtures::number | ::String | ::Integer')
     end
 
-    it "lifts a nullable member to the whole union" do
-      assert_equal types::Nullable.new(type: types::Union.new(types: [integer, string])), read("::Integer? | ::String")
+    it 'lifts a nullable member to the whole union' do
+      assert_equal types::Nullable.new(type: types::Union.new(types: [integer, string])), read('::Integer? | ::String')
     end
 
-    it "reads a union with an unreadable member as unreadable" do
-      assert_instance_of types::Unreadable, read("::Integer | [::Integer, ::String]")
+    it 'reads a union with an unreadable member as unreadable' do
+      assert_instance_of types::Unreadable, read('::Integer | [::Integer, ::String]')
     end
 
-    it "expands a type alias" do
-      assert_equal priority, read("::ReaderFixtures::priority")
+    it 'expands a type alias' do
+      assert_equal priority, read('::ReaderFixtures::priority')
     end
 
-    it "expands a generic type alias" do
-      assert_equal types::ArrayOf.new(type: string), read("::ReaderFixtures::list[::String]")
+    it 'expands a generic type alias' do
+      assert_equal types::ArrayOf.new(type: string), read('::ReaderFixtures::list[::String]')
     end
 
-    it "expands a generic type alias applied to itself without calling it recursive" do
+    it 'expands a generic type alias applied to itself without calling it recursive' do
       assert_equal types::ArrayOf.new(type: types::ArrayOf.new(type: string)),
-                   read("::ReaderFixtures::list[::ReaderFixtures::list[::String]]")
+                   read('::ReaderFixtures::list[::ReaderFixtures::list[::String]]')
     end
 
-    it "raises BootError for an alias that refers to itself" do
-      error = assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::tree") }
+    it 'raises BootError for an alias that refers to itself' do
+      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::tree') }
 
       assert_equal "Can't read ReaderFixtures::tree: it refers to itself through " \
-                   "ReaderFixtures::tree -> ReaderFixtures::tree",
+                   'ReaderFixtures::tree -> ReaderFixtures::tree',
                    error.message
     end
 
-    describe "with refinements" do
+    describe 'with refinements' do
       refining = Skyward::Core::Types::Reader.new(
         builder,
-        refinements: { "::ReaderFixtures::uuid" => :uuid, "::ReaderFixtures::list" => :list }
+        refinements: { '::ReaderFixtures::uuid' => :uuid, '::ReaderFixtures::list' => :list }
       )
       uuid = types::Refined.new(type: string, as: :uuid)
 
       define_method(:read) { |source| refining.read(RBS::Parser.parse_type(source)) }
 
-      it "reads a refined alias as refined" do
-        assert_equal uuid, read("::ReaderFixtures::uuid")
+      it 'reads a refined alias as refined' do
+        assert_equal uuid, read('::ReaderFixtures::uuid')
       end
 
-      it "reads a refined alias through another alias of it" do
-        assert_equal uuid, read("::ReaderFixtures::user_id")
+      it 'reads a refined alias through another alias of it' do
+        assert_equal uuid, read('::ReaderFixtures::user_id')
       end
 
-      it "reads a refined alias inside T?, Array[T] and a record" do
+      it 'reads a refined alias inside T?, Array[T] and a record' do
         assert_equal(
           [types::Nullable.new(type: uuid),
            types::ArrayOf.new(type: uuid),
            types::Record.new(fields: [types::Field.new(name: :id, type: uuid, required: true)])],
-          ["::ReaderFixtures::uuid?", "::Array[::ReaderFixtures::uuid]", "{ id: ::ReaderFixtures::uuid }"]
+          ['::ReaderFixtures::uuid?', '::Array[::ReaderFixtures::uuid]', '{ id: ::ReaderFixtures::uuid }']
             .map { |source| read(source) }
         )
       end
 
-      it "reads a refined alias of an unreadable type as unreadable" do
-        assert_instance_of types::Unreadable, read("::ReaderFixtures::list[[::Integer]]")
+      it 'reads a refined alias of an unreadable type as unreadable' do
+        assert_instance_of types::Unreadable, read('::ReaderFixtures::list[[::Integer]]')
       end
 
       it "expands an alias it doesn't refine" do
-        assert_equal priority, read("::ReaderFixtures::priority")
+        assert_equal priority, read('::ReaderFixtures::priority')
       end
     end
 
-    it "expands every alias without refinements" do
-      assert_equal string, read("::ReaderFixtures::user_id")
+    it 'expands every alias without refinements' do
+      assert_equal string, read('::ReaderFixtures::user_id')
     end
 
     it "reads a record's fields in written order" do
@@ -161,21 +161,21 @@ describe Skyward::Core::Types::Reader do
         types::Field.new(name: :id, type: integer, required: true)
       ]
 
-      assert_equal types::Record.new(fields:), read("{ ?page: ::Integer, id: ::Integer }")
+      assert_equal types::Record.new(fields:), read('{ ?page: ::Integer, id: ::Integer }')
     end
 
-    it "reads a record with an unreadable field as unreadable, found in no class" do
-      assert_nil read("{ id: [::Integer] }").at
+    it 'reads a record with an unreadable field as unreadable, found in no class' do
+      assert_nil read('{ id: [::Integer] }').at
     end
 
-    it "reads Integer, Float, String, Date, Time and BigDecimal as scalars" do
+    it 'reads Integer, Float, String, Date, Time and BigDecimal as scalars' do
       assert_equal(
         %i[integer float string date time decimal],
         %w[::Integer ::Float ::String ::Date ::Time ::BigDecimal].map { |source| read(source).name }
       )
     end
 
-    it "reads BigDecimal inside T?, Array[T], Hash[String, T], a record and a class" do
+    it 'reads BigDecimal inside T?, Array[T], Hash[String, T], a record and a class' do
       decimal = types::Scalar.new(name: :decimal)
       amount = [types::Field.new(name: :amount, type: decimal, required: true)]
 
@@ -184,128 +184,128 @@ describe Skyward::Core::Types::Reader do
          types::ArrayOf.new(type: decimal),
          types::HashOf.new(type: decimal),
          types::Record.new(fields: amount),
-         types::Named.new(name: "ReaderFixtures::Price", klass: ReaderFixtures::Price, fields: amount)],
-        ["::BigDecimal?", "::Array[::BigDecimal]", "::Hash[::String, ::BigDecimal]", "{ amount: ::BigDecimal }",
-         "::ReaderFixtures::Price"].map { |source| read(source) }
+         types::Named.new(name: 'ReaderFixtures::Price', klass: ReaderFixtures::Price, fields: amount)],
+        ['::BigDecimal?', '::Array[::BigDecimal]', '::Hash[::String, ::BigDecimal]', '{ amount: ::BigDecimal }',
+         '::ReaderFixtures::Price'].map { |source| read(source) }
       )
     end
 
-    it "reads a bare Array as unreadable, suggesting Array[T]" do
-      assert_equal types::Unreadable.new(type: "Array", at: nil, instead: "Array[T]", suggestion: nil), read("::Array")
+    it 'reads a bare Array as unreadable, suggesting Array[T]' do
+      assert_equal types::Unreadable.new(type: 'Array', at: nil, instead: 'Array[T]', suggestion: nil), read('::Array')
     end
 
-    it "reads Array[T]" do
-      assert_equal types::ArrayOf.new(type: integer), read("::Array[::Integer]")
+    it 'reads Array[T]' do
+      assert_equal types::ArrayOf.new(type: integer), read('::Array[::Integer]')
     end
 
-    it "reads Array of an unreadable type as unreadable" do
-      assert_instance_of types::Unreadable, read("::Array[[::Integer]]")
+    it 'reads Array of an unreadable type as unreadable' do
+      assert_instance_of types::Unreadable, read('::Array[[::Integer]]')
     end
 
-    it "reads a Hash with any other key type as unreadable, saying only String keys are supported" do
+    it 'reads a Hash with any other key type as unreadable, saying only String keys are supported' do
       assert_equal(
-        [types::Unreadable.new(type: "Hash[Symbol, Integer]", at: nil, instead: hash_hint, suggestion: nil),
-         types::Unreadable.new(type: "Hash[Integer, Integer]", at: nil, instead: hash_hint, suggestion: nil)],
-        ["::Hash[::Symbol, ::Integer]", "::Hash[::Integer, ::Integer]"].map { |source| read(source) }
+        [types::Unreadable.new(type: 'Hash[Symbol, Integer]', at: nil, instead: hash_hint, suggestion: nil),
+         types::Unreadable.new(type: 'Hash[Integer, Integer]', at: nil, instead: hash_hint, suggestion: nil)],
+        ['::Hash[::Symbol, ::Integer]', '::Hash[::Integer, ::Integer]'].map { |source| read(source) }
       )
     end
 
-    it "reads a bare Hash as unreadable, suggesting Hash[String, T]" do
-      assert_equal types::Unreadable.new(type: "Hash", at: nil, instead: hash_hint, suggestion: nil), read("::Hash")
+    it 'reads a bare Hash as unreadable, suggesting Hash[String, T]' do
+      assert_equal types::Unreadable.new(type: 'Hash', at: nil, instead: hash_hint, suggestion: nil), read('::Hash')
     end
 
-    it "reads a Hash without a value type as unreadable, suggesting Hash[String, T]" do
-      assert_equal types::Unreadable.new(type: "Hash[String]", at: nil, instead: hash_hint, suggestion: nil),
-                   read("::Hash[::String]")
+    it 'reads a Hash without a value type as unreadable, suggesting Hash[String, T]' do
+      assert_equal types::Unreadable.new(type: 'Hash[String]', at: nil, instead: hash_hint, suggestion: nil),
+                   read('::Hash[::String]')
     end
 
-    it "reads Hash[String, T]" do
+    it 'reads Hash[String, T]' do
       assert_equal types::HashOf.new(type: types::ArrayOf.new(type: integer)),
-                   read("::Hash[::String, ::Array[::Integer]]")
+                   read('::Hash[::String, ::Array[::Integer]]')
     end
 
-    it "reads Hash[String, T] with its key type behind an alias" do
-      assert_equal types::HashOf.new(type: integer), read("::Hash[::ReaderFixtures::key, ::Integer]")
+    it 'reads Hash[String, T] with its key type behind an alias' do
+      assert_equal types::HashOf.new(type: integer), read('::Hash[::ReaderFixtures::key, ::Integer]')
     end
 
-    it "reads Hash of an unreadable type as unreadable" do
-      assert_equal "[ Integer ]", read("::Hash[::String, [::Integer]]").type
+    it 'reads Hash of an unreadable type as unreadable' do
+      assert_equal '[ Integer ]', read('::Hash[::String, [::Integer]]').type
     end
 
     it "suggests the closest declared class for one RBS doesn't declare" do
       expected = types::Unreadable.new(
-        type: "Strng",
-        at: "ReaderFixtures::Typo#title",
+        type: 'Strng',
+        at: 'ReaderFixtures::Typo#title',
         instead: record_hint,
-        suggestion: "String"
+        suggestion: 'String'
       )
 
-      assert_equal expected, read("::ReaderFixtures::Typo")
+      assert_equal expected, read('::ReaderFixtures::Typo')
     end
 
     it "reads a class RBS doesn't declare as unreadable" do
-      assert_equal types::Unreadable.new(type: "Nowhere", at: nil, instead: record_hint, suggestion: nil),
-                   read("::Nowhere")
+      assert_equal types::Unreadable.new(type: 'Nowhere', at: nil, instead: record_hint, suggestion: nil),
+                   read('::Nowhere')
     end
 
-    it "reads a module as unreadable, with no suggestion" do
-      assert_equal types::Unreadable.new(type: "ReaderFixtures::Mixin", at: nil, instead: record_hint, suggestion: nil),
-                   read("::ReaderFixtures::Mixin")
+    it 'reads a module as unreadable, with no suggestion' do
+      assert_equal types::Unreadable.new(type: 'ReaderFixtures::Mixin', at: nil, instead: record_hint, suggestion: nil),
+                   read('::ReaderFixtures::Mixin')
     end
 
-    it "reads a class with no readers as unreadable" do
-      assert_equal types::Unreadable.new(type: "ReaderFixtures::Plain", at: nil, instead: record_hint, suggestion: nil),
-                   read("::ReaderFixtures::Plain")
+    it 'reads a class with no readers as unreadable' do
+      assert_equal types::Unreadable.new(type: 'ReaderFixtures::Plain', at: nil, instead: record_hint, suggestion: nil),
+                   read('::ReaderFixtures::Plain')
     end
 
-    it "reads a class with only private readers as unreadable" do
-      assert_instance_of types::Unreadable, read("::ReaderFixtures::Hidden")
+    it 'reads a class with only private readers as unreadable' do
+      assert_instance_of types::Unreadable, read('::ReaderFixtures::Hidden')
     end
 
-    it "raises BootError for a class with no Ruby class loaded, with an excerpt of its declaration" do
-      error = assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::Orphan") }
+    it 'raises BootError for a class with no Ruby class loaded, with an excerpt of its declaration' do
+      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Orphan') }
 
-      expected = ["ReaderFixtures::Orphan has an RBS signature, but no Ruby class is loaded with that name",
-                  "",
-                  "    #{others}:#{line_of.call("class Orphan")}",
-                  "    class Orphan",
-                  "          ^^^^^^"].join("\n")
+      expected = ['ReaderFixtures::Orphan has an RBS signature, but no Ruby class is loaded with that name',
+                  '',
+                  "    #{others}:#{line_of.call('class Orphan')}",
+                  '    class Orphan',
+                  '          ^^^^^^'].join("\n")
 
       assert_equal expected, error.message
     end
 
     it "raises BootError for a class whose Ruby constant isn't a class" do
-      assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::NotAClass") }
+      assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::NotAClass') }
     end
 
-    it "raises BootError for a class that refers to itself" do
-      error = assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::Node") }
+    it 'raises BootError for a class that refers to itself' do
+      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Node') }
 
       assert_equal "Can't read ReaderFixtures::Node: it refers to itself through " \
-                   "ReaderFixtures::Node -> ReaderFixtures::Node",
+                   'ReaderFixtures::Node -> ReaderFixtures::Node',
                    error.message
     end
 
-    it "raises BootError for a class that refers to itself through another" do
-      error = assert_raises(Skyward::Core::BootError) { read("::ReaderFixtures::Parent") }
+    it 'raises BootError for a class that refers to itself through another' do
+      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Parent') }
 
       assert_equal "Can't read ReaderFixtures::Parent: it refers to itself through " \
-                   "ReaderFixtures::Parent -> ReaderFixtures::Child -> ReaderFixtures::Parent",
+                   'ReaderFixtures::Parent -> ReaderFixtures::Child -> ReaderFixtures::Parent',
                    error.message
     end
 
-    describe "a class with typed readers" do
-      todo = reader.read(RBS::Parser.parse_type("::ReaderFixtures::Todo"))
+    describe 'a class with typed readers' do
+      todo = reader.read(RBS::Parser.parse_type('::ReaderFixtures::Todo'))
 
-      it "is named in full" do
-        assert_equal "ReaderFixtures::Todo", todo.name
+      it 'is named in full' do
+        assert_equal 'ReaderFixtures::Todo', todo.name
       end
 
-      it "finds the Ruby class" do
+      it 'finds the Ruby class' do
         assert_equal ReaderFixtures::Todo, todo.klass
       end
 
-      it "takes public instance readers, in written order, across every file, skipping private sections" do
+      it 'takes public instance readers, in written order, across every file, skipping private sections' do
         assert_equal %i[id title priority due_on], todo.fields.map(&:name)
       end
 
@@ -316,7 +316,7 @@ describe Skyward::Core::Types::Reader do
 
     it "reads rbs-inline's Data.define the same way" do
       expected = types::Named.new(
-        name: "ReaderFixtures::NewTodo",
+        name: 'ReaderFixtures::NewTodo',
         klass: ReaderFixtures::NewTodo,
         fields: [
           types::Field.new(name: :title, type: string, required: true),
@@ -324,110 +324,110 @@ describe Skyward::Core::Types::Reader do
         ]
       )
 
-      assert_equal expected, read("::ReaderFixtures::NewTodo")
+      assert_equal expected, read('::ReaderFixtures::NewTodo')
     end
 
-    it "reads a class twice in one type without calling it recursive" do
-      assert_equal %i[first second], read("::ReaderFixtures::Pair").fields.map(&:name)
+    it 'reads a class twice in one type without calling it recursive' do
+      assert_equal %i[first second], read('::ReaderFixtures::Pair').fields.map(&:name)
     end
 
-    it "keeps the innermost class and reader" do
-      assert_equal "ReaderFixtures::Holder#tags", read("::ReaderFixtures::Outer").at
+    it 'keeps the innermost class and reader' do
+      assert_equal 'ReaderFixtures::Holder#tags', read('::ReaderFixtures::Outer').at
     end
 
-    it "names the class and reader where an unreadable type was found" do
+    it 'names the class and reader where an unreadable type was found' do
       expected = types::Unreadable.new(
-        type: "Hash[Symbol, untyped]",
-        at: "ReaderFixtures::Holder#tags",
+        type: 'Hash[Symbol, untyped]',
+        at: 'ReaderFixtures::Holder#tags',
         instead: hash_hint,
         suggestion: nil
       )
 
-      assert_equal expected, read("::ReaderFixtures::Holder")
+      assert_equal expected, read('::ReaderFixtures::Holder')
     end
 
-    it "reads a tuple as unreadable, suggesting an array or a record" do
+    it 'reads a tuple as unreadable, suggesting an array or a record' do
       expected = types::Unreadable.new(
-        type: "[ Integer, String ]",
+        type: '[ Integer, String ]',
         at: nil,
-        instead: "Array[T], or a record",
+        instead: 'Array[T], or a record',
         suggestion: nil
       )
 
-      assert_equal expected, read("[::Integer, ::String]")
+      assert_equal expected, read('[::Integer, ::String]')
     end
 
-    it "reads an interface as unreadable" do
-      expected = types::Unreadable.new(type: "ReaderFixtures::_Named", at: nil, instead: record_hint, suggestion: nil)
+    it 'reads an interface as unreadable' do
+      expected = types::Unreadable.new(type: 'ReaderFixtures::_Named', at: nil, instead: record_hint, suggestion: nil)
 
-      assert_equal expected, read("::ReaderFixtures::_Named")
+      assert_equal expected, read('::ReaderFixtures::_Named')
     end
 
-    it "reads a proc as unreadable" do
-      assert_equal "^(Integer) -> void", read("^(::Integer) -> void").type
+    it 'reads a proc as unreadable' do
+      assert_equal '^(Integer) -> void', read('^(::Integer) -> void').type
     end
 
-    it "writes an unreadable type without leading colons" do
-      assert_equal "Hash[Symbol, Integer]", read("::Hash[::Symbol, ::Integer]").type
+    it 'writes an unreadable type without leading colons' do
+      assert_equal 'Hash[Symbol, Integer]', read('::Hash[::Symbol, ::Integer]').type
     end
   end
 
-  describe "#type_name" do
-    it "is nil for an anonymous class" do
+  describe '#type_name' do
+    it 'is nil for an anonymous class' do
       assert_nil reader.type_name(Class.new)
     end
 
-    it "finds the declaration of a class RBS knows" do
-      assert_equal RBS::TypeName.parse("::ReaderFixtures::API"), reader.type_name(ReaderFixtures::API)
+    it 'finds the declaration of a class RBS knows' do
+      assert_equal RBS::TypeName.parse('::ReaderFixtures::API'), reader.type_name(ReaderFixtures::API)
     end
 
     it "is nil for a class RBS doesn't know" do
-      assert_nil reader.type_name(Class.new { def self.name = "Nowhere" })
+      assert_nil reader.type_name(Class.new { def self.name = 'Nowhere' })
     end
   end
 
-  describe "#method_type" do
+  describe '#method_type' do
     it "finds a method's signature" do
-      assert_equal "(id: ::Integer) -> ::ReaderFixtures::Todo",
-                   reader.method_type(RBS::TypeName.parse("::ReaderFixtures::API"), :show).to_s
+      assert_equal '(id: ::Integer) -> ::ReaderFixtures::Todo',
+                   reader.method_type(RBS::TypeName.parse('::ReaderFixtures::API'), :show).to_s
     end
 
     it "is nil for a method RBS doesn't declare" do
-      assert_nil reader.method_type(RBS::TypeName.parse("::ReaderFixtures::API"), :destroy)
+      assert_nil reader.method_type(RBS::TypeName.parse('::ReaderFixtures::API'), :destroy)
     end
 
     it "raises BootError with an excerpt and a suggestion for a type name RBS can't find" do
       error = assert_raises(Skyward::Core::BootError) do
-        reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Unknown"), :show)
+        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Unknown'), :show)
       end
 
       expected = ["Can't read the RBS signatures: Could not find Integr",
-                  "",
-                  "    #{others}:#{line_of.call("-> Integr")}",
-                  "    def show: () -> Integr",
-                  "                    ^^^^^^",
-                  "Did you mean Integer?"].join("\n")
+                  '',
+                  "    #{others}:#{line_of.call('-> Integr')}",
+                  '    def show: () -> Integr',
+                  '                    ^^^^^^',
+                  'Did you mean Integer?'].join("\n")
 
       assert_equal expected, error.message
     end
 
-    it "raises BootError with an excerpt and no suggestion for any other RBS error with a location" do
+    it 'raises BootError with an excerpt and no suggestion for any other RBS error with a location' do
       error = assert_raises(Skyward::Core::BootError) do
-        reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Stray"), :show)
+        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Stray'), :show)
       end
 
       expected = ["Can't read the RBS signatures: Could not find super class: Absent",
-                  "",
-                  "    #{others}:#{line_of.call("class Stray")}",
-                  "    class Stray < Absent",
-                  "    ^^^^^^^^^^^^^^^^^^^^"].join("\n")
+                  '',
+                  "    #{others}:#{line_of.call('class Stray')}",
+                  '    class Stray < Absent',
+                  '    ^^^^^^^^^^^^^^^^^^^^'].join("\n")
 
       assert_equal expected, error.message
     end
 
     it "raises BootError with RBS's message when its error has no location" do
       error = assert_raises(Skyward::Core::BootError) do
-        reader.method_type(RBS::TypeName.parse("::ReaderFixtures::Mismatched"), :to_s)
+        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Mismatched'), :to_s)
       end
 
       assert_match(/\ACan't read the RBS signatures: .*Superclass mismatch/, error.message)

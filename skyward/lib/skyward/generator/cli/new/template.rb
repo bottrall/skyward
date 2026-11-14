@@ -7,7 +7,7 @@ module Skyward::Generator::CLI::New::Template
 
   # Every file there ends in it, so none of the tools that read the gem's own
   # Ruby, signatures and Steepfile takes the app's for the gem's.
-  SUFFIX = ".tt" #: String
+  SUFFIX = '.tt' #: String
 
   PLACEHOLDER = /\{\{\w+\}\}/ #: Regexp
 
@@ -20,7 +20,7 @@ module Skyward::Generator::CLI::New::Template
   # @rbs name: String
   # @rbs return: Hash[String, String]
   def files(name)
-    values = { "{{name}}" => name, "{{title}}" => title(name), "{{version}}" => Skyward::VERSION }
+    values = { '{{name}}' => name, '{{title}}' => title(name), '{{version}}' => Skyward::VERSION }
     FILES.transform_values { |content| content.gsub(PLACEHOLDER) { |key| values.fetch(key) } }
   end
 
@@ -28,5 +28,5 @@ module Skyward::Generator::CLI::New::Template
 
   # @rbs name: String
   # @rbs return: String
-  def title(name) = name.split("_").map(&:capitalize).join
+  def title(name) = name.split('_').map(&:capitalize).join
 end

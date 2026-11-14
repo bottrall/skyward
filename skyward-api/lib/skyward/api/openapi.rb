@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 module Skyward::API::OpenAPI
   extend self
@@ -15,47 +15,47 @@ module Skyward::API::OpenAPI
     :schema #: schema?
   )
 
-  PATH = "/openapi.json" #: String
+  PATH = '/openapi.json' #: String
 
   SERVED = {
-    PATH => "the OpenAPI document",
-    Docs::PATH => "the API reference"
+    PATH => 'the OpenAPI document',
+    Docs::PATH => 'the API reference'
   }.freeze #: Hash[String, String]
 
   # OpenAPI's pattern for the name of a component.
   NAME = /\A[A-Za-z0-9._-]+\z/ #: Regexp
 
-  JSON_TYPE = "application/json" #: String
+  JSON_TYPE = 'application/json' #: String
 
-  PROBLEM_TYPE = "application/problem+json" #: String
+  PROBLEM_TYPE = 'application/problem+json' #: String
 
   SCALARS = {
-    integer: { type: "integer" },
-    float: { type: "number" },
-    string: { type: "string" },
-    bool: { type: "boolean" },
-    date: { type: "string", format: "date" },
-    time: { type: "string", format: "date-time" },
-    decimal: { type: "string", format: "decimal" },
+    integer: { type: 'integer' },
+    float: { type: 'number' },
+    string: { type: 'string' },
+    bool: { type: 'boolean' },
+    date: { type: 'string', format: 'date' },
+    time: { type: 'string', format: 'date-time' },
+    decimal: { type: 'string', format: 'decimal' },
     untyped: {} #: schema
   }.freeze #: Hash[Skyward::Core::Types::scalar, schema]
 
-  NULL = { type: "null" }.freeze #: schema
+  NULL = { type: 'null' }.freeze #: schema
 
-  PROBLEM = { "$ref": "#/components/schemas/Problem" }.freeze #: schema
+  PROBLEM = { '$ref': '#/components/schemas/Problem' }.freeze #: schema
 
   PROBLEM_SCHEMA = {
-    type: "object",
+    type: 'object',
     properties: {
-      type: { type: "string" },
-      title: { type: "string" },
-      status: { type: "integer" },
-      detail: { type: "string" },
+      type: { type: 'string' },
+      title: { type: 'string' },
+      status: { type: 'integer' },
+      detail: { type: 'string' },
       errors: {
-        type: "array",
+        type: 'array',
         items: {
-          type: "object",
-          properties: { at: { type: "string" }, message: { type: "string" } },
+          type: 'object',
+          properties: { at: { type: 'string' }, message: { type: 'string' } },
           required: %w[at message]
         }
       }
@@ -63,30 +63,30 @@ module Skyward::API::OpenAPI
     required: %w[type title status]
   }.freeze #: schema
 
-  NO_CONTENT = Answer.new(status: "204", media_type: nil, schema: nil) #: Answer
+  NO_CONTENT = Answer.new(status: '204', media_type: nil, schema: nil) #: Answer
 
   # A redirect's status is chosen when it's made, so it's documented as the range.
-  REDIRECT = Answer.new(status: "3XX", media_type: nil, schema: nil) #: Answer
+  REDIRECT = Answer.new(status: '3XX', media_type: nil, schema: nil) #: Answer
 
-  RACK = Answer.new(status: "default", media_type: nil, schema: nil) #: Answer
+  RACK = Answer.new(status: 'default', media_type: nil, schema: nil) #: Answer
 
-  INVALID = Answer.new(status: "422", media_type: PROBLEM_TYPE, schema: PROBLEM) #: Answer
+  INVALID = Answer.new(status: '422', media_type: PROBLEM_TYPE, schema: PROBLEM) #: Answer
 
   REFUSED = [
-    Answer.new(status: "413", media_type: PROBLEM_TYPE, schema: PROBLEM),
-    Answer.new(status: "415", media_type: PROBLEM_TYPE, schema: PROBLEM)
+    Answer.new(status: '413', media_type: PROBLEM_TYPE, schema: PROBLEM),
+    Answer.new(status: '415', media_type: PROBLEM_TYPE, schema: PROBLEM)
   ].freeze #: Array[Answer]
 
-  LOCATION = { location: { schema: { type: "string" } } }.freeze #: Hash[Symbol, untyped]
+  LOCATION = { location: { schema: { type: 'string' } } }.freeze #: Hash[Symbol, untyped]
 
   DESCRIPTIONS = {
-    "200" => "OK",
-    "201" => "Created",
-    "204" => "No Content",
-    "3XX" => "Redirect",
+    '200' => 'OK',
+    '201' => 'Created',
+    '204' => 'No Content',
+    '3XX' => 'Redirect',
     **Skyward::API::Serializer::PROBLEMS.values.to_h { |problem| [problem.status.to_s, problem.title] },
     **Skyward::API::Assembly::Dispatcher::INPUT_TITLES.transform_keys(&:to_s),
-    "default" => "A Rack response, whose status and content are known only when it's sent"
+    'default' => "A Rack response, whose status and content are known only when it's sent"
   }.freeze #: Hash[String, String]
 
   # Takes the document unbuilt, so a route or static file at /openapi.json or /docs is refused first.
@@ -183,7 +183,7 @@ module Skyward::API::OpenAPI
     first = same.fetch(0)
     second = same.fetch(1)
     "#{second.label}\n  Its OpenAPI operation ID, #{id}, is #{first.label}'s too, " \
-      "but each operation needs its own. With docs: true, route each method once, and mount each class once."
+      'but each operation needs its own. With docs: true, route each method once, and mount each class once.'
   end
 
   # @rbs types: Array[Skyward::Core::Types::Named]
@@ -194,16 +194,16 @@ module Skyward::API::OpenAPI
     invalid, name = chosen.find { |_, named| !NAME.match?(named) }
     if invalid
       return "#{invalid}'s schema name, #{name.inspect}, isn't one OpenAPI allows: use only letters, digits, " \
-             "., - and _. Name it with Skyward.app(schema_names:)."
+             '., - and _. Name it with Skyward.app(schema_names:).'
     end
 
-    taken = [["Problem", "Skyward API's problem+json"], *chosen.map { |klass, named| [named, klass.to_s] }]
+    taken = [['Problem', "Skyward API's problem+json"], *chosen.map { |klass, named| [named, klass.to_s] }]
     same = taken.group_by(&:first).values.find { |shared| shared.size > 1 }
     return chosen unless same
 
     (name, first), (_, second) = same.fetch(0), same.fetch(1)
     "#{first} and #{second} both have the schema name #{name}, but each schema needs its own. " \
-      "Name one of them with Skyward.app(schema_names:)."
+      'Name one of them with Skyward.app(schema_names:).'
   end
 
   # @rbs endpoints: Array[Skyward::API::Routing::Router::Endpoint]
@@ -213,7 +213,7 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def assembled(endpoints, types, info, names)
     {
-      openapi: "3.1.0",
+      openapi: '3.1.0',
       info:,
       tags: endpoints.uniq { |endpoint| endpoint.api.class }.map do |endpoint|
         { name: tag(endpoint), description: endpoint.api.class.class_description }.compact
@@ -288,10 +288,10 @@ module Skyward::API::OpenAPI
   def answer(member, names)
     case member
     when Skyward::API::Routing::Router::Created
-      Answer.new(status: "201", media_type: JSON_TYPE, schema: schema(member.type, :response, names))
+      Answer.new(status: '201', media_type: JSON_TYPE, schema: schema(member.type, :response, names))
     when Skyward::API::Routing::Router::Response then response_value(member.klass)
     when Skyward::API::Routing::Router::Rack then RACK
-    else Answer.new(status: "200", media_type: JSON_TYPE, schema: schema(member, :response, names))
+    else Answer.new(status: '200', media_type: JSON_TYPE, schema: schema(member, :response, names))
     end
   end
 
@@ -329,7 +329,7 @@ module Skyward::API::OpenAPI
     requested = endpoints.flat_map { |endpoint| described(endpoint).flat_map { |keyword| named(keyword.type) } }
     types.to_h do |type|
       [names.fetch(type.klass), object(type.fields, requested.include?(type) ? :request : :response, names)]
-    end.merge("Problem" => PROBLEM_SCHEMA).sort_by(&:first).to_h
+    end.merge('Problem' => PROBLEM_SCHEMA).sort_by(&:first).to_h
   end
 
   # @rbs type: Skyward::Core::Types::t
@@ -340,12 +340,12 @@ module Skyward::API::OpenAPI
     case type
     when Skyward::Core::Types::Scalar then SCALARS.fetch(type.name)
     when Skyward::Core::Types::Literal then type.value.nil? ? NULL : { const: type.value }
-    when Skyward::Core::Types::Enum then { type: "string", enum: type.symbols.map(&:name) }
+    when Skyward::Core::Types::Enum then { type: 'string', enum: type.symbols.map(&:name) }
     when Skyward::Core::Types::Nullable then nullable(schema(type.type, form, names))
-    when Skyward::Core::Types::ArrayOf then { type: "array", items: schema(type.type, form, names) }
-    when Skyward::Core::Types::HashOf then { type: "object", additionalProperties: schema(type.type, form, names) }
+    when Skyward::Core::Types::ArrayOf then { type: 'array', items: schema(type.type, form, names) }
+    when Skyward::Core::Types::HashOf then { type: 'object', additionalProperties: schema(type.type, form, names) }
     when Skyward::Core::Types::Record then object(type.fields, form, names)
-    when Skyward::Core::Types::Named then { "$ref": "#/components/schemas/#{names.fetch(type.klass)}" }
+    when Skyward::Core::Types::Named then { '$ref': "#/components/schemas/#{names.fetch(type.klass)}" }
     when Skyward::Core::Types::Refined then schema(type.type, form, names)
     else { oneOf: type.types.map { |member| schema(member, form, names) } }
     end
@@ -355,7 +355,7 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def nullable(schema)
     type = schema[:type]
-    type.is_a?(String) && !schema.key?(:enum) ? schema.merge(type: [type, "null"]) : { anyOf: [schema, NULL] }
+    type.is_a?(String) && !schema.key?(:enum) ? schema.merge(type: [type, 'null']) : { anyOf: [schema, NULL] }
   end
 
   # @rbs fields: Array[Skyward::Core::Types::Field]
@@ -364,7 +364,7 @@ module Skyward::API::OpenAPI
   # @rbs return: schema
   def object(fields, form, names)
     {
-      type: "object",
+      type: 'object',
       properties: fields.to_h { |field| [field.name, schema(field.type, form, names)] },
       required: fields.filter_map { |field| field.name if required?(field.required, field.type, form) }
     }
@@ -379,7 +379,7 @@ module Skyward::API::OpenAPI
 
   # @rbs pattern: Array[String | Symbol]
   # @rbs return: String
-  def path(pattern) = pattern.map { |part| part.is_a?(Symbol) ? "{#{part}}" : part }.join("/")
+  def path(pattern) = pattern.map { |part| part.is_a?(Symbol) ? "{#{part}}" : part }.join('/')
 
   # @rbs endpoint: Skyward::API::Routing::Router::Endpoint
   # @rbs return: String
@@ -391,5 +391,5 @@ module Skyward::API::OpenAPI
 
   # @rbs name: String
   # @rbs return: String
-  def dotted(name) = name.gsub("::", ".")
+  def dotted(name) = name.gsub('::', '.')
 end

@@ -18,7 +18,7 @@ module Skyward::ORM::CLI::Scaffold
   #   generate: ^() -> String?) -> void
   def run(args, directory:, out:, kernel:, session:, discover:, generate:)
     name = args.fetch(0) if args.one?
-    return kernel.abort(USAGE) if name.nil? || name.start_with?("-")
+    return kernel.abort(USAGE) if name.nil? || name.start_with?('-')
 
     Skyward::ORM::CLI::BootFile.boot(directory, session, kernel, generate) do |database|
       classes = discover.call
@@ -58,13 +58,13 @@ module Skyward::ORM::CLI::Scaffold
       "skyward: #{name} is Skyward ORM's own table, so it needs no class."
     elsif owner then "skyward: #{owner} already declares table :#{name}."
     elsif !key.one?
-      "skyward: #{name} has #{key.empty? ? "no primary key" : "a primary key on (#{key.join(", ")})"}, and a table " \
-        "class has a one-column primary key. Give the table one in a `skyward migration --empty` migration, then " \
-        "scaffold it."
+      "skyward: #{name} has #{key.empty? ? 'no primary key' : "a primary key on (#{key.join(', ')})"}, and a table " \
+        'class has a one-column primary key. Give the table one in a `skyward migration --empty` migration, then ' \
+        'scaffold it.'
     elsif !unreadable.empty?
       "skyward: a table class reads each column as a lowercase Ruby method a row doesn't already have, so it can't " \
-        "read #{unreadable.map { |column| "#{name}.#{column}" }.join(" or ")}. Rename each in a " \
-        "`skyward migration --empty` migration, then scaffold it."
+        "read #{unreadable.map { |column| "#{name}.#{column}" }.join(' or ')}. Rename each in a " \
+        '`skyward migration --empty` migration, then scaffold it.'
     end
   end
 end

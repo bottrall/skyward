@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "tmpdir"
+require 'fileutils'
+require 'tmpdir'
 
 module Skyward::Core::Signatures::Inline
   extend self
 
-  OUTPUT = "sig/generated" #: String
+  OUTPUT = 'sig/generated' #: String
 
   # None holds the app's contract: its tests, its installed gems and scratch.
   UNCHECKED = %w[test spec vendor tmp].freeze #: Array[String]
@@ -35,7 +35,7 @@ module Skyward::Core::Signatures::Inline
   # @rbs capture: Skyward::Core::CLI::Executable::capture
   # @rbs return: Hash[String, String] | String
   def run(directory, rbs_inline:, capture:)
-    Dir.mktmpdir("skyward-signatures") do |output|
+    Dir.mktmpdir('skyward-signatures') do |output|
       log, ok = capture.call({}, [Gem.ruby, rbs_inline, "--output=#{output}", *sources(directory)], directory)
       ok ? rbs_files(output) : log
     end
@@ -44,15 +44,15 @@ module Skyward::Core::Signatures::Inline
   # @rbs directory: String
   # @rbs return: Array[String]
   def sources(directory)
-    roots = Dir.glob("*/", base: directory).map { |root| root.delete_suffix("/") } - UNCHECKED
-    files = Dir.glob("*.rb", base: directory)
+    roots = Dir.glob('*/', base: directory).map { |root| root.delete_suffix('/') } - UNCHECKED
+    files = Dir.glob('*.rb', base: directory)
     [*files, *roots.reject { |root| Dir.glob("#{root}/**/*.rb", base: directory).empty? }].sort
   end
 
   # @rbs directory: String
   # @rbs return: Hash[String, String]
   def rbs_files(directory)
-    Dir.glob("**/*.rbs", base: directory).to_h { |file| [file, File.read(File.join(directory, file))] }
+    Dir.glob('**/*.rbs', base: directory).to_h { |file| [file, File.read(File.join(directory, file))] }
   end
 
   private
@@ -69,7 +69,7 @@ module Skyward::Core::Signatures::Inline
     end
     (current.keys - files.keys).each { |file| File.delete(File.join(generated, file)) }
     # Deepest first, so a directory emptied of directories goes too.
-    Dir.glob("**/*/", base: generated).sort.reverse_each do |dir|
+    Dir.glob('**/*/', base: generated).sort.reverse_each do |dir|
       path = File.join(generated, dir)
       Dir.rmdir(path) if Dir.empty?(path)
     end

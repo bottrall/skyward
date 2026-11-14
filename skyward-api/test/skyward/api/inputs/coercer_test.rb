@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Skyward::API::Inputs::Coercer do
   types = Skyward::Core::Types
@@ -14,7 +14,7 @@ describe Skyward::API::Inputs::Coercer do
   decimal = types::Scalar.new(name: :decimal)
   priority = types::Enum.new(symbols: %i[low normal high])
 
-  def coerce(type, raw, strings: false) = Skyward::API::Inputs::Coercer.compile(type, strings:).call(raw, "body")
+  def coerce(type, raw, strings: false) = Skyward::API::Inputs::Coercer.compile(type, strings:).call(raw, 'body')
 
   def ok(value) = Skyward::API::Inputs::Coercer::Ok.new(value:)
 
@@ -24,7 +24,7 @@ describe Skyward::API::Inputs::Coercer do
     )
   end
 
-  def mismatch(message) = invalid(["body", message])
+  def mismatch(message) = invalid(['body', message])
 
   def cpu_seconds
     start = Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID)
@@ -32,180 +32,180 @@ describe Skyward::API::Inputs::Coercer do
     Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID) - start
   end
 
-  describe ".compile" do
-    describe "Integer" do
-      it "accepts an Integer" do
+  describe '.compile' do
+    describe 'Integer' do
+      it 'accepts an Integer' do
         assert_equal ok(42), coerce(integer, 42)
       end
 
-      it "parses a String of digits from a path or query" do
-        assert_equal ok(-42), coerce(integer, "-42", strings: true)
+      it 'parses a String of digits from a path or query' do
+        assert_equal ok(-42), coerce(integer, '-42', strings: true)
       end
 
       it "refuses a String that isn't only digits" do
-        assert_equal mismatch('expected Integer, got "4.0"'), coerce(integer, "4.0", strings: true)
+        assert_equal mismatch('expected Integer, got "4.0"'), coerce(integer, '4.0', strings: true)
       end
 
-      it "refuses a String in a body" do
-        assert_equal mismatch('expected Integer, got "42"'), coerce(integer, "42")
+      it 'refuses a String in a body' do
+        assert_equal mismatch('expected Integer, got "42"'), coerce(integer, '42')
       end
 
-      it "refuses a Float" do
-        assert_equal mismatch("expected Integer, got 4.0"), coerce(integer, 4.0)
+      it 'refuses a Float' do
+        assert_equal mismatch('expected Integer, got 4.0'), coerce(integer, 4.0)
       end
     end
 
-    describe "Float" do
-      it "accepts an Integer as a Float" do
+    describe 'Float' do
+      it 'accepts an Integer as a Float' do
         assert_equal ok(2.0), coerce(float, 2)
       end
 
-      it "accepts a Float" do
+      it 'accepts a Float' do
         assert_equal ok(2.5), coerce(float, 2.5)
       end
 
-      it "parses a String from a path or query with Float()" do
-        assert_equal ok(2500.0), coerce(float, "2.5e3", strings: true)
+      it 'parses a String from a path or query with Float()' do
+        assert_equal ok(2500.0), coerce(float, '2.5e3', strings: true)
       end
 
       it "refuses a String Float() can't parse" do
-        assert_equal mismatch('expected Float, got "lots"'), coerce(float, "lots", strings: true)
+        assert_equal mismatch('expected Float, got "lots"'), coerce(float, 'lots', strings: true)
       end
 
-      it "refuses a String in a body" do
-        assert_equal mismatch('expected Float, got "2.5"'), coerce(float, "2.5")
+      it 'refuses a String in a body' do
+        assert_equal mismatch('expected Float, got "2.5"'), coerce(float, '2.5')
       end
 
-      it "refuses a number too large to be finite" do
-        assert_equal mismatch('expected Float, got "1e400"'), coerce(float, "1e400", strings: true)
+      it 'refuses a number too large to be finite' do
+        assert_equal mismatch('expected Float, got "1e400"'), coerce(float, '1e400', strings: true)
       end
 
-      it "writes an infinite number in its message" do
-        assert_equal mismatch("expected Float, got Infinity"), coerce(float, Float::INFINITY)
+      it 'writes an infinite number in its message' do
+        assert_equal mismatch('expected Float, got Infinity'), coerce(float, Float::INFINITY)
       end
     end
 
-    describe "bool" do
-      it "accepts false" do
+    describe 'bool' do
+      it 'accepts false' do
         assert_equal ok(false), coerce(bool, false)
       end
 
-      it "parses true, false, 1 and 0 from a path or query" do
+      it 'parses true, false, 1 and 0 from a path or query' do
         assert_equal ok([true, false, true, false]),
                      coerce(types::ArrayOf.new(type: bool), %w[true false 1 0], strings: true)
       end
 
-      it "refuses any other String from a path or query" do
-        assert_equal mismatch('expected bool, got "yes"'), coerce(bool, "yes", strings: true)
+      it 'refuses any other String from a path or query' do
+        assert_equal mismatch('expected bool, got "yes"'), coerce(bool, 'yes', strings: true)
       end
 
-      it "refuses a String in a body" do
-        assert_equal mismatch('expected bool, got "true"'), coerce(bool, "true")
+      it 'refuses a String in a body' do
+        assert_equal mismatch('expected bool, got "true"'), coerce(bool, 'true')
       end
     end
 
-    describe "String" do
-      it "accepts a String" do
-        assert_equal ok("Ship it"), coerce(string, "Ship it")
+    describe 'String' do
+      it 'accepts a String' do
+        assert_equal ok('Ship it'), coerce(string, 'Ship it')
       end
 
-      it "refuses a number" do
-        assert_equal mismatch("expected String, got 1"), coerce(string, 1)
+      it 'refuses a number' do
+        assert_equal mismatch('expected String, got 1'), coerce(string, 1)
       end
 
-      it "refuses a query key given more than once" do
+      it 'refuses a query key given more than once' do
         assert_equal mismatch('expected String, got ["a","b"]'), coerce(string, %w[a b], strings: true)
       end
     end
 
-    describe "Date" do
-      it "parses YYYY-MM-DD" do
-        assert_equal ok(Date.new(2026, 2, 28)), coerce(date, "2026-02-28")
+    describe 'Date' do
+      it 'parses YYYY-MM-DD' do
+        assert_equal ok(Date.new(2026, 2, 28)), coerce(date, '2026-02-28')
       end
 
-      it "refuses anything but a String" do
-        assert_equal mismatch("expected Date (YYYY-MM-DD), got 20260228"), coerce(date, 20_260_228)
+      it 'refuses anything but a String' do
+        assert_equal mismatch('expected Date (YYYY-MM-DD), got 20260228'), coerce(date, 20_260_228)
       end
 
-      it "refuses another format" do
-        assert_equal mismatch('expected Date (YYYY-MM-DD), got "next tuesday"'), coerce(date, "next tuesday")
+      it 'refuses another format' do
+        assert_equal mismatch('expected Date (YYYY-MM-DD), got "next tuesday"'), coerce(date, 'next tuesday')
       end
 
       it "refuses a day that doesn't exist" do
-        assert_equal mismatch('expected Date (YYYY-MM-DD), got "2026-02-30"'), coerce(date, "2026-02-30")
+        assert_equal mismatch('expected Date (YYYY-MM-DD), got "2026-02-30"'), coerce(date, '2026-02-30')
       end
     end
 
-    describe "Time" do
-      it "parses ISO 8601 in UTC" do
-        assert_equal ok(Time.utc(2026, 10, 18, 9, 30)), coerce(time, "2026-10-18T09:30:00Z")
+    describe 'Time' do
+      it 'parses ISO 8601 in UTC' do
+        assert_equal ok(Time.utc(2026, 10, 18, 9, 30)), coerce(time, '2026-10-18T09:30:00Z')
       end
 
-      it "parses a fraction of a second and an offset" do
-        expected = Time.new(2026, 10, 18, 9, 30, Rational("7.125"), "-05:30")
+      it 'parses a fraction of a second and an offset' do
+        expected = Time.new(2026, 10, 18, 9, 30, Rational('7.125'), '-05:30')
 
-        assert_equal ok(expected), coerce(time, "2026-10-18T09:30:07.125-05:30")
+        assert_equal ok(expected), coerce(time, '2026-10-18T09:30:07.125-05:30')
       end
 
-      it "cuts a fraction to nanoseconds" do
+      it 'cuts a fraction to nanoseconds' do
         expected = Time.utc(2026, 10, 18, 9, 30, Rational(7_123_456_789, 10**9))
 
-        assert_equal ok(expected), coerce(time, "2026-10-18T09:30:07.1234567891234Z")
+        assert_equal ok(expected), coerce(time, '2026-10-18T09:30:07.1234567891234Z')
       end
 
-      it "keeps the offset" do
-        assert_equal 19_800, coerce(time, "2026-10-18T09:30:00+05:30").value.utc_offset
+      it 'keeps the offset' do
+        assert_equal 19_800, coerce(time, '2026-10-18T09:30:00+05:30').value.utc_offset
       end
 
-      it "refuses anything but a String" do
-        assert_equal mismatch("expected Time (ISO 8601), got 1"), coerce(time, 1)
+      it 'refuses anything but a String' do
+        assert_equal mismatch('expected Time (ISO 8601), got 1'), coerce(time, 1)
       end
 
-      it "refuses a time without seconds" do
-        assert_equal mismatch('expected Time (ISO 8601), got "2026-10-18T09:30Z"'), coerce(time, "2026-10-18T09:30Z")
+      it 'refuses a time without seconds' do
+        assert_equal mismatch('expected Time (ISO 8601), got "2026-10-18T09:30Z"'), coerce(time, '2026-10-18T09:30Z')
       end
 
-      it "refuses a time without a zone" do
+      it 'refuses a time without a zone' do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-10-18T09:30:00"'),
-                     coerce(time, "2026-10-18T09:30:00")
+                     coerce(time, '2026-10-18T09:30:00')
       end
 
       it "refuses an hour that doesn't exist" do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-10-18T24:00:00Z"'),
-                     coerce(time, "2026-10-18T24:00:00Z")
+                     coerce(time, '2026-10-18T24:00:00Z')
       end
 
       it "refuses a day that doesn't exist" do
         assert_equal mismatch('expected Time (ISO 8601), got "2026-02-30T09:30:00Z"'),
-                     coerce(time, "2026-02-30T09:30:00Z")
+                     coerce(time, '2026-02-30T09:30:00Z')
       end
     end
 
-    describe "BigDecimal" do
+    describe 'BigDecimal' do
       expected = 'expected BigDecimal (a decimal string, such as "12.50")'
 
-      it "parses a decimal string as a BigDecimal, the same in a path, a query and a body" do
+      it 'parses a decimal string as a BigDecimal, the same in a path, a query and a body' do
         raws = %w[12.50 -3 0.001]
         parsed = [true, false].flat_map { |strings| raws.map { |raw| coerce(decimal, raw, strings:).value } }
 
         assert_equal(
-          [[BigDecimal, "12.5"], [BigDecimal, "-3.0"], [BigDecimal, "0.001"]] * 2,
-          parsed.map { |value| [value.class, value.to_s("F")] }
+          [[BigDecimal, '12.5'], [BigDecimal, '-3.0'], [BigDecimal, '0.001']] * 2,
+          parsed.map { |value| [value.class, value.to_s('F')] }
         )
       end
 
-      it "refuses a JSON number, which JSON.parse has already made a Float" do
+      it 'refuses a JSON number, which JSON.parse has already made a Float' do
         assert_equal mismatch("#{expected}, got 12.5"), coerce(decimal, 12.5)
       end
 
-      it "refuses an exponent, NaN, Infinity and an empty string" do
-        refused = ["1e3", "NaN", "Infinity", ""].map { |raw| coerce(decimal, raw, strings: true) }
+      it 'refuses an exponent, NaN, Infinity and an empty string' do
+        refused = ['1e3', 'NaN', 'Infinity', ''].map { |raw| coerce(decimal, raw, strings: true) }
 
         assert_equal(['"1e3"', '"NaN"', '"Infinity"', '""'].map { |got| mismatch("#{expected}, got #{got}") }, refused)
       end
 
-      it "refuses a sign other than a leading -, a space, and a point without digits on both sides" do
-        refused = ["+1", "- 1", ".5", "1.", " 1"].map { |raw| coerce(decimal, raw).class }
+      it 'refuses a sign other than a leading -, a space, and a point without digits on both sides' do
+        refused = ['+1', '- 1', '.5', '1.', ' 1'].map { |raw| coerce(decimal, raw).class }
 
         assert_equal [Skyward::API::Inputs::Coercer::Invalid] * 5, refused
       end
@@ -214,115 +214,115 @@ describe Skyward::API::Inputs::Coercer do
         assert_equal mismatch("#{expected}, got \"1\u{FFFD}\""), coerce(decimal, "1\xE9", strings: true)
       end
 
-      it "is named BigDecimal inside another type" do
-        assert_equal mismatch('expected Array[BigDecimal], got "1"'), coerce(types::ArrayOf.new(type: decimal), "1")
+      it 'is named BigDecimal inside another type' do
+        assert_equal mismatch('expected Array[BigDecimal], got "1"'), coerce(types::ArrayOf.new(type: decimal), '1')
       end
     end
 
-    describe "untyped" do
+    describe 'untyped' do
       untyped = types::Scalar.new(name: :untyped)
 
-      it "takes the last value of a query key given more than once" do
-        assert_equal ok("b"), coerce(untyped, %w[a b], strings: true)
+      it 'takes the last value of a query key given more than once' do
+        assert_equal ok('b'), coerce(untyped, %w[a b], strings: true)
       end
 
-      it "takes a path or query String as it is" do
-        assert_equal ok("42"), coerce(untyped, "42", strings: true)
+      it 'takes a path or query String as it is' do
+        assert_equal ok('42'), coerce(untyped, '42', strings: true)
       end
 
-      it "takes a body with symbol keys at every level" do
-        assert_equal ok({ todo: { tags: [{ name: "low" }] }, done: true }),
-                     coerce(untyped, { "todo" => { "tags" => [{ "name" => "low" }] }, "done" => true })
+      it 'takes a body with symbol keys at every level' do
+        assert_equal ok({ todo: { tags: [{ name: 'low' }] }, done: true }),
+                     coerce(untyped, { 'todo' => { 'tags' => [{ 'name' => 'low' }] }, 'done' => true })
       end
 
-      it "takes any other body value as it is" do
+      it 'takes any other body value as it is' do
         assert_equal ok(42), coerce(untyped, 42)
       end
     end
 
-    describe "a literal" do
-      it "parses an Integer from a path or query" do
-        assert_equal ok(1), coerce(types::Literal.new(value: 1), "1", strings: true)
+    describe 'a literal' do
+      it 'parses an Integer from a path or query' do
+        assert_equal ok(1), coerce(types::Literal.new(value: 1), '1', strings: true)
       end
 
-      it "accepts a String" do
-        assert_equal ok("ok"), coerce(types::Literal.new(value: "ok"), "ok")
+      it 'accepts a String' do
+        assert_equal ok('ok'), coerce(types::Literal.new(value: 'ok'), 'ok')
       end
 
-      it "accepts nil as nil" do
+      it 'accepts nil as nil' do
         assert_equal ok(nil), coerce(types::Literal.new(value: nil), nil)
       end
 
-      it "parses a boolean from a path or query" do
-        assert_equal ok(true), coerce(types::Literal.new(value: true), "1", strings: true)
+      it 'parses a boolean from a path or query' do
+        assert_equal ok(true), coerce(types::Literal.new(value: true), '1', strings: true)
       end
 
-      it "refuses a value of another type" do
-        assert_equal mismatch('expected 1, got "1"'), coerce(types::Literal.new(value: 1), "1")
+      it 'refuses a value of another type' do
+        assert_equal mismatch('expected 1, got "1"'), coerce(types::Literal.new(value: 1), '1')
       end
 
-      it "refuses another value of its type" do
-        assert_equal mismatch("expected 1, got 2"), coerce(types::Literal.new(value: 1), 2)
+      it 'refuses another value of its type' do
+        assert_equal mismatch('expected 1, got 2'), coerce(types::Literal.new(value: 1), 2)
       end
     end
 
-    describe "a symbol union" do
+    describe 'a symbol union' do
       it "takes a symbol's name and gives the Symbol" do
-        assert_equal ok(:low), coerce(priority, "low")
+        assert_equal ok(:low), coerce(priority, 'low')
       end
 
-      it "refuses any other String" do
-        assert_equal mismatch('expected :low | :normal | :high, got "urgent"'), coerce(priority, "urgent")
+      it 'refuses any other String' do
+        assert_equal mismatch('expected :low | :normal | :high, got "urgent"'), coerce(priority, 'urgent')
       end
 
       it "refuses a Symbol's name that isn't a String" do
-        assert_equal mismatch("expected :low | :normal | :high, got 1"), coerce(priority, 1)
+        assert_equal mismatch('expected :low | :normal | :high, got 1'), coerce(priority, 1)
       end
     end
 
-    describe "a nullable type" do
-      it "accepts null" do
+    describe 'a nullable type' do
+      it 'accepts null' do
         assert_equal ok(nil), coerce(types::Nullable.new(type: integer), nil)
       end
 
-      it "coerces anything else as the type" do
-        assert_equal ok(1), coerce(types::Nullable.new(type: integer), "1", strings: true)
+      it 'coerces anything else as the type' do
+        assert_equal ok(1), coerce(types::Nullable.new(type: integer), '1', strings: true)
       end
     end
 
-    describe "an Array" do
+    describe 'an Array' do
       let(:integers) { types::ArrayOf.new(type: integer) }
       let(:max) { Skyward::API::Inputs::Coercer::MAX_ERRORS }
 
-      it "coerces each item" do
+      it 'coerces each item' do
         assert_equal ok([1, 2]), coerce(integers, %w[1 2], strings: true)
       end
 
-      it "gives an untyped item Symbol keys at every level" do
+      it 'gives an untyped item Symbol keys at every level' do
         untyped = types::ArrayOf.new(type: types::Scalar.new(name: :untyped))
 
-        assert_equal ok([{ theme: { dark: true } }]), coerce(untyped, [{ "theme" => { "dark" => true } }])
+        assert_equal ok([{ theme: { dark: true } }]), coerce(untyped, [{ 'theme' => { 'dark' => true } }])
       end
 
-      it "takes one value from a path or query as a one-item array" do
-        assert_equal ok([1]), coerce(integers, "1", strings: true)
+      it 'takes one value from a path or query as a one-item array' do
+        assert_equal ok([1]), coerce(integers, '1', strings: true)
       end
 
-      it "refuses one value in a body" do
-        assert_equal mismatch('expected Array[Integer], got "1"'), coerce(integers, "1")
+      it 'refuses one value in a body' do
+        assert_equal mismatch('expected Array[Integer], got "1"'), coerce(integers, '1')
       end
 
-      it "refuses anything else" do
-        assert_equal mismatch("expected Array[Integer], got 1"), coerce(integers, 1)
+      it 'refuses anything else' do
+        assert_equal mismatch('expected Array[Integer], got 1'), coerce(integers, 1)
       end
 
       it "reports every item that doesn't fit, at its index" do
-        expected = invalid(["body[1]", 'expected Integer, got "x"'], ["body[2]", "expected Integer, got null"])
+        expected = invalid(['body[1]', 'expected Integer, got "x"'], ['body[2]', 'expected Integer, got null'])
 
-        assert_equal expected, coerce(integers, [1, "x", nil])
+        assert_equal expected, coerce(integers, [1, 'x', nil])
       end
 
-      it "reports no more than MAX_ERRORS items" do
+      it 'reports no more than MAX_ERRORS items' do
         assert_equal max, coerce(integers, Array.new(max + 1)).errors.size
       end
 
@@ -335,58 +335,58 @@ describe Skyward::API::Inputs::Coercer do
           end
         end
         fields = [types::Field.new(name: :title, type: string, required: true)]
-        todos = types::ArrayOf.new(type: types::Named.new(name: "Todo", klass: counted, fields:))
-        coerce(todos, [*Array.new(max, 1), { "title" => "late" }])
+        todos = types::ArrayOf.new(type: types::Named.new(name: 'Todo', klass: counted, fields:))
+        coerce(todos, [*Array.new(max, 1), { 'title' => 'late' }])
 
         assert_empty built
       end
     end
 
-    describe "a Hash" do
+    describe 'a Hash' do
       let(:todo_class) { Data.define(:title) }
       let(:lists) do
         title = [types::Field.new(name: :title, type: string, required: true)]
-        todo = types::Named.new(name: "Todo", klass: todo_class, fields: title)
+        todo = types::Named.new(name: 'Todo', klass: todo_class, fields: title)
         types::HashOf.new(type: types::ArrayOf.new(type: todo))
       end
 
-      it "coerces each value, keeping its String key" do
-        expected = ok({ "home" => [todo_class.new(title: "Ship it")], "work" => [] })
+      it 'coerces each value, keeping its String key' do
+        expected = ok({ 'home' => [todo_class.new(title: 'Ship it')], 'work' => [] })
 
-        assert_equal expected, coerce(lists, { "home" => [{ "title" => "Ship it", "x" => 1 }], "work" => [] })
+        assert_equal expected, coerce(lists, { 'home' => [{ 'title' => 'Ship it', 'x' => 1 }], 'work' => [] })
       end
 
-      it "accepts an empty object" do
+      it 'accepts an empty object' do
         assert_equal ok({}), coerce(lists, {})
       end
 
-      describe "of untyped" do
-        let(:settings) { { "theme" => { "dark" => true }, "tags" => [{ "id" => 1 }] } }
+      describe 'of untyped' do
+        let(:settings) { { 'theme' => { 'dark' => true }, 'tags' => [{ 'id' => 1 }] } }
         let(:untyped) { types::Scalar.new(name: :untyped) }
         let(:held) { types::HashOf.new(type: untyped) }
 
-        it "keeps String keys at every level" do
+        it 'keeps String keys at every level' do
           assert_equal ok(settings), coerce(held, settings)
         end
 
-        it "keeps String keys at every level of a nullable value, and takes null" do
+        it 'keeps String keys at every level of a nullable value, and takes null' do
           nullable = types::HashOf.new(type: types::Nullable.new(type: untyped))
 
-          assert_equal ok(settings.merge("none" => nil)), coerce(nullable, settings.merge("none" => nil))
+          assert_equal ok(settings.merge('none' => nil)), coerce(nullable, settings.merge('none' => nil))
         end
 
         it "keeps String keys at every level in a record's field" do
           record = types::Record.new(fields: [types::Field.new(name: :settings, type: held, required: true)])
 
-          assert_equal ok({ settings: }), coerce(record, { "settings" => settings })
+          assert_equal ok({ settings: }), coerce(record, { 'settings' => settings })
         end
 
         it "keeps String keys at every level in a class's reader" do
           klass = Data.define(:settings)
           fields = [types::Field.new(name: :settings, type: held, required: true)]
-          named = types::Named.new(name: "Account", klass:, fields:)
+          named = types::Named.new(name: 'Account', klass:, fields:)
 
-          assert_equal ok(klass.new(settings:)), coerce(named, { "settings" => settings })
+          assert_equal ok(klass.new(settings:)), coerce(named, { 'settings' => settings })
         end
 
         it "keeps String keys at every level in an Array's item" do
@@ -394,27 +394,27 @@ describe Skyward::API::Inputs::Coercer do
         end
       end
 
-      it "refuses anything but an object" do
-        assert_equal mismatch("expected Hash[String, Array[Todo]], got []"), coerce(lists, [])
+      it 'refuses anything but an object' do
+        assert_equal mismatch('expected Hash[String, Array[Todo]], got []'), coerce(lists, [])
       end
 
       it "reports every value that doesn't fit, at its key, quoted as JSON" do
         expected = invalid(
-          ['body["home"][0].title', "expected String, got 1"],
-          ['body["a.b[0]\\""]', "expected Array[Todo], got null"]
+          ['body["home"][0].title', 'expected String, got 1'],
+          ['body["a.b[0]\\""]', 'expected Array[Todo], got null']
         )
 
-        assert_equal expected, coerce(lists, { "home" => [{ "title" => 1 }], "work" => [], 'a.b[0]"' => nil })
+        assert_equal expected, coerce(lists, { 'home' => [{ 'title' => 1 }], 'work' => [], 'a.b[0]"' => nil })
       end
 
-      it "cuts a key longer than MAX_SHOWN characters, ending with …" do
+      it 'cuts a key longer than MAX_SHOWN characters, ending with …' do
         shown = Skyward::API::Inputs::Coercer::MAX_SHOWN
-        expected = invalid(["body[\"#{"k" * (shown - 1)}…\"]", "expected Array[Todo], got null"])
+        expected = invalid(["body[\"#{'k' * (shown - 1)}…\"]", 'expected Array[Todo], got null'])
 
-        assert_equal expected, coerce(lists, { "k" * (shown + 1) => nil })
+        assert_equal expected, coerce(lists, { 'k' * (shown + 1) => nil })
       end
 
-      it "reports no more than MAX_ERRORS values" do
+      it 'reports no more than MAX_ERRORS values' do
         max = Skyward::API::Inputs::Coercer::MAX_ERRORS
         scores = types::HashOf.new(type: integer)
 
@@ -422,7 +422,7 @@ describe Skyward::API::Inputs::Coercer do
       end
     end
 
-    describe "a record" do
+    describe 'a record' do
       let(:record) do
         types::Record.new(
           fields: [
@@ -433,26 +433,26 @@ describe Skyward::API::Inputs::Coercer do
         )
       end
 
-      it "makes a Hash with Symbol keys, ignoring undeclared keys" do
+      it 'makes a Hash with Symbol keys, ignoring undeclared keys' do
         expected = ok({ priority: :low, due_on: Date.new(2026, 2, 28), page: 2 })
 
-        assert_equal expected, coerce(record, { "priority" => "low", "due_on" => "2026-02-28", "page" => 2, "x" => 1 })
+        assert_equal expected, coerce(record, { 'priority' => 'low', 'due_on' => '2026-02-28', 'page' => 2, 'x' => 1 })
       end
 
-      it "gives an absent nullable field nil and leaves out an absent optional one" do
-        assert_equal ok({ priority: :low, due_on: nil }), coerce(record, { "priority" => "low" })
+      it 'gives an absent nullable field nil and leaves out an absent optional one' do
+        assert_equal ok({ priority: :low, due_on: nil }), coerce(record, { 'priority' => 'low' })
       end
 
-      it "refuses anything but an object" do
-        message = "expected { priority: :low | :normal | :high, due_on: Date?, ?page: Integer }, got []"
+      it 'refuses anything but an object' do
+        message = 'expected { priority: :low | :normal | :high, due_on: Date?, ?page: Integer }, got []'
 
         assert_equal mismatch(message), coerce(record, [])
       end
 
       it "reports every field that doesn't fit, at its name" do
-        expected = invalid(["body.priority", "is required"], ["body.page", 'expected Integer, got "2"'])
+        expected = invalid(['body.priority', 'is required'], ['body.page', 'expected Integer, got "2"'])
 
-        assert_equal expected, coerce(record, { "page" => "2" })
+        assert_equal expected, coerce(record, { 'page' => '2' })
       end
 
       it "doesn't coerce the fields after MAX_ERRORS problems" do
@@ -464,21 +464,21 @@ describe Skyward::API::Inputs::Coercer do
           end
         end
         title = [types::Field.new(name: :title, type: string, required: true)]
-        todo = types::Named.new(name: "Todo", klass: counted, fields: title)
+        todo = types::Named.new(name: 'Todo', klass: counted, fields: title)
         max = Skyward::API::Inputs::Coercer::MAX_ERRORS
         fields = Array.new(max) { |index| types::Field.new(name: :"f#{index}", type: integer, required: true) }
         record = types::Record.new(fields: [*fields, types::Field.new(name: :todo, type: todo, required: true)])
-        coerce(record, { "todo" => { "title" => "late" } })
+        coerce(record, { 'todo' => { 'title' => 'late' } })
 
         assert_empty built
       end
     end
 
-    describe "a class with typed readers" do
+    describe 'a class with typed readers' do
       let(:todo_class) { Data.define(:title, :done) }
       let(:todo) do
         types::Named.new(
-          name: "Todo",
+          name: 'Todo',
           klass: todo_class,
           fields: [
             types::Field.new(name: :title, type: string, required: true),
@@ -487,37 +487,37 @@ describe Skyward::API::Inputs::Coercer do
         )
       end
 
-      it "builds it with new(**fields)" do
-        assert_equal ok(todo_class.new(title: "Ship it", done: nil)), coerce(todo, { "title" => "Ship it" })
+      it 'builds it with new(**fields)' do
+        assert_equal ok(todo_class.new(title: 'Ship it', done: nil)), coerce(todo, { 'title' => 'Ship it' })
       end
 
       it "refuses anything but an object, by the class's name" do
-        assert_equal mismatch('expected Todo, got "Ship it"'), coerce(todo, "Ship it")
+        assert_equal mismatch('expected Todo, got "Ship it"'), coerce(todo, 'Ship it')
       end
     end
 
-    describe "a refined type" do
-      it "coerces as the type it refines" do
-        assert_equal ok(Date.new(2026, 10, 18)), coerce(types::Refined.new(type: date, as: :day), "2026-10-18")
+    describe 'a refined type' do
+      it 'coerces as the type it refines' do
+        assert_equal ok(Date.new(2026, 10, 18)), coerce(types::Refined.new(type: date, as: :day), '2026-10-18')
       end
     end
 
-    describe "a union" do
+    describe 'a union' do
       let(:union) { types::Union.new(types: [integer, string]) }
 
-      it "takes the first member that fits" do
-        assert_equal ok(1), coerce(union, "1", strings: true)
+      it 'takes the first member that fits' do
+        assert_equal ok(1), coerce(union, '1', strings: true)
       end
 
       it "takes a later member when an earlier one doesn't fit" do
-        assert_equal ok("one"), coerce(union, "one", strings: true)
+        assert_equal ok('one'), coerce(union, 'one', strings: true)
       end
 
-      it "refuses what no member fits, naming them all" do
-        assert_equal mismatch("expected Integer | String, got true"), coerce(union, true)
+      it 'refuses what no member fits, naming them all' do
+        assert_equal mismatch('expected Integer | String, got true'), coerce(union, true)
       end
 
-      it "stops coercing a member at its first problem" do
+      it 'stops coercing a member at its first problem' do
         built = []
         counted = Data.define(:title) do
           define_method(:initialize) do |title:|
@@ -526,8 +526,8 @@ describe Skyward::API::Inputs::Coercer do
           end
         end
         fields = [types::Field.new(name: :title, type: string, required: true)]
-        todos = types::ArrayOf.new(type: types::Named.new(name: "Todo", klass: counted, fields:))
-        coerce(types::Union.new(types: [todos, string]), [1, { "title" => "late" }])
+        todos = types::ArrayOf.new(type: types::Named.new(name: 'Todo', klass: counted, fields:))
+        coerce(types::Union.new(types: [todos, string]), [1, { 'title' => 'late' }])
 
         assert_empty built
       end
@@ -541,28 +541,28 @@ describe Skyward::API::Inputs::Coercer do
           end
         end
         title = [types::Field.new(name: :title, type: string, required: true)]
-        todo = types::Named.new(name: "Todo", klass: counted, fields: title)
+        todo = types::Named.new(name: 'Todo', klass: counted, fields: title)
         note = types::Record.new(
           fields: [
             types::Field.new(name: :text, type: string, required: true),
             types::Field.new(name: :todo, type: todo, required: true)
           ]
         )
-        coerce(types::Union.new(types: [note, string]), { "todo" => { "title" => "late" } })
+        coerce(types::Union.new(types: [note, string]), { 'todo' => { 'title' => 'late' } })
 
         assert_empty built
       end
 
-      it "reports the same value at each place no member fits it" do
+      it 'reports the same value at each place no member fits it' do
         expected = invalid(
-          ["body[0]", "expected Integer | String, got true"],
-          ["body[1]", "expected Integer | String, got true"]
+          ['body[0]', 'expected Integer | String, got true'],
+          ['body[1]', 'expected Integer | String, got true']
         )
 
         assert_equal expected, coerce(types::ArrayOf.new(type: union), [true, true])
       end
 
-      it "coerces a value once for members that hold equal unions" do
+      it 'coerces a value once for members that hold equal unions' do
         built = []
         counted = Data.define(:title) do
           define_method(:initialize) do |title:|
@@ -572,7 +572,7 @@ describe Skyward::API::Inputs::Coercer do
         end
         title = [types::Field.new(name: :title, type: string, required: true)]
         members = %i[due page].map do |name|
-          todo = types::Union.new(types: [types::Named.new(name: "Todo", klass: counted, fields: title), string])
+          todo = types::Union.new(types: [types::Named.new(name: 'Todo', klass: counted, fields: title), string])
           types::Record.new(
             fields: [
               types::Field.new(name: :todo, type: todo, required: true),
@@ -580,22 +580,22 @@ describe Skyward::API::Inputs::Coercer do
             ]
           )
         end
-        result = coerce(types::Union.new(types: members), { "todo" => { "title" => "Ship it" }, "page" => 2 })
+        result = coerce(types::Union.new(types: members), { 'todo' => { 'title' => 'Ship it' }, 'page' => 2 })
 
-        assert_equal [["Ship it"], "Ship it", 2], [built, result.value.fetch(:todo).title, result.value.fetch(:page)]
+        assert_equal [['Ship it'], 'Ship it', 2], [built, result.value.fetch(:todo).title, result.value.fetch(:page)]
       end
 
-      it "costs no more for an Array of a union the deeper it nests" do
+      it 'costs no more for an Array of a union the deeper it nests' do
         nested = 99.times.reduce(integer) do |inner, _|
           types::Union.new(types: [types::ArrayOf.new(type: inner), string])
         end
         coercer = Skyward::API::Inputs::Coercer.compile(types::ArrayOf.new(type: nested), strings: false)
-        body = 99.times.reduce(Array.new(100_000, "x")) { |inner, _| [inner] }
+        body = 99.times.reduce(Array.new(100_000, 'x')) { |inner, _| [inner] }
 
-        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.05
+        assert_operator cpu_seconds { coercer.call(body, 'body') }, :<, 0.05
       end
 
-      it "costs no more for overlapping records the deeper they nest" do
+      it 'costs no more for overlapping records the deeper they nest' do
         names = %i[b c]
         nested = 15.times.reduce(integer) do |inner, _|
           records = names.map do |name|
@@ -609,12 +609,12 @@ describe Skyward::API::Inputs::Coercer do
           types::Union.new(types: records)
         end
         coercer = Skyward::API::Inputs::Coercer.compile(nested, strings: false)
-        body = 15.times.reduce("x") { |inner, _| { "a" => inner } }
+        body = 15.times.reduce('x') { |inner, _| { 'a' => inner } }
 
-        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.1
+        assert_operator cpu_seconds { coercer.call(body, 'body') }, :<, 0.1
       end
 
-      it "costs no more for overlapping Arrays the deeper they nest" do
+      it 'costs no more for overlapping Arrays the deeper they nest' do
         nested = 15.times.reduce(integer) do |inner, _|
           either = types::Union.new(types: [inner, string])
           types::Union.new(types: [types::ArrayOf.new(type: inner), types::ArrayOf.new(type: either)])
@@ -622,34 +622,34 @@ describe Skyward::API::Inputs::Coercer do
         coercer = Skyward::API::Inputs::Coercer.compile(nested, strings: false)
         body = 15.times.reduce(1.5) { |inner, _| [inner] }
 
-        assert_operator cpu_seconds { coercer.call(body, "body") }, :<, 0.1
+        assert_operator cpu_seconds { coercer.call(body, 'body') }, :<, 0.1
       end
     end
 
-    describe "messages" do
+    describe 'messages' do
       let(:fields) do
         Array.new(20) { |index| types::Field.new(name: :"description#{index}", type: string, required: true) }
       end
 
-      it "write a Date or Time inside another type without its format" do
+      it 'write a Date or Time inside another type without its format' do
         dates = types::ArrayOf.new(type: types::Union.new(types: [date, time]))
 
-        assert_equal mismatch("expected Array[Date | Time], got 1"), coerce(dates, 1)
+        assert_equal mismatch('expected Array[Date | Time], got 1'), coerce(dates, 1)
       end
 
-      it "write a type of MAX_SHOWN characters in full" do
-        long = "a" * (Skyward::API::Inputs::Coercer::MAX_SHOWN - 2)
+      it 'write a type of MAX_SHOWN characters in full' do
+        long = 'a' * (Skyward::API::Inputs::Coercer::MAX_SHOWN - 2)
 
         assert_equal mismatch("expected \"#{long}\", got 1"), coerce(types::Literal.new(value: long), 1)
       end
 
-      it "cut a longer type to MAX_SHOWN characters, ending with …" do
-        long = "a" * (Skyward::API::Inputs::Coercer::MAX_SHOWN - 1)
+      it 'cut a longer type to MAX_SHOWN characters, ending with …' do
+        long = 'a' * (Skyward::API::Inputs::Coercer::MAX_SHOWN - 1)
 
         assert_equal mismatch("expected \"#{long.chop}…, got 1"), coerce(types::Literal.new(value: long), 1)
       end
 
-      it "cut a large union in every message, so a 422 stays proportional to its body" do
+      it 'cut a large union in every message, so a 422 stays proportional to its body' do
         records = types::Union.new(types: [types::Record.new(fields:), types::Record.new(fields: fields.reverse)])
         max = Skyward::API::Inputs::Coercer::MAX_ERRORS
         messages = coerce(types::ArrayOf.new(type: records), Array.new(max, 1)).errors.map(&:message)
@@ -658,7 +658,7 @@ describe Skyward::API::Inputs::Coercer do
         assert_empty messages.grep_v(/\Aexpected \{ .{197}…, got 1\z/)
       end
 
-      it "cut a large record" do
+      it 'cut a large record' do
         assert_match(/\Aexpected \{ .{197}…, got 1\z/, coerce(types::Record.new(fields:), 1).errors.first.message)
       end
 
@@ -672,57 +672,57 @@ describe Skyward::API::Inputs::Coercer do
         assert_instance_of Skyward::API::Inputs::Coercer::Invalid, coerce(string, nested)
       end
 
-      it "write a nullable union of types in parentheses" do
+      it 'write a nullable union of types in parentheses' do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Union.new(types: [integer, string])))
 
-        assert_equal mismatch("expected Array[(Integer | String)?], got 1"), coerce(nullable, 1)
+        assert_equal mismatch('expected Array[(Integer | String)?], got 1'), coerce(nullable, 1)
       end
 
-      it "write a nullable union in parentheses" do
+      it 'write a nullable union in parentheses' do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: priority))
 
-        assert_equal mismatch("expected Array[(:low | :normal | :high)?], got 1"), coerce(nullable, 1)
+        assert_equal mismatch('expected Array[(:low | :normal | :high)?], got 1'), coerce(nullable, 1)
       end
 
-      it "write a nullable single symbol without them" do
+      it 'write a nullable single symbol without them' do
         nullable = types::ArrayOf.new(type: types::Nullable.new(type: types::Enum.new(symbols: [:low])))
 
-        assert_equal mismatch("expected Array[:low?], got 1"), coerce(nullable, 1)
+        assert_equal mismatch('expected Array[:low?], got 1'), coerce(nullable, 1)
       end
 
-      it "write a refined type as the type it refines" do
+      it 'write a refined type as the type it refines' do
         refined = types::ArrayOf.new(type: types::Refined.new(type: string, as: :uuid))
 
-        assert_equal mismatch("expected Array[String], got 1"), coerce(refined, 1)
+        assert_equal mismatch('expected Array[String], got 1'), coerce(refined, 1)
       end
     end
   end
 
-  describe ".absent" do
-    it "gives nothing for an optional keyword" do
-      assert_nil Skyward::API::Inputs::Coercer.absent(integer, false, "query.limit")
+  describe '.absent' do
+    it 'gives nothing for an optional keyword' do
+      assert_nil Skyward::API::Inputs::Coercer.absent(integer, false, 'query.limit')
     end
 
-    it "gives nil for a required nullable keyword" do
+    it 'gives nil for a required nullable keyword' do
       assert_equal ok(nil),
-                   Skyward::API::Inputs::Coercer.absent(types::Nullable.new(type: integer), true, "query.limit")
+                   Skyward::API::Inputs::Coercer.absent(types::Nullable.new(type: integer), true, 'query.limit')
     end
 
-    it "says a required keyword is required" do
-      assert_equal invalid(["query.limit", "is required"]),
-                   Skyward::API::Inputs::Coercer.absent(integer, true, "query.limit")
+    it 'says a required keyword is required' do
+      assert_equal invalid(['query.limit', 'is required']),
+                   Skyward::API::Inputs::Coercer.absent(integer, true, 'query.limit')
     end
   end
 
-  describe ".combine" do
-    it "gives each value by its name" do
+  describe '.combine' do
+    it 'gives each value by its name' do
       assert_equal ok({ id: 1, done: nil }), Skyward::API::Inputs::Coercer.combine({ id: ok(1), done: ok(nil) })
     end
 
-    it "gives every error when any value is invalid" do
-      results = { id: invalid(["path.id", "a"]), done: ok(nil), limit: invalid(["query.limit", "b"]) }
+    it 'gives every error when any value is invalid' do
+      results = { id: invalid(['path.id', 'a']), done: ok(nil), limit: invalid(['query.limit', 'b']) }
 
-      assert_equal invalid(["path.id", "a"], ["query.limit", "b"]), Skyward::API::Inputs::Coercer.combine(results)
+      assert_equal invalid(['path.id', 'a'], ['query.limit', 'b']), Skyward::API::Inputs::Coercer.combine(results)
     end
   end
 end

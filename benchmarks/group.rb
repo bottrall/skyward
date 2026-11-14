@@ -8,18 +8,18 @@
 #
 # NAMES are comma-separated prefixes, and empty selects every scenario.
 
-require_relative "boot"
+require_relative 'boot'
 
 group = ARGV.fetch(0)
-names = ARGV.fetch(1).split(",")
+names = ARGV.fetch(1).split(',')
 output = ARGV[2]
 
 versions =
-  if group == "api"
+  if group == 'api'
     {} #: Hash[String, String]
   else
-    database = group.delete_prefix("orm.")
-    Skyward.connect(database == "sqlite" ? "sqlite://:memory:" : ENV.fetch("TEST_POSTGRES_URL"), check: false)
+    database = group.delete_prefix('orm.')
+    Skyward.connect(database == 'sqlite' ? 'sqlite://:memory:' : ENV.fetch('TEST_POSTGRES_URL'), check: false)
     Bench::Queries.prepare(database)
     { database => Bench::Queries.version(database) }
   end

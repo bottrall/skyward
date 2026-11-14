@@ -13,27 +13,27 @@ module BootFixtures
   Node = Class.new
 
   Hello = Class.new(Skyward::API) do
-    get "/:name", to: :greet
+    get '/:name', to: :greet
 
     def greet(name:) = { message: "Hello, #{name}" }
   end
 
   Failing = Class.new(Skyward::API) do
-    get "/", to: :fail
+    get '/', to: :fail
 
-    def fail = raise("todo 42 is secret")
+    def fail = raise('todo 42 is secret')
   end
 
   Todos = Class.new(Skyward::API) do
-    get "/", to: :index, summary: "List todos."
-    get "/done/", to: :index
-    get "/:id", to: :show
-    post "/", to: :create
-    delete "/:id", to: :destroy
+    get '/', to: :index, summary: 'List todos.'
+    get '/done/', to: :index
+    get '/:id', to: :show
+    post '/', to: :create
+    delete '/:id', to: :destroy
 
     def index(done: nil, tags: []) = { done:, tags: }
 
-    def show(id:) = Todo.new(id:, title: "Ship it")
+    def show(id:) = Todo.new(id:, title: 'Ship it')
 
     def create(body:) = Todo.new(id: 1, title: body[:title])
 
@@ -41,14 +41,14 @@ module BootFixtures
   end
 
   NewForm = Class.new(Skyward::API) do
-    get "/new", to: :new_form
+    get '/new', to: :new_form
 
     def new_form = {}
   end
 
   StaticFirst = Class.new(Skyward::API) do
-    get "/new", to: :new_form
-    get "/:id", to: :show
+    get '/new', to: :new_form
+    get '/:id', to: :show
 
     def new_form = {}
 
@@ -56,8 +56,8 @@ module BootFixtures
   end
 
   RootLast = Class.new(Skyward::API) do
-    get "/:id", to: :show
-    get "/", to: :index
+    get '/:id', to: :show
+    get '/', to: :index
 
     def show(id:) = { id: }
 
@@ -65,8 +65,8 @@ module BootFixtures
   end
 
   StaticLast = Class.new(Skyward::API) do
-    get "/:id", to: :show
-    get "/new", to: :new_form
+    get '/:id', to: :show
+    get '/new', to: :new_form
 
     def show(id:) = { id: }
 
@@ -74,8 +74,8 @@ module BootFixtures
   end
 
   SameShape = Class.new(Skyward::API) do
-    get "/:id", to: :show
-    get "/:todo_id", to: :find
+    get '/:id', to: :show
+    get '/:todo_id', to: :find
 
     def show(id:) = { id: }
 
@@ -83,151 +83,151 @@ module BootFixtures
   end
 
   Summarised = Class.new(Skyward::API) do
-    get "/", to: :index, summary: "List todos.\nNewest first."
+    get '/', to: :index, summary: "List todos.\nNewest first."
 
     def index = []
   end
 
   Unrouted = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
   end
 
   Misrouted = Class.new(Skyward::API) do
-    get "/", to: :indx
+    get '/', to: :indx
 
     def index = []
   end
 
   Private = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index = []
     private :index
   end
 
   Protected = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index = []
     protected :index
   end
 
   Unsigned = Class.new(Skyward::API) do
-    get "/:name", to: :greet
+    get '/:name', to: :greet
 
-    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
+    def greet(name:, shout: 'false', request: nil) = { name:, shout:, request: }
   end
 
   UnsignedMethod = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index = []
   end
 
   UnsignedPositional = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id) = { id: }
   end
 
   Inlined = Class.new(Skyward::API) do
-    get "/:name", to: :greet
+    get '/:name', to: :greet
 
-    def greet(name:, shout: "false", request: nil) = { name:, shout:, request: }
+    def greet(name:, shout: 'false', request: nil) = { name:, shout:, request: }
   end
 
   UntypedKeyword = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id:) = Todo.new(id: 1, title: id)
   end
 
   NullableUntypedKeyword = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(limit: nil) = Todo.new(id: 1, title: limit.to_s)
   end
 
   NestedUntyped = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(tags: []) = tags
   end
 
   Positional = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id) = { id: }
   end
 
   KeywordRest = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(**filters) = filters
   end
 
   Renamed = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(limit:) = { limit: }
   end
 
   MadeOptional = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(limit: 50) = { limit: }
   end
 
   SignedPositionally = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id:) = { id: }
   end
 
   SignedUntyped = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id:) = { id: }
   end
 
   Unnamed = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(todo_id:) = { todo_id: }
   end
 
   Renested = Class.new(Skyward::API) do
-    get "/:todo_id", to: :show
+    get '/:todo_id', to: :show
 
     def show(id:) = { id: }
   end
 
   Misspelt = Class.new(Skyward::API) do
-    get "/:todo_id", to: :show
+    get '/:todo_id', to: :show
 
     def show(todo_idd:) = { todo_idd: }
   end
 
   Nested = Class.new(Skyward::API) do
-    get "/:list_id/:id", to: :show
+    get '/:list_id/:id', to: :show
 
     def show(list_id:, user_id:, todo_id:) = { list_id:, user_id:, todo_id: }
   end
 
   Ambiguous = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(todo_id:, list_id:) = { todo_id:, list_id: }
   end
 
   Unmatched = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(limit: 10) = { limit: }
   end
 
   Wrapped = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(
       limit: 10,
@@ -238,7 +238,7 @@ module BootFixtures
   end
 
   Continued = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     # rubocop:disable-next Layout/FirstMethodParameterLineBreak -- an app can still write this layout, and that it gets no hint is tested.
     def show(todo_id: nil,
@@ -248,7 +248,7 @@ module BootFixtures
   end
 
   Opened = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(
       todo_id: nil,
@@ -259,92 +259,92 @@ module BootFixtures
   end
 
   Aliased = Class.new(Skyward::API) do
-    get "/:id", to: :find
+    get '/:id', to: :find
 
     def show(todo_id:) = { todo_id: }
     alias_method :find, :show
   end
 
   MisspeltSignature = Class.new(Skyward::API) do
-    get "/:id", to: :show
+    get '/:id', to: :show
 
     def show(id:) = { id: }
   end
 
   TupleQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(range:) = { range: }
   end
 
   MisspeltBody = Class.new(Skyward::API) do
-    post "/", to: :create
+    post '/', to: :create
 
     def create(body:) = body
   end
 
   HashBody = Class.new(Skyward::API) do
-    post "/", to: :create
+    post '/', to: :create
 
     def create(body:) = body
   end
 
   ArrayPath = Class.new(Skyward::API) do
-    get "/:ids", to: :show
+    get '/:ids', to: :show
 
     def show(ids:) = { ids: }
   end
 
   ClassPath = Class.new(Skyward::API) do
-    get "/:todo", to: :show
+    get '/:todo', to: :show
 
     def show(todo:) = { todo: }
   end
 
   HashPath = Class.new(Skyward::API) do
-    get "/:scores", to: :show
+    get '/:scores', to: :show
 
     def show(scores:) = { scores: }
   end
 
   RecordQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(filter:) = { filter: }
   end
 
   HashQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(scores: nil) = { scores: }
   end
 
   NullableClassQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(like: nil) = { like: }
   end
 
   UnionQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(near:) = { near: }
   end
 
   NestedArrayQuery = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(grid:) = { grid: }
   end
 
   Requesting = Class.new(Skyward::API) do
-    get "/", to: :index
-    get "/:id", to: :show
+    get '/', to: :index
+    get '/:id', to: :show
 
     def index(request:)
       {
-        authorization: request.headers["authorization"],
-        session: request.cookies["session"],
+        authorization: request.headers['authorization'],
+        session: request.cookies['session'],
         ip: request.ip,
         request_id: request.request_id
       }
@@ -354,53 +354,53 @@ module BootFixtures
   end
 
   MistypedRequest = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(request:) = { request: }
   end
 
   HashReturn = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index = {}
   end
 
   SelfReferring = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index = {}
   end
 
   Responding = Class.new(Skyward::API) do
-    get "/:id", to: :show
-    get "/users/:id", to: :user
-    get "/users/:id/todo", to: :misfit
-    post "/", to: :create
-    delete "/:id", to: :destroy
+    get '/:id', to: :show
+    get '/users/:id', to: :user
+    get '/users/:id/todo', to: :misfit
+    post '/', to: :create
+    delete '/:id', to: :destroy
 
     def show(id:) = not_found("Todo #{id} does not exist")
 
-    def user(id:) = User.new(id:, name: "Ada", password_hash: "$2a$12$secret")
+    def user(id:) = User.new(id:, name: 'Ada', password_hash: '$2a$12$secret')
 
     def misfit(id:) = user(id:)
 
-    def create(body:) = created(Todo.new(id: 1, **body), headers: { "location" => "/1" })
+    def create(body:) = created(Todo.new(id: 1, **body), headers: { 'location' => '/1' })
 
     def destroy(id:) = conflict("Todo #{id} is in use")
   end
 
   Racking = Class.new(Skyward::API) do
-    get "/stream", to: :stream
-    get "/letters", to: :letters
-    get "/written", to: :written
-    get "/:id", to: :download
+    get '/stream', to: :stream
+    get '/letters', to: :letters
+    get '/written', to: :written
+    get '/:id', to: :download
 
     def stream
       chunks = Enumerator.new do |out|
         out << "first\n"
         out << "second\n"
       end
-      [200, { "content-type" => "text/plain" }, chunks]
+      [200, { 'content-type' => 'text/plain' }, chunks]
     end
 
     def letters = %w[a b c]
@@ -411,26 +411,26 @@ module BootFixtures
   end
 
   UnsignedRacking = Class.new(Skyward::API) do
-    get "/", to: :text
+    get '/', to: :text
 
     def initialize(body)
       super()
       @body = body
     end
 
-    def text = [200, { "content-type" => "text/plain" }, @body]
+    def text = [200, { 'content-type' => 'text/plain' }, @body]
   end
 
   # Every kind of route the OpenAPI document describes, each method routed once.
   Documented = Class.new(Skyward::API) do
-    description "Things to do."
+    description 'Things to do.'
 
-    get "/", to: :index, summary: "List todos."
-    get "/:id", to: :show, summary: "Fetch a todo.", description: "It's *Markdown*."
-    post "/", to: :create
-    delete "/:id", to: :destroy
-    get "/:id/elsewhere", to: :moved
-    get "/:id/export", to: :export
+    get '/', to: :index, summary: 'List todos.'
+    get '/:id', to: :show, summary: 'Fetch a todo.', description: "It's *Markdown*."
+    post '/', to: :create
+    delete '/:id', to: :destroy
+    get '/:id/elsewhere', to: :moved
+    get '/:id/export', to: :export
 
     def index(done: nil, tags: [], since: nil) = [{ done:, tags:, since: }]
 
@@ -442,26 +442,26 @@ module BootFixtures
 
     def moved(id:) = redirect("/#{id}")
 
-    def export(id:) = [200, { "content-type" => "text/csv" }, ["#{id}\n"]]
+    def export(id:) = [200, { 'content-type' => 'text/csv' }, ["#{id}\n"]]
   end
 
   CreatedHash = Class.new(Skyward::API) do
-    post "/", to: :create
+    post '/', to: :create
 
     def create = created({})
   end
 
   CreatedBare = Class.new(Skyward::API) do
-    post "/", to: :create
+    post '/', to: :create
 
     def create = created({})
   end
 
   CurrentUser = Class.new do
     def call(request)
-      return Skyward.unauthorized("Sign in first") unless request.headers["authorization"] == "Bearer ada"
+      return Skyward.unauthorized('Sign in first') unless request.headers['authorization'] == 'Bearer ada'
 
-      User.new(id: 1, name: "Ada", password_hash: "$2a$12$secret")
+      User.new(id: 1, name: 'Ada', password_hash: '$2a$12$secret')
     end
   end
 
@@ -474,26 +474,26 @@ module BootFixtures
   end
 
   Guard = Class.new do
-    def call(_request) = Skyward.forbidden("Admins only")
+    def call(_request) = Skyward.forbidden('Admins only')
   end
 
   UnsignedProvider = Class.new do
-    def call(_request) = "anyone"
+    def call(_request) = 'anyone'
   end
 
   ModuleProvider = Module.new do
     extend self
 
-    def call(_request) = "anyone"
+    def call(_request) = 'anyone'
   end
 
   ClassProvider = Class.new do
-    def self.call(_request) = "anyone"
+    def self.call(_request) = 'anyone'
   end
 
   Authenticated = Class.new(Skyward::API) do
-    get "/me", to: :me
-    get "/todos", to: :index
+    get '/me', to: :me
+    get '/todos', to: :index
 
     def me(current_user:) = current_user
 
@@ -501,37 +501,37 @@ module BootFixtures
   end
 
   Visiting = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(visitor:) = [visitor].compact
   end
 
   MistypedUser = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(current_user:) = [current_user]
   end
 
   Guarded = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(admin:) = [admin]
   end
 
   ProvidedPath = Class.new(Skyward::API) do
-    get "/:current_user", to: :show
+    get '/:current_user', to: :show
 
     def show(current_user:) = Todo.new(id: 1, title: current_user)
   end
 
   UnsignedProvided = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(current_user:, limit: 50) = [Todo.new(id: limit, title: current_user.name)]
   end
 
   UntypedProvided = Class.new(Skyward::API) do
-    get "/", to: :index
+    get '/', to: :index
 
     def index(current_user:, visitor:) = [Todo.new(id: current_user.id, title: visitor.to_s)]
   end

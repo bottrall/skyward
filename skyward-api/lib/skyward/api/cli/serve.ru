@@ -2,9 +2,9 @@
 
 # skyward serve's composition root. Rack is reached for only here: Skyward API
 # doesn't depend on it, and Falcon brings it.
-require "skyward/api"
+require 'skyward/api'
 
-rbs_inline = Skyward::Core::CLI::Executable.find("rbs-inline", feature: "rbs/inline")
+rbs_inline = Skyward::Core::CLI::Executable.find('rbs-inline', feature: 'rbs/inline')
 
 capture = Skyward::Core::CLI::Executable::CAPTURE
 generate = rbs_inline && -> { Skyward::Core::Signatures::Inline.generate(Dir.pwd, rbs_inline:, capture:) }

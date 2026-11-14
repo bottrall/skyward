@@ -10,11 +10,11 @@ module Skyward::ORM::Migrations::Definitions
   extend self
 
   ON_DELETE = {
-    cascade: "CASCADE",
-    restrict: "RESTRICT",
-    set_null: "SET NULL",
-    set_default: "SET DEFAULT",
-    no_action: "NO ACTION"
+    cascade: 'CASCADE',
+    restrict: 'RESTRICT',
+    set_null: 'SET NULL',
+    set_default: 'SET DEFAULT',
+    no_action: 'NO ACTION'
   }.freeze #: Hash[Skyward::ORM::Tables::on_delete, String]
 
   # Each column's constraints, in the order a column lists them, then each
@@ -43,12 +43,12 @@ module Skyward::ORM::Migrations::Definitions
   def indexes(klass)
     table = klass.table_name
     klass.schema.indexes.map do |columns|
-      name = name(table, columns, "index")
+      name = name(table, columns, 'index')
       Skyward::ORM::Catalog::Index.new(
         name:,
         columns:,
         unique: false,
-        definition: "CREATE INDEX #{name} ON #{table} (#{columns.join(", ")})"
+        definition: "CREATE INDEX #{name} ON #{table} (#{columns.join(', ')})"
       )
     end
   end
@@ -77,8 +77,8 @@ module Skyward::ORM::Migrations::Definitions
   # @rbs return: String
   def inline(constraint)
     clause = case constraint.kind
-             when :primary_key then "PRIMARY KEY"
-             when :unique then "UNIQUE"
+             when :primary_key then 'PRIMARY KEY'
+             when :unique then 'UNIQUE'
              when :check then constraint.definition
              else constraint.definition.delete_prefix("FOREIGN KEY (#{constraint.columns.fetch(0)}) ")
              end
@@ -89,7 +89,7 @@ module Skyward::ORM::Migrations::Definitions
   # @rbs return: String
   def literal(value)
     case value
-    when nil then "NULL"
+    when nil then 'NULL'
     when String then "'#{value.gsub("'", "''")}'"
     when Integer, Float, true, false then value.to_s
     else literal(value.to_s)
@@ -112,7 +112,7 @@ module Skyward::ORM::Migrations::Definitions
   # @rbs columns: Array[Symbol]
   # @rbs return: Skyward::ORM::Catalog::Constraint
   def unique(table, columns)
-    constraint(name(table, columns, "key"), :unique, columns, "UNIQUE (#{columns.join(", ")})")
+    constraint(name(table, columns, 'key'), :unique, columns, "UNIQUE (#{columns.join(', ')})")
   end
 
   # A symbol union's check comes first, as part of the column's type.
@@ -122,7 +122,7 @@ module Skyward::ORM::Migrations::Definitions
   # @rbs return: Array[Skyward::ORM::Catalog::Constraint]
   def checks(table, column, checks)
     name = column.name
-    symbols = column.symbols.map { |symbol| literal(symbol.name) }.join(", ")
+    symbols = column.symbols.map { |symbol| literal(symbol.name) }.join(', ')
     rules = [
       *("#{name} IN (#{symbols})" if column.type == :enum),
       *checks.select { |check| check.column == name }.map { |check| rule(name, check.rule) }
@@ -175,5 +175,5 @@ module Skyward::ORM::Migrations::Definitions
   # @rbs columns: Array[Symbol]
   # @rbs suffix: String
   # @rbs return: String
-  def name(table, columns, suffix) = "#{table}_#{columns.join("_")}_#{suffix}"
+  def name(table, columns, suffix) = "#{table}_#{columns.join('_')}_#{suffix}"
 end

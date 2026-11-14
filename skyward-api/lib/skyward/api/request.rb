@@ -2,9 +2,9 @@
 
 class Skyward::API::Request
   # Rack passes these two headers without the HTTP_ prefix the others get.
-  UNPREFIXED = { "CONTENT_TYPE" => "content-type", "CONTENT_LENGTH" => "content-length" }.freeze #: Hash[String, String]
+  UNPREFIXED = { 'CONTENT_TYPE' => 'content-type', 'CONTENT_LENGTH' => 'content-length' }.freeze #: Hash[String, String]
 
-  OCTET = "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])" #: String
+  OCTET = '(?:25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])' #: String
 
   # Rack's trusted proxies: loopback, the private ranges and Unix sockets.
   TRUSTED_PROXY = Regexp.union(
@@ -66,9 +66,9 @@ class Skyward::API::Request
   def initialize(env)
     @env = env
     @headers = read_headers(env)
-    @cookies = read_cookies(env["HTTP_COOKIE"])
-    @ip = client_ip(addresses(env["REMOTE_ADDR"]), addresses(env["HTTP_X_FORWARDED_FOR"]).map { |entry| bare(entry) })
-    @request_id = env.fetch("skyward.request_id")
+    @cookies = read_cookies(env['HTTP_COOKIE'])
+    @ip = client_ip(addresses(env['REMOTE_ADDR']), addresses(env['HTTP_X_FORWARDED_FOR']).map { |entry| bare(entry) })
+    @request_id = env.fetch('skyward.request_id')
     freeze
   end
 
@@ -78,7 +78,7 @@ class Skyward::API::Request
   # @rbs return: Hash[String, String]
   def read_headers(env)
     env.filter_map do |key, value|
-      name = UNPREFIXED[key] || (key.delete_prefix("HTTP_").downcase.tr("_", "-") if key.start_with?("HTTP_"))
+      name = UNPREFIXED[key] || (key.delete_prefix('HTTP_').downcase.tr('_', '-') if key.start_with?('HTTP_'))
       [name, value] if name
     end.to_h.freeze
   end
@@ -89,7 +89,7 @@ class Skyward::API::Request
     # Split as bytes, because String#split raises on a String that isn't valid
     # UTF-8, and a client can send one.
     pairs = header.to_s.b.split(/; */).reject(&:empty?).map do |cookie|
-      name, value = cookie.split("=", 2)
+      name, value = cookie.split('=', 2)
       [String.new(name.to_s, encoding: Encoding::UTF_8), Skyward::API::Routing::PercentEncoding.decode(value.to_s)]
     end
     # The first of two cookies with one name wins, as in Rack.
@@ -104,7 +104,7 @@ class Skyward::API::Request
   # @rbs entry: String
   # @rbs return: String?
   def bare(entry)
-    wrapped = !entry.start_with?("[") && entry.count(":") > 1 ? "[#{entry}]" : entry
+    wrapped = !entry.start_with?('[') && entry.count(':') > 1 ? "[#{entry}]" : entry
     wrapped[AUTHORITY, :address]
   end
 

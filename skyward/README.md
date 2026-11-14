@@ -14,11 +14,11 @@ Each works without the other. Add this gem when you want both.
 
 ```ruby
 # Gemfile
-gem "skyward"
+gem 'skyward'
 ```
 
 ```ruby
-require "skyward" # requires skyward/api and skyward/orm
+require 'skyward' # requires skyward/api and skyward/orm
 ```
 
 Skyward supports every Ruby that isn't end-of-life (3.3 and later, as of November 2026).

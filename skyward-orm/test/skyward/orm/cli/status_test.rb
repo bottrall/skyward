@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "stringio"
-require "test_helper"
-require "tmpdir"
-require_relative "../../../fixtures/migrations/migrations_fixtures"
+require 'fileutils'
+require 'stringio'
+require 'test_helper'
+require 'tmpdir'
+require_relative '../../../fixtures/migrations/migrations_fixtures'
 
 describe Skyward::ORM::CLI::Status do
   runner = Skyward::ORM::Migrations::Runner
-  signatures = File.expand_path("../../../fixtures/migrations/sig", __dir__)
-  noop = { "20261001000000_noop.sql" => "SELECT 1;\n" }
+  signatures = File.expand_path('../../../fixtures/migrations/sig', __dir__)
+  noop = { '20261001000000_noop.sql' => "SELECT 1;\n" }
 
   let(:kernel) do
     Class.new do
@@ -27,14 +27,14 @@ describe Skyward::ORM::CLI::Status do
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
       File.write(
-        File.join(directory, "boot.rb"),
+        File.join(directory, 'boot.rb'),
         "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect})\n"
       )
-      FileUtils.mkdir_p(File.join(directory, "db/migrate"))
-      migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
+      FileUtils.mkdir_p(File.join(directory, 'db/migrate'))
+      migrations.each { |file, sql| File.write(File.join(directory, 'db/migrate', file), sql) }
       block.call(directory, empty.connect)
     ensure
-      $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
+      $LOADED_FEATURES.delete(File.join(directory, 'boot.rb'))
     end
   end
 
@@ -49,18 +49,18 @@ describe Skyward::ORM::CLI::Status do
     )
   end
 
-  describe ".run" do
+  describe '.run' do
     it "fails with why sig/generated couldn't be regenerated, before it reports" do
       app(noop) do |directory|
         run_in(directory, generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
 
-        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ''], [kernel.aborted, out.string]
       end
     end
 
     it "says everything's up to date, and doesn't exit 1, once every migration has run and every class matches" do
       app(noop) do |directory, connection|
-        runner.run(empty.adapter, connection, runner.read(File.join(directory, "db/migrate")))
+        runner.run(empty.adapter, connection, runner.read(File.join(directory, 'db/migrate')))
         run_in(directory)
 
         assert_equal ["Migrations:\n  20261001000000_noop.sql  ran\n#{Skyward::ORM::Migrations::Status::CLEAN}", nil],
@@ -70,7 +70,7 @@ describe Skyward::ORM::CLI::Status do
 
     it "lists what's pending and how the classes it finds differ, and exits 1, without making schema_migrations" do
       app(noop) do |directory, connection|
-        connection.execute("CREATE TABLE legacy (id INTEGER)")
+        connection.execute('CREATE TABLE legacy (id INTEGER)')
         run_in(directory, classes: [MigrationsFixtures::List])
         expected = <<~TEXT
           Migrations:
@@ -90,7 +90,7 @@ describe Skyward::ORM::CLI::Status do
       app do |directory, connection|
         text = empty.adapter.sql_type(TestDatabase.column(:string))
         connection.execute("CREATE TABLE lists (id INTEGER PRIMARY KEY, name #{text} NOT NULL)")
-        connection.execute("CREATE INDEX lists_lower_name_index ON lists (lower(name))")
+        connection.execute('CREATE INDEX lists_lower_name_index ON lists (lower(name))')
         run_in(directory, classes: [MigrationsFixtures::List])
         expected = <<~TEXT
           No migrations yet.

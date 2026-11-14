@@ -1,33 +1,33 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "json"
-require "test_helper"
-require "open3"
-require "tmpdir"
+require 'fileutils'
+require 'json'
+require 'test_helper'
+require 'open3'
+require 'tmpdir'
 
-describe "skyward/api/commands.rb" do
-  let(:fixture) { File.expand_path("../../fixtures/commands", __dir__) }
+describe 'skyward/api/commands.rb' do
+  let(:fixture) { File.expand_path('../../fixtures/commands', __dir__) }
 
   def skyward(*args, chdir:)
-    output, status = Open3.capture2e(Gem.ruby, Gem.bin_path("skyward-core", "skyward"), *args, chdir:)
+    output, status = Open3.capture2e(Gem.ruby, Gem.bin_path('skyward-core', 'skyward'), *args, chdir:)
     [output, status.exitstatus]
   end
 
-  describe "serve" do
+  describe 'serve' do
     it "serves the directory it's run in" do
       Dir.mktmpdir do |directory|
-        output, status = skyward("serve", chdir: directory)
+        output, status = skyward('serve', chdir: directory)
 
         assert_equal 1, status
         assert_includes output, "no config.ru in #{File.realpath(directory)}."
       end
     end
 
-    it "looks for Falcon in the bundle it runs in, which here has none" do
+    it 'looks for Falcon in the bundle it runs in, which here has none' do
       Dir.mktmpdir do |directory|
-        File.write(File.join(directory, "config.ru"), "run ->(_env) { [200, {}, []] }\n")
-        output, status = skyward("serve", chdir: directory)
+        File.write(File.join(directory, 'config.ru'), "run ->(_env) { [200, {}, []] }\n")
+        output, status = skyward('serve', chdir: directory)
 
         assert_equal 1, status
         assert_includes output, "Falcon isn't installed."
@@ -35,26 +35,26 @@ describe "skyward/api/commands.rb" do
     end
   end
 
-  describe "check" do
-    let(:fixtures) { File.expand_path("../../fixtures/check", __dir__) }
+  describe 'check' do
+    let(:fixtures) { File.expand_path('../../fixtures/check', __dir__) }
 
     def check(app)
-      output, status = skyward("check", chdir: File.join(fixtures, app))
+      output, status = skyward('check', chdir: File.join(fixtures, app))
       [output, status, output.lines.grep(/\A(Signatures|Strict boot|Steep): /)]
     end
 
-    it "passes an app with current signatures that boots in strict mode and that Steep passes" do
-      _output, status, reports = check("passing")
+    it 'passes an app with current signatures that boots in strict mode and that Steep passes' do
+      _output, status, reports = check('passing')
 
       assert_equal [0, ["Signatures: passed\n", "Strict boot: passed\n", "Steep: passed\n"]], [status, reports]
     end
 
-    it "runs every check on an app that fails each, saying why, and exits 1" do
-      output, status, reports = check("failing")
+    it 'runs every check on an app that fails each, saying why, and exits 1' do
+      output, status, reports = check('failing')
       reasons = [
         "sig/generated/goodbye.rbs isn't generated from any file",
         "Hello#greet (GET /)\n  Its signature leaves the return type untyped, but strict: true refuses",
-        "Ruby::MethodBodyTypeMismatch"
+        'Ruby::MethodBodyTypeMismatch'
       ]
 
       assert_equal [1, ["Signatures: failed\n", "Strict boot: failed\n", "Steep: failed\n"], reasons],
@@ -66,53 +66,53 @@ describe "skyward/api/commands.rb" do
   # since sig/generated was.
   def retyped
     Dir.mktmpdir do |directory|
-      FileUtils.cp_r("#{File.expand_path("../../fixtures/check/passing", __dir__)}/.", directory)
-      app_rb = File.join(directory, "app.rb")
-      File.write(app_rb, File.read(app_rb).gsub("{ message: String }", "{ message: Integer }"))
+      FileUtils.cp_r("#{File.expand_path('../../fixtures/check/passing', __dir__)}/.", directory)
+      app_rb = File.join(directory, 'app.rb')
+      File.write(app_rb, File.read(app_rb).gsub('{ message: String }', '{ message: Integer }'))
       yield directory
     end
   end
 
-  describe "routes" do
-    it "regenerates sig/generated first, so it prints the types app.rb has now" do
+  describe 'routes' do
+    it 'regenerates sig/generated first, so it prints the types app.rb has now' do
       retyped do |directory|
-        assert_equal ["GET  /  Hello#greet  () -> { message: Integer }\n", 0], skyward("routes", chdir: directory)
+        assert_equal ["GET  /  Hello#greet  () -> { message: Integer }\n", 0], skyward('routes', chdir: directory)
       end
     end
 
     it "prints the routes of the app.rb in the directory it's run in, laid out as the README shows" do
-      readme = File.read(File.expand_path("../../../README.md", __dir__))
+      readme = File.read(File.expand_path('../../../README.md', __dir__))
       example = readme[/^\$ skyward routes\n(.*?)^```/m, 1]
 
-      assert_equal [example, 0], skyward("routes", chdir: fixture)
+      assert_equal [example, 0], skyward('routes', chdir: fixture)
     end
 
-    it "fails without a backtrace in a directory with no app.rb" do
+    it 'fails without a backtrace in a directory with no app.rb' do
       Dir.mktmpdir do |directory|
         message = Skyward::API::CLI::AppFile.load(File.realpath(directory), -> {})
 
-        assert_equal ["#{message}\n", 1], skyward("routes", chdir: directory)
+        assert_equal ["#{message}\n", 1], skyward('routes', chdir: directory)
       end
     end
   end
 
-  describe "openapi" do
-    it "regenerates sig/generated first, so it writes the types app.rb has now" do
+  describe 'openapi' do
+    it 'regenerates sig/generated first, so it writes the types app.rb has now' do
       retyped do |directory|
-        written, status = skyward("openapi", chdir: directory)
-        response = JSON.parse(written).dig("paths", "/", "get", "responses", "200")
-        message = response.dig("content", "application/json", "schema", "properties", "message")
+        written, status = skyward('openapi', chdir: directory)
+        response = JSON.parse(written).dig('paths', '/', 'get', 'responses', '200')
+        message = response.dig('content', 'application/json', 'schema', 'properties', 'message')
 
-        assert_equal [0, { "type" => "integer" }], [status, message]
+        assert_equal [0, { 'type' => 'integer' }], [status, message]
       end
     end
 
     it "writes the app.rb app's document as pretty JSON with a trailing newline" do
-      written, status = skyward("openapi", chdir: fixture)
+      written, status = skyward('openapi', chdir: fixture)
       document = JSON.parse(written)
 
-      assert_equal [0, "#{JSON.pretty_generate(document)}\n", ["/todos", "/todos/{id}", "/todos/{id}/complete"]],
-                   [status, written, document["paths"].keys]
+      assert_equal [0, "#{JSON.pretty_generate(document)}\n", ['/todos', '/todos/{id}', '/todos/{id}/complete']],
+                   [status, written, document['paths'].keys]
     end
   end
 end

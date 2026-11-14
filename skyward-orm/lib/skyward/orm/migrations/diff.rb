@@ -5,7 +5,7 @@ module Skyward::ORM::Migrations::Diff
 
   ON_DELETE = /\bON\s+DELETE\s+(CASCADE|RESTRICT|SET\s+NULL|SET\s+DEFAULT|NO\s+ACTION)\b/i #: Regexp
 
-  NULL = "NULL" #: String
+  NULL = 'NULL' #: String
 
   RENAMABLE = %i[foreign_key unique].freeze #: Array[Skyward::ORM::Catalog::constraint_kind]
 
@@ -79,7 +79,7 @@ module Skyward::ORM::Migrations::Diff
     problems = shared.map do |table, owners|
       sorted = owners.sort_by(&:to_s)
       Skyward::ORM::Tables::Sources.explain(
-        "#{sorted.join(" and ")} each declare table :#{table}. Give each table one class.",
+        "#{sorted.join(' and ')} each declare table :#{table}. Give each table one class.",
         sorted.map { |owner| Skyward::ORM::Tables::Sources.declaration(owner, :table, table) }
       )
     end
@@ -268,7 +268,7 @@ module Skyward::ORM::Migrations::Diff
   # @rbs return: String
   def on_delete(constraint)
     action = constraint.definition[ON_DELETE, 1]
-    action ? action.upcase.gsub(/\s+/, " ") : "NO ACTION"
+    action ? action.upcase.gsub(/\s+/, ' ') : 'NO ACTION'
   end
 
   # An index is matched by its columns, so one a database already has under
@@ -300,7 +300,7 @@ module Skyward::ORM::Migrations::Diff
     parent = tables.find { |table| table.name == constraint.references }
     key = parent&.constraints&.find { |candidate| candidate.kind == :primary_key }
     names = named.scan(NAME) #: Array[String]
-    names.map { |name| name.delete("\"`[]").to_sym } == key&.columns
+    names.map { |name| name.delete('"`[]').to_sym } == key&.columns
   end
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint

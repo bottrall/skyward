@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "json"
-require "uri"
+require 'json'
+require 'uri'
 
 class Skyward::API::Inputs
   # @rbs!
@@ -11,11 +11,11 @@ class Skyward::API::Inputs
   JSON_TYPE = %r{\A(?:application/json|[^/;\s]+/[^/;\s]+\+json)\s*(?:;|\z)}i #: Regexp
 
   MALFORMED_QUERY = Coercer::Invalid.new(
-    errors: [Coercer::Error.new(at: "query", message: "is not a valid query string")]
+    errors: [Coercer::Error.new(at: 'query', message: 'is not a valid query string')]
   ) #: Coercer::Invalid
 
   INVALID_JSON = Coercer::Invalid.new(
-    errors: [Coercer::Error.new(at: "body", message: "is not valid JSON")]
+    errors: [Coercer::Error.new(at: 'body', message: 'is not valid JSON')]
   ) #: Coercer::Invalid
 
   # @rbs @keywords: Array[[Skyward::API::Routing::Router::Keyword, Coercer::t]]
@@ -52,7 +52,7 @@ class Skyward::API::Inputs
     body = body(env) if @body
     case body
     when Symbol then body
-    else arguments(params, query(env["QUERY_STRING"].to_s), body, given)
+    else arguments(params, query(env['QUERY_STRING'].to_s), body, given)
     end
   end
 
@@ -100,7 +100,7 @@ class Skyward::API::Inputs
   # @rbs return: [Symbol, Coercer::result]?
   def argument(keyword, coercer, params, query, body)
     name = keyword.name
-    at = keyword.source == :body ? "body" : "#{keyword.source}.#{name}"
+    at = keyword.source == :body ? 'body' : "#{keyword.source}.#{name}"
     raw =
       case keyword.source
       when :path then Coercer::Ok.new(value: params.fetch(name))
@@ -140,13 +140,13 @@ class Skyward::API::Inputs
   # @rbs env: Hash[String, untyped]
   # @rbs return: body
   def body(env)
-    return :content_too_large if env["CONTENT_LENGTH"].to_i > @max_body_size
+    return :content_too_large if env['CONTENT_LENGTH'].to_i > @max_body_size
 
     # One byte past the limit shows the body runs past it, without reading the rest.
-    text = env["rack.input"]&.read(@max_body_size + 1).to_s
+    text = env['rack.input']&.read(@max_body_size + 1).to_s
     return :content_too_large if text.bytesize > @max_body_size
     return if text.empty?
-    return :unsupported_media_type unless JSON_TYPE.match?(env["CONTENT_TYPE"].to_s)
+    return :unsupported_media_type unless JSON_TYPE.match?(env['CONTENT_TYPE'].to_s)
 
     parse(String.new(text, encoding: Encoding::UTF_8))
   end

@@ -1,4 +1,4 @@
 # frozen_string_literal: true
 
-require "minitest/autorun"
-require "skyward/api"
+require 'minitest/autorun'
+require 'skyward/api'

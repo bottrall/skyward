@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "date"
+require 'date'
 
 module TablesFixtures
   class List < Skyward::ORM::Record
@@ -13,7 +13,7 @@ module TablesFixtures
   class Todo < Skyward::ORM::Record
     table :todos
     references :list_id, List, on_delete: :cascade
-    default priority: :normal, done: false, created_at: Skyward.sql("now()")
+    default priority: :normal, done: false, created_at: Skyward.sql('now()')
     check :title, length: 1..200
     index :list_id, :done
 

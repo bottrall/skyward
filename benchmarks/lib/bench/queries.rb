@@ -12,8 +12,8 @@ module Bench::Queries
   MIGRATIONS = File.expand_path("#{__dir__}/../../db") #: String
 
   VERSIONS = {
-    "sqlite" => "SELECT sqlite_version() AS version",
-    "postgresql" => "SELECT current_setting('server_version') AS version"
+    'sqlite' => 'SELECT sqlite_version() AS version',
+    'postgresql' => "SELECT current_setting('server_version') AS version"
   }.freeze #: Hash[String, String]
 
   # SQLite's database is in memory, so it starts empty. PostgreSQL's keeps the
@@ -23,7 +23,7 @@ module Bench::Queries
   # @rbs return: void
   def prepare(database)
     migrations = File.join(MIGRATIONS, database)
-    forget(migrations) if database == "postgresql"
+    forget(migrations) if database == 'postgresql'
     Skyward.migrate(migrations)
     Bench::Task.insert_all!(rows(ROWS))
   end
@@ -31,11 +31,11 @@ module Bench::Queries
   # @rbs migrations: String
   # @rbs return: void
   def forget(migrations)
-    Skyward.query("DROP TABLE IF EXISTS bench_tasks")
+    Skyward.query('DROP TABLE IF EXISTS bench_tasks')
     return if Skyward.query("SELECT to_regclass('schema_migrations')::text AS name").fetch(0).fetch(:name).nil?
 
-    Dir.glob("*.sql", base: migrations).each do |file|
-      Skyward.query("DELETE FROM schema_migrations WHERE version = ?", file.split("_", 2).fetch(0))
+    Dir.glob('*.sql', base: migrations).each do |file|
+      Skyward.query('DELETE FROM schema_migrations WHERE version = ?', file.split('_', 2).fetch(0))
     end
   end
 
@@ -91,7 +91,7 @@ module Bench::Queries
       run: -> { Bench::Task.all.limit(count).to_a },
       answer: ->(tasks) { summary(tasks) },
       expected: { rows: count, first_id: 1 },
-      unit: "rows",
+      unit: 'rows',
       per_iteration: count
     )
   end

@@ -5,7 +5,7 @@ module Skyward::API::CLI::Serve
 
   RACKUP = "#{__dir__}/serve.ru".freeze #: String
 
-  CONFIG = "config.ru" #: String
+  CONFIG = 'config.ru' #: String
 
   # Neither watched nor reloaded, and nor is any hidden directory: the app's
   # gems can be installed under vendor/ or .bundle/.
@@ -26,20 +26,20 @@ module Skyward::API::CLI::Serve
     unless falcon
       return kernel.abort(
         "skyward: Falcon isn't installed. Add `gem \"falcon\"` to the Gemfile and run `bundle install`, " \
-        "or run config.ru under any Rack server, such as Puma."
+        'or run config.ru under any Rack server, such as Puma.'
       )
     end
 
     kernel.exec(
-      { "RACK_ENV" => env.fetch("RACK_ENV", "development") },
+      { 'RACK_ENV' => env.fetch('RACK_ENV', 'development') },
       Gem.ruby,
       falcon,
-      "serve",
-      "--bind",
-      "http://localhost:#{env.fetch("PORT", "9292")}",
-      "--count",
-      "1",
-      "--config",
+      'serve',
+      '--bind',
+      "http://localhost:#{env.fetch('PORT', '9292')}",
+      '--count',
+      '1',
+      '--config',
       RACKUP,
       chdir: directory
     )
@@ -73,7 +73,7 @@ module Skyward::API::CLI::Serve
   # @rbs directory: String
   # @rbs return: Hash[String, Time]
   def watch(directory)
-    roots = Dir.glob("*/", base: directory).map { |root| root.delete_suffix("/") }.reject { |root| ignored?(root) }
+    roots = Dir.glob('*/', base: directory).map { |root| root.delete_suffix('/') }.reject { |root| ignored?(root) }
     files = Dir.glob([WATCHED, *roots.map { |root| "#{root}/**/#{WATCHED}" }], base: directory)
     files.to_h { |file| [file, File.mtime(File.join(directory, file))] }
   end
@@ -93,8 +93,8 @@ module Skyward::API::CLI::Serve
     stuck = app_loaders.find { |loader| !loader.reloading_enabled? }
     if stuck
       raise Skyward::Core::BootError,
-            "skyward serve can't reload the Zeitwerk loader for #{stuck.dirs.join(", ")}. Call " \
-            "`loader.enable_reloading` before `loader.setup` in development, then restart skyward serve."
+            "skyward serve can't reload the Zeitwerk loader for #{stuck.dirs.join(', ')}. Call " \
+            '`loader.enable_reloading` before `loader.setup` in development, then restart skyward serve.'
     end
 
     apis.select { |api| reloaded_api?(directory, api) }.each(&:clear_declarations)
@@ -120,7 +120,7 @@ module Skyward::API::CLI::Serve
   def reloaded_api?(directory, api)
     name = api.name
     # const_source_location refuses the name of a class under an anonymous module.
-    return false if name.nil? || name.start_with?("#")
+    return false if name.nil? || name.start_with?('#')
     # A class left over from an earlier load keeps its name after its namespace
     # is gone, and const_source_location raises for a missing namespace.
     return false unless Object.const_defined?(name)
@@ -135,10 +135,10 @@ module Skyward::API::CLI::Serve
   def reloaded?(directory, path)
     return false unless path == directory || path.start_with?("#{directory}/")
 
-    !ignored?(path.delete_prefix(directory).delete_prefix("/").partition("/").first)
+    !ignored?(path.delete_prefix(directory).delete_prefix('/').partition('/').first)
   end
 
   # @rbs root: String
   # @rbs return: bool
-  def ignored?(root) = root.start_with?(".") || IGNORED.include?(root)
+  def ignored?(root) = root.start_with?('.') || IGNORED.include?(root)
 end

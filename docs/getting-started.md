@@ -94,9 +94,9 @@ The app mounts `HealthAPI` and turns on the API reference at `/docs`:
 
 # rbs_inline: enabled
 
-require_relative "boot"
+require_relative 'boot'
 
-App = Skyward.app(docs: true, title: "Todos") do |app|
+App = Skyward.app(docs: true, title: 'Todos') do |app|
   app.mount HealthAPI.new
 end #: Skyward::API::_RackApp
 ```
@@ -110,12 +110,12 @@ An endpoint is a public method. Its route goes at the top of the class, and its 
 # rbs_inline: enabled
 
 class HealthAPI < Skyward::API
-  description "Whether the app is up, for load balancers and uptime checks."
+  description 'Whether the app is up, for load balancers and uptime checks.'
 
-  get "/up", to: :show, summary: "Report that the app is up."
+  get '/up', to: :show, summary: 'Report that the app is up.'
 
   # @rbs return: { status: "ok" }
-  def show = { status: "ok" }
+  def show = { status: 'ok' }
 end
 ```
 
@@ -204,12 +204,12 @@ The endpoints go in `Todos::API`. Its routes go at the top of the class, and eac
 # @rbs use Skyward::API::*
 
 class Todos::API < Skyward::API
-  description "Things to do, and the satisfaction of ticking them off."
+  description 'Things to do, and the satisfaction of ticking them off.'
 
-  get  "/",             to: :index,    summary: "List todos, newest first."
-  get  "/:id",          to: :show,     summary: "Fetch a single todo."
-  post "/",             to: :create,   summary: "Create a todo."
-  post "/:id/complete", to: :complete, summary: "Mark a todo as done."
+  get  '/',             to: :index,    summary: 'List todos, newest first.'
+  get  '/:id',          to: :show,     summary: 'Fetch a single todo.'
+  post '/',             to: :create,   summary: 'Create a todo.'
+  post '/:id/complete', to: :complete, summary: 'Mark a todo as done.'
 
   NewTodo = Data.define(
     :title #: String
@@ -242,7 +242,7 @@ class Todos::API < Skyward::API
     todo = @todos.into(Todos::Record).insert(title: body.title)
     case todo
     when Todos::Record then created todo
-    else unprocessable "A title needs 1 to 200 characters"
+    else unprocessable 'A title needs 1 to 200 characters'
     end
   end
 
@@ -270,11 +270,11 @@ Mount the API in `app.rb`, at `/todos`, and pass it the table class:
 
 # rbs_inline: enabled
 
-require_relative "boot"
+require_relative 'boot'
 
-App = Skyward.app(docs: true, title: "Todos") do |app|
+App = Skyward.app(docs: true, title: 'Todos') do |app|
   app.mount HealthAPI.new
-  app.mount Todos::API.new(todos: Todos::Record), at: "/todos"
+  app.mount Todos::API.new(todos: Todos::Record), at: '/todos'
 end #: Skyward::API::_RackApp
 ```
 
@@ -297,29 +297,29 @@ An endpoint is a method on a plain object, so its test calls it. The tests mirro
 # test/modules/todos/api_test.rb
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Todos::API do
   let(:api) { Todos::API.new(todos: Todos::Record) }
 
-  def create(title = "Ship it") = Todos::Record.into(Todos::Record).insert!(title:)
+  def create(title = 'Ship it') = Todos::Record.into(Todos::Record).insert!(title:)
 
-  describe "#index" do
-    it "lists the newest todo first" do
+  describe '#index' do
+    it 'lists the newest todo first' do
       %w[First Second].each { |title| create(title) }
 
       assert_equal %w[Second First], api.index.map(&:title)
     end
 
-    it "lists at most limit todos" do
+    it 'lists at most limit todos' do
       %w[First Second].each { |title| create(title) }
 
       assert_equal %w[Second], api.index(limit: 1).map(&:title)
     end
   end
 
-  describe "#show" do
-    it "answers the todo" do
+  describe '#show' do
+    it 'answers the todo' do
       todo = create
 
       assert_equal todo, api.show(id: todo.id)
@@ -330,22 +330,22 @@ describe Todos::API do
     end
   end
 
-  describe "#create" do
-    it "answers the new todo, created" do
-      todo = api.create(body: Todos::API::NewTodo.new(title: "Ship it")).value
+  describe '#create' do
+    it 'answers the new todo, created' do
+      todo = api.create(body: Todos::API::NewTodo.new(title: 'Ship it')).value
 
       assert_equal Todos::Record.find_by(id: todo.id), todo
     end
 
     it "answers 422 for a title that's empty" do
-      response = api.create(body: Todos::API::NewTodo.new(title: ""))
+      response = api.create(body: Todos::API::NewTodo.new(title: ''))
 
       assert_instance_of Skyward::API::Responses::Unprocessable, response
     end
   end
 
-  describe "#complete" do
-    it "answers the todo, done" do
+  describe '#complete' do
+    it 'answers the todo, done' do
       todo = create
 
       assert_equal todo.with(done: true), api.complete(id: todo.id)
@@ -363,9 +363,9 @@ Rows are values, so the tests compare them with `==`, and `todo.with(done: true)
 `test/app_test.rb` tests what `app.rb` decides, over HTTP, with `Skyward::API::Test.client`, which calls the app in-process without a server: one request to each API at the path it's mounted at, and that `/openapi.json` documents every path and `/docs` is served. Endpoint behaviour stays in the API's own test. Add a test that `Todos::API` is mounted at `/todos`, inside `describe "App"`, after the test of `/up` that came with the app:
 
 ```ruby
-describe "GET /todos" do
-  it "serves Todos::API" do
-    response = client.get("/todos")
+describe 'GET /todos' do
+  it 'serves Todos::API' do
+    response = client.get('/todos')
 
     assert_equal [200, []], [response.status, response.json]
   end

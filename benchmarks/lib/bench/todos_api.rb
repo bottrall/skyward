@@ -5,8 +5,8 @@
 # @rbs use Skyward::API::*
 
 class Bench::TodosAPI < Skyward::API
-  get  "/:id", to: :show
-  post "/",    to: :create
+  get  '/:id', to: :show
+  post '/',    to: :create
 
   Todo = Data.define(
     :id,      #: Integer

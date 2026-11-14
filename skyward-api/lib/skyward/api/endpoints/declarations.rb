@@ -114,9 +114,9 @@ module Skyward::API::Endpoints::Declarations
   # @rbs to: untyped
   # @rbs return: String?
   def problem_with(path, to)
-    return "the path must be a String that starts with /" unless path.is_a?(String) && path.start_with?("/")
+    return 'the path must be a String that starts with /' unless path.is_a?(String) && path.start_with?('/')
 
-    names = path.split("/").filter_map { |segment| segment.delete_prefix(":") if segment.start_with?(":") }
+    names = path.split('/').filter_map { |segment| segment.delete_prefix(':') if segment.start_with?(':') }
     invalid = names.find { |name| !PARAMETER_NAME.match?(name) }
     return "path parameter #{invalid.inspect} isn't a valid keyword name" if invalid
 

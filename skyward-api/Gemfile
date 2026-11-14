@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
 # Only this gem and the Skyward gems it depends on, so a test that reaches
 # for any other fails here.
 gemspec
 
-gem "skyward-core", path: "../skyward-core"
+gem 'skyward-core', path: '../skyward-core'
 
-gem "minitest", "~> 6.0"
-gem "rake", "~> 13.4"
+gem 'minitest', '~> 6.0'
+gem 'rake', '~> 13.4'
 
 # Test-only, to show CORS working through use.
-gem "rack-cors", "~> 3.0"
+gem 'rack-cors', '~> 3.0'
 
 # Test-only, to validate the OpenAPI document against the OpenAPI 3.1 schema.
-gem "json_schemer", "~> 2.5"
+gem 'json_schemer', '~> 2.5'
 
 # Test-only, so skyward check finds rbs-inline and Steep in the bundle it runs
 # in when it checks the fixture apps, and skyward routes and openapi find
 # rbs-inline to regenerate one's signatures.
-gem "rbs-inline", "~> 0.14", require: false
-gem "steep", "~> 2.1", require: false
+gem 'rbs-inline', '~> 0.14', require: false
+gem 'steep', '~> 2.1', require: false

@@ -14,9 +14,9 @@ class Skyward::ORM::Database
     :rollback #: Array[String]
   )
 
-  TRANSACTION = Statements.new(start: "BEGIN", commit: ["COMMIT"], rollback: ["ROLLBACK"]) #: Statements
+  TRANSACTION = Statements.new(start: 'BEGIN', commit: ['COMMIT'], rollback: ['ROLLBACK']) #: Statements
 
-  FOREIGN = "this transaction belongs to another fiber; start your own, or return the result to the block" #: String
+  FOREIGN = 'this transaction belongs to another fiber; start your own, or return the result to the block' #: String
 
   # @rbs @adapter: Skyward::ORM::_Adapter
   # @rbs @pool: Skyward::ORM::Connection::Pool
@@ -333,7 +333,7 @@ class Skyward::ORM::Database
   def run(sql, values)
     statement = Skyward::ORM::Statements::Placeholders.replace(sql, values.size) { |position| @adapter.placeholder(position) }
     binds = values.map { |value| @adapter.encode(value) }
-    Skyward::ORM::Statements::Placeholders.require_scalars(binds, "Skyward.query")
+    Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'Skyward.query')
     result = connection { |checked_out| checked_out.execute2(statement, *binds) }
     [result.fetch(0).map(&:to_sym), result.drop(1)]
   rescue StandardError => e
@@ -349,9 +349,9 @@ class Skyward::ORM::Database
   # @rbs return: void
   def unmatched(row, columns, members)
     extra = columns - members
-    raise ArgumentError, "#{row} has no member for #{extra.join(", ")}, which the SQL returns" if extra.any?
+    raise ArgumentError, "#{row} has no member for #{extra.join(', ')}, which the SQL returns" if extra.any?
 
     missing = members - columns
-    raise ArgumentError, "The SQL returns no #{missing.join(", ")} for #{row}" if missing.any?
+    raise ArgumentError, "The SQL returns no #{missing.join(', ')} for #{row}" if missing.any?
   end
 end

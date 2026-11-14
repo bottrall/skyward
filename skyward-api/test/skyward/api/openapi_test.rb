@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "json"
-require "json_schemer"
-require "test_helper"
-require "tmpdir"
+require 'json'
+require 'json_schemer'
+require 'test_helper'
+require 'tmpdir'
 
 module OpenAPIFixtures
   Todo = Data.define(:id, :title)
@@ -11,7 +11,7 @@ module OpenAPIFixtures
   List = Data.define(:todos)
 
   class Todos < Skyward::API
-    description "Things to do."
+    description 'Things to do.'
   end
 
   class Users < Skyward::API
@@ -29,23 +29,23 @@ describe Skyward::API::OpenAPI do
   string = types::Scalar.new(name: :string)
   field = ->(name, type, required = true) { types::Field.new(name:, type:, required:) }
   todo = types::Named.new(
-    name: "OpenAPIFixtures::Todo",
+    name: 'OpenAPIFixtures::Todo',
     klass: OpenAPIFixtures::Todo,
     fields: [field.call(:id, integer), field.call(:title, string)]
   )
   draft = types::Named.new(
-    name: "OpenAPIFixtures::Draft",
+    name: 'OpenAPIFixtures::Draft',
     klass: OpenAPIFixtures::Draft,
     fields: [field.call(:title, string), field.call(:note, types::Nullable.new(type: string))]
   )
   list = types::Named.new(
-    name: "OpenAPIFixtures::List",
+    name: 'OpenAPIFixtures::List',
     klass: OpenAPIFixtures::List,
     fields: [field.call(:todos, types::ArrayOf.new(type: draft))]
   )
-  request = types::Named.new(name: "Skyward::API::Request", klass: Skyward::API::Request, fields: [])
-  todo_ref = { "$ref" => "#/components/schemas/OpenAPIFixtures.Todo" }
-  problem_ref = { "$ref" => "#/components/schemas/Problem" }
+  request = types::Named.new(name: 'Skyward::API::Request', klass: Skyward::API::Request, fields: [])
+  todo_ref = { '$ref' => '#/components/schemas/OpenAPIFixtures.Todo' }
+  problem_ref = { '$ref' => '#/components/schemas/Problem' }
 
   def keyword(name, source, type, required: true)
     Skyward::API::Routing::Router::Keyword.new(name:, source:, required:, type:)
@@ -53,8 +53,8 @@ describe Skyward::API::OpenAPI do
 
   def endpoint(
     to,
-    verb: "GET",
-    path: ["", "todos"],
+    verb: 'GET',
+    path: ['', 'todos'],
     api: OpenAPIFixtures::Todos.new,
     keywords: [],
     providers: [],
@@ -62,7 +62,7 @@ describe Skyward::API::OpenAPI do
     summary: nil,
     description: nil
   )
-    written = path.map { |part| part.is_a?(Symbol) ? ":#{part}" : part }.join("/")
+    written = path.map { |part| part.is_a?(Symbol) ? ":#{part}" : part }.join('/')
     Skyward::API::Routing::Router::Endpoint.new(
       verb:,
       pattern: path,
@@ -74,17 +74,17 @@ describe Skyward::API::OpenAPI do
       keywords:,
       providers:,
       returns:,
-      signature: "() -> untyped",
+      signature: '() -> untyped',
       inputs: Skyward::API::Inputs.new(keywords, providers:, max_body_size: 10),
-      serializer: Skyward::API::Serializer.new(returns, label: "")
+      serializer: Skyward::API::Serializer.new(returns, label: '')
     )
   end
 
   def json(
     *endpoints,
     static: Skyward::API::Assembly::Static.new([]),
-    title: "API",
-    version: "0.1.0",
+    title: 'API',
+    version: '0.1.0',
     description: nil,
     schema_names: {}
   )
@@ -99,161 +99,161 @@ describe Skyward::API::OpenAPI do
 
   def refusal(*, **) = assert_raises(Skyward::Core::BootError) { json(*, **) }.message
 
-  def operation(*endpoints, path: "/todos", verb: "get", **) = document(*endpoints, **).dig("paths", path, verb)
+  def operation(*endpoints, path: '/todos', verb: 'get', **) = document(*endpoints, **).dig('paths', path, verb)
 
-  def responses(*, **) = operation(*, **).fetch("responses")
+  def responses(*, **) = operation(*, **).fetch('responses')
 
-  def returned(type) = responses(endpoint(:index, returns: [type])).dig("200", "content", "application/json", "schema")
+  def returned(type) = responses(endpoint(:index, returns: [type])).dig('200', 'content', 'application/json', 'schema')
 
   def sent(type, required: true)
-    body = endpoint(:create, verb: "POST", keywords: [keyword(:body, :body, type, required:)])
-    operation(body, verb: "post").fetch("requestBody")
+    body = endpoint(:create, verb: 'POST', keywords: [keyword(:body, :body, type, required:)])
+    operation(body, verb: 'post').fetch('requestBody')
   end
 
-  def components(*, **) = document(*, **).dig("components", "schemas")
+  def components(*, **) = document(*, **).dig('components', 'schemas')
 
-  describe ".json" do
-    describe "refusing to boot" do
-      it "refuses a route at /openapi.json, where the document is served" do
+  describe '.json' do
+    describe 'refusing to boot' do
+      it 'refuses a route at /openapi.json, where the document is served' do
         assert_equal "OpenAPIFixtures::Todos#docs (POST /openapi.json)\n  " \
-                     "With docs: true, /openapi.json serves the OpenAPI document. " \
+                     'With docs: true, /openapi.json serves the OpenAPI document. ' \
                      "Change the route's path, or leave out docs:.",
-                     refusal(endpoint(:docs, verb: "POST", path: ["", "openapi.json"]))
+                     refusal(endpoint(:docs, verb: 'POST', path: ['', 'openapi.json']))
       end
 
-      it "refuses a route at /openapi.json before building the document, which has problems of its own" do
+      it 'refuses a route at /openapi.json before building the document, which has problems of its own' do
         assert_match(
           %r{\AOpenAPIFixtures::Todos#docs \(GET /openapi\.json\)\n  With docs: true},
-          refusal(endpoint(:docs, path: ["", "openapi.json"]), endpoint(:docs, path: ["", "docs"]))
+          refusal(endpoint(:docs, path: ['', 'openapi.json']), endpoint(:docs, path: ['', 'docs']))
         )
       end
 
-      it "allows a path parameter where /openapi.json would be" do
-        assert_includes document(endpoint(:show, path: ["", :id], keywords: [keyword(:id, :path, string)]))["paths"],
-                        "/{id}"
+      it 'allows a path parameter where /openapi.json would be' do
+        assert_includes document(endpoint(:show, path: ['', :id], keywords: [keyword(:id, :path, string)]))['paths'],
+                        '/{id}'
       end
 
-      it "refuses a static file at /openapi.json" do
+      it 'refuses a static file at /openapi.json' do
         Dir.mktmpdir do |root|
-          File.write(File.join(root, "openapi.json"), "{}")
+          File.write(File.join(root, 'openapi.json'), '{}')
           static = Skyward::API::Assembly::Static.new(
-            [Skyward::API::Assembly::Builder::Static.new(prefix: "/", from: root)]
+            [Skyward::API::Assembly::Builder::Static.new(prefix: '/', from: root)]
           )
 
           assert_equal "static serves #{root}/openapi.json at /openapi.json, where docs: true serves the OpenAPI " \
-                       "document. Move the file, or leave out docs:.",
+                       'document. Move the file, or leave out docs:.',
                        refusal(endpoint(:index), static:)
         end
       end
 
-      it "refuses a route at /docs, where the API reference is served" do
+      it 'refuses a route at /docs, where the API reference is served' do
         assert_equal "OpenAPIFixtures::Todos#docs (GET /docs)\n  " \
-                     "With docs: true, /docs serves the API reference. " \
+                     'With docs: true, /docs serves the API reference. ' \
                      "Change the route's path, or leave out docs:.",
-                     refusal(endpoint(:docs, path: ["", "docs"]))
+                     refusal(endpoint(:docs, path: ['', 'docs']))
       end
 
-      it "refuses a static file at /docs" do
+      it 'refuses a static file at /docs' do
         Dir.mktmpdir do |root|
-          File.write(File.join(root, "docs"), "<h1>Docs</h1>")
+          File.write(File.join(root, 'docs'), '<h1>Docs</h1>')
           static = Skyward::API::Assembly::Static.new(
-            [Skyward::API::Assembly::Builder::Static.new(prefix: "/", from: root)]
+            [Skyward::API::Assembly::Builder::Static.new(prefix: '/', from: root)]
           )
 
           assert_equal "static serves #{root}/docs at /docs, where docs: true serves the API reference. " \
-                       "Move the file, or leave out docs:.",
+                       'Move the file, or leave out docs:.',
                        refusal(endpoint(:index), static:)
         end
       end
 
-      it "refuses two operations with the same ID" do
+      it 'refuses two operations with the same ID' do
         assert_equal "OpenAPIFixtures::Todos#index (GET /todos/done)\n  " \
-                     "Its OpenAPI operation ID, OpenAPIFixtures.Todos_index, is OpenAPIFixtures::Todos#index " \
+                     'Its OpenAPI operation ID, OpenAPIFixtures.Todos_index, is OpenAPIFixtures::Todos#index ' \
                      "(GET /todos)'s too, but each operation needs its own. " \
-                     "With docs: true, route each method once, and mount each class once.",
-                     refusal(endpoint(:index), endpoint(:index, path: ["", "todos", "done"]))
+                     'With docs: true, route each method once, and mount each class once.',
+                     refusal(endpoint(:index), endpoint(:index, path: ['', 'todos', 'done']))
       end
 
       it "refuses a schema name OpenAPI doesn't allow" do
         assert_equal "OpenAPIFixtures::Todo's schema name, \"To do\", isn't one OpenAPI allows: use only letters, " \
-                     "digits, ., - and _. Name it with Skyward.app(schema_names:).",
-                     refusal(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => "To do" })
+                     'digits, ., - and _. Name it with Skyward.app(schema_names:).',
+                     refusal(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => 'To do' })
       end
 
-      it "refuses two types with the same schema name" do
-        names = { OpenAPIFixtures::Todo => "Thing", OpenAPIFixtures::Draft => "Thing" }
+      it 'refuses two types with the same schema name' do
+        names = { OpenAPIFixtures::Todo => 'Thing', OpenAPIFixtures::Draft => 'Thing' }
 
-        assert_equal "OpenAPIFixtures::Todo and OpenAPIFixtures::Draft both have the schema name Thing, " \
-                     "but each schema needs its own. Name one of them with Skyward.app(schema_names:).",
+        assert_equal 'OpenAPIFixtures::Todo and OpenAPIFixtures::Draft both have the schema name Thing, ' \
+                     'but each schema needs its own. Name one of them with Skyward.app(schema_names:).',
                      refusal(endpoint(:index, returns: [todo, draft]), schema_names: names)
       end
 
       it "refuses a type named Problem, which is Skyward API's" do
         assert_match(
           /\ASkyward API's problem\+json and OpenAPIFixtures::Todo both have the schema name Problem/,
-          refusal(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => "Problem" })
+          refusal(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => 'Problem' })
         )
       end
     end
 
-    it "writes the same JSON for the same app" do
-      build = -> { json(endpoint(:index, returns: [list, todo]), endpoint(:show, path: ["", "todos", :id])) }
+    it 'writes the same JSON for the same app' do
+      build = -> { json(endpoint(:index, returns: [list, todo]), endpoint(:show, path: ['', 'todos', :id])) }
 
       assert_equal build.call, build.call
     end
 
     it "is an OpenAPI 3.1 document with the info it's given" do
-      written = document(endpoint(:index), title: "Todos", version: "1.0.0", description: "Lists of things.")
+      written = document(endpoint(:index), title: 'Todos', version: '1.0.0', description: 'Lists of things.')
 
       assert_equal(
-        ["3.1.0", { "title" => "Todos", "version" => "1.0.0", "description" => "Lists of things." }],
-        written.values_at("openapi", "info")
+        ['3.1.0', { 'title' => 'Todos', 'version' => '1.0.0', 'description' => 'Lists of things.' }],
+        written.values_at('openapi', 'info')
       )
     end
 
-    it "leaves the description out of info when it has none" do
-      assert_equal({ "title" => "API", "version" => "0.1.0" }, document(endpoint(:index))["info"])
+    it 'leaves the description out of info when it has none' do
+      assert_equal({ 'title' => 'API', 'version' => '0.1.0' }, document(endpoint(:index))['info'])
     end
 
-    it "has a tag for each class, in mount order, with its description when it has one" do
+    it 'has a tag for each class, in mount order, with its description when it has one' do
       users = OpenAPIFixtures::Users.new
-      written = document(endpoint(:index), endpoint(:index, path: ["", "users"], api: users), endpoint(:show))
+      written = document(endpoint(:index), endpoint(:index, path: ['', 'users'], api: users), endpoint(:show))
 
-      assert_equal [{ "name" => "OpenAPIFixtures.Todos", "description" => "Things to do." },
-                    { "name" => "OpenAPIFixtures.Users" }],
-                   written["tags"]
+      assert_equal [{ 'name' => 'OpenAPIFixtures.Todos', 'description' => 'Things to do.' },
+                    { 'name' => 'OpenAPIFixtures.Users' }],
+                   written['tags']
     end
 
-    describe "paths" do
-      it "writes a path parameter in braces" do
-        show = endpoint(:show, path: ["", "todos", :id], keywords: [keyword(:id, :path, integer)])
+    describe 'paths' do
+      it 'writes a path parameter in braces' do
+        show = endpoint(:show, path: ['', 'todos', :id], keywords: [keyword(:id, :path, integer)])
 
-        assert_equal ["/todos/{id}"], document(show)["paths"].keys
+        assert_equal ['/todos/{id}'], document(show)['paths'].keys
       end
 
-      it "writes the root path as /" do
-        assert_equal ["/"], document(endpoint(:index, path: ["", ""]))["paths"].keys
+      it 'writes the root path as /' do
+        assert_equal ['/'], document(endpoint(:index, path: ['', '']))['paths'].keys
       end
 
       it "puts each method's operation on a path under its verb, in lowercase" do
-        written = document(endpoint(:index), endpoint(:create, verb: "POST"))
+        written = document(endpoint(:index), endpoint(:create, verb: 'POST'))
 
-        assert_equal %w[get post], written.dig("paths", "/todos").keys
+        assert_equal %w[get post], written.dig('paths', '/todos').keys
       end
     end
 
-    describe "an operation" do
-      it "is tagged with its class and identified by its class and method, with :: as ." do
+    describe 'an operation' do
+      it 'is tagged with its class and identified by its class and method, with :: as .' do
         written = operation(endpoint(:index, api: OpenAPIFixtures::Admin::Todos.new))
 
-        assert_equal [["OpenAPIFixtures.Admin.Todos"], "OpenAPIFixtures.Admin.Todos_index"],
-                     written.values_at("tags", "operationId")
+        assert_equal [['OpenAPIFixtures.Admin.Todos'], 'OpenAPIFixtures.Admin.Todos_index'],
+                     written.values_at('tags', 'operationId')
       end
 
       it "has the route's summary and description" do
-        written = operation(endpoint(:index, summary: "List todos.", description: "Newest *first*."))
+        written = operation(endpoint(:index, summary: 'List todos.', description: 'Newest *first*.'))
 
-        assert_equal ["List todos.", "Newest *first*."], written.values_at("summary", "description")
+        assert_equal ['List todos.', 'Newest *first*.'], written.values_at('summary', 'description')
       end
 
       it "leaves out a summary, a description, parameters and a request body it doesn't have" do
@@ -261,26 +261,26 @@ describe Skyward::API::OpenAPI do
       end
     end
 
-    describe "parameters" do
+    describe 'parameters' do
       def parameters(*keywords)
-        operation(endpoint(:show, path: ["", "todos", :id], keywords:), path: "/todos/{id}").fetch("parameters")
+        operation(endpoint(:show, path: ['', 'todos', :id], keywords:), path: '/todos/{id}').fetch('parameters')
       end
 
-      it "takes a path parameter as required" do
-        assert_equal [{ "name" => "id", "in" => "path", "required" => true, "schema" => { "type" => "integer" } }],
+      it 'takes a path parameter as required' do
+        assert_equal [{ 'name' => 'id', 'in' => 'path', 'required' => true, 'schema' => { 'type' => 'integer' } }],
                      parameters(keyword(:id, :path, integer))
       end
 
       it "leaves null out of a path parameter's schema, and still requires it" do
-        assert_equal [{ "name" => "id", "in" => "path", "required" => true, "schema" => { "type" => "integer" } }],
+        assert_equal [{ 'name' => 'id', 'in' => 'path', 'required' => true, 'schema' => { 'type' => 'integer' } }],
                      parameters(keyword(:id, :path, types::Nullable.new(type: integer)))
       end
 
-      it "takes a query keyword from the query, required when the method requires it" do
+      it 'takes a query keyword from the query, required when the method requires it' do
         written = parameters(keyword(:id, :path, integer), keyword(:limit, :query, integer))
 
         assert_equal(
-          { "name" => "limit", "in" => "query", "required" => true, "schema" => { "type" => "integer" } },
+          { 'name' => 'limit', 'in' => 'query', 'required' => true, 'schema' => { 'type' => 'integer' } },
           written.last
         )
       end
@@ -288,56 +288,56 @@ describe Skyward::API::OpenAPI do
       it "doesn't require a query keyword the method makes optional" do
         written = parameters(keyword(:id, :path, integer), keyword(:limit, :query, integer, required: false))
 
-        assert_equal [false, { "type" => "integer" }], written.last.values_at("required", "schema")
+        assert_equal [false, { 'type' => 'integer' }], written.last.values_at('required', 'schema')
       end
 
       it "doesn't require a nullable query keyword, and leaves null out of its schema" do
         written = parameters(keyword(:id, :path, integer), keyword(:done, :query, types::Nullable.new(type: string)))
 
-        assert_equal [false, { "type" => "string" }], written.last.values_at("required", "schema")
+        assert_equal [false, { 'type' => 'string' }], written.last.values_at('required', 'schema')
       end
 
-      it "writes an untyped path or query keyword as a string, which is all either carries" do
+      it 'writes an untyped path or query keyword as a string, which is all either carries' do
         untyped = types::Scalar.new(name: :untyped)
         written = parameters(keyword(:id, :path, untyped), keyword(:shout, :query, types::Nullable.new(type: untyped)))
 
-        assert_equal([{ "type" => "string" }] * 2, written.map { |parameter| parameter["schema"] })
+        assert_equal([{ 'type' => 'string' }] * 2, written.map { |parameter| parameter['schema'] })
       end
 
-      it "leaves out request:, which is no part of the HTTP contract" do
+      it 'leaves out request:, which is no part of the HTTP contract' do
         written = parameters(keyword(:id, :path, integer), keyword(:request, :request, request))
 
-        assert_equal(["id"], written.map { |parameter| parameter["name"] })
+        assert_equal(['id'], written.map { |parameter| parameter['name'] })
       end
     end
 
-    describe "the request body" do
-      it "takes body: as a required JSON body of its type" do
+    describe 'the request body' do
+      it 'takes body: as a required JSON body of its type' do
         assert_equal(
-          { "required" => true, "content" => { "application/json" => { "schema" => todo_ref } } },
+          { 'required' => true, 'content' => { 'application/json' => { 'schema' => todo_ref } } },
           sent(todo)
         )
       end
 
       it "doesn't require a body the method makes optional" do
-        refute sent(todo, required: false).fetch("required")
+        refute sent(todo, required: false).fetch('required')
       end
 
       it "doesn't require a nullable body, which may be null" do
         written = sent(types::Nullable.new(type: todo))
 
-        assert_equal [false, { "anyOf" => [todo_ref, { "type" => "null" }] }],
-                     [written["required"], written.dig("content", "application/json", "schema")]
+        assert_equal [false, { 'anyOf' => [todo_ref, { 'type' => 'null' }] }],
+                     [written['required'], written.dig('content', 'application/json', 'schema')]
       end
     end
 
-    describe "responses" do
-      def content(type, schema) = { type => { "schema" => schema } }
+    describe 'responses' do
+      def content(type, schema) = { type => { 'schema' => schema } }
 
       it "adds each provider's responses to the endpoint's, sharing a response where they share a status" do
         provider = lambda do |name, *klasses|
           responses = klasses.map { |klass| Skyward::API::Routing::Router::Response.new(klass:) }
-          serializer = Skyward::API::Serializer.new(responses, label: "")
+          serializer = Skyward::API::Serializer.new(responses, label: '')
           Skyward::API::Routing::Router::Provider.new(
             name:,
             callable: ->(_request) {},
@@ -353,42 +353,42 @@ describe Skyward::API::OpenAPI do
         not_found = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound)
         written = responses(endpoint(:index, providers:, returns: [todo, not_found]))
 
-        assert_equal [%w[200 401 403 404], content("application/problem+json", problem_ref)],
-                     [written.keys, written.dig("401", "content")]
+        assert_equal [%w[200 401 403 404], content('application/problem+json', problem_ref)],
+                     [written.keys, written.dig('401', 'content')]
       end
 
-      it "adds a 422 to an endpoint with inputs, sharing the Problem schema with a returned 422" do
+      it 'adds a 422 to an endpoint with inputs, sharing the Problem schema with a returned 422' do
         unprocessable = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unprocessable)
         written = responses(endpoint(:index, keywords: [keyword(:limit, :query, integer)], returns: [unprocessable]))
 
         assert_equal(
-          { "description" => "Unprocessable Content", "content" => content("application/problem+json", problem_ref) },
-          written["422"]
+          { 'description' => 'Unprocessable Content', 'content' => content('application/problem+json', problem_ref) },
+          written['422']
         )
       end
 
-      it "adds no 422 to an endpoint that takes only request:" do
+      it 'adds no 422 to an endpoint that takes only request:' do
         written = responses(endpoint(:index, keywords: [keyword(:request, :request, request)]))
 
-        refute_includes written.keys, "422"
+        refute_includes written.keys, '422'
       end
 
-      it "adds a 422 to an endpoint that takes request: and a query keyword" do
+      it 'adds a 422 to an endpoint that takes request: and a query keyword' do
         written = responses(
           endpoint(:index, keywords: [keyword(:request, :request, request), keyword(:limit, :query, integer)])
         )
 
-        assert_includes written.keys, "422"
+        assert_includes written.keys, '422'
       end
 
-      it "adds a 413 and a 415 to an endpoint that takes body:" do
-        written = responses(endpoint(:create, verb: "POST", keywords: [keyword(:body, :body, todo)]), verb: "post")
+      it 'adds a 413 and a 415 to an endpoint that takes body:' do
+        written = responses(endpoint(:create, verb: 'POST', keywords: [keyword(:body, :body, todo)]), verb: 'post')
 
-        assert_equal [%w[413 415 422], ["Content Too Large", "Unsupported Media Type"]],
-                     [written.keys, written.values_at("413", "415").map { |response| response["description"] }]
+        assert_equal [%w[413 415 422], ['Content Too Large', 'Unsupported Media Type']],
+                     [written.keys, written.values_at('413', '415').map { |response| response['description'] }]
       end
 
-      it "orders the responses by status" do
+      it 'orders the responses by status' do
         returns = [
           Skyward::API::Routing::Router::Rack.new,
           Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound),
@@ -401,116 +401,116 @@ describe Skyward::API::OpenAPI do
         assert_equal %w[200 201 204 3XX 404 default], responses(endpoint(:index, returns:)).keys
       end
 
-      it "answers Created[T] with a 201 JSON response of T" do
+      it 'answers Created[T] with a 201 JSON response of T' do
         created = Skyward::API::Routing::Router::Created.new(type: todo)
 
         assert_equal(
-          { "201" => { "description" => "Created", "content" => content("application/json", todo_ref) } },
+          { '201' => { 'description' => 'Created', 'content' => content('application/json', todo_ref) } },
           responses(endpoint(:index, returns: [created]))
         )
       end
 
-      it "answers a problem with its status and the Problem schema as problem+json" do
+      it 'answers a problem with its status and the Problem schema as problem+json' do
         not_found = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NotFound)
 
         assert_equal(
-          { "404" => { "description" => "Not Found", "content" => content("application/problem+json", problem_ref) } },
+          { '404' => { 'description' => 'Not Found', 'content' => content('application/problem+json', problem_ref) } },
           responses(endpoint(:index, returns: [not_found]))
         )
       end
 
-      it "answers Redirect with any 3XX status and a location header" do
+      it 'answers Redirect with any 3XX status and a location header' do
         redirect = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Redirect)
-        location = { "location" => { "schema" => { "type" => "string" } } }
+        location = { 'location' => { 'schema' => { 'type' => 'string' } } }
 
         assert_equal(
-          { "3XX" => { "description" => "Redirect", "headers" => location } },
+          { '3XX' => { 'description' => 'Redirect', 'headers' => location } },
           responses(endpoint(:index, returns: [redirect]))
         )
       end
 
-      it "answers NoContent with a 204 and no content" do
+      it 'answers NoContent with a 204 and no content' do
         no_content = Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::NoContent)
 
-        assert_equal({ "204" => { "description" => "No Content" } }, responses(endpoint(:index, returns: [no_content])))
+        assert_equal({ '204' => { 'description' => 'No Content' } }, responses(endpoint(:index, returns: [no_content])))
       end
 
-      it "answers a Rack triple with a default response and no schema" do
+      it 'answers a Rack triple with a default response and no schema' do
         description = "A Rack response, whose status and content are known only when it's sent"
 
         assert_equal(
-          { "default" => { "description" => description } },
+          { 'default' => { 'description' => description } },
           responses(endpoint(:index, returns: [Skyward::API::Routing::Router::Rack.new]))
         )
       end
 
-      it "answers a plain type with a 200 JSON response" do
+      it 'answers a plain type with a 200 JSON response' do
         assert_equal(
-          { "200" => { "description" => "OK", "content" => content("application/json", todo_ref) } },
+          { '200' => { 'description' => 'OK', 'content' => content('application/json', todo_ref) } },
           responses(endpoint(:index, returns: [todo]))
         )
       end
 
-      it "answers untyped with a 200 of any value and no default, though it can send a Rack triple" do
+      it 'answers untyped with a 200 of any value and no default, though it can send a Rack triple' do
         assert_equal(
-          { "200" => { "description" => "OK", "content" => content("application/json", {}) } },
+          { '200' => { 'description' => 'OK', 'content' => content('application/json', {}) } },
           responses(endpoint(:index, returns: [types::Scalar.new(name: :untyped)]))
         )
       end
 
-      it "gives members that share a status one response, with oneOf their schemas" do
+      it 'gives members that share a status one response, with oneOf their schemas' do
         written = responses(endpoint(:index, returns: [todo, types::Reader::NIL_LITERAL]))
 
         assert_equal(
-          { "oneOf" => [todo_ref, { "type" => "null" }] },
-          written.dig("200", "content", "application/json", "schema")
+          { 'oneOf' => [todo_ref, { 'type' => 'null' }] },
+          written.dig('200', 'content', 'application/json', 'schema')
         )
       end
     end
 
-    describe "components" do
-      it "has no component for Skyward::API::Request, which request: takes" do
+    describe 'components' do
+      it 'has no component for Skyward::API::Request, which request: takes' do
         written = components(endpoint(:index, keywords: [keyword(:request, :request, request)]))
 
-        assert_equal ["Problem"], written.keys
+        assert_equal ['Problem'], written.keys
       end
 
       it "always has the Problem schema, of RFC 9457 problem+json and a 422's errors" do
-        problem = components(endpoint(:index)).fetch("Problem")
+        problem = components(endpoint(:index)).fetch('Problem')
 
         assert_equal [%w[type title status], %w[type title status detail errors]],
-                     [problem["required"], problem["properties"].keys]
+                     [problem['required'], problem['properties'].keys]
       end
 
-      it "names a class by its constant path, with :: as ." do
+      it 'names a class by its constant path, with :: as .' do
         assert_equal(
           {
-            "type" => "object",
-            "properties" => { "id" => { "type" => "integer" }, "title" => { "type" => "string" } },
-            "required" => %w[id title]
+            'type' => 'object',
+            'properties' => { 'id' => { 'type' => 'integer' }, 'title' => { 'type' => 'string' } },
+            'required' => %w[id title]
           },
-          components(endpoint(:index, returns: [todo])).fetch("OpenAPIFixtures.Todo")
+          components(endpoint(:index, returns: [todo])).fetch('OpenAPIFixtures.Todo')
         )
       end
 
       it "names a class by schema_names: when it's given one, wherever it's referred to" do
-        written = document(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => "Todo" })
+        written = document(endpoint(:index, returns: [todo]), schema_names: { OpenAPIFixtures::Todo => 'Todo' })
 
-        assert_equal [%w[Problem Todo], { "$ref" => "#/components/schemas/Todo" }],
-                     [written.dig("components", "schemas").keys,
+        assert_equal [%w[Problem Todo], { '$ref' => '#/components/schemas/Todo' }],
+                     [written.dig('components', 'schemas').keys,
                       written.dig(
-                        "paths",
-                        "/todos",
-                        "get",
-                        "responses",
-                        "200",
-                        "content",
-                        "application/json",
-                        "schema"
+                        'paths',
+                        '/todos',
+                        'get',
+                        'responses',
+                        '200',
+                        'content',
+                        'application/json',
+                        'schema'
                       )]
       end
 
-      it "has each class reached through arrays, records, unions, nullables and other classes, by name" do
+      it 'has each class reached through arrays, records, unions, nullables and other classes, by name' do
         record = types::Record.new(fields: [field.call(:list, types::Nullable.new(type: list))])
         returned = types::Union.new(types: [types::ArrayOf.new(type: record), integer])
         created = Skyward::API::Routing::Router::Created.new(type: todo)
@@ -524,168 +524,168 @@ describe Skyward::API::OpenAPI do
                      components(endpoint(:index, returns: [types::HashOf.new(type: todo)])).keys
       end
 
-      it "requires a nullable field of a class used only in responses" do
+      it 'requires a nullable field of a class used only in responses' do
         assert_equal %w[title note],
-                     components(endpoint(:index, returns: [draft])).dig("OpenAPIFixtures.Draft", "required")
+                     components(endpoint(:index, returns: [draft])).dig('OpenAPIFixtures.Draft', 'required')
       end
 
       it "doesn't require a nullable field of a class used in a request, even inside another" do
-        create = endpoint(:create, verb: "POST", keywords: [keyword(:body, :body, list)], returns: [draft])
+        create = endpoint(:create, verb: 'POST', keywords: [keyword(:body, :body, list)], returns: [draft])
 
-        assert_equal ["title"], components(create).dig("OpenAPIFixtures.Draft", "required")
+        assert_equal ['title'], components(create).dig('OpenAPIFixtures.Draft', 'required')
       end
     end
 
-    describe "schemas" do
-      it "maps each scalar" do
+    describe 'schemas' do
+      it 'maps each scalar' do
         written = %i[integer float string bool date time decimal untyped].map do |name|
           returned(types::Scalar.new(name:))
         end
 
-        assert_equal [{ "type" => "integer" }, { "type" => "number" }, { "type" => "string" }, { "type" => "boolean" },
-                      { "type" => "string", "format" => "date" }, { "type" => "string", "format" => "date-time" },
-                      { "type" => "string", "format" => "decimal" }, {}],
+        assert_equal [{ 'type' => 'integer' }, { 'type' => 'number' }, { 'type' => 'string' }, { 'type' => 'boolean' },
+                      { 'type' => 'string', 'format' => 'date' }, { 'type' => 'string', 'format' => 'date-time' },
+                      { 'type' => 'string', 'format' => 'decimal' }, {}],
                      written
       end
 
-      it "maps a literal to its value as a const" do
-        assert_equal({ "const" => 42 }, returned(types::Literal.new(value: 42)))
+      it 'maps a literal to its value as a const' do
+        assert_equal({ 'const' => 42 }, returned(types::Literal.new(value: 42)))
       end
 
-      it "maps nil to null" do
-        assert_equal({ "type" => "null" }, returned(types::Reader::NIL_LITERAL))
+      it 'maps nil to null' do
+        assert_equal({ 'type' => 'null' }, returned(types::Reader::NIL_LITERAL))
       end
 
-      it "maps an enum to its names" do
-        assert_equal({ "type" => "string", "enum" => %w[low high] }, returned(types::Enum.new(symbols: %i[low high])))
+      it 'maps an enum to its names' do
+        assert_equal({ 'type' => 'string', 'enum' => %w[low high] }, returned(types::Enum.new(symbols: %i[low high])))
       end
 
-      it "makes a nullable type null too, by its type when it has one" do
+      it 'makes a nullable type null too, by its type when it has one' do
         nullable = types::Nullable.new(type: types::Scalar.new(name: :date))
 
-        assert_equal({ "type" => %w[string null], "format" => "date" }, returned(nullable))
+        assert_equal({ 'type' => %w[string null], 'format' => 'date' }, returned(nullable))
       end
 
-      it "makes a nullable BigDecimal a string or null, keeping its format" do
+      it 'makes a nullable BigDecimal a string or null, keeping its format' do
         nullable = types::Nullable.new(type: types::Scalar.new(name: :decimal))
 
-        assert_equal({ "type" => %w[string null], "format" => "decimal" }, returned(nullable))
+        assert_equal({ 'type' => %w[string null], 'format' => 'decimal' }, returned(nullable))
       end
 
-      it "makes a nullable enum null too, with anyOf" do
+      it 'makes a nullable enum null too, with anyOf' do
         nullable = types::Nullable.new(type: types::Enum.new(symbols: %i[low high]))
 
         assert_equal(
-          { "anyOf" => [{ "type" => "string", "enum" => %w[low high] }, { "type" => "null" }] },
+          { 'anyOf' => [{ 'type' => 'string', 'enum' => %w[low high] }, { 'type' => 'null' }] },
           returned(nullable)
         )
       end
 
-      it "maps an array to its items" do
+      it 'maps an array to its items' do
         assert_equal(
-          { "type" => "array", "items" => { "type" => "integer" } },
+          { 'type' => 'array', 'items' => { 'type' => 'integer' } },
           returned(types::ArrayOf.new(type: integer))
         )
       end
 
-      it "maps a Hash to an object whose additionalProperties are its values" do
+      it 'maps a Hash to an object whose additionalProperties are its values' do
         written = [types::ArrayOf.new(type: todo), types::Scalar.new(name: :untyped)].map do |type|
           returned(types::HashOf.new(type:))
         end
 
-        assert_equal [{ "type" => "object", "additionalProperties" => { "type" => "array", "items" => todo_ref } },
-                      { "type" => "object", "additionalProperties" => {} }],
+        assert_equal [{ 'type' => 'object', 'additionalProperties' => { 'type' => 'array', 'items' => todo_ref } },
+                      { 'type' => 'object', 'additionalProperties' => {} }],
                      written
       end
 
-      it "maps a record to an inline object, requiring the keys it requires" do
+      it 'maps a record to an inline object, requiring the keys it requires' do
         record = types::Record.new(fields: [field.call(:id, integer), field.call(:note, string, false)])
 
         assert_equal(
           {
-            "type" => "object",
-            "properties" => { "id" => { "type" => "integer" }, "note" => { "type" => "string" } },
-            "required" => ["id"]
+            'type' => 'object',
+            'properties' => { 'id' => { 'type' => 'integer' }, 'note' => { 'type' => 'string' } },
+            'required' => ['id']
           },
           returned(record)
         )
       end
 
-      it "requires a nullable field in a response, which always writes it" do
+      it 'requires a nullable field in a response, which always writes it' do
         record = types::Record.new(fields: [field.call(:note, types::Nullable.new(type: string))])
 
-        assert_equal ["note"], returned(record).fetch("required")
+        assert_equal ['note'], returned(record).fetch('required')
       end
 
       it "doesn't require a nullable field in a request, which may leave it out" do
         record = types::Record.new(fields: [field.call(:note, types::Nullable.new(type: string))])
 
-        assert_empty sent(record).dig("content", "application/json", "schema", "required")
+        assert_empty sent(record).dig('content', 'application/json', 'schema', 'required')
       end
 
-      it "refers to a class with typed readers by its component" do
+      it 'refers to a class with typed readers by its component' do
         assert_equal todo_ref, returned(todo)
       end
 
-      it "maps a refined type as the type it refines" do
-        assert_equal({ "type" => "string" }, returned(types::Refined.new(type: string, as: :uuid)))
+      it 'maps a refined type as the type it refines' do
+        assert_equal({ 'type' => 'string' }, returned(types::Refined.new(type: string, as: :uuid)))
       end
 
-      it "maps a union to oneOf its members" do
+      it 'maps a union to oneOf its members' do
         assert_equal(
-          { "oneOf" => [{ "type" => "integer" }, todo_ref] },
+          { 'oneOf' => [{ 'type' => 'integer' }, todo_ref] },
           returned(types::Union.new(types: [integer, todo]))
         )
       end
     end
 
-    it "is valid against the OpenAPI 3.1 schema" do
+    it 'is valid against the OpenAPI 3.1 schema' do
       record = types::Record.new(fields: [field.call(:note, types::Nullable.new(type: string), false)])
       endpoints = [
         endpoint(
           :index,
           keywords: [keyword(:tags, :query, types::ArrayOf.new(type: string), required: false)],
           returns: [types::ArrayOf.new(type: todo), record, types::HashOf.new(type: types::Nullable.new(type: todo))],
-          summary: "List todos."
+          summary: 'List todos.'
         ),
         endpoint(
           :create,
-          verb: "POST",
+          verb: 'POST',
           keywords: [keyword(:body, :body, list)],
           returns: [Skyward::API::Routing::Router::Created.new(type: draft),
                     Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Conflict)]
         ),
         endpoint(
           :show,
-          path: ["", "todos", :id],
+          path: ['', 'todos', :id],
           keywords: [keyword(:id, :path, integer)],
           returns: [types::Union.new(types: [todo, types::Enum.new(symbols: %i[gone])]),
                     Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Redirect),
                     Skyward::API::Routing::Router::Rack.new]
         )
       ]
-      errors = JSONSchemer.openapi(document(*endpoints, description: "Todos.")).validate.map { |error| error["error"] }
+      errors = JSONSchemer.openapi(document(*endpoints, description: 'Todos.')).validate.map { |error| error['error'] }
 
       assert_empty errors
     end
   end
 
-  describe ".document" do
+  describe '.document' do
     def built(*endpoints)
-      Skyward::API::OpenAPI.document(endpoints, title: "API", version: "0.1.0", description: nil, schema_names: {})
+      Skyward::API::OpenAPI.document(endpoints, title: 'API', version: '0.1.0', description: nil, schema_names: {})
     end
 
-    it "builds the document .json writes" do
+    it 'builds the document .json writes' do
       assert_equal document(endpoint(:index)), JSON.parse(JSON.generate(built(endpoint(:index))))
     end
 
-    it "allows a route at /openapi.json, which only a served document needs free" do
-      assert_equal ["/openapi.json"], built(endpoint(:docs, path: ["", "openapi.json"]))[:paths].keys
+    it 'allows a route at /openapi.json, which only a served document needs free' do
+      assert_equal ['/openapi.json'], built(endpoint(:docs, path: ['', 'openapi.json']))[:paths].keys
     end
 
     it "refuses a document it can't build, such as one with two operations of one ID" do
       error = assert_raises(Skyward::Core::BootError) do
-        built(endpoint(:index), endpoint(:index, path: ["", "todos", "done"]))
+        built(endpoint(:index), endpoint(:index, path: ['', 'todos', 'done']))
       end
 
       assert_match(/Its OpenAPI operation ID, OpenAPIFixtures\.Todos_index, is/, error.message)
