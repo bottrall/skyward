@@ -2,6 +2,6 @@
 
 guard :shell do
   watch(%r{^((skyward-core|skyward-api|skyward-orm|skyward)/lib/.*|examples/[^/]+/((lib|modules)/.*|[^/]+))\.rb$}) do
-    system("bundle exec rake rbs:generate")
+    system("bin/generate")
   end
 end

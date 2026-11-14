@@ -70,8 +70,11 @@ bundle_test_tasks = BUNDLES.filter_map do |dir|
 
   desc "Run #{dir}'s tests in its own bundle"
   task "test:#{dir}" do
+    # The unbundled environment predates rake setting TESTOPTS from its
+    # arguments, so it's passed on.
+    options = ENV.fetch("TESTOPTS", nil)
     Bundler.with_unbundled_env do
-      env = { "TEST" => files&.join(","), **prepare_test_database(dir) }.compact
+      env = { "TEST" => files&.join(","), "TESTOPTS" => options, **prepare_test_database(dir) }.compact
       sh env, "bundle", "exec", "rake", "test", chdir: dir
     end
   end
@@ -90,15 +93,33 @@ end
 desc "Run every gem's and example's tests, each in its own bundle, and the tooling's"
 task test: [*bundle_test_tasks, *("test:tooling" unless tooling_tests.empty?)]
 
-RuboCop::RakeTask.new do |t|
+RuboCop::RakeTask.new(:lint) do |t|
   # RuboCop also applies AllCops/Exclude from every .rubocop.yml above the
   # project, so a checkout inside another one (a worktree under .claude/)
   # would otherwise inspect nothing and pass.
   t.options = ["--ignore-parent-exclusion", *ENV.fetch("RUBOCOP_OPTS", "").split]
 end
 
-desc "Run RuboCop"
-task lint: :rubocop
+desc "Install each gem's and example's own bundle, then the gem signatures the collection locks"
+task :setup do
+  Bundler.with_unbundled_env { BUNDLES.each { |dir| sh "bundle", "install", chdir: dir } }
+  sh "rbs collection install"
+end
+
+desc "Generate RBS signatures from inline annotations in every gem and example"
+task :generate do
+  BUNDLES.each { |dir| write_signatures(dir, "sig/generated") }
+end
+
+namespace :generate do
+  desc "Watch every gem's Ruby and regenerate RBS files on change"
+  task :watch do
+    require "guard"
+    require "guard/commander"
+
+    Guard.start(no_interactions: true)
+  end
+end
 
 namespace :rbs do
   desc "Fail if rbs_collection.lock.yaml is out of date with rbs_collection.yaml or Gemfile.lock"
@@ -112,16 +133,6 @@ namespace :rbs do
     abort "rbs_collection.lock.yaml is out of date; run `bin/setup` and commit the result"
   end
 
-  desc "Install the gem signatures the collection locks"
-  task :collection_install do
-    sh "rbs collection install"
-  end
-
-  desc "Generate RBS signatures from inline annotations in every gem and example"
-  task :generate do
-    BUNDLES.each { |dir| write_signatures(dir, "sig/generated") }
-  end
-
   desc "Fail if any gem's or example's rbs-inline output is out of date with its Ruby"
   task :check do
     BUNDLES.each do |source|
@@ -129,18 +140,10 @@ namespace :rbs do
         write_signatures(source, dir)
         FileUtils.mkdir_p("#{source}/sig/generated")
         sh "diff -ruN #{source}/sig/generated #{dir}" do |ok, _|
-          abort "#{source}/sig/generated is out of date; run bin/rbs and commit the result" unless ok
+          abort "#{source}/sig/generated is out of date; run bin/generate and commit the result" unless ok
         end
       end
     end
-  end
-
-  desc "Watch every gem's Ruby and regenerate RBS files on change"
-  task :watch do
-    require "guard"
-    require "guard/commander"
-
-    Guard.start(no_interactions: true)
   end
 end
 
@@ -157,42 +160,37 @@ end
 desc "Check the RBS signatures and collection are current, then run Steep"
 task typecheck: %w[rbs:check rbs:collection_check steep:check]
 
-namespace :package do
-  desc "Build every gem into #{PKG}/"
-  task :build do
-    FileUtils.rm_rf(PKG)
-    FileUtils.mkdir_p(PKG)
-    GEMS.each do |gem|
-      sh "gem", "build", "--quiet", "#{gem}.gemspec", chdir: gem
-      FileUtils.mv(Dir["#{gem}/#{gem}-[0-9]*.gem"], PKG)
-    end
+desc "Build every gem into #{PKG}/, install them into an empty GEM_HOME, load them and run skyward, then check " \
+     "the app skyward new writes passes its own bin/ci, as a user would"
+task :build do
+  FileUtils.rm_rf(PKG)
+  FileUtils.mkdir_p(PKG)
+  GEMS.each do |gem|
+    sh "gem", "build", "--quiet", "#{gem}.gemspec", chdir: gem
+    FileUtils.mv(Dir["#{gem}/#{gem}-[0-9]*.gem"], PKG)
   end
 
-  desc "Install the built gems into an empty GEM_HOME, load them and run skyward, then check the app skyward new " \
-       "writes passes its own bin/ci, as a user would"
-  task check: :build do
-    Dir.mktmpdir("skyward-gems") do |home|
-      env = { "GEM_HOME" => home, "GEM_PATH" => home }
-      skyward = File.join(home, "bin", "skyward")
-      Bundler.with_unbundled_env do
-        GEMS.each { |gem| sh env, "gem", "install", "--no-document", *Dir["#{PKG}/#{gem}-[0-9]*.gem"] }
-        # Eager loading every loader fails on a file the gemspec left out.
-        sh env, Gem.ruby, "-e", <<~RUBY
-          require "skyward"
-          require "skyward/generator"
-          Zeitwerk::Loader.eager_load_all
-          puts "Installed and loaded skyward \#{Skyward::VERSION} from #{PKG}/"
-        RUBY
-        output, status = Open3.capture2e(env, skyward)
-        puts output
-        usage = output.start_with?("Usage: skyward COMMAND [ARGS]\n")
-        abort "The installed skyward didn't exit 0 and print its usage" unless status.success? && usage
-        # The app's Gemfile pins skyward at this version, which Bundler finds
-        # among the gems just installed, released or not.
-        Dir.mktmpdir("skyward-new") do |apps|
-          sh env, skyward, "new", "demo", chdir: apps
-          sh env, "bin/ci", chdir: File.join(apps, "demo")
-        end
+  Dir.mktmpdir("skyward-gems") do |home|
+    env = { "GEM_HOME" => home, "GEM_PATH" => home }
+    skyward = File.join(home, "bin", "skyward")
+    Bundler.with_unbundled_env do
+      GEMS.each { |gem| sh env, "gem", "install", "--no-document", *Dir["#{PKG}/#{gem}-[0-9]*.gem"] }
+      # Eager loading every loader fails on a file the gemspec left out.
+      sh env, Gem.ruby, "-e", <<~RUBY
+        require "skyward"
+        require "skyward/generator"
+        Zeitwerk::Loader.eager_load_all
+        puts "Installed and loaded skyward \#{Skyward::VERSION} from #{PKG}/"
+      RUBY
+      output, status = Open3.capture2e(env, skyward)
+      puts output
+      usage = output.start_with?("Usage: skyward COMMAND [ARGS]\n")
+      abort "The installed skyward didn't exit 0 and print its usage" unless status.success? && usage
+      # The app's Gemfile pins skyward at this version, which Bundler finds
+      # among the gems just installed, released or not.
+      Dir.mktmpdir("skyward-new") do |apps|
+        sh env, skyward, "new", "demo", chdir: apps
+        sh env, "bin/ci", chdir: File.join(apps, "demo")
       end
     end
   end
@@ -212,8 +210,3 @@ namespace :release do
     abort "#{tag} doesn't match the gems' version, #{shared}" unless tag == "v#{shared}"
   end
 end
-
-desc "Run everything CI runs"
-task ci: %w[lint typecheck test package:check]
-
-task default: :ci

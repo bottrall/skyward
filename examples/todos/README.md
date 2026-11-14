@@ -31,7 +31,7 @@ The code is grouped by domain. `boot.rb` loads `lib/` and `modules/` with Zeitwe
 | `modules/todos/service.rb` | `Todos::Service`, the queries and writes                                           |
 | `modules/todos/api.rb`     | `Todos::API`, the `/todos` endpoints, which return `Todos::Record` rows directly    |
 | `db/migrate/`              | the migration `skyward migration` wrote from the table classes on SQLite, committed as written |
-| `sig/`                     | `sig/generated` from the inline annotations (`bin/rbs`), and `sig/manual`          |
+| `sig/`                     | `sig/generated` from the inline annotations (`bin/generate`), and `sig/manual`          |
 | `Steepfile`                | what `skyward check` type-checks                                                   |
 
 `Todos::Record` uses each of the ORM's declarations: a reference to `Lists::Record` that cascades on delete, defaults for `priority` and `done`, a check on the title's length, a symbol union for `priority` and an index on `list_id` and `done`.
