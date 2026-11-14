@@ -108,6 +108,17 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs return: String
   def ruby: (untyped value) -> String
 
+  # Ruby source for a value in the shared style: a String or a quoted Symbol in
+  # single quotes, unless it holds a quote, a backslash or a character only an
+  # escape can write, which double quotes are for.
+  # @rbs value: untyped
+  # @rbs return: String
+  def literal: (untyped value) -> String
+
+  # @rbs text: String
+  # @rbs return: bool
+  def single_quotable?: (String text) -> bool
+
   # A foreign key a class declares is on one column, and refers to the
   # primary key of the table it references.
   # @rbs constraint: Skyward::ORM::Catalog::Constraint

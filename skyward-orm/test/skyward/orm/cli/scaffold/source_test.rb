@@ -90,8 +90,8 @@ describe Skyward::ORM::CLI::Scaffold::Source do
         class Todo < Skyward::ORM::Record
           table :todos
           references :list_id, MigrationsFixtures::List, on_delete: :cascade
-          default priority: :normal, done: false, created_at: Skyward.sql("now()")
-          check :title, Skyward.sql("((length(title) >= 1) AND (length(title) <= 200))")
+          default priority: :normal, done: false, created_at: Skyward.sql('now()')
+          check :title, Skyward.sql('((length(title) >= 1) AND (length(title) <= 200))')
           index :list_id, :done
 
           # @dynamic id, list_id, title, priority, due_on, done, created_at
@@ -306,7 +306,7 @@ describe Skyward::ORM::CLI::Scaffold::Source do
       constraints = [constraint(nil, :check, [:a], 'CHECK (length(a) BETWEEN 1 AND 200)')]
       indexes = [index('todos_a', [:a], 'CREATE INDEX todos_a ON todos(a)')]
 
-      assert_equal "  check :a, Skyward.sql(\"length(a) BETWEEN 1 AND 200\")\n  index :a",
+      assert_equal "  check :a, Skyward.sql('length(a) BETWEEN 1 AND 200')\n  index :a",
                    body([column(:a, 'TEXT')], adapter: sqlite, constraints:, indexes:)
     end
 
@@ -384,7 +384,7 @@ describe Skyward::ORM::CLI::Scaffold::Source do
         ['boolean', 'true'], ['date', "'2026-01-01'"], ['bytea', "'{}'"]
       ].map { |type, default| default(type, default) }
 
-      assert_equal ['-1', '1.5', '0', %("it's"), %("x"), 'true', 'Date.new(2026, 1, 1)', %("{}")], defaults
+      assert_equal ['-1', '1.5', '0', %("it's"), "'x'", 'true', 'Date.new(2026, 1, 1)', "'{}'"], defaults
     end
 
     it "reads SQLite's 0 and 1 as a bool's false and true" do
@@ -406,6 +406,13 @@ describe Skyward::ORM::CLI::Scaffold::Source do
                       '  default a: :low'
     end
 
+    it 'writes a symbol that needs quoting in single quotes' do
+      check = constraint(nil, :check, [:a], "CHECK (a IN ('two words', 'one'))")
+
+      assert_includes body([column(:a, 'TEXT', default: "'two words'")], adapter: sqlite, constraints: [check]),
+                      "  default a: :'two words'"
+    end
+
     it "writes any other default as SQL, without the parentheses SQLite's adapter puts back" do
       defaults = [
         ['timestamp with time zone', 'now()', postgresql], ['integer', "nextval('todos_id_seq'::regclass)", postgresql],
@@ -414,9 +421,9 @@ describe Skyward::ORM::CLI::Scaffold::Source do
         ['DATETIME', '(CURRENT_TIMESTAMP)', sqlite], ['TEXT', "('a' || 'b')", sqlite]
       ].map { |type, default, adapter| default(type, default, adapter:) }
       expected = [
-        'Skyward.sql("now()")', %(Skyward.sql("nextval('todos_id_seq'::regclass)")), 'Skyward.sql("1.10")',
-        'Skyward.sql("CURRENT_DATE")', %(Skyward.sql("'2026-02-30'")), %(Skyward.sql("'t'")),
-        'Skyward.sql("CURRENT_TIMESTAMP")', %(Skyward.sql("'a' || 'b'"))
+        %(Skyward.sql('now()')), %(Skyward.sql("nextval('todos_id_seq'::regclass)")), %(Skyward.sql('1.10')),
+        %(Skyward.sql('CURRENT_DATE')), %(Skyward.sql("'2026-02-30'")), %(Skyward.sql("'t'")),
+        %(Skyward.sql('CURRENT_TIMESTAMP')), %(Skyward.sql("'a' || 'b'"))
       ]
 
       assert_equal expected, defaults
@@ -433,7 +440,7 @@ describe Skyward::ORM::CLI::Scaffold::Source do
       ]
       expected = <<~RUBY.chomp
         # `skyward migration` will rewrite these defaults once, as the values below, since SQLite keeps each as it was written: a, b, c, d
-        default a: 1.5, b: true, c: Time.utc(2026, 1, 2, 3, 4, 5), d: 10, e: "x"
+        default a: 1.5, b: true, c: Time.utc(2026, 1, 2, 3, 4, 5), d: 10, e: 'x'
       RUBY
 
       assert_equal expected.gsub(/^/, '  '), body(columns, adapter: sqlite)
@@ -450,7 +457,7 @@ describe Skyward::ORM::CLI::Scaffold::Source do
         # `skyward migration` will drop these, since a table class can't declare them:
         #   a DEFAULT '2026-02-30 03:04:05.000000'
         #   b DEFAULT 'x'
-        default c: "x"
+        default c: 'x'
       RUBY
 
       assert_equal expected.gsub(/^/, '  '), body(columns, adapter: sqlite)

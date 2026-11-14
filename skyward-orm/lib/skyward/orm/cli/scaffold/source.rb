@@ -57,7 +57,7 @@ module Skyward::ORM::CLI::Scaffold::Source
       "# rbs_inline: enabled\n",
       ("# @rbs use Skyward::ORM::*\n" if refined),
       "\nclass #{class_name(table.name)} < Skyward::ORM::Record\n",
-      "  table #{table.name.inspect}\n",
+      "  table #{literal(table.name)}\n",
       *declarations(table, tables, adapter, classes, checks - unions.values.map(&:first), types),
       "\n  # @dynamic #{table.columns.map(&:name).join(', ')}\n",
       *readers(table.columns, unions, types),
@@ -99,7 +99,7 @@ module Skyward::ORM::CLI::Scaffold::Source
     [
       (DROPPED unless undeclared.empty?),
       *undeclared,
-      ("  primary_key #{key.inspect}\n" unless key == :id),
+      ("  primary_key #{literal(key)}\n" unless key == :id),
       *references.flat_map { |reference| reference(table.name, reference, classes) },
       (comment("#{REWRITTEN}#{rewritten.join(', ')}") unless rewritten.empty?),
       ("  default #{declared.map { |column, value| "#{column.name}: #{value}" }.join(', ')}\n" unless declared.empty?),
@@ -114,7 +114,7 @@ module Skyward::ORM::CLI::Scaffold::Source
         ]
       end,
       *column_checks.map do |check|
-        "  check #{check.columns.fetch(0).inspect}, Skyward.sql(#{rule(check).inspect})\n"
+        "  check #{literal(check.columns.fetch(0))}, Skyward.sql(#{literal(rule(check))})\n"
       end,
       *indexes.map { |index| columns('index', index) }
     ].compact
@@ -187,7 +187,7 @@ module Skyward::ORM::CLI::Scaffold::Source
     return [column, literal, true] if literal
 
     expression = [sql, sql[PARENTHESIZED, 1]].compact.find { |candidate| adapter.default_expression(candidate) == sql }
-    return [column, "Skyward.sql(#{expression.inspect})", true] if expression
+    return [column, "Skyward.sql(#{literal(expression)})", true] if expression
 
     [column, (ruby(read.first) unless read.empty?), false]
   end
@@ -238,9 +238,28 @@ module Skyward::ORM::CLI::Scaffold::Source
       parts = [value.year, value.month, value.day, value.hour, value.min, value.sec,
                (value.usec unless value.usec.zero?)]
       "Time.utc(#{parts.compact.join(', ')})"
+    else literal(value)
+    end
+  end
+
+  # Ruby source for a value in the shared style: a String or a quoted Symbol in
+  # single quotes, unless it holds a quote, a backslash or a character only an
+  # escape can write, which double quotes are for.
+  # @rbs value: untyped
+  # @rbs return: String
+  def literal(value)
+    case value
+    when String then single_quotable?(value) ? "'#{value}'" : value.inspect
+    when Symbol
+      written = value.inspect
+      written.start_with?(':"') && single_quotable?(value.name) ? ":'#{value.name}'" : written
     else value.inspect
     end
   end
+
+  # @rbs text: String
+  # @rbs return: bool
+  def single_quotable?(text) = !text.match?(/['\\]/) && text.match?(/\A[[:print:]]*\z/)
 
   # A foreign key a class declares is on one column, and refers to the
   # primary key of the table it references.
@@ -263,7 +282,7 @@ module Skyward::ORM::CLI::Scaffold::Source
     owner = classes.find { |klass| klass.table_name == referenced }
     action = constraint.definition[Skyward::ORM::Migrations::Diff::ON_DELETE, 1].to_s.downcase.split.join('_')
     on_delete = ", on_delete: :#{action}" unless ['', 'no_action'].include?(action)
-    line = "  references #{constraint.columns.fetch(0).inspect}, #{owner || class_name(referenced)}#{on_delete}\n"
+    line = "  references #{literal(constraint.columns.fetch(0))}, #{owner || class_name(referenced)}#{on_delete}\n"
     return [line] if owner || referenced == table
 
     [comment("#{referenced} has no class yet. Scaffold it too: skyward scaffold #{referenced}"), line]
@@ -283,7 +302,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs declaration: String
   # @rbs key: Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index
   # @rbs return: String
-  def columns(declaration, key) = "  #{declaration} #{key.columns.map(&:inspect).join(', ')}\n"
+  def columns(declaration, key) = "  #{declaration} #{key.columns.map { |column| literal(column) }.join(', ')}\n"
 
   # Every line of the text is commented, since a definition or name the
   # database keeps can hold a newline.
