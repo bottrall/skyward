@@ -54,14 +54,31 @@ class Skyward::API::Routing::Router
     :serializer #: Skyward::API::Serializer
   )
 
+  Target = Data.define(
+    :index, #: Integer
+    :endpoint, #: Endpoint
+    :params #: Array[[Symbol, Integer]]
+  )
+
+  # First is the lowest index in or below the node, so a search can skip a node that can't beat what it has found.
+  Node = Data.define(
+    :literals, #: Hash[String, Node]
+    :param, #: Node?
+    :target, #: Target?
+    :first #: Integer
+  )
+
   METHODS = %w[GET HEAD POST PUT PATCH DELETE OPTIONS].freeze #: Array[String]
 
-  # @rbs @endpoints: Array[Endpoint]
+  # @rbs @trees: Hash[String, Node]
 
   # @rbs endpoints: Array[Endpoint]
   # @rbs return: void
   def initialize(endpoints)
-    @endpoints = endpoints
+    targets = endpoints.each_with_index.map do |endpoint, index|
+      Target.new(index:, endpoint:, params: params_of(endpoint.pattern).freeze)
+    end
+    @trees = targets.group_by { |target| target.endpoint.verb }.transform_values { |group| build(group, 0) }.freeze
   end
 
   # @rbs verb: String
@@ -69,15 +86,21 @@ class Skyward::API::Routing::Router
   # @rbs return: Match?
   def match(verb, path)
     segments = path.split('/', -1)
-    routed = verb == 'HEAD' ? 'GET' : verb
-    @endpoints.lazy.filter_map { |endpoint| match_endpoint(endpoint, routed, segments) }.first
+    target = search(@trees.fetch(verb == 'HEAD' ? 'GET' : verb, nil), segments, 0, nil)
+    return unless target
+
+    endpoint = target.endpoint
+    params = target.params.to_h do |name, position|
+      [name, Skyward::API::Routing::PercentEncoding.decode(segments[position])]
+    end
+    Match.new(api: endpoint.api, to: endpoint.to, inputs: endpoint.inputs, params:, serializer: endpoint.serializer)
   end
 
   # @rbs path: String
   # @rbs return: Array[String]
   def allowed(path)
     segments = path.split('/', -1)
-    verbs = @endpoints.filter_map { |endpoint| endpoint.verb if params_for(endpoint.pattern, segments) }
+    verbs = @trees.filter_map { |verb, tree| verb if search(tree, segments, 0, nil) }
     return [] if verbs.empty?
 
     implied = verbs.include?('GET') ? %w[HEAD OPTIONS] : %w[OPTIONS]
@@ -86,30 +109,48 @@ class Skyward::API::Routing::Router
 
   private
 
-  # @rbs endpoint: Endpoint
-  # @rbs verb: String
-  # @rbs segments: Array[String]
-  # @rbs return: Match?
-  def match_endpoint(endpoint, verb, segments)
-    return unless endpoint.verb == verb
-
-    params = params_for(endpoint.pattern, segments)
-    return unless params
-
-    Match.new(api: endpoint.api, to: endpoint.to, inputs: endpoint.inputs, params:, serializer: endpoint.serializer)
+  # @rbs pattern: Array[String | Symbol]
+  # @rbs return: Array[[Symbol, Integer]]
+  def params_of(pattern)
+    pattern.each_with_index.filter_map { |part, position| [part, position] if part.is_a?(Symbol) }
   end
 
-  # @rbs pattern: Array[String | Symbol]
+  # @rbs targets: Array[Target]
+  # @rbs depth: Integer
+  # @rbs return: Node
+  def build(targets, depth)
+    ending, deeper = targets.partition { |target| target.endpoint.pattern.length == depth }
+    params, literals = deeper.partition { |target| target.endpoint.pattern.fetch(depth).is_a?(Symbol) }
+    by_segment = literals.group_by { |target| target.endpoint.pattern.fetch(depth).to_s }
+    # Targets come in index order, so a node's first target is its earliest.
+    Node.new(
+      literals: by_segment.transform_values { |group| build(group, depth + 1) }.freeze,
+      param: params.empty? ? nil : build(params, depth + 1),
+      target: ending.first,
+      first: targets.fetch(0).index
+    )
+  end
+
+  # @rbs node: Node?
   # @rbs segments: Array[String]
-  # @rbs return: Hash[Symbol, String]?
-  def params_for(pattern, segments)
-    return unless pattern.length == segments.length
+  # @rbs depth: Integer
+  # @rbs best: Target?
+  # @rbs return: Target?
+  def search(node, segments, depth, best)
+    return best unless node && (best.nil? || node.first < best.index)
+    return earlier(node.target, best) if depth == segments.length
 
-    pairs = segments.zip(pattern)
-    return unless pairs.all? { |segment, part| part.is_a?(Symbol) ? !segment.empty? : segment == part }
+    segment = segments[depth]
+    found = search(node.literals[segment], segments, depth + 1, best)
+    segment.empty? ? found : search(node.param, segments, depth + 1, found)
+  end
 
-    pairs.filter_map do |segment, part|
-      [part, Skyward::API::Routing::PercentEncoding.decode(segment)] if part.is_a?(Symbol)
-    end.to_h
+  # @rbs target: Target?
+  # @rbs best: Target?
+  # @rbs return: Target?
+  def earlier(target, best)
+    return best unless target && (best.nil? || target.index < best.index)
+
+    target
   end
 end

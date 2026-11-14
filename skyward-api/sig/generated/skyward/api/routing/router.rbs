@@ -126,9 +126,42 @@ class Skyward::API::Routing::Router
     def members: () -> [ :api, :to, :inputs, :params, :serializer ]
   end
 
+  class Target < Data
+    attr_reader index(): Integer
+
+    attr_reader endpoint(): Endpoint
+
+    attr_reader params(): Array[[ Symbol, Integer ]]
+
+    def self.new: (Integer index, Endpoint endpoint, Array[[ Symbol, Integer ]] params) -> instance
+                | (index: Integer, endpoint: Endpoint, params: Array[[ Symbol, Integer ]]) -> instance
+
+    def self.members: () -> [ :index, :endpoint, :params ]
+
+    def members: () -> [ :index, :endpoint, :params ]
+  end
+
+  # First is the lowest index in or below the node, so a search can skip a node that can't beat what it has found.
+  class Node < Data
+    attr_reader literals(): Hash[String, Node]
+
+    attr_reader param(): Node?
+
+    attr_reader target(): Target?
+
+    attr_reader first(): Integer
+
+    def self.new: (Hash[String, Node] literals, Node? param, Target? target, Integer first) -> instance
+                | (literals: Hash[String, Node], param: Node?, target: Target?, first: Integer) -> instance
+
+    def self.members: () -> [ :literals, :param, :target, :first ]
+
+    def members: () -> [ :literals, :param, :target, :first ]
+  end
+
   METHODS: Array[String]
 
-  @endpoints: Array[Endpoint]
+  @trees: Hash[String, Node]
 
   # @rbs endpoints: Array[Endpoint]
   # @rbs return: void
@@ -145,14 +178,24 @@ class Skyward::API::Routing::Router
 
   private
 
-  # @rbs endpoint: Endpoint
-  # @rbs verb: String
-  # @rbs segments: Array[String]
-  # @rbs return: Match?
-  def match_endpoint: (Endpoint endpoint, String verb, Array[String] segments) -> Match?
-
   # @rbs pattern: Array[String | Symbol]
+  # @rbs return: Array[[Symbol, Integer]]
+  def params_of: (Array[String | Symbol] pattern) -> Array[[ Symbol, Integer ]]
+
+  # @rbs targets: Array[Target]
+  # @rbs depth: Integer
+  # @rbs return: Node
+  def build: (Array[Target] targets, Integer depth) -> Node
+
+  # @rbs node: Node?
   # @rbs segments: Array[String]
-  # @rbs return: Hash[Symbol, String]?
-  def params_for: (Array[String | Symbol] pattern, Array[String] segments) -> Hash[Symbol, String]?
+  # @rbs depth: Integer
+  # @rbs best: Target?
+  # @rbs return: Target?
+  def search: (Node? node, Array[String] segments, Integer depth, Target? best) -> Target?
+
+  # @rbs target: Target?
+  # @rbs best: Target?
+  # @rbs return: Target?
+  def earlier: (Target? target, Target? best) -> Target?
 end
