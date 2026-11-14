@@ -45,6 +45,11 @@ module Skyward::ORM::Queries::Clauses
     :on #: Hash[Symbol, Symbol]
   )
 
+  InList = Data.define(
+    :placeholders, #: Integer
+    :null #: bool
+  )
+
   # @rbs @table: singleton(Skyward::ORM::Record)
   # @rbs @session: Skyward::ORM::Connection::Session
   # @rbs @joins: Array[Join]
@@ -216,10 +221,12 @@ module Skyward::ORM::Queries::Clauses
 
     database = @session.database
     prepare(database)
-    sql, binds = from(database, [], @limit)
-    counted = @groups.empty? && @limit.nil? && @offset.nil? ? sql : %(FROM (SELECT 1 #{sql}) AS "counted")
+    sql, binds = selecting(database, :count, [], @limit) do |from|
+      counted = @groups.empty? && @limit.nil? && @offset.nil? ? from : %(FROM (SELECT 1 #{from}) AS "counted")
+      "SELECT COUNT(*) #{counted}"
+    end
     # PostgreSQL's driver returns every value as text, so the adapter reads it.
-    database.adapter.decode(COUNT, database.execute("SELECT COUNT(*) #{counted}", binds).fetch(0).fetch(0))
+    database.adapter.decode(COUNT, database.execute(sql, binds).fetch(0).fetch(0))
   end
 
   # Order can't change whether the query has a row, so it's left out, and a
@@ -228,8 +235,8 @@ module Skyward::ORM::Queries::Clauses
   def exists?
     database = @session.database
     prepare(database)
-    sql, binds = from(database, [], [@limit, 1].compact.min)
-    !database.execute("SELECT 1 #{sql}", binds).empty?
+    sql, binds = selecting(database, :exists, [], [@limit, 1].compact.min) { |from| "SELECT 1 #{from}" }
+    !database.execute(sql, binds).empty?
   end
 
   # @rbs () { (R) -> void } -> self
@@ -429,21 +436,95 @@ module Skyward::ORM::Queries::Clauses
   # @rbs limit: Integer?
   # @rbs return: [String, Array[untyped]]
   def statement(database, orders, limit)
-    sql, binds = from(database, orders, limit)
-    columns = Skyward::ORM::Tables::Members.of(@row).map do |member|
-      expression = @expressions.fetch(member, nil)
-      expression ? "#{expression} AS #{Skyward::ORM::Statements.quote(member)}" : qualified(member)
-    end.join(', ')
-    ["SELECT #{columns} #{sql}", binds]
+    selecting(database, [:select, @row, @expressions], orders, limit) do |from|
+      columns = Skyward::ORM::Tables::Members.of(@row).map do |member|
+        expression = @expressions.fetch(member, nil)
+        expression ? "#{expression} AS #{Skyward::ORM::Statements.quote(member)}" : qualified(member)
+      end.join(', ')
+      "SELECT #{columns} #{from}"
+    end
+  end
+
+  # The SQL is rendered from the conditions' shapes, not the conditions, so
+  # two queries that share a key can't render different SQL.
+  # @rbs database: Skyward::ORM::Database
+  # @rbs kind: Symbol | Array[untyped]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs &: (String from) -> String
+  # @rbs return: [String, Array[untyped]]
+  def selecting(database, kind, orders, limit)
+    shapes, binds = bound(database)
+    # A Hash's == ignores the order of its pairs, but ON joins them in it.
+    joins = @joins.map { |join| [join.keyword, join.table, join.on.to_a] }
+    key = [kind, @table, joins, orders, @groups, limit.nil?, @offset.nil?, shapes]
+    sql = database.cached_sql(key) { yield from(database, shapes, orders, limit) }
+    [sql, [*binds, *[limit, @offset].compact]]
+  end
+
+  # The binds follow the order in which from numbers their placeholders.
+  # @rbs database: Skyward::ORM::Database
+  # @rbs return: [Array[condition], Array[untyped]]
+  def bound(database)
+    shaped(database.adapter, Skyward::ORM::Statements.by_name(database.column_types, @table), @conditions)
+  end
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs columns: Hash[Symbol, Skyward::ORM::Tables::Column]
+  # @rbs conditions: Array[condition]
+  # @rbs return: [Array[condition], Array[untyped]]
+  def shaped(adapter, columns, conditions)
+    pairs = conditions.map { |condition| shape(adapter, columns, condition) }
+    [pairs.map { |shape, _| shape }, pairs.flat_map { |_, binds| binds }]
+  end
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs columns: Hash[Symbol, Skyward::ORM::Tables::Column]
+  # @rbs condition: condition
+  # @rbs return: [condition, Array[untyped]]
+  def shape(adapter, columns, condition)
+    case condition
+    when Comparison then compared(adapter, columns.fetch(condition.column), condition)
+    when Fragment
+      binds = condition.values.map { |value| adapter.encode(value) }
+      Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'An SQL condition')
+      [condition.with(values: binds.map { :bound }), binds]
+    when Negation
+      shapes, binds = shaped(adapter, columns, condition.conditions)
+      [Negation.new(conditions: shapes), binds]
+    when Disjunction
+      left, left_binds = shaped(adapter, columns, condition.left)
+      right, right_binds = shaped(adapter, columns, condition.right)
+      [Disjunction.new(left:, right:), [*left_binds, *right_binds]]
+    end
+  end
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs comparison: Comparison
+  # @rbs return: [Comparison, Array[untyped]]
+  def compared(adapter, column, comparison)
+    value = comparison.value
+    case value
+    when nil then [comparison, []]
+    when Array
+      present = value.compact
+      [
+        comparison.with(value: InList.new(placeholders: present.size, null: value.include?(nil))),
+        present.map { |item| Skyward::ORM::Statements.encode(adapter, column, item) }
+      ]
+    else [comparison.with(value: :bound), [Skyward::ORM::Statements.encode(adapter, column, value)]]
+    end
   end
 
   # @rbs database: Skyward::ORM::Database
+  # @rbs shapes: Array[condition]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
-  # @rbs return: [String, Array[untyped]]
-  def from(database, orders, limit)
+  # @rbs return: String
+  def from(database, shapes, orders, limit)
     adapter = database.adapter
-    where, binds = filter(database, 1)
+    where, count = filter(database, shapes, 1)
     columns = Skyward::ORM::Statements.by_name(database.column_types, @table)
     ordered = orders.map do |column, direction|
       "#{adapter.comparable(columns[column]&.type || :untyped, qualified(column))} #{direction.upcase}"
@@ -451,16 +532,15 @@ module Skyward::ORM::Queries::Clauses
     # The limit and offset are bound rather than written in, so every page of a
     # query shares one SQL string.
     paging = [limit, @offset].compact
-    sql = [
+    [
       "FROM #{Skyward::ORM::Statements.quote(@table.table_name)}",
       *@joins.map { |join| joining(join) },
       where,
       ("GROUP BY #{@groups.map { |column| qualified(column) }.join(', ')}" unless @groups.empty?),
       ("ORDER BY #{ordered.join(', ')}" unless orders.empty?),
-      limit ? "LIMIT #{adapter.placeholder(binds.size + 1)}" : (adapter.unlimited if @offset),
-      ("OFFSET #{adapter.placeholder(binds.size + paging.size)}" if @offset)
+      limit ? "LIMIT #{adapter.placeholder(count + 1)}" : (adapter.unlimited if @offset),
+      ("OFFSET #{adapter.placeholder(count + paging.size)}" if @offset)
     ].compact.join(' ')
-    [sql, [*binds, *paging]]
   end
 
   # @rbs join: Join
@@ -473,126 +553,122 @@ module Skyward::ORM::Queries::Clauses
   # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
   # start after them.
   # @rbs database: Skyward::ORM::Database
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String?, Array[untyped]]
-  def filter(database, position)
-    clauses, binds = conjunction(database, @conditions, position)
-    [("WHERE #{clauses}" unless @conditions.empty?), binds]
+  # @rbs return: [String?, Integer]
+  def filter(database, shapes, position)
+    clauses, count = conjunction(database, shapes, position)
+    [("WHERE #{clauses}" unless shapes.empty?), count]
   end
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def conjunction(database, conditions, position)
-    none = [[], []] #: [Array[String], Array[untyped]]
-    clauses, binds = conditions.reduce(none) do |(sqls, values), condition|
-      sql, bound = render(database, condition, position + values.size)
-      [[*sqls, condition.is_a?(Disjunction) && conditions.size > 1 ? "(#{sql})" : sql], [*values, *bound]]
+  # @rbs return: [String, Integer]
+  def conjunction(database, shapes, position)
+    none = [[], 0] #: [Array[String], Integer]
+    clauses, count = shapes.reduce(none) do |(sqls, taken), shape|
+      sql, placeholders = render(database, shape, position + taken)
+      [[*sqls, shape.is_a?(Disjunction) && shapes.size > 1 ? "(#{sql})" : sql], taken + placeholders]
     end
-    [clauses.join(' AND '), binds]
+    [clauses.join(' AND '), count]
   end
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs condition: condition
+  # @rbs shape: condition
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def render(database, condition, position)
-    case condition
-    when Comparison then comparison(database, condition, position)
-    when Fragment then fragment(database, condition, position)
-    when Negation then negation(database, condition.conditions, position)
+  # @rbs return: [String, Integer]
+  def render(database, shape, position)
+    case shape
+    when Comparison then comparison(database, shape, position)
+    when Fragment then fragment(database.adapter, shape, position)
+    when Negation then negation(database, shape.conditions, position)
     when Disjunction
-      left, left_binds = alternative(database, condition.left, position)
-      right, right_binds = alternative(database, condition.right, position + left_binds.size)
-      ["#{left} OR #{right}", [*left_binds, *right_binds]]
+      left, left_count = alternative(database, shape.left, position)
+      right, right_count = alternative(database, shape.right, position + left_count)
+      ["#{left} OR #{right}", left_count + right_count]
     end
   end
 
   # @rbs database: Skyward::ORM::Database
   # @rbs comparison: Comparison
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
+  # @rbs return: [String, Integer]
   def comparison(database, comparison, position)
     adapter = database.adapter
-    column = Skyward::ORM::Statements.by_name(database.column_types, @table).fetch(comparison.column)
     name = qualified(comparison.column)
     value = comparison.value
     case value
-    when nil then ["#{name} IS NULL", []]
-    when Array then within(adapter, column, name, value, position)
+    when nil then ["#{name} IS NULL", 0]
+    when InList then within(adapter, name, value, position)
     else
+      column = Skyward::ORM::Statements.by_name(database.column_types, @table).fetch(comparison.column)
       # = compares exactly as the column stores its values, and only a range's
       # ends need them in order.
       compared = comparison.operator == '=' ? name : adapter.comparable(column.type, name)
-      bound = Skyward::ORM::Statements.encode(adapter, column, value)
-      ["#{compared} #{comparison.operator} #{adapter.placeholder(position)}", [bound]]
+      ["#{compared} #{comparison.operator} #{adapter.placeholder(position)}", 1]
     end
   end
 
-  # @rbs database: Skyward::ORM::Database
+  # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs fragment: Fragment
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def fragment(database, fragment, position)
-    adapter = database.adapter
-    binds = fragment.values.map { |value| adapter.encode(value) }
-    Skyward::ORM::Statements::Placeholders.require_scalars(binds, 'An SQL condition')
-    sql = Skyward::ORM::Statements::Placeholders.replace(fragment.sql, binds.size) do |index|
+  # @rbs return: [String, Integer]
+  def fragment(adapter, fragment, position)
+    count = fragment.values.size
+    sql = Skyward::ORM::Statements::Placeholders.replace(fragment.sql, count) do |index|
       adapter.placeholder(position + index - 1)
     end
     # A -- comment runs to the end of its line, so the closing parenthesis
     # goes on a line of its own.
-    ["(#{sql}#{"\n" if sql.include?('--')})", binds]
+    ["(#{sql}#{"\n" if sql.include?('--')})", count]
   end
 
   # NOT of an unknown is unknown, so a row whose column is NULL would be left
   # out, though it doesn't match. An untyped column may hold NULL, and an SQL
   # string's columns can't be known.
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def negation(database, conditions, position)
-    sql, binds = conjunction(database, conditions, position)
+  # @rbs return: [String, Integer]
+  def negation(database, shapes, position)
+    sql, count = conjunction(database, shapes, position)
     nullable = database.column_types.columns(@table).select { |column| column.nullable || column.type == :untyped }
                        .map(&:name)
-    unknowable = conditions.filter_map do |condition|
-      next unless condition.is_a?(Comparison) && nullable.include?(condition.column)
+    unknowable = shapes.filter_map do |shape|
+      next unless shape.is_a?(Comparison) && nullable.include?(shape.column)
 
-      value = condition.value
-      condition.column unless value.nil? || (value.is_a?(Array) && value.include?(nil))
+      value = shape.value
+      shape.column unless value.nil? || (value.is_a?(InList) && value.null)
     end
     kept = unknowable.uniq.map { |column| " OR #{qualified(column)} IS NULL" }.join
-    [kept.empty? ? "NOT (#{sql})" : "(NOT (#{sql})#{kept})", binds]
+    [kept.empty? ? "NOT (#{sql})" : "(NOT (#{sql})#{kept})", count]
   end
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def alternative(database, conditions, position)
-    sql, binds = conjunction(database, conditions, position)
-    [conditions.size > 1 ? "(#{sql})" : sql, binds]
+  # @rbs return: [String, Integer]
+  def alternative(database, shapes, position)
+    sql, count = conjunction(database, shapes, position)
+    [shapes.size > 1 ? "(#{sql})" : sql, count]
   end
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
   # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs name: String
-  # @rbs values: Array[untyped]
+  # @rbs list: InList
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def within(adapter, column, name, values, position)
-    present = values.compact
-    placeholders = Array.new(present.size) { |index| adapter.placeholder(position + index) }
-    list = "#{name} IN (#{placeholders.join(', ')})"
-    sql = if values.empty? then '1 = 0'
-          elsif present.empty? then "#{name} IS NULL"
-          elsif values.include?(nil) then "(#{list} OR #{name} IS NULL)"
-          else list
+  # @rbs return: [String, Integer]
+  def within(adapter, name, list, position)
+    placeholders = Array.new(list.placeholders) { |index| adapter.placeholder(position + index) }
+    listed = "#{name} IN (#{placeholders.join(', ')})"
+    sql = if list.placeholders.zero? && !list.null then '1 = 0'
+          elsif list.placeholders.zero? then "#{name} IS NULL"
+          elsif list.null then "(#{listed} OR #{name} IS NULL)"
+          else listed
           end
-    [sql, present.map { |value| Skyward::ORM::Statements.encode(adapter, column, value) }]
+    [sql, list.placeholders]
   end
 
   # Steep can't tie the row class to R, so the rows are untyped here and each
@@ -633,34 +709,47 @@ module Skyward::ORM::Queries::Clauses
   end
 
   # @rbs values: Hash[Symbol, untyped]
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def updating(values)
+  def updating(values, returned_row)
     raise ArgumentError, "#{@table} update needs a column to set, such as update(done: true)" if values.empty?
 
     database = @session.database
     column_types = database.column_types
     Skyward::ORM::Statements.require_values(column_types, database.tables, @table, values)
-    assignments = values.keys.each.with_index(1).map do |column, position|
-      "#{Skyward::ORM::Statements.quote(column)} = #{database.adapter.placeholder(position)}"
+    columns = values.keys
+    set = Skyward::ORM::Statements.binds(database.adapter, column_types, @table, values)
+    changing(:update, columns, set, returned_row) do
+      assignments = columns.each.with_index(1).map do |column, position|
+        "#{Skyward::ORM::Statements.quote(column)} = #{database.adapter.placeholder(position)}"
+      end
+      "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(', ')}"
     end
-    changing(
-      :update,
-      "UPDATE #{Skyward::ORM::Statements.quote(@table.table_name)} SET #{assignments.join(', ')}",
-      Skyward::ORM::Statements.binds(database.adapter, column_types, @table, values)
-    )
   end
 
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def deleting = changing(:delete, "DELETE FROM #{Skyward::ORM::Statements.quote(@table.table_name)}", [])
+  def deleting(returned_row)
+    changing(:delete, [], [], returned_row) { "DELETE FROM #{Skyward::ORM::Statements.quote(@table.table_name)}" }
+  end
 
+  # require_writable leaves a write no clause but its conditions, so they and
+  # what it sets and returns are its shape.
   # @rbs method: Symbol
-  # @rbs sql: String
+  # @rbs columns: Array[Symbol]
   # @rbs set: Array[untyped]
+  # @rbs returned_row: Class?
+  # @rbs &: () -> String
   # @rbs return: [String, Array[untyped]]
-  def changing(method, sql, set)
+  def changing(method, columns, set, returned_row)
     require_writable(method)
-    where, binds = filter(@session.database, set.size + 1)
-    [[sql, where].compact.join(' '), [*set, *binds]]
+    database = @session.database
+    shapes, binds = bound(database)
+    sql = database.cached_sql([method, @table, columns, returned_row, shapes]) do
+      where, = filter(database, shapes, set.size + 1)
+      [yield, where, (Skyward::ORM::Statements.returning(returned_row) if returned_row)].compact.join(' ')
+    end
+    [sql, [*set, *binds]]
   end
 
   # @rbs [T] (T | Skyward::ORM::Violation written) -> T

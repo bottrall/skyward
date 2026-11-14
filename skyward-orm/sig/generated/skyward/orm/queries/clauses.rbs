@@ -85,6 +85,19 @@ module Skyward::ORM::Queries::Clauses[R]
     def members: () -> [ :keyword, :table, :on ]
   end
 
+  class InList < Data
+    attr_reader placeholders(): Integer
+
+    attr_reader null(): bool
+
+    def self.new: (Integer placeholders, bool null) -> instance
+                | (placeholders: Integer, null: bool) -> instance
+
+    def self.members: () -> [ :placeholders, :null ]
+
+    def members: () -> [ :placeholders, :null ]
+  end
+
   @offset: Integer?
 
   @limit: Integer?
@@ -293,11 +306,45 @@ module Skyward::ORM::Queries::Clauses[R]
   # @rbs return: [String, Array[untyped]]
   def statement: (Skyward::ORM::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
 
+  # The SQL is rendered from the conditions' shapes, not the conditions, so
+  # two queries that share a key can't render different SQL.
   # @rbs database: Skyward::ORM::Database
+  # @rbs kind: Symbol | Array[untyped]
   # @rbs orders: Array[[Symbol, direction]]
   # @rbs limit: Integer?
+  # @rbs &: (String from) -> String
   # @rbs return: [String, Array[untyped]]
-  def from: (Skyward::ORM::Database database, Array[[ Symbol, direction ]] orders, Integer? limit) -> [ String, Array[untyped] ]
+  def selecting: (Skyward::ORM::Database database, Symbol | Array[untyped] kind, Array[[ Symbol, direction ]] orders, Integer? limit) { (String from) -> String } -> [ String, Array[untyped] ]
+
+  # The binds follow the order in which from numbers their placeholders.
+  # @rbs database: Skyward::ORM::Database
+  # @rbs return: [Array[condition], Array[untyped]]
+  def bound: (Skyward::ORM::Database database) -> [ Array[condition], Array[untyped] ]
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs columns: Hash[Symbol, Skyward::ORM::Tables::Column]
+  # @rbs conditions: Array[condition]
+  # @rbs return: [Array[condition], Array[untyped]]
+  def shaped: (Skyward::ORM::_Adapter adapter, Hash[Symbol, Skyward::ORM::Tables::Column] columns, Array[condition] conditions) -> [ Array[condition], Array[untyped] ]
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs columns: Hash[Symbol, Skyward::ORM::Tables::Column]
+  # @rbs condition: condition
+  # @rbs return: [condition, Array[untyped]]
+  def shape: (Skyward::ORM::_Adapter adapter, Hash[Symbol, Skyward::ORM::Tables::Column] columns, condition condition) -> [ condition, Array[untyped] ]
+
+  # @rbs adapter: Skyward::ORM::_Adapter
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs comparison: Comparison
+  # @rbs return: [Comparison, Array[untyped]]
+  def compared: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::Column column, Comparison comparison) -> [ Comparison, Array[untyped] ]
+
+  # @rbs database: Skyward::ORM::Database
+  # @rbs shapes: Array[condition]
+  # @rbs orders: Array[[Symbol, direction]]
+  # @rbs limit: Integer?
+  # @rbs return: String
+  def from: (Skyward::ORM::Database database, Array[condition] shapes, Array[[ Symbol, direction ]] orders, Integer? limit) -> String
 
   # @rbs join: Join
   # @rbs return: String
@@ -306,57 +353,57 @@ module Skyward::ORM::Queries::Clauses[R]
   # An UPDATE binds its SET values first, so its WHERE's numbered placeholders
   # start after them.
   # @rbs database: Skyward::ORM::Database
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String?, Array[untyped]]
-  def filter: (Skyward::ORM::Database database, Integer position) -> [ String?, Array[untyped] ]
+  # @rbs return: [String?, Integer]
+  def filter: (Skyward::ORM::Database database, Array[condition] shapes, Integer position) -> [ String?, Integer ]
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def conjunction: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def conjunction: (Skyward::ORM::Database database, Array[condition] shapes, Integer position) -> [ String, Integer ]
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs condition: condition
+  # @rbs shape: condition
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def render: (Skyward::ORM::Database database, condition condition, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def render: (Skyward::ORM::Database database, condition shape, Integer position) -> [ String, Integer ]
 
   # @rbs database: Skyward::ORM::Database
   # @rbs comparison: Comparison
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def comparison: (Skyward::ORM::Database database, Comparison comparison, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def comparison: (Skyward::ORM::Database database, Comparison comparison, Integer position) -> [ String, Integer ]
 
-  # @rbs database: Skyward::ORM::Database
+  # @rbs adapter: Skyward::ORM::_Adapter
   # @rbs fragment: Fragment
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def fragment: (Skyward::ORM::Database database, Fragment fragment, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def fragment: (Skyward::ORM::_Adapter adapter, Fragment fragment, Integer position) -> [ String, Integer ]
 
   # NOT of an unknown is unknown, so a row whose column is NULL would be left
   # out, though it doesn't match. An untyped column may hold NULL, and an SQL
   # string's columns can't be known.
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def negation: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def negation: (Skyward::ORM::Database database, Array[condition] shapes, Integer position) -> [ String, Integer ]
 
   # @rbs database: Skyward::ORM::Database
-  # @rbs conditions: Array[condition]
+  # @rbs shapes: Array[condition]
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def alternative: (Skyward::ORM::Database database, Array[condition] conditions, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def alternative: (Skyward::ORM::Database database, Array[condition] shapes, Integer position) -> [ String, Integer ]
 
   # PostgreSQL refuses an empty IN (), and IN never matches NULL.
   # @rbs adapter: Skyward::ORM::_Adapter
-  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs name: String
-  # @rbs values: Array[untyped]
+  # @rbs list: InList
   # @rbs position: Integer
-  # @rbs return: [String, Array[untyped]]
-  def within: (Skyward::ORM::_Adapter adapter, Skyward::ORM::Tables::Column column, String name, Array[untyped] values, Integer position) -> [ String, Array[untyped] ]
+  # @rbs return: [String, Integer]
+  def within: (Skyward::ORM::_Adapter adapter, String name, InList list, Integer position) -> [ String, Integer ]
 
   # Steep can't tie the row class to R, so the rows are untyped here and each
   # public method types them.
@@ -386,17 +433,23 @@ module Skyward::ORM::Queries::Clauses[R]
   def qualified: (Symbol name, ?singleton(Skyward::ORM::Record) table) -> String
 
   # @rbs values: Hash[Symbol, untyped]
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def updating: (Hash[Symbol, untyped] values) -> [ String, Array[untyped] ]
+  def updating: (Hash[Symbol, untyped] values, Class? returned_row) -> [ String, Array[untyped] ]
 
+  # @rbs returned_row: Class?
   # @rbs return: [String, Array[untyped]]
-  def deleting: () -> [ String, Array[untyped] ]
+  def deleting: (Class? returned_row) -> [ String, Array[untyped] ]
 
+  # require_writable leaves a write no clause but its conditions, so they and
+  # what it sets and returns are its shape.
   # @rbs method: Symbol
-  # @rbs sql: String
+  # @rbs columns: Array[Symbol]
   # @rbs set: Array[untyped]
+  # @rbs returned_row: Class?
+  # @rbs &: () -> String
   # @rbs return: [String, Array[untyped]]
-  def changing: (Symbol method, String sql, Array[untyped] set) -> [ String, Array[untyped] ]
+  def changing: (Symbol method, Array[Symbol] columns, Array[untyped] set, Class? returned_row) { () -> String } -> [ String, Array[untyped] ]
 
   # @rbs [T] (T | Skyward::ORM::Violation written) -> T
   def unviolated: [T] (T | Skyward::ORM::Violation written) -> T

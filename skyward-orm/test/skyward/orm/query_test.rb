@@ -133,6 +133,27 @@ describe Skyward::ORM::Query do
       )
     end
 
+    it 'renders its SQL once for each shape' do
+      query.where(id: 1).update(done: true)
+      query.where(id: 2).update(done: false)
+
+      assert_same sent.dig(0, 0), sent.dig(1, 0)
+    end
+
+    it 'renders its SQL apart for each set of columns' do
+      query.where(id: 1).update(done: true)
+      query.where(id: 1).update(title: 'Buy bread')
+
+      assert_equal empty.shown(%(UPDATE "todos" SET "title" = ? WHERE "id" = ?), ['Buy bread', 1]), sent.last
+    end
+
+    it 'checks the values of an update whose SQL it has rendered' do
+      query.where(id: 1).update(done: true)
+      error = assert_raises(ArgumentError) { query.where(id: 1).update(done: 'yes') }
+
+      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+    end
+
     it 'binds a Hash for a JSON column as one value, its JSON, and sets it' do
       json = adapter.sql_type(TestDatabase.column(:json))
       integer = adapter.sql_type(TestDatabase.column(:integer))
@@ -322,6 +343,13 @@ describe Skyward::ORM::Query do
 
     it 'runs one DELETE, returning nothing' do
       assert_equal([empty.shown(%(DELETE FROM "todos" WHERE "id" = ?), [2])], traced { query.where(id: 2).delete })
+    end
+
+    it 'renders its SQL once for each shape' do
+      query.where(id: 1).delete
+      query.where(id: 2).delete
+
+      assert_same sent.dig(0, 0), sent.dig(1, 0)
     end
 
     it 'returns 0 when no row matches' do

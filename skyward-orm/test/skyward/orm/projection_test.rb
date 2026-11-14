@@ -264,6 +264,22 @@ describe Skyward::ORM::Projection do
       assert_equal [[shown], [title.new(id: 1, title: 'Buy bread')]], [statements, updated]
     end
 
+    it "renders its SQL apart from a query's update, which returns nothing" do
+      query.where(id: 1).update(title: 'Buy bread')
+      query.where(id: 1).into(title).update(title: 'Buy bread')
+      shown = empty.shown(%(UPDATE "todos" SET "title" = ? WHERE "id" = ? RETURNING "id", "title"), ['Buy bread', 1])
+
+      assert_equal shown, sent.last
+    end
+
+    it 'renders its SQL apart for each row class it returns' do
+      query.where(id: 1).into(todo).update(title: 'Buy bread')
+      query.where(id: 1).into(title).update(title: 'Buy bread')
+      shown = empty.shown(%(UPDATE "todos" SET "title" = ? WHERE "id" = ? RETURNING "id", "title"), ['Buy bread', 1])
+
+      assert_equal shown, sent.last
+    end
+
     it 'returns no rows when none match' do
       assert_empty query.where(id: 3).into(title).update(title: 'Buy bread')
     end
@@ -318,6 +334,13 @@ describe Skyward::ORM::Projection do
 
     it 'returns the rows as the row class, returning only its members' do
       assert_equal [title.new(id: 2, title: 'Buy eggs')], query.where(done: true).into(title).delete
+    end
+
+    it "renders its SQL apart from a query's delete, which returns nothing" do
+      query.where(id: 3).delete
+      query.where(id: 3).into(title).delete
+
+      assert_equal empty.shown(%(DELETE FROM "todos" WHERE "id" = ? RETURNING "id", "title"), [3]), sent.last
     end
 
     it 'deletes every row of an explicit all, returning them' do

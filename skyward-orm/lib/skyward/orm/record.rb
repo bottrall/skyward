@@ -57,7 +57,7 @@ class Skyward::ORM::Record
   # @rbs return: Integer | Skyward::ORM::Violation
   def self.insert(**values)
     database = Skyward::ORM::Connection::SESSION.database
-    sql, binds = Skyward::ORM::Statements.insert(database.adapter, database.column_types, database.tables, self, values)
+    sql, binds = Skyward::ORM::Statements.insert(database, self, values, nil)
     database.write(self, sql, binds)
   end
 

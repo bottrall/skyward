@@ -37,7 +37,13 @@ class Skyward::ORM::Database
 
   FOREIGN: String
 
+  # Each IN list's length is a shape of its own, and so is each SQL string an
+  # app builds at run time, so the cache is bounded.
+  SHAPES: Integer
+
   @key: Symbol
+
+  @sql: Hash[untyped, String]
 
   @decoders: Hash[[ singleton(Skyward::ORM::Record), Class, Array[Symbol] ], ^(Array[untyped]) -> untyped]
 
@@ -106,6 +112,14 @@ class Skyward::ORM::Database
   # @rbs return: ^(Array[untyped]) -> untyped
   def decoder: (singleton(Skyward::ORM::Record) table, Class row, Array[Symbol] expressed) -> ^(Array[untyped]) -> untyped
 
+  # The cache is replaced under the lock rather than changed, so a hit reads
+  # it without one, on every Ruby. A miss renders outside the lock, so two
+  # fibers may render one shape, and the SQL the first adds is the one kept.
+  # @rbs key: untyped
+  # @rbs &: () -> String
+  # @rbs return: String
+  def cached_sql: (untyped key) { () -> String } -> String
+
   # Every query and write calls this before it touches its table, so a table
   # class loaded after connect is checked before its first use.
   # @rbs table: singleton(Skyward::ORM::Record)
@@ -162,6 +176,13 @@ class Skyward::ORM::Database
   # against it afresh.
   # @rbs [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
   def changing: [T] () { (Skyward::ORM::_Connection connection) -> T } -> T
+
+  # Dropping the oldest, rather than the least recently used, leaves a hit
+  # nothing to change.
+  # @rbs key: untyped
+  # @rbs sql: String
+  # @rbs return: String
+  def cache_sql: (untyped key, String sql) -> String
 
   # @rbs held: Held
   # @rbs return: bool

@@ -8,10 +8,7 @@ class Skyward::ORM::Projection
   # @rbs return: R | Skyward::ORM::Violation
   def insert(**values)
     require_insertable
-    database = @session.database
-    sql, binds = Skyward::ORM::Statements.insert(
-      database.adapter, database.column_types, database.tables, @table, values
-    )
+    sql, binds = Skyward::ORM::Statements.insert(@session.database, @table, values, @row)
     written = returning(sql, binds)
     case written
     when Skyward::ORM::Violation then written
@@ -33,7 +30,7 @@ class Skyward::ORM::Projection
     sql, binds = Skyward::ORM::Statements.insert_all(
       database.adapter, database.column_types, database.tables, @table, rows
     )
-    returning(sql, binds)
+    returning("#{sql} #{Skyward::ORM::Statements.returning(@row)}", binds)
   end
 
   # @rbs rows: Array[Hash[Symbol, untyped]]
@@ -43,7 +40,7 @@ class Skyward::ORM::Projection
   # @rbs **values: untyped
   # @rbs return: Array[R] | Skyward::ORM::Violation
   def update(**values)
-    sql, binds = updating(values)
+    sql, binds = updating(values, @row)
     returning(sql, binds)
   end
 
@@ -53,7 +50,7 @@ class Skyward::ORM::Projection
 
   # @rbs return: Array[R] | Skyward::ORM::Violation
   def delete
-    sql, binds = deleting
+    sql, binds = deleting(@row)
     returning(sql, binds)
   end
 
@@ -79,8 +76,5 @@ class Skyward::ORM::Projection
   # @rbs sql: String
   # @rbs binds: Array[untyped]
   # @rbs return: Array[untyped] | Skyward::ORM::Violation
-  def returning(sql, binds)
-    returned = Skyward::ORM::Statements.returning(Skyward::ORM::Tables::Members.of(@row))
-    @session.database.write_returning(@table, @row, "#{sql} #{returned}", binds)
-  end
+  def returning(sql, binds) = @session.database.write_returning(@table, @row, sql, binds)
 end

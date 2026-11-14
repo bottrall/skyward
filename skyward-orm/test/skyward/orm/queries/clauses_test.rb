@@ -964,6 +964,13 @@ describe Skyward::ORM::Queries::Clauses do
       assert_equal([empty.shown(%(#{select} ORDER BY "title" ASC LIMIT ?), [1])], traced { query.order(:title).first })
     end
 
+    it "renders its SQL apart from the rows' of the same query" do
+      query.where(done: false).to_a
+      query.where(done: false).first
+
+      assert_equal empty.shown(%(#{select} WHERE "done" = ? ORDER BY "id" ASC LIMIT ?), [false, 1]), sent.last
+    end
+
     it 'orders by the primary key when nothing orders it' do
       tag = Class.new(Skyward::ORM::Record) do
         table :tags
@@ -1020,6 +1027,20 @@ describe Skyward::ORM::Queries::Clauses do
         [empty.shown(%(SELECT COUNT(*) FROM "todos" WHERE "done" = ?), [false])],
         traced { query.where(done: false).order(:title).count }
       )
+    end
+
+    it 'renders its SQL once for each shape' do
+      query.where(id: 1).count
+      query.where(id: 2).count
+
+      assert_same sent.dig(0, 0), sent.dig(1, 0)
+    end
+
+    it "renders its SQL apart from the rows' of the same query" do
+      query.where(done: false).to_a
+      query.where(done: false).count
+
+      assert_equal empty.shown(%(SELECT COUNT(*) FROM "todos" WHERE "done" = ?), [false]), sent.last
     end
 
     it 'counts the groups of a grouped query' do
@@ -1096,6 +1117,20 @@ describe Skyward::ORM::Queries::Clauses do
       )
     end
 
+    it 'renders its SQL once for each shape' do
+      query.where(id: 1).exists?
+      query.where(id: 2).exists?
+
+      assert_same sent.dig(0, 0), sent.dig(1, 0)
+    end
+
+    it "renders its SQL apart from the count's of the same query" do
+      query.where(done: false).count
+      query.where(done: false).exists?
+
+      assert_equal empty.shown(%(SELECT 1 FROM "todos" WHERE "done" = ? LIMIT ?), [false, 1]), sent.last
+    end
+
     it 'is false past the last row' do
       insert(milk)
 
@@ -1150,6 +1185,13 @@ describe Skyward::ORM::Queries::Clauses do
       assert_equal [milk, eggs], query.to_a
     end
 
+    it 'renders its SQL once for each shape' do
+      query.where(id: 1).to_a
+      query.where(id: 2).to_a
+
+      assert_same sent.dig(0, 0), sent.dig(1, 0)
+    end
+
     it "gives the query Enumerable's methods, so select filters in Ruby" do
       insert(milk, eggs)
 
@@ -1176,6 +1218,107 @@ describe Skyward::ORM::Queries::Clauses do
   describe '#to_sql' do
     it 'shows the SQL and its binds without running it' do
       assert_empty(traced { query.where(done: false).to_sql })
+    end
+
+    it 'returns the same SQL for queries of one shape' do
+      assert_same query.where(id: 1).to_sql.first, query.where(id: 2).to_sql.first
+    end
+
+    it 'returns the SQL frozen' do
+      assert_predicate query.where(id: 1).to_sql.first, :frozen?
+    end
+
+    it 'refuses an Array value for an SQL string whose shape it has rendered' do
+      query.where('id = ?', 1).to_sql
+      error = assert_raises(ArgumentError) { query.where('id = ?', [1, 2]).to_sql }
+
+      assert_equal 'An SQL condition binds one value to each ?, but value 1 is an Array', error.message
+    end
+
+    it "refuses a count of ? that doesn't match an SQL string's values, on every call" do
+      errors = Array.new(2) { assert_raises(ArgumentError) { query.where('id = ?').to_sql }.message }
+
+      assert_equal ['The SQL has 1 ?, each taking one value, but was given 0'] * 2, errors
+    end
+
+    describe 'after rendering a query of another shape' do
+      today = Date.new(2026, 10, 18)
+      later = Date.new(2026, 10, 25)
+
+      def rendered(first, second)
+        first.to_sql
+        second.to_sql
+      end
+
+      it 'renders nil apart from a value' do
+        assert_equal empty.shown(%(#{select} WHERE "due_on" IS NULL), []),
+                     rendered(query.where(due_on: today), query.where(due_on: nil))
+      end
+
+      it 'renders an Array apart from one of another length' do
+        assert_equal empty.shown(%(#{select} WHERE "id" IN (?, ?, ?)), [1, 2, 3]),
+                     rendered(query.where(id: [1, 2]), query.where(id: [1, 2, 3]))
+      end
+
+      it "renders an Array holding nil apart from one of its length that doesn't" do
+        assert_equal empty.shown(%(#{select} WHERE ("due_on" IN (?) OR "due_on" IS NULL)), [today]),
+                     rendered(query.where(due_on: [today, later]), query.where(due_on: [today, nil]))
+      end
+
+      it 'renders an Array apart from one of its length holding nil more often' do
+        assert_equal empty.shown(%(#{select} WHERE ("due_on" IN (?, ?) OR "due_on" IS NULL)), [today, later]),
+                     rendered(query.where(due_on: [today, nil, nil]), query.where(due_on: [today, later, nil]))
+      end
+
+      it 'renders an operator apart from another' do
+        assert_equal empty.shown(%(#{select} WHERE "id" <= ?), [1]),
+                     rendered(query.where(id: 1..), query.where(id: ..1))
+      end
+
+      it 'renders an SQL string apart from another' do
+        assert_equal empty.shown(%(#{select} WHERE (id > ?)), [1]),
+                     rendered(query.where('id = ?', 1), query.where('id > ?', 1))
+      end
+
+      it 'renders a condition apart from its exclude' do
+        assert_equal empty.shown(%(#{select} WHERE NOT ("done" = ?)), [true]),
+                     rendered(query.where(done: true), query.exclude(done: true))
+      end
+
+      it 'renders conditions apart from the same ones nested in an or' do
+        assert_equal empty.shown(%(#{select} WHERE ("done" = ? OR "id" = ?) AND "title" = ?), [true, 1, 'Buy milk']),
+                     rendered(
+                       query.where(done: true).where(id: 1).or(title: 'Buy milk'),
+                       query.where(done: true).or(id: 1).where(title: 'Buy milk')
+                     )
+      end
+
+      it "renders a join's columns apart from the same ones in another order" do
+        on = %("todos"."title" = "lists"."name" AND "todos"."list_id" = "lists"."id")
+
+        assert_equal empty.shown(joined.sub(/ON .*/, "ON #{on}"), []),
+                     rendered(
+                       query.join(list, list_id: :id, title: :name),
+                       query.join(list, title: :name, list_id: :id)
+                     )
+      end
+
+      it 'renders an into expression apart from another' do
+        assert_equal empty.shown(%(SELECT "id", lower(title) AS "title" FROM "todos"), []),
+                     rendered(
+                       query.into(TablesFixtures::TodoTitle, title: 'upper(title)'),
+                       query.into(TablesFixtures::TodoTitle, title: 'lower(title)')
+                     )
+      end
+
+      it 'renders a limit apart from none' do
+        assert_equal empty.shown(%(#{select} LIMIT ?), [1]), rendered(query, query.limit(1))
+      end
+
+      it 'renders an offset apart from none' do
+        assert_equal empty.shown([select, adapter.unlimited, 'OFFSET ?'].compact.join(' '), [1]),
+                     rendered(query, query.offset(1))
+      end
     end
 
     it 'quotes every identifier, so a column named order, group or user can be queried' do
