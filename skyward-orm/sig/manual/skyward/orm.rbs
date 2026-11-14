@@ -53,6 +53,9 @@ module Skyward::ORM
     def encode: (untyped value) -> untyped
     # An Array column's value, each item encoded as the adapter stores its type.
     def encode_array: (Array[untyped] items) -> String
+    # Ruby that decodes the non-nil value the Ruby expression value names,
+    # which a row's decoder inlines and decode runs.
+    def decoding: (Tables::Column column, String value) -> String
     def decode: (Tables::Column column, untyped value) -> untyped
     def tables: (_Connection connection) -> Array[Catalog::Table]
     def violation: (StandardError error, Array[Catalog::Table] tables, Symbol? table) -> Violation?

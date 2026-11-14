@@ -218,17 +218,21 @@ module Skyward::ORM::Adapters::SQLite
   end
 
   # @rbs column: Skyward::ORM::Tables::Column
-  # @rbs value: untyped
-  # @rbs return: untyped
-  def decode(column, value)
+  # @rbs value: String
+  # @rbs return: String
+  def decoding(column, value)
     element = column.element
     return scalar(column.type, value) unless element
 
-    items = JSON.parse(value)
-    raise TypeError, "#{value} isn't a JSON array" unless items.is_a?(Array)
-
-    items.map { |entry| item(element, entry).freeze }.freeze
+    # Of the values JSON holds, only an Array converts to one.
+    "(::Array.try_convert(::JSON.parse(#{value})) || raise(::TypeError, \"\#{#{value}} isn't a JSON array\"))" \
+      ".map { |item| (#{item(element, 'item')}).freeze }.freeze"
   end
+
+  # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: untyped
+  # @rbs return: untyped
+  def decode(column, value) = Skyward::ORM::Adapters.decode(self, column, value)
 
   # @rbs (Skyward::ORM::_Connection connection) -> Array[Skyward::ORM::Catalog::Table]
   def tables(connection)
@@ -302,31 +306,31 @@ module Skyward::ORM::Adapters::SQLite
   private
 
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
+  # @rbs value: String
+  # @rbs return: String
   def scalar(type, value)
     case type
-    when :bool then value != 0
-    when :decimal then BigDecimal(value)
-    when :date then Date.iso8601(value)
-    when :time then Time.new(value, in: 'UTC')
-    when :enum then value.to_sym
-    when :json then JSON.parse(value, freeze: true)
+    when :bool then "#{value} != 0"
+    when :decimal then "BigDecimal(#{value})"
+    when :date then "::Date.iso8601(#{value})"
+    when :time then "::Time.new(#{value}, in: \"UTC\")"
+    when :enum then "#{value}.to_sym"
+    when :json then "::JSON.parse(#{value}, freeze: true)"
     # Rows are values, so even what the driver returns as it is comes back frozen.
-    else value.freeze
+    else "#{value}.freeze"
     end
   end
 
   # An Array[Float]'s JSON may hold an Integer, as an Array[Float] takes one.
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
+  # @rbs value: String
+  # @rbs return: String
   def item(type, value)
     case type
     when :bool then value
-    when :float then Float(value)
+    when :float then "Float(#{value})"
     # Only a String names a Symbol, and JSON may hold any value.
-    when :enum then String.try_convert(value)&.to_sym
+    when :enum then "::String.try_convert(#{value})&.to_sym"
     else scalar(type, value)
     end
   end

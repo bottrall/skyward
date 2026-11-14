@@ -6,12 +6,15 @@ class Skyward::ORM::Record
   # Each table class defines these for its columns, from Skyward::ORM::Tables::Rows.source.
   # @rbs!
   #   private def initialize_columns: (Hash[Symbol, untyped] columns) -> void
+  #   private def load_columns: (*untyped values) -> self
   #   def to_h: () -> Hash[Symbol, untyped]
+  #   def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
+  #   def inspect: () -> String
   #   def ==: (untyped other) -> bool
   #   def eql?: (untyped other) -> bool
   #   def hash: () -> Integer
 
-  # @dynamic initialize_columns, to_h, ==, eql?, hash
+  # @dynamic initialize_columns, load_columns, to_h, deconstruct_keys, inspect, ==, eql?, hash
   class_eval(Skyward::ORM::Tables::Rows.source([]), __FILE__, __LINE__)
 
   # @rbs return: Skyward::ORM::Query[instance]
@@ -108,11 +111,4 @@ class Skyward::ORM::Record
   # @rbs **changes: untyped
   # @rbs return: self
   def with(**changes) = self.class.new(**to_h, **changes) #: self
-
-  # @rbs keys: Array[Symbol]?
-  # @rbs return: Hash[Symbol, untyped]
-  def deconstruct_keys(keys) = keys ? to_h.slice(*keys) : to_h
-
-  # @rbs return: String
-  def inspect = "#<#{self.class} #{to_h.map { |column, value| "#{column}=#{value.inspect}" }.join(', ')}>"
 end

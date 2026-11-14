@@ -351,6 +351,39 @@ describe Skyward::ORM::Adapters::SQLite do
     end
   end
 
+  describe '.decoding' do
+    # Its value is the first of a row, an expression decode never writes.
+    define_method(:decoder) do |column|
+      source = "->(row) { #{sqlite.decoding(column, 'row[0]')} }"
+      Object.new.instance_eval(source, __FILE__, __LINE__)
+    end
+
+    it 'decodes the value any expression names, as decode does, for every column type' do
+      stored = {
+        integer: 42, int32: 7, int16: -3, float: 1.5, decimal: '12345678901234567890.123456789', string: 'Milk',
+        uuid: '0b9d5f2e-7c4a-4e1b-9f3d-2a6c8e0b1d4f', bool: 1, date: '2026-10-18',
+        time: '2026-10-18 09:30:00.123456', enum: 'high', json: '{"list":[1]}', untyped: 'anything'
+      }.map { |type, value| [TestDatabase.column(type), value] }
+      items = {
+        integer: '[1,2]', float: '[2,1.5]', decimal: '["1.5"]', string: '["a",""]', bool: '[true,false]',
+        date: '["2026-10-18"]', time: '["2026-10-18 09:30:00.000000"]', enum: '["mon",null]'
+      }.map { |element, value| [TestDatabase.column(:array, element:), value] }
+      values = [*stored, *items]
+
+      assert_equal(
+        values.map { |column, value| sqlite.decode(column, value) },
+        values.map { |column, value| decoder(column).call([value]) }
+      )
+    end
+
+    it "refuses JSON that isn't an array for an Array column, naming it" do
+      decode = decoder(TestDatabase.column(:array, element: :integer))
+      error = assert_raises(TypeError) { decode.call(['{"a":1}']) }
+
+      assert_equal '{"a":1} isn\'t a JSON array', error.message
+    end
+  end
+
   describe '.decode' do
     it 'reads 1 as true' do
       assert sqlite.decode(TestDatabase.column(:bool), 1)

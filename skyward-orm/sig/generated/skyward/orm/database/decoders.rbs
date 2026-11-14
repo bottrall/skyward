@@ -1,0 +1,19 @@
+# Generated from lib/skyward/orm/database/decoders.rb with RBS::Inline
+
+module Skyward::ORM::Database::Decoders
+  # @rbs (Class row, Array[Skyward::ORM::Tables::Column] columns, Array[Integer] positions,
+  #   Skyward::ORM::_Adapter adapter) -> ^(Array[untyped]) -> untyped
+  def compile: (Class row, Array[Skyward::ORM::Tables::Column] columns, Array[Integer] positions, Skyward::ORM::_Adapter adapter) -> ^(Array[untyped]) -> untyped
+
+  private
+
+  # @rbs (Class row, Array[Skyward::ORM::Tables::Column] columns, Array[Integer] positions,
+  #   Skyward::ORM::_Adapter adapter) -> String
+  def source: (Class row, Array[Skyward::ORM::Tables::Column] columns, Array[Integer] positions, Skyward::ORM::_Adapter adapter) -> String
+
+  # @rbs row: Class
+  # @rbs columns: Array[Skyward::ORM::Tables::Column]
+  # @rbs values: Array[String]
+  # @rbs return: String
+  def construction: (Class row, Array[Skyward::ORM::Tables::Column] columns, Array[String] values) -> String
+end

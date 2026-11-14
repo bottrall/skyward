@@ -137,6 +137,11 @@ module Skyward::ORM::Adapters::SQLite
   def encode_array: (Array[untyped] items) -> String
 
   # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: String
+  # @rbs return: String
+  def decoding: (Skyward::ORM::Tables::Column column, String value) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
   def decode: (Skyward::ORM::Tables::Column column, untyped value) -> untyped
@@ -171,15 +176,15 @@ module Skyward::ORM::Adapters::SQLite
   private
 
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
-  def scalar: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+  # @rbs value: String
+  # @rbs return: String
+  def scalar: (Skyward::ORM::Tables::column_type type, String value) -> String
 
   # An Array[Float]'s JSON may hold an Integer, as an Array[Float] takes one.
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
-  def item: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+  # @rbs value: String
+  # @rbs return: String
+  def item: (Skyward::ORM::Tables::column_type type, String value) -> String
 
   # @rbs sql_type: String
   # @rbs return: Symbol

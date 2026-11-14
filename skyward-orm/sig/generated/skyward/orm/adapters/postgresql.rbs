@@ -144,6 +144,11 @@ module Skyward::ORM::Adapters::PostgreSQL
   def encode_array: (Array[untyped] items) -> String
 
   # @rbs column: Skyward::ORM::Tables::Column
+  # @rbs value: String
+  # @rbs return: String
+  def decoding: (Skyward::ORM::Tables::Column column, String value) -> String
+
+  # @rbs column: Skyward::ORM::Tables::Column
   # @rbs value: untyped
   # @rbs return: untyped
   def decode: (Skyward::ORM::Tables::Column column, untyped value) -> untyped
@@ -163,9 +168,9 @@ module Skyward::ORM::Adapters::PostgreSQL
   def accepts?: (Skyward::ORM::Tables::column_type type, String sql_type) -> bool
 
   # @rbs type: Skyward::ORM::Tables::column_type
-  # @rbs value: untyped
-  # @rbs return: untyped
-  def scalar: (Skyward::ORM::Tables::column_type type, untyped value) -> untyped
+  # @rbs value: String
+  # @rbs return: String
+  def scalar: (Skyward::ORM::Tables::column_type type, String value) -> String
 
   # @rbs rows: Array[Array[untyped]]
   # @rbs return: Array[Skyward::ORM::Catalog::Index]
