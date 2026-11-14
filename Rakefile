@@ -20,8 +20,8 @@ BUNDLES = [*GEMS, *EXAMPLES].freeze
 
 PKG = "pkg"
 
-# Rake::TestTask reads TEST as a single glob, so bin/test's comma-separated
-# list is taken out of ENV and split by the directory each file is in.
+# Each bundle runs its own tests, so bin/test's comma-separated list is taken
+# out of ENV and split by the directory each file is in.
 REQUESTED_TESTS = ENV.delete("TEST")&.split(",")
 
 def requested_in(dir)
