@@ -1,15 +1,15 @@
 PATH
   remote: skyward-api
   specs:
-    skyward-api (0.4.0)
+    skyward-api (0.4.1)
       bigdecimal (>= 3.1)
-      skyward-core (= 0.4.0)
+      skyward-core (= 0.4.1)
       zeitwerk (~> 2.8)
 
 PATH
   remote: skyward-core
   specs:
-    skyward-core (0.4.0)
+    skyward-core (0.4.1)
       prism (>= 1.6)
       rbs (~> 4.2)
       zeitwerk (~> 2.8)
@@ -17,18 +17,18 @@ PATH
 PATH
   remote: skyward-orm
   specs:
-    skyward-orm (0.4.0)
+    skyward-orm (0.4.1)
       bigdecimal (>= 3.1)
-      skyward-core (= 0.4.0)
+      skyward-core (= 0.4.1)
       zeitwerk (~> 2.8)
 
 PATH
   remote: skyward
   specs:
-    skyward (0.4.0)
-      skyward-api (= 0.4.0)
-      skyward-core (= 0.4.0)
-      skyward-orm (= 0.4.0)
+    skyward (0.4.1)
+      skyward-api (= 0.4.1)
+      skyward-core (= 0.4.1)
+      skyward-orm (= 0.4.1)
       zeitwerk (~> 2.8)
 
 GEM
@@ -271,10 +271,10 @@ CHECKSUMS
   ruby-progressbar (1.13.0) sha256=80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
   shellany (0.0.1) sha256=0e127a9132698766d7e752e82cdac8250b6adbd09e6c0a7fbbb6f61964fedee7
-  skyward (0.4.0)
-  skyward-api (0.4.0)
-  skyward-core (0.4.0)
-  skyward-orm (0.4.0)
+  skyward (0.4.1)
+  skyward-api (0.4.1)
+  skyward-core (0.4.1)
+  skyward-orm (0.4.1)
   sqlite3 (2.10.2) sha256=f1ea68cd3287f8a49f39a088ac9e4bd0ef4e7f394c3d4a60dd4c7e44b0566964
   sqlite3 (2.10.2-aarch64-linux-gnu) sha256=e9aea2c2b3476fc875dd8a89313a9a2862818519c0186bfb5b56d6f57bb08d98
   sqlite3 (2.10.2-aarch64-linux-musl) sha256=4986fc40cdf21342362b72a941df28e95cfe0e644f3ad2532d948b157c39dbee

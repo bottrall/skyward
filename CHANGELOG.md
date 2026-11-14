@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.1](https://github.com/bottrall/skyward/compare/v0.4.0...v0.4.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **orm:** write single-quoted strings in scaffolded classes ([#228](https://github.com/bottrall/skyward/issues/228)) ([ab0999f](https://github.com/bottrall/skyward/commit/ab0999f443077aeba81076c6eaf69b8bfac6a935))
+
+
+### Performance Improvements
+
+* **api:** compile every route into one matcher at boot ([#223](https://github.com/bottrall/skyward/issues/223)) ([0834e46](https://github.com/bottrall/skyward/commit/0834e46b799788356d92f43b4faa7fefe803ab27)), closes [#185](https://github.com/bottrall/skyward/issues/185)
+* **orm:** cache each query's SQL by shape ([#225](https://github.com/bottrall/skyward/issues/225)) ([e63a64b](https://github.com/bottrall/skyward/commit/e63a64bef3154d86ec6e4f1d24f920cb582aabd4)), closes [#187](https://github.com/bottrall/skyward/issues/187)
+* **orm:** compile row decoders into Ruby, with no per-row hash ([#227](https://github.com/bottrall/skyward/issues/227)) ([7fb8281](https://github.com/bottrall/skyward/commit/7fb8281f29ef34105d40aa89cbe260235e9ddee1)), closes [#186](https://github.com/bottrall/skyward/issues/186)
+* **orm:** reuse prepared statements on each connection ([#226](https://github.com/bottrall/skyward/issues/226)) ([8269a28](https://github.com/bottrall/skyward/commit/8269a28eaa362d62c3077ead836e2d4bd8bfea3c))
+
 ## [0.4.0](https://github.com/bottrall/skyward/compare/v0.3.0...v0.4.0) (2026-11-14)
 
 
