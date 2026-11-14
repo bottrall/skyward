@@ -5,14 +5,14 @@ D = Steep::Diagnostic
 # skyward check runs this in the example's own bundle. The root Steepfile's
 # todos target checks the same code from the dev bundle, for bin/typecheck.
 target :app do
-  signature "sig"
+  signature 'sig'
 
-  check "*.rb", "lib", "modules"
+  check '*.rb', 'lib', 'modules'
 
   # The Skyward gems' signatures come from the gems, and the rest from the
   # repository's RBS collection, which bin/setup installs.
-  library "skyward-core", "skyward-api", "skyward-orm"
-  collection_config "../../rbs_collection.yaml"
+  library 'skyward-core', 'skyward-api', 'skyward-orm'
+  collection_config '../../rbs_collection.yaml'
 
   configure_code_diagnostics(D::Ruby.all_error)
 end

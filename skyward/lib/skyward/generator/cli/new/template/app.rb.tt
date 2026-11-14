@@ -2,8 +2,8 @@
 
 # rbs_inline: enabled
 
-require_relative "boot"
+require_relative 'boot'
 
-App = Skyward.app(docs: true, title: "{{title}}") do |app|
+App = Skyward.app(docs: true, title: '{{title}}') do |app|
   app.mount HealthAPI.new
 end #: Skyward::API::_RackApp

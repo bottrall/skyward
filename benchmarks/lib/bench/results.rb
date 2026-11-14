@@ -8,13 +8,13 @@ module Bench::Results
   extend self
 
   ENVIRONMENT = {
-    skyward: "Skyward",
-    commit: "Commit",
-    ruby: "Ruby",
-    yjit: "YJIT",
-    cpu: "CPU",
-    sqlite: "SQLite",
-    postgresql: "PostgreSQL"
+    skyward: 'Skyward',
+    commit: 'Commit',
+    ruby: 'Ruby',
+    yjit: 'YJIT',
+    cpu: 'CPU',
+    sqlite: 'SQLite',
+    postgresql: 'PostgreSQL'
   }.freeze #: Hash[Symbol, String]
 
   # @rbs report: Bench::Report
@@ -22,8 +22,8 @@ module Bench::Results
   # @rbs return: void
   def write(report, directory)
     FileUtils.mkdir_p(directory)
-    File.write(File.join(directory, "results.json"), json(report))
-    File.write(File.join(directory, "results.md"), markdown(report))
+    File.write(File.join(directory, 'results.json'), json(report))
+    File.write(File.join(directory, 'results.md'), markdown(report))
   end
 
   # @rbs report: Bench::Report
@@ -54,7 +54,7 @@ module Bench::Results
   # @rbs return: String
   def row(result)
     rate = result.rate
-    throughput = rate ? "#{number(rate, 0)} #{result.unit}/s" : "—"
+    throughput = rate ? "#{number(rate, 0)} #{result.unit}/s" : '—'
     deviation = number(result.stddev / result.ips * 100, 1)
     "| #{result.name} | #{number(result.ips, 1)} | #{deviation}% | #{throughput} | #{number(result.allocations, 1)} |"
   end
@@ -63,9 +63,9 @@ module Bench::Results
   # @rbs return: String
   def value(value)
     case value
-    when nil then "—"
-    when true then "on"
-    when false then "off"
+    when nil then '—'
+    when true then 'on'
+    when false then 'off'
     else value.to_s
     end
   end
@@ -74,6 +74,6 @@ module Bench::Results
   # @rbs digits: Integer
   # @rbs return: String
   def number(value, digits)
-    format("%.#{digits}f", value).sub(/\A\d+/) { |whole| whole.reverse.scan(/\d{1,3}/).join(",").reverse }
+    format("%.#{digits}f", value).sub(/\A\d+/) { |whole| whole.reverse.scan(/\d{1,3}/).join(',').reverse }
   end
 end

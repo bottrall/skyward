@@ -66,7 +66,7 @@ class Skyward::ORM::Projection
   # comes back.
   # @rbs return: void
   def require_insertable
-    refused = [("conditions" if @scope == :narrowed), *clauses].compact
+    refused = [('conditions' if @scope == :narrowed), *clauses].compact
     return if refused.empty?
 
     raise ArgumentError,

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require_relative "../../../fixtures/tables/tables_fixtures"
+require 'test_helper'
+require_relative '../../../fixtures/tables/tables_fixtures'
 
 describe Skyward::ORM::Database::SchemaCheck do
   migrate = "Run `skyward migrate`, or `skyward migration` if you haven't generated one."
@@ -27,18 +27,18 @@ describe Skyward::ORM::Database::SchemaCheck do
     )
   end
 
-  describe ".mismatch" do
-    it "is nil for a table with each column, of a compatible type and the same nullability" do
+  describe '.mismatch' do
+    it 'is nil for a table with each column, of a compatible type and the same nullability' do
       columns = [declared(:id, :integer), declared(:due_on, :date, nullable: true)]
 
-      assert_nil mismatch(columns, todos(stored(:id, "bigint"), stored(:due_on, "TEXT", nullable: true)))
+      assert_nil mismatch(columns, todos(stored(:id, 'bigint'), stored(:due_on, 'TEXT', nullable: true)))
     end
 
     it "ignores a column the class doesn't have" do
-      assert_nil mismatch([declared(:id, :integer)], todos(stored(:id, "INTEGER"), stored(:notes, "TEXT")))
+      assert_nil mismatch([declared(:id, :integer)], todos(stored(:id, 'INTEGER'), stored(:notes, 'TEXT')))
     end
 
-    it "reports a missing table" do
+    it 'reports a missing table' do
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
 
@@ -49,7 +49,7 @@ describe Skyward::ORM::Database::SchemaCheck do
       assert_equal expected, mismatch([declared(:id, :integer)], [])
     end
 
-    it "reports a missing column" do
+    it 'reports a missing column' do
       columns = [declared(:id, :integer), declared(:notes, :string)]
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
@@ -58,10 +58,10 @@ describe Skyward::ORM::Database::SchemaCheck do
                  #{migrate}
       MESSAGE
 
-      assert_equal expected, mismatch(columns, todos(stored(:id, "INTEGER")))
+      assert_equal expected, mismatch(columns, todos(stored(:id, 'INTEGER')))
     end
 
-    it "suggests a table the database has for a missing one" do
+    it 'suggests a table the database has for a missing one' do
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
 
@@ -84,11 +84,11 @@ describe Skyward::ORM::Database::SchemaCheck do
       assert_equal expected,
                    mismatch(
                      [declared(:id, :integer), declared(:titel, :string)],
-                     todos(stored(:id, "INTEGER"), stored(:title, "TEXT"))
+                     todos(stored(:id, 'INTEGER'), stored(:title, 'TEXT'))
                    )
     end
 
-    it "suggests no column the class declares for a missing one" do
+    it 'suggests no column the class declares for a missing one' do
       columns = [declared(:id, :integer), declared(:title, :string), declared(:titles, :string)]
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
@@ -97,11 +97,11 @@ describe Skyward::ORM::Database::SchemaCheck do
                   #{migrate}
       MESSAGE
 
-      assert_equal expected, mismatch(columns, todos(stored(:id, "INTEGER"), stored(:title, "TEXT")))
+      assert_equal expected, mismatch(columns, todos(stored(:id, 'INTEGER'), stored(:title, 'TEXT')))
     end
 
-    it "checks only that an untyped column is there" do
-      assert_nil mismatch([declared(:tags, :untyped)], todos(stored(:tags, "BLOB", nullable: true)))
+    it 'checks only that an untyped column is there' do
+      assert_nil mismatch([declared(:tags, :untyped)], todos(stored(:tags, 'BLOB', nullable: true)))
     end
 
     it "reports a type that isn't compatible" do
@@ -112,10 +112,10 @@ describe Skyward::ORM::Database::SchemaCheck do
                 #{migrate} Or change TablesFixtures::Todo#done's type to match.
       MESSAGE
 
-      assert_equal expected, mismatch([declared(:done, :bool)], todos(stored(:done, "TEXT")))
+      assert_equal expected, mismatch([declared(:done, :bool)], todos(stored(:done, 'TEXT')))
     end
 
-    describe "on PostgreSQL" do
+    describe 'on PostgreSQL' do
       tags = Skyward::ORM::Tables::Column.new(name: :tags, type: :array, nullable: false, symbols: [], element: :string)
 
       def mismatch(columns, tables)
@@ -128,7 +128,7 @@ describe Skyward::ORM::Database::SchemaCheck do
       end
 
       it "accepts an array of a type compatible with an Array column's element" do
-        assert_nil mismatch([tags], todos(stored(:tags, "character varying(20)[]")))
+        assert_nil mismatch([tags], todos(stored(:tags, 'character varying(20)[]')))
       end
 
       it "reports a type that isn't an array of one, naming the array type the column needs" do
@@ -139,7 +139,7 @@ describe Skyward::ORM::Database::SchemaCheck do
                   #{migrate} Or change TablesFixtures::Todo#tags's type to match.
         MESSAGE
 
-        assert_equal expected, mismatch([tags], todos(stored(:tags, "text")))
+        assert_equal expected, mismatch([tags], todos(stored(:tags, 'text')))
       end
     end
 
@@ -151,10 +151,10 @@ describe Skyward::ORM::Database::SchemaCheck do
                  #{migrate} Or change TablesFixtures::Todo#title's type to match.
       MESSAGE
 
-      assert_equal expected, mismatch([declared(:title, :string)], todos(stored(:title, "TEXT", nullable: true)))
+      assert_equal expected, mismatch([declared(:title, :string)], todos(stored(:title, 'TEXT', nullable: true)))
     end
 
-    it "reports a NOT NULL column when the class allows nil" do
+    it 'reports a NOT NULL column when the class allows nil' do
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
 
@@ -162,10 +162,10 @@ describe Skyward::ORM::Database::SchemaCheck do
                   #{migrate} Or change TablesFixtures::Todo#due_on's type to match.
       MESSAGE
 
-      assert_equal expected, mismatch([declared(:due_on, :date, nullable: true)], todos(stored(:due_on, "TEXT")))
+      assert_equal expected, mismatch([declared(:due_on, :date, nullable: true)], todos(stored(:due_on, 'TEXT')))
     end
 
-    it "reports every problem, aligned to the longest column" do
+    it 'reports every problem, aligned to the longest column' do
       columns = [declared(:id, :integer), declared(:done, :bool), declared(:created_at, :time)]
       expected = <<~MESSAGE.chomp
         TablesFixtures::Todo doesn't match the todos table
@@ -178,7 +178,7 @@ describe Skyward::ORM::Database::SchemaCheck do
                       #{migrate}
       MESSAGE
 
-      assert_equal expected, mismatch(columns, todos(stored(:id, "INTEGER"), stored(:done, "TEXT", nullable: true)))
+      assert_equal expected, mismatch(columns, todos(stored(:id, 'INTEGER'), stored(:done, 'TEXT', nullable: true)))
     end
   end
 end

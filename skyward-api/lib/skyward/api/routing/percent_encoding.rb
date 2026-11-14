@@ -10,6 +10,6 @@ module Skyward::API::Routing::PercentEncoding
   # @rbs text: String
   # @rbs return: String
   def decode(text)
-    text.b.gsub(ESCAPE) { |escape| escape.delete_prefix("%").hex.chr }.force_encoding(Encoding::UTF_8)
+    text.b.gsub(ESCAPE) { |escape| escape.delete_prefix('%').hex.chr }.force_encoding(Encoding::UTF_8)
   end
 end

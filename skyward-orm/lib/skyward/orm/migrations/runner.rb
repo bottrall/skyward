@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "digest"
+require 'digest'
 
 module Skyward::ORM::Migrations::Runner
   extend self
@@ -108,7 +108,7 @@ module Skyward::ORM::Migrations::Runner
     when Edited
       files = failure.files.map { |file| "  #{file}\n" }.join
       "These migrations changed after they ran, so none ran:\n#{files}" \
-        "Put each back as it was, and make the change in a new migration. Only a -- down section can change."
+        'Put each back as it was, and make the change in a new migration. Only a -- down section can change.'
     when Locked
       "#{failure.file} couldn't take the migration lock, which another migrator may hold, so neither it nor any " \
       "later migration ran: #{failure.message}"
@@ -123,10 +123,10 @@ module Skyward::ORM::Migrations::Runner
     when :nothing then "No migration has run, so there's nothing to roll back."
     when Missing
       "#{failure.version} is the latest migration to have run, but its file is gone, so it can't be rolled back. " \
-      "Put its file back to roll it back."
+      'Put its file back to roll it back.'
     when Irreversible
       "#{failure.file} has nothing in its -- down section, so it wasn't rolled back. " \
-      "Write the SQL that undoes it there."
+      'Write the SQL that undoes it there.'
     when Raced
       "#{failure.file} isn't the latest migration anymore, since another migrator ran or rolled back one while " \
       "this one waited for the lock, so it wasn't rolled back."
@@ -156,7 +156,7 @@ module Skyward::ORM::Migrations::Runner
         "CREATE TABLE IF NOT EXISTS #{TABLE} (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, " \
         "ran_at #{adapter.sql_type(RAN_AT)} NOT NULL DEFAULT CURRENT_TIMESTAMP)"
       )
-      connection.execute("COMMIT")
+      connection.execute('COMMIT')
       settled = true
     ensure
       cancel(connection) unless settled
@@ -187,7 +187,7 @@ module Skyward::ORM::Migrations::Runner
     settled = false
     begin
       applied = yield
-      connection.execute(applied.is_a?(Failed) ? "ROLLBACK" : "COMMIT")
+      connection.execute(applied.is_a?(Failed) ? 'ROLLBACK' : 'COMMIT')
       settled = true
       applied
     rescue StandardError => e
@@ -207,7 +207,7 @@ module Skyward::ORM::Migrations::Runner
   # ROLLBACK, and then ROLLBACK raises, though the outcome is already decided.
   # @rbs (Skyward::ORM::_Connection connection) -> void
   def cancel(connection)
-    connection.execute("ROLLBACK")
+    connection.execute('ROLLBACK')
   rescue StandardError
     nil
   end
@@ -228,7 +228,7 @@ module Skyward::ORM::Migrations::Runner
     connection.execute_batch(section)
     violations = adapter.foreign_key_violations(connection)
     if violations.any?
-      return Failed.new(file: migration.file, message: "foreign key check failed: #{violations.join(", ")}")
+      return Failed.new(file: migration.file, message: "foreign key check failed: #{violations.join(', ')}")
     end
 
     yield

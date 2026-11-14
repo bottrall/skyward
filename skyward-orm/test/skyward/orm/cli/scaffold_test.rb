@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require "stringio"
-require "test_helper"
-require "tmpdir"
-require_relative "../../../fixtures/migrations/migrations_fixtures"
+require 'stringio'
+require 'test_helper'
+require 'tmpdir'
+require_relative '../../../fixtures/migrations/migrations_fixtures'
 
 describe Skyward::ORM::CLI::Scaffold do
   scaffold = Skyward::ORM::CLI::Scaffold
-  signatures = File.expand_path("../../../fixtures/migrations/sig", __dir__)
+  signatures = File.expand_path('../../../fixtures/migrations/sig', __dir__)
 
   let(:kernel) do
     Class.new do
@@ -24,12 +24,12 @@ describe Skyward::ORM::CLI::Scaffold do
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
       File.write(
-        File.join(directory, "boot.rb"),
+        File.join(directory, 'boot.rb'),
         "Skyward.connect(#{empty.url.inspect}, signatures: #{signatures.inspect})\n"
       )
       block.call(directory, empty.connect)
     ensure
-      $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
+      $LOADED_FEATURES.delete(File.join(directory, 'boot.rb'))
     end
   end
 
@@ -49,68 +49,68 @@ describe Skyward::ORM::CLI::Scaffold do
 
   def text = empty.adapter.sql_type(TestDatabase.column(:string))
 
-  def give_key = "Give the table one in a `skyward migration --empty` migration, then scaffold it."
+  def give_key = 'Give the table one in a `skyward migration --empty` migration, then scaffold it.'
 
-  describe ".run" do
-    it "shows how to use it, without booting, given no table, more than one, or a flag" do
+  describe '.run' do
+    it 'shows how to use it, without booting, given no table, more than one, or a flag' do
       app do |directory|
-        aborted = [[], %w[todos lists], ["--help"]].map do |args|
-          run_in(directory, *args, generate: -> { raise "booted" })
+        aborted = [[], %w[todos lists], ['--help']].map do |args|
+          run_in(directory, *args, generate: -> { raise 'booted' })
           kernel.aborted
         end
 
-        assert_equal [[scaffold::USAGE] * 3, ""], [aborted, out.string]
+        assert_equal [[scaffold::USAGE] * 3, ''], [aborted, out.string]
       end
     end
 
     it "fails with why sig/generated couldn't be regenerated" do
       app do |directory|
-        run_in(directory, "todos", generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
+        run_in(directory, 'todos', generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
 
-        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ''], [kernel.aborted, out.string]
       end
     end
 
     it "refuses schema_migrations, which is Skyward ORM's own" do
       app do |directory, connection|
         connection.execute("CREATE TABLE schema_migrations (version #{text} PRIMARY KEY)")
-        run_in(directory, "schema_migrations")
+        run_in(directory, 'schema_migrations')
 
-        assert_equal ["skyward: schema_migrations is Skyward ORM's own table, so it needs no class.", ""],
+        assert_equal ["skyward: schema_migrations is Skyward ORM's own table, so it needs no class.", ''],
                      [kernel.aborted, out.string]
       end
     end
 
-    it "refuses a table a loaded class already declares" do
+    it 'refuses a table a loaded class already declares' do
       app do |directory, connection|
         connection.execute("CREATE TABLE lists (id #{empty.primary_key})")
-        run_in(directory, "lists", classes: [MigrationsFixtures::List])
+        run_in(directory, 'lists', classes: [MigrationsFixtures::List])
 
-        assert_equal ["skyward: MigrationsFixtures::List already declares table :lists.", ""],
+        assert_equal ['skyward: MigrationsFixtures::List already declares table :lists.', ''],
                      [kernel.aborted, out.string]
       end
     end
 
-    it "refuses a table with no primary key" do
+    it 'refuses a table with no primary key' do
       app do |directory, connection|
         connection.execute("CREATE TABLE legacy (name #{text})")
-        run_in(directory, "legacy")
+        run_in(directory, 'legacy')
         message = "skyward: legacy has no primary key, and a table class has a one-column primary key. #{give_key}"
 
-        assert_equal [message, ""], [kernel.aborted, out.string]
+        assert_equal [message, ''], [kernel.aborted, out.string]
       end
     end
 
-    it "refuses a table whose primary key is on more than one column" do
+    it 'refuses a table whose primary key is on more than one column' do
       app do |directory, connection|
         connection.execute(
           "CREATE TABLE todos_tags (todo_id #{integer}, tag_id #{integer}, PRIMARY KEY (todo_id, tag_id))"
         )
-        run_in(directory, "todos_tags")
-        message = "skyward: todos_tags has a primary key on (todo_id, tag_id), and a table class has a one-column " \
+        run_in(directory, 'todos_tags')
+        message = 'skyward: todos_tags has a primary key on (todo_id, tag_id), and a table class has a one-column ' \
                   "primary key. #{give_key}"
 
-        assert_equal [message, ""], [kernel.aborted, out.string]
+        assert_equal [message, ''], [kernel.aborted, out.string]
       end
     end
 
@@ -119,37 +119,37 @@ describe Skyward::ORM::CLI::Scaffold do
         connection.execute(
           %(CREATE TABLE notes (id #{empty.primary_key}, "Title" #{text}, hash #{text}, members #{text}))
         )
-        run_in(directory, "notes")
+        run_in(directory, 'notes')
         message = "skyward: a table class reads each column as a lowercase Ruby method a row doesn't already have, " \
                   "so it can't read notes.Title or notes.hash or notes.members. Rename each in a " \
-                  "`skyward migration --empty` migration, then scaffold it."
+                  '`skyward migration --empty` migration, then scaffold it.'
 
-        assert_equal [message, ""], [kernel.aborted, out.string]
+        assert_equal [message, ''], [kernel.aborted, out.string]
       end
     end
 
     it "refuses a table the database doesn't have, suggesting a close one" do
       app do |directory, connection|
         connection.execute("CREATE TABLE todos (id #{empty.primary_key})")
-        run_in(directory, "todo")
+        run_in(directory, 'todo')
 
-        assert_equal ["skyward: there's no table todo. Did you mean todos?", ""], [kernel.aborted, out.string]
+        assert_equal ["skyward: there's no table todo. Did you mean todos?", ''], [kernel.aborted, out.string]
       end
     end
 
     it "refuses a table the database doesn't have, with no suggestion when none is close" do
       app do |directory|
-        run_in(directory, "todos")
+        run_in(directory, 'todos')
 
-        assert_equal ["skyward: there's no table todos.", ""], [kernel.aborted, out.string]
+        assert_equal ["skyward: there's no table todos.", ''], [kernel.aborted, out.string]
       end
     end
 
-    it "prints the class for the table, with the loaded classes it references" do
+    it 'prints the class for the table, with the loaded classes it references' do
       app do |directory, connection|
         connection.execute("CREATE TABLE lists (id #{empty.primary_key}, name #{text} NOT NULL)")
         connection.execute("CREATE TABLE todos (id #{empty.primary_key}, list_id #{integer} REFERENCES lists)")
-        run_in(directory, "todos", classes: [MigrationsFixtures::List])
+        run_in(directory, 'todos', classes: [MigrationsFixtures::List])
         tables = empty.adapter.tables(connection)
         todos = tables.find { |table| table.name == :todos }
 

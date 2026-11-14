@@ -1,22 +1,22 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require_relative "../../fixtures/boot/boot_fixtures"
+require 'test_helper'
+require_relative '../../fixtures/boot/boot_fixtures'
 
 describe Skyward::API::Test do
-  describe ".client" do
-    it "drives a Skyward app" do
-      signatures = File.expand_path("../../fixtures/boot/sig", __dir__)
-      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Hello.new, at: "/hello" }
+  describe '.client' do
+    it 'drives a Skyward app' do
+      signatures = File.expand_path('../../fixtures/boot/sig', __dir__)
+      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Hello.new, at: '/hello' }
       client = Skyward::API::Test.client(app)
 
-      assert_equal({ message: "Hello, ruby" }, client.get("/hello/ruby").json)
+      assert_equal({ message: 'Hello, ruby' }, client.get('/hello/ruby').json)
     end
 
-    it "drives any Rack app" do
-      client = Skyward::API::Test.client(->(env) { [200, {}, [env["PATH_INFO"]]] })
+    it 'drives any Rack app' do
+      client = Skyward::API::Test.client(->(env) { [200, {}, [env['PATH_INFO']]] })
 
-      assert_equal "/hello", client.get("/hello").body
+      assert_equal '/hello', client.get('/hello').body
     end
   end
 end

@@ -17,10 +17,10 @@ class Skyward::API::Middleware::RequestId
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::API::rack_response
   def call(env)
-    incoming = env["HTTP_X_REQUEST_ID"]
+    incoming = env['HTTP_X_REQUEST_ID']
     # Matched as binary, because Regexp#match? raises on a String that isn't valid UTF-8.
     id = VALID.match?(incoming&.b) ? incoming : @generate.call
-    status, headers, body = @app.call(env.merge("skyward.request_id" => id))
-    [status, headers.merge("x-request-id" => id), body]
+    status, headers, body = @app.call(env.merge('skyward.request_id' => id))
+    [status, headers.merge('x-request-id' => id), body]
   end
 end

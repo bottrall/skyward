@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 # Time#iso8601 is core only from Ruby 3.4.
-require "time"
+require 'time'
 
 module Skyward::API::Serializer::Writers
   extend self
@@ -39,7 +39,7 @@ module Skyward::API::Serializer::Writers
   # @rbs members: Array[Writer]
   # @rbs return: Writer
   def union(members)
-    name = members.map(&:name).join(" | ")
+    name = members.map(&:name).join(' | ')
     Writer.new(
       name:,
       fits: ->(value) { members.any? { |member| member.fits.call(value) } },
@@ -83,15 +83,15 @@ module Skyward::API::Serializer::Writers
   # @rbs return: Writer
   def scalar(name)
     case name
-    when :integer then checked("Integer", ->(value) { value.is_a?(Integer) }, ->(value, _) { value })
-    when :float then checked("Float", ->(value) { value.is_a?(Float) && value.finite? }, ->(value, _) { value })
-    when :string then checked("String", ->(value) { value.is_a?(String) }, ->(value, _) { value })
-    when :bool then checked("bool", ->(value) { [true, false].include?(value) }, ->(value, _) { value })
-    when :date then checked("Date", ->(value) { value.is_a?(Date) }, ->(value, _) { date(value) })
-    when :time then checked("Time", ->(value) { value.is_a?(Time) }, ->(value, _) { time(value) })
+    when :integer then checked('Integer', ->(value) { value.is_a?(Integer) }, ->(value, _) { value })
+    when :float then checked('Float', ->(value) { value.is_a?(Float) && value.finite? }, ->(value, _) { value })
+    when :string then checked('String', ->(value) { value.is_a?(String) }, ->(value, _) { value })
+    when :bool then checked('bool', ->(value) { [true, false].include?(value) }, ->(value, _) { value })
+    when :date then checked('Date', ->(value) { value.is_a?(Date) }, ->(value, _) { date(value) })
+    when :time then checked('Time', ->(value) { value.is_a?(Time) }, ->(value, _) { time(value) })
     when :decimal
-      checked("BigDecimal", ->(value) { value.is_a?(BigDecimal) && value.finite? }, ->(value, _) { decimal(value) })
-    when :untyped then Writer.new(name: "untyped", fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
+      checked('BigDecimal', ->(value) { value.is_a?(BigDecimal) && value.finite? }, ->(value, _) { decimal(value) })
+    when :untyped then Writer.new(name: 'untyped', fits: ->(_) { true }, write: ->(value, at) { untyped(value, at) })
     end
   end
 
@@ -104,7 +104,7 @@ module Skyward::API::Serializer::Writers
   # @rbs symbols: Array[Symbol]
   # @rbs return: Writer
   def enum(symbols)
-    checked(symbols.map(&:inspect).join(" | "), ->(value) { symbols.include?(value) }, ->(value, _) { value.name })
+    checked(symbols.map(&:inspect).join(' | '), ->(value) { symbols.include?(value) }, ->(value, _) { value.name })
   end
 
   # @rbs type: Skyward::Core::Types::t
@@ -146,9 +146,9 @@ module Skyward::API::Serializer::Writers
   # @rbs return: Writer
   def record(fields)
     writers = fields.map { |field| [field, writer(field.type)] } #: Array[[Skyward::Core::Types::Field, Writer]]
-    declared = writers.map { |field, writer| "#{"?" unless field.required}#{field.name}: #{writer.name}" }
+    declared = writers.map { |field, writer| "#{'?' unless field.required}#{field.name}: #{writer.name}" }
     checked(
-      "{ #{declared.join(", ")} }",
+      "{ #{declared.join(', ')} }",
       ->(value) { value.is_a?(Hash) },
       ->(value, at) { object(writers.filter_map { |field, writer| entry(field, writer, value, at) }) }
     )
@@ -162,7 +162,7 @@ module Skyward::API::Serializer::Writers
   def entry(field, writer, hash, at)
     name = field.name
     if hash.key?(name) then [name, writer.write.call(hash[name], "#{at}.#{name}")]
-    elsif field.required then [name, Misfit.new(at: "#{at}.#{name}", expected: writer.name, got: "nothing")]
+    elsif field.required then [name, Misfit.new(at: "#{at}.#{name}", expected: writer.name, got: 'nothing')]
     end
   end
 
@@ -184,7 +184,7 @@ module Skyward::API::Serializer::Writers
   # strftime rather than iso8601, which writes a DateTime with its time.
   # @rbs value: Date
   # @rbs return: String
-  def date(value) = value.strftime("%Y-%m-%d")
+  def date(value) = value.strftime('%Y-%m-%d')
 
   # Six fractional digits, so a time read back from JSON equals the one written.
   # @rbs value: Time
@@ -195,7 +195,7 @@ module Skyward::API::Serializer::Writers
   # and "F" so it never has an exponent.
   # @rbs value: BigDecimal
   # @rbs return: String
-  def decimal(value) = value.to_s("F")
+  def decimal(value) = value.to_s('F')
 
   # @rbs value: untyped
   # @rbs at: String
@@ -206,10 +206,10 @@ module Skyward::API::Serializer::Writers
     when Symbol then value.name
     when Date then date(value)
     when Time then time(value)
-    when BigDecimal then value.finite? ? decimal(value) : misfit("BigDecimal", value, at)
+    when BigDecimal then value.finite? ? decimal(value) : misfit('BigDecimal', value, at)
     when Hash then object(value.map { |key, item| [key, untyped(item, "#{at}.#{key}")] })
     when Array then items(value.each_with_index.map { |item, index| untyped(item, "#{at}[#{index}]") })
-    else value.respond_to?(:to_h) ? untyped(value.to_h, at) : misfit("something with to_h", value, at)
+    else value.respond_to?(:to_h) ? untyped(value.to_h, at) : misfit('something with to_h', value, at)
     end
   end
 

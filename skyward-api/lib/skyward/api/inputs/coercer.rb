@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "date"
-require "json"
+require 'date'
+require 'json'
 
 module Skyward::API::Inputs::Coercer
   extend self
@@ -36,7 +36,7 @@ module Skyward::API::Inputs::Coercer
 
   # Stands for every problem a union's member finds, since the union reports
   # none of them.
-  MISFIT = Invalid.new(errors: [Error.new(at: "", message: "doesn't fit")]) #: Invalid
+  MISFIT = Invalid.new(errors: [Error.new(at: '', message: "doesn't fit")]) #: Invalid
 
   # INTEGER, DECIMAL, DATE and TIME match a String's bytes, because a path
   # parameter can be any bytes, and Regexp#match raises on a String that isn't
@@ -47,7 +47,7 @@ module Skyward::API::Inputs::Coercer
   # an exponent it's a billion digits long.
   DECIMAL = /\A-?\d+(?:\.\d+)?\z/ #: Regexp
 
-  BOOLEANS = { "true" => true, "false" => false, "1" => true, "0" => false }.freeze #: Hash[String, bool]
+  BOOLEANS = { 'true' => true, 'false' => false, '1' => true, '0' => false }.freeze #: Hash[String, bool]
 
   DATE = /\A(\d{4})-(\d{2})-(\d{2})\z/ #: Regexp
 
@@ -59,19 +59,19 @@ module Skyward::API::Inputs::Coercer
   /x #: Regexp
 
   NAMES = {
-    integer: "Integer",
-    float: "Float",
-    string: "String",
-    bool: "bool",
-    date: "Date",
-    time: "Time",
-    decimal: "BigDecimal",
-    untyped: "untyped"
+    integer: 'Integer',
+    float: 'Float',
+    string: 'String',
+    bool: 'bool',
+    date: 'Date',
+    time: 'Time',
+    decimal: 'BigDecimal',
+    untyped: 'untyped'
   }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
   FORMATS = {
-    date: "Date (YYYY-MM-DD)",
-    time: "Time (ISO 8601)",
+    date: 'Date (YYYY-MM-DD)',
+    time: 'Time (ISO 8601)',
     decimal: 'BigDecimal (a decimal string, such as "12.50")'
   }.freeze #: Hash[Skyward::Core::Types::scalar, String]
 
@@ -99,7 +99,7 @@ module Skyward::API::Inputs::Coercer
     return unless required
     return Ok.new(value: nil) if type.is_a?(Skyward::Core::Types::Nullable)
 
-    Invalid.new(errors: [Error.new(at:, message: "is required")])
+    Invalid.new(errors: [Error.new(at:, message: 'is required')])
   end
 
   # @rbs results: Hash[Symbol, result]
@@ -435,16 +435,16 @@ module Skyward::API::Inputs::Coercer
     case type
     when Skyward::Core::Types::Scalar then NAMES.fetch(type.name)
     when Skyward::Core::Types::Literal then type.value.inspect
-    when Skyward::Core::Types::Enum then type.symbols.map(&:inspect).join(" | ")
+    when Skyward::Core::Types::Enum then type.symbols.map(&:inspect).join(' | ')
     when Skyward::Core::Types::Nullable then nullable_written(type.type)
     when Skyward::Core::Types::ArrayOf then "Array[#{written(type.type)}]"
     when Skyward::Core::Types::HashOf then "Hash[String, #{written(type.type)}]"
     when Skyward::Core::Types::Record
-      fields = type.fields.map { |field| "#{"?" unless field.required}#{field.name}: #{written(field.type)}" }
-      "{ #{fields.join(", ")} }"
+      fields = type.fields.map { |field| "#{'?' unless field.required}#{field.name}: #{written(field.type)}" }
+      "{ #{fields.join(', ')} }"
     when Skyward::Core::Types::Named then type.name
     when Skyward::Core::Types::Refined then written(type.type)
-    else type.types.map { |member| written(member) }.join(" | ")
+    else type.types.map { |member| written(member) }.join(' | ')
     end
   end
 

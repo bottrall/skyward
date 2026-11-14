@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 class Skyward::API::Middleware::Rescue
   # @rbs @app: Skyward::API::_RackApp
@@ -22,14 +22,14 @@ class Skyward::API::Middleware::Rescue
   # @rbs return: Skyward::API::rack_response
   def call(env)
     # Read before the app runs, because middleware can rewrite the env in place.
-    verb = env["REQUEST_METHOD"]
+    verb = env['REQUEST_METHOD']
     @app.call(env)
   rescue StandardError => e
-    request_id = env["skyward.request_id"]
+    request_id = env['skyward.request_id']
     log(e, request_id)
     report(e, env, request_id)
-    body = verb == "HEAD" ? [] : [JSON.generate(problem(e, request_id))] #: Array[String]
-    [500, { "content-type" => "application/problem+json" }, body]
+    body = verb == 'HEAD' ? [] : [JSON.generate(problem(e, request_id))] #: Array[String]
+    [500, { 'content-type' => 'application/problem+json' }, body]
   end
 
   private
@@ -41,7 +41,7 @@ class Skyward::API::Middleware::Rescue
     @logger&.info(
       JSON.generate(
         {
-          level: "error",
+          level: 'error',
           request_id:,
           class: exception.class.name,
           message: message(exception),
@@ -65,7 +65,7 @@ class Skyward::API::Middleware::Rescue
   # @rbs request_id: String?
   # @rbs return: Hash[Symbol, untyped]
   def problem(exception, request_id)
-    problem = { type: "about:blank", title: "Internal Server Error", status: 500, request_id: }
+    problem = { type: 'about:blank', title: 'Internal Server Error', status: 500, request_id: }
     # An exception's message can carry data, so only development shows it.
     return problem unless @development
 

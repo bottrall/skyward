@@ -68,19 +68,19 @@ class Skyward::API::Routing::Router
   # @rbs path: String
   # @rbs return: Match?
   def match(verb, path)
-    segments = path.split("/", -1)
-    routed = verb == "HEAD" ? "GET" : verb
+    segments = path.split('/', -1)
+    routed = verb == 'HEAD' ? 'GET' : verb
     @endpoints.lazy.filter_map { |endpoint| match_endpoint(endpoint, routed, segments) }.first
   end
 
   # @rbs path: String
   # @rbs return: Array[String]
   def allowed(path)
-    segments = path.split("/", -1)
+    segments = path.split('/', -1)
     verbs = @endpoints.filter_map { |endpoint| endpoint.verb if params_for(endpoint.pattern, segments) }
     return [] if verbs.empty?
 
-    implied = verbs.include?("GET") ? %w[HEAD OPTIONS] : %w[OPTIONS]
+    implied = verbs.include?('GET') ? %w[HEAD OPTIONS] : %w[OPTIONS]
     METHODS & (verbs + implied)
   end
 

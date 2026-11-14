@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "fileutils"
+require 'fileutils'
 
 module Skyward::Generator::CLI::New
   extend self
 
-  SKIP_BUNDLE = "--skip-bundle" #: String
+  SKIP_BUNDLE = '--skip-bundle' #: String
 
   # Lowercase, so it names one directory on every filesystem, and a constant
   # once camelized.
@@ -24,11 +24,11 @@ module Skyward::Generator::CLI::New
       file = File.join(app, path)
       FileUtils.mkdir_p(File.dirname(file))
       File.write(file, content)
-      File.chmod(0o755, file) if path.start_with?("bin/")
+      File.chmod(0o755, file) if path.start_with?('bin/')
       out.write("Wrote #{File.join(name, path)}\n")
     end
     # system merges env into this process's environment unless told to replace it.
-    unless args.include?(SKIP_BUNDLE) || kernel.system(env, "bundle", "install", chdir: app, unsetenv_others: true)
+    unless args.include?(SKIP_BUNDLE) || kernel.system(env, 'bundle', 'install', chdir: app, unsetenv_others: true)
       return kernel.abort("skyward: bundle install failed in #{name}. Fix what it printed, then run bin/setup there.")
     end
 
@@ -47,7 +47,7 @@ module Skyward::Generator::CLI::New
     end
     unless name.match?(NAME)
       return "skyward: #{name} can't name an app. Use lowercase letters, digits and underscores, " \
-             "starting with a letter, as in my_app."
+             'starting with a letter, as in my_app.'
     end
 
     app = File.join(directory, name)

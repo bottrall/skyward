@@ -34,7 +34,7 @@ module ChangesFixtures
     attr_reader(*COLUMNS, :serial)
   end
   Stamped = item do
-    default added_at: Skyward.sql("CURRENT_TIMESTAMP")
+    default added_at: Skyward.sql('CURRENT_TIMESTAMP')
     attr_reader(*COLUMNS, :added_at)
   end
   Retyped = item { attr_reader(*COLUMNS) }

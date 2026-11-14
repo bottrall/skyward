@@ -3,7 +3,7 @@
 module Skyward::ORM::CLI::BootFile
   extend self
 
-  FILE = "boot.rb" #: String
+  FILE = 'boot.rb' #: String
 
   # @rbs directory: String
   # @rbs session: Skyward::ORM::Connection::Session
@@ -13,7 +13,7 @@ module Skyward::ORM::CLI::BootFile
     path = File.join(directory, FILE)
     unless File.file?(path)
       return "skyward: no #{FILE} in #{directory}. Run skyward where your app's #{FILE} loads its table classes " \
-             "and calls Skyward.connect."
+             'and calls Skyward.connect.'
     end
 
     failure = generate.call

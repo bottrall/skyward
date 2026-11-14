@@ -6,13 +6,13 @@ Todo = Data.define(:id, :title, :priority, :due_on, :done)
 NewTodo = Data.define(:title, :priority, :due_on)
 
 class TodosAPI < Skyward::API
-  description "Things to do, and the satisfaction of ticking them off."
+  description 'Things to do, and the satisfaction of ticking them off.'
 
-  get    "/",             to: :index,    summary: "List todos, newest first."
-  get    "/:id",          to: :show,     summary: "Fetch a single todo."
-  post   "/",             to: :create,   summary: "Create a todo."
-  post   "/:id/complete", to: :complete, summary: "Mark a todo as done."
-  delete "/:id",          to: :destroy,  summary: "Delete a todo."
+  get    '/',             to: :index,    summary: 'List todos, newest first.'
+  get    '/:id',          to: :show,     summary: 'Fetch a single todo.'
+  post   '/',             to: :create,   summary: 'Create a todo.'
+  post   '/:id/complete', to: :complete, summary: 'Mark a todo as done.'
+  delete '/:id',          to: :destroy,  summary: 'Delete a todo.'
 
   def initialize(todos:)
     super()

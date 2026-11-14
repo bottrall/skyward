@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "stringio"
-require "test_helper"
-require "tmpdir"
+require 'fileutils'
+require 'stringio'
+require 'test_helper'
+require 'tmpdir'
 
 describe Skyward::ORM::CLI::Migrate do
   # Loaded, so boot.rb's Skyward.connect would refuse it with the check on.
@@ -11,7 +11,7 @@ describe Skyward::ORM::CLI::Migrate do
     table :notes
     attr_reader :id
   end
-  create_notes = { "20261001000000_create_notes.sql" => "CREATE TABLE notes (id INTEGER);\n" }
+  create_notes = { '20261001000000_create_notes.sql' => "CREATE TABLE notes (id INTEGER);\n" }
 
   let(:kernel) do
     Class.new do
@@ -29,14 +29,14 @@ describe Skyward::ORM::CLI::Migrate do
     Dir.mktmpdir do |tmp|
       directory = File.realpath(tmp)
       File.write(
-        File.join(directory, "boot.rb"),
-        "Skyward.connect(#{empty.url.inspect}, signatures: #{File.join(directory, "sig").inspect})\n"
+        File.join(directory, 'boot.rb'),
+        "Skyward.connect(#{empty.url.inspect}, signatures: #{File.join(directory, 'sig').inspect})\n"
       )
-      FileUtils.mkdir_p(File.join(directory, "db/migrate"))
-      migrations.each { |file, sql| File.write(File.join(directory, "db/migrate", file), sql) }
+      FileUtils.mkdir_p(File.join(directory, 'db/migrate'))
+      migrations.each { |file, sql| File.write(File.join(directory, 'db/migrate', file), sql) }
       yield directory
     ensure
-      $LOADED_FEATURES.delete(File.join(directory, "boot.rb"))
+      $LOADED_FEATURES.delete(File.join(directory, 'boot.rb'))
     end
   end
 
@@ -51,16 +51,16 @@ describe Skyward::ORM::CLI::Migrate do
     )
   end
 
-  describe ".run" do
+  describe '.run' do
     it "fails with why sig/generated couldn't be regenerated, before it migrates" do
       app(create_notes) do |directory|
         run_in(directory, generate: -> { "rbs-inline couldn't regenerate sig/generated:\n" })
 
-        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ""], [kernel.aborted, out.string]
+        assert_equal ["rbs-inline couldn't regenerate sig/generated:\n", ''], [kernel.aborted, out.string]
       end
     end
 
-    it "checks the classes it finds against the tables it made" do
+    it 'checks the classes it finds against the tables it made' do
       app(create_notes) do |directory|
         run_in(directory, discover: -> { [note] })
 
@@ -68,7 +68,7 @@ describe Skyward::ORM::CLI::Migrate do
       end
     end
 
-    it "says when no migration is pending" do
+    it 'says when no migration is pending' do
       app do |directory|
         run_in(directory)
 
@@ -78,8 +78,8 @@ describe Skyward::ORM::CLI::Migrate do
 
     it "runs the pending migrations in db/migrate on boot.rb's database, printing each version" do
       migrations = {
-        "20261001000000_create_a.sql" => "CREATE TABLE a (id INTEGER);\n",
-        "20261002000000_create_b.sql" => "CREATE TABLE b (id INTEGER);\n"
+        '20261001000000_create_a.sql' => "CREATE TABLE a (id INTEGER);\n",
+        '20261002000000_create_b.sql' => "CREATE TABLE b (id INTEGER);\n"
       }
       app(migrations) do |directory|
         run_in(directory)
@@ -89,7 +89,7 @@ describe Skyward::ORM::CLI::Migrate do
     end
 
     it "prints what it migrated, then fails with only the mismatch of a class that still doesn't match" do
-      app({ "20261001000000_create_a.sql" => "CREATE TABLE a (id INTEGER);\n" }) do |directory|
+      app({ '20261001000000_create_a.sql' => "CREATE TABLE a (id INTEGER);\n" }) do |directory|
         run_in(directory, discover: -> { [note] })
 
         assert_equal ["Migrated 20261001000000\n", "#{note} doesn't match the notes table"],
@@ -98,14 +98,14 @@ describe Skyward::ORM::CLI::Migrate do
     end
 
     it "fails with only what went wrong when a migration can't run" do
-      app({ "20261001000000_broken.sql" => "INSERT INTO nowhere VALUES (1);\n" }) do |directory|
+      app({ '20261001000000_broken.sql' => "INSERT INTO nowhere VALUES (1);\n" }) do |directory|
         run_in(directory)
         failed = Skyward::ORM::Migrations::Runner::Failed.new(
-          file: "20261001000000_broken.sql",
+          file: '20261001000000_broken.sql',
           message: empty.error("INSERT INTO nowhere VALUES (1);\n")
         )
 
-        assert_equal [Skyward::ORM::Migrations::Runner.message(failed), ""], [kernel.aborted, out.string]
+        assert_equal [Skyward::ORM::Migrations::Runner.message(failed), ''], [kernel.aborted, out.string]
       end
     end
   end

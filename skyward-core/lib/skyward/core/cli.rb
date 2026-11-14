@@ -19,7 +19,7 @@ module Skyward::Core::CLI
   def run(argv, registry:, out:)
     name, *args = argv
     case name
-    when nil, "help", "--help", "-h"
+    when nil, 'help', '--help', '-h'
       out.write(help(registry))
       0
     else

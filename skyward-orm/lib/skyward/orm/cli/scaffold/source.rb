@@ -8,7 +8,7 @@ module Skyward::ORM::CLI::Scaffold::Source
 
   # Only a trailing s is dropped: ies becomes y, sses becomes ss, and ss stays.
   SINGULAR = /ies\z|sses\z|(?<!s)s\z/ #: Regexp
-  SINGULARS = { "ies" => "y", "sses" => "ss" }.freeze #: Hash[String, String]
+  SINGULARS = { 'ies' => 'y', 'sses' => 'ss' }.freeze #: Hash[String, String]
 
   QUOTED = /'((?:[^']|'')*)'/ #: Regexp
   LITERAL = /\A#{QUOTED}\z/ #: Regexp
@@ -17,7 +17,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # a default back with a cast, so no Time is written back the same there.
   ISO_TIME = /\A(\d{4}-\d{2}-\d{2}) (?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?\z/ #: Regexp
 
-  BOOLS = { "true" => true, "false" => false, "1" => true, "0" => false }.freeze #: Hash[String, bool]
+  BOOLS = { 'true' => true, 'false' => false, '1' => true, '0' => false }.freeze #: Hash[String, bool]
 
   ENUM = Skyward::ORM::Tables::Column.new(
     name: :enum, type: :enum, nullable: false, symbols: [], element: nil
@@ -41,8 +41,8 @@ module Skyward::ORM::CLI::Scaffold::Source
   REFERENCED = /\bREFERENCES\s+(?:"(?:[^"]|"")*"|[^\s(]+)\s*(?:\(([^)]*)\))?/i #: Regexp
 
   DROPPED = "  # `skyward migration` will drop these, since a table class can't declare them:\n" #: String
-  REWRITTEN = "`skyward migration` will rewrite these defaults once, as the values below, since SQLite keeps each " \
-              "as it was written: " #: String
+  REWRITTEN = '`skyward migration` will rewrite these defaults once, as the values below, since SQLite keeps each ' \
+              'as it was written: ' #: String
 
   # @rbs (Skyward::ORM::Catalog::Table table, Array[Skyward::ORM::Catalog::Table] tables,
   #   Skyward::ORM::_Adapter adapter, Array[singleton(Skyward::ORM::Record)] classes) -> String
@@ -59,7 +59,7 @@ module Skyward::ORM::CLI::Scaffold::Source
       "\nclass #{class_name(table.name)} < Skyward::ORM::Record\n",
       "  table #{table.name.inspect}\n",
       *declarations(table, tables, adapter, classes, checks - unions.values.map(&:first), types),
-      "\n  # @dynamic #{table.columns.map(&:name).join(", ")}\n",
+      "\n  # @dynamic #{table.columns.map(&:name).join(', ')}\n",
       *readers(table.columns, unions, types),
       "end\n"
     ].compact.join
@@ -68,7 +68,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs table: Symbol
   # @rbs return: String
   def class_name(table)
-    table.name.split("_").map(&:capitalize).join.sub(SINGULAR) { |ending| SINGULARS.fetch(ending, "") }
+    table.name.split('_').map(&:capitalize).join.sub(SINGULAR) { |ending| SINGULARS.fetch(ending, '') }
   end
 
   # @rbs table: Skyward::ORM::Catalog::Table?
@@ -94,29 +94,29 @@ module Skyward::ORM::CLI::Scaffold::Source
     declared, unread = defaults.partition { |_, value| value }
     rewritten = declared.reject(&:last).map { |column, _| column.name }
     undeclared = [*unread.map(&:first), *unreferenced, *unchecked, *unindexed].map do |undeclarable|
-      comment(definition(undeclarable), "  #   ")
+      comment(definition(undeclarable), '  #   ')
     end
     [
       (DROPPED unless undeclared.empty?),
       *undeclared,
       ("  primary_key #{key.inspect}\n" unless key == :id),
       *references.flat_map { |reference| reference(table.name, reference, classes) },
-      (comment("#{REWRITTEN}#{rewritten.join(", ")}") unless rewritten.empty?),
-      ("  default #{declared.map { |column, value| "#{column.name}: #{value}" }.join(", ")}\n" unless declared.empty?),
-      *table.constraints.select { |constraint| constraint.kind == :unique }.map { |unique| columns("unique", unique) },
+      (comment("#{REWRITTEN}#{rewritten.join(', ')}") unless rewritten.empty?),
+      ("  default #{declared.map { |column, value| "#{column.name}: #{value}" }.join(', ')}\n" unless declared.empty?),
+      *table.constraints.select { |constraint| constraint.kind == :unique }.map { |unique| columns('unique', unique) },
       *unique_indexes.flat_map do |index|
         [
           comment(
             "`skyward migration` will replace the unique index #{index.name} with a constraint on the same " \
-            "columns."
+            'columns.'
           ),
-          columns("unique", index)
+          columns('unique', index)
         ]
       end,
       *column_checks.map do |check|
         "  check #{check.columns.fetch(0).inspect}, Skyward.sql(#{rule(check).inspect})\n"
       end,
-      *indexes.map { |index| columns("index", index) }
+      *indexes.map { |index| columns('index', index) }
     ].compact
   end
 
@@ -130,9 +130,9 @@ module Skyward::ORM::CLI::Scaffold::Source
       name = column.name
       column_type = types[name]
       symbols = unions[name]&.last
-      type = if symbols then symbols.map(&:inspect).join(" | ")
+      type = if symbols then symbols.map(&:inspect).join(' | ')
              elsif column_type then Skyward::ORM::Tables::Values::WRITTEN.fetch(column_type)
-             else "untyped"
+             else 'untyped'
              end
       rbs = if column_type.nil? || !column.nullable then type
             elsif symbols then "(#{type})?"
@@ -157,7 +157,7 @@ module Skyward::ORM::CLI::Scaffold::Source
 
     found = checks.find do |check|
       rule = rule(check)
-      residue = rule.gsub(QUOTED, "").gsub(CAST, "").gsub(PUNCTUATION, "").upcase
+      residue = rule.gsub(QUOTED, '').gsub(CAST, '').gsub(PUNCTUATION, '').upcase
       check.columns == [column.name] && rule.match?(QUOTED) &&
         LISTS.any? { |list| residue == "#{column.name.upcase}#{list}" }
     end
@@ -226,7 +226,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs string: String?
   # @rbs return: Time?
   def time(string)
-    Time.new(string, in: "UTC") if string && date(string[ISO_TIME, 1])
+    Time.new(string, in: 'UTC') if string && date(string[ISO_TIME, 1])
   end
 
   # @rbs value: untyped
@@ -237,7 +237,7 @@ module Skyward::ORM::CLI::Scaffold::Source
     when Time
       parts = [value.year, value.month, value.day, value.hour, value.min, value.sec,
                (value.usec unless value.usec.zero?)]
-      "Time.utc(#{parts.compact.join(", ")})"
+      "Time.utc(#{parts.compact.join(', ')})"
     else value.inspect
     end
   end
@@ -249,7 +249,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs return: bool
   def reference?(constraint, tables)
     key = primary_key(tables.find { |table| table.name == constraint.references })
-    listed = constraint.definition[REFERENCED, 1]&.split(",")&.map { |column| column.strip.delete('"').to_sym }
+    listed = constraint.definition[REFERENCED, 1]&.split(',')&.map { |column| column.strip.delete('"').to_sym }
     constraint.columns.one? && key.one? && (listed.nil? || listed == key)
   end
 
@@ -261,8 +261,8 @@ module Skyward::ORM::CLI::Scaffold::Source
     # reference? found the table it references.
     referenced = constraint.references #: Symbol
     owner = classes.find { |klass| klass.table_name == referenced }
-    action = constraint.definition[Skyward::ORM::Migrations::Diff::ON_DELETE, 1].to_s.downcase.split.join("_")
-    on_delete = ", on_delete: :#{action}" unless ["", "no_action"].include?(action)
+    action = constraint.definition[Skyward::ORM::Migrations::Diff::ON_DELETE, 1].to_s.downcase.split.join('_')
+    on_delete = ", on_delete: :#{action}" unless ['', 'no_action'].include?(action)
     line = "  references #{constraint.columns.fetch(0).inspect}, #{owner || class_name(referenced)}#{on_delete}\n"
     return [line] if owner || referenced == table
 
@@ -273,7 +273,7 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs return: bool
   def plain?(index)
     keys = index.definition[PLAIN_INDEX, 1]
-    !keys.nil? && keys.split(",").map { |key| key.strip.delete('"') } == index.columns.map(&:name)
+    !keys.nil? && keys.split(',').map { |key| key.strip.delete('"') } == index.columns.map(&:name)
   end
 
   # @rbs check: Skyward::ORM::Catalog::Constraint
@@ -283,14 +283,14 @@ module Skyward::ORM::CLI::Scaffold::Source
   # @rbs declaration: String
   # @rbs key: Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index
   # @rbs return: String
-  def columns(declaration, key) = "  #{declaration} #{key.columns.map(&:inspect).join(", ")}\n"
+  def columns(declaration, key) = "  #{declaration} #{key.columns.map(&:inspect).join(', ')}\n"
 
   # Every line of the text is commented, since a definition or name the
   # database keeps can hold a newline.
   # @rbs text: String
   # @rbs prefix: String
   # @rbs return: String
-  def comment(text, prefix = "  # ") = "#{text.gsub(/^/, prefix)}\n"
+  def comment(text, prefix = '  # ') = "#{text.gsub(/^/, prefix)}\n"
 
   # @rbs undeclarable: Skyward::ORM::Catalog::Column | Skyward::ORM::Catalog::Constraint | Skyward::ORM::Catalog::Index
   # @rbs return: String
@@ -298,7 +298,7 @@ module Skyward::ORM::CLI::Scaffold::Source
     case undeclarable
     when Skyward::ORM::Catalog::Column then "#{undeclarable.name} DEFAULT #{undeclarable.default}"
     when Skyward::ORM::Catalog::Index then undeclarable.definition
-    else [("CONSTRAINT #{undeclarable.name}" if undeclarable.name), undeclarable.definition].compact.join(" ")
+    else [("CONSTRAINT #{undeclarable.name}" if undeclarable.name), undeclarable.definition].compact.join(' ')
     end
   end
 end

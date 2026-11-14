@@ -11,14 +11,14 @@ It's half of Skyward. The other half is [Skyward ORM](../skyward-orm/README.md),
 
 ```ruby
 # config.ru
-require "skyward/api"
+require 'skyward/api'
 
 class Hello < Skyward::API
-  get "/hello/:name", to: :greet
+  get '/hello/:name', to: :greet
 
-  def greet(name:, shout: "false")
+  def greet(name:, shout: 'false')
     message = "Hello, #{name}"
-    { message: shout == "true" ? message.upcase : message }
+    { message: shout == 'true' ? message.upcase : message }
   end
 end
 
@@ -59,7 +59,7 @@ The rest of this README is reference. If you only read one section, read [Types]
 
 ```ruby
 # Gemfile
-gem "skyward-api"
+gem 'skyward-api'
 ```
 
 Skyward API supports every Ruby that isn't end-of-life (3.3 and later, as of November 2026), and runs on any Rack 3 server. It recommends [Falcon](https://github.com/socketry/falcon) or Puma. `skyward serve` runs Falcon, so add `gem "falcon"` to use it.
@@ -72,15 +72,15 @@ An endpoint is a public method. The class lists its routes at the top, and each 
 
 ```ruby
 class TodosAPI < Skyward::API
-  get "/",    to: :index, summary: "List todos, newest first."
-  get "/:id", to: :show,  summary: "Fetch a single todo."
+  get '/',    to: :index, summary: 'List todos, newest first.'
+  get '/:id', to: :show,  summary: 'Fetch a single todo.'
 
   def initialize(todos:)
     super()
     @todos = todos
   end
 
-  def index(done: nil, limit: "50")
+  def index(done: nil, limit: '50')
     @todos.list(done:, limit: Integer(limit))
   end
 
@@ -116,12 +116,12 @@ Ruby already has syntax for required and optional, so Skyward API uses it. A key
 Without types, path and query values arrive as `String`s and `body:` arrives as a `Hash` with symbol keys. That makes it a good fit for pattern matching:
 
 ```ruby
-post "/", to: :create
+post '/', to: :create
 
 def create(body:)
   case body
   in { title: String => title } then created @todos.create(title:)
-  else unprocessable "title is required"
+  else unprocessable 'title is required'
   end
 end
 ```
@@ -151,7 +151,7 @@ Return a value and Skyward API turns it into a response. There's no `render`, no
 Every helper takes `headers:`:
 
 ```ruby
-created todo, headers: { "location" => "/todos/#{todo.id}" }
+created todo, headers: { 'location' => "/todos/#{todo.id}" }
 ```
 
 Error responses use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) `application/problem+json`:
@@ -172,7 +172,7 @@ Return a Rack triple for anything a value can't express: streaming, files, or a 
 # @rbs return: rack | Responses::NotFound
 def export(id:)
   todo = @todos.find(id)
-  todo ? [200, { "content-type" => "text/csv" }, [todo.to_csv]] : not_found
+  todo ? [200, { 'content-type' => 'text/csv' }, [todo.to_csv]] : not_found
 end
 ```
 
@@ -214,16 +214,16 @@ NewTodo = Data.define(
 )
 
 class TodosAPI < Skyward::API
-  description "Things to do, and the satisfaction of ticking them off."
+  description 'Things to do, and the satisfaction of ticking them off.'
 
-  get    "/",             to: :index,    summary: "List todos, newest first."
-  get    "/:id",          to: :show,     summary: "Fetch a single todo."
-  post   "/",             to: :create,   summary: "Create a todo."
-  post   "/:id/complete", to: :complete, summary: "Mark a todo as done.", description: <<~TEXT
+  get    '/',             to: :index,    summary: 'List todos, newest first.'
+  get    '/:id',          to: :show,     summary: 'Fetch a single todo.'
+  post   '/',             to: :create,   summary: 'Create a todo.'
+  post   '/:id/complete', to: :complete, summary: 'Mark a todo as done.', description: <<~TEXT
     Marking a todo that's already done is fine: it stays done, and the
     response is the same.
   TEXT
-  delete "/:id",          to: :destroy,  summary: "Delete a todo."
+  delete '/:id',          to: :destroy,  summary: 'Delete a todo.'
 
   # @rbs @todos: TodoStore
 
@@ -337,16 +337,16 @@ Documentation is plain Ruby values, written where the thing it describes is decl
 ```ruby
 App = Skyward.app(
   docs: true,
-  title: "Best Todos Ever",
-  version: "1.0.0",
-  description: "Lists of things to do, and the todos on them."
+  title: 'Best Todos Ever',
+  version: '1.0.0',
+  description: 'Lists of things to do, and the todos on them.'
 ) { ... }
 
 class TodosAPI < Skyward::API
-  description "Things to do, and the satisfaction of ticking them off."
+  description 'Things to do, and the satisfaction of ticking them off.'
 
-  get  "/",             to: :index,    summary: "List todos, newest first."
-  post "/:id/complete", to: :complete, summary: "Mark a todo as done.", description: <<~TEXT
+  get  '/',             to: :index,    summary: 'List todos, newest first.'
+  post '/:id/complete', to: :complete, summary: 'Mark a todo as done.', description: <<~TEXT
     Marking a todo that's already done is fine: it stays done, and the
     response is the same.
   TEXT
@@ -385,7 +385,7 @@ A client generated from the document takes its names from it, so every name is o
 To name a schema yourself, pass `schema_names:`. It needs no change to the class, so it works for Skyward ORM records and other gems' classes too:
 
 ```ruby
-Skyward.app(docs: true, schema_names: { Statuses::Record => "Status" }) { ... }
+Skyward.app(docs: true, schema_names: { Statuses::Record => 'Status' }) { ... }
 ```
 
 A schema name has only letters, digits, `.`, `-` and `_`, as OpenAPI requires, and no two schemas share one, including `Problem`. Skyward API refuses to boot otherwise.
@@ -400,8 +400,8 @@ By default the page loads Scalar from the jsDelivr CDN at a pinned version, with
 
 ```ruby
 # public/scalar.js is dist/browser/standalone.js from the @scalar/api-reference package.
-Skyward.app(docs: true, scalar_url: "/scalar.js") do |app|
-  app.static "/", from: "public"
+Skyward.app(docs: true, scalar_url: '/scalar.js') do |app|
+  app.static '/', from: 'public'
   # ...
 end
 ```
@@ -416,22 +416,22 @@ A URL you pass gets no integrity hash, because Skyward API can't know it. A rela
 
 ```ruby
 # app.rb
-require "skyward/api"
-require_relative "todos_api"
+require 'skyward/api'
+require_relative 'todos_api'
 
 App = Skyward.app(docs: true) do |app|
   todos = TodoStore.new(database: DB)
 
   app.use Rack::Deflater
-  app.static "/", from: "public"
+  app.static '/', from: 'public'
 
-  app.mount TodosAPI.new(todos:), at: "/todos"
+  app.mount TodosAPI.new(todos:), at: '/todos'
 end
 ```
 
 ```ruby
 # config.ru
-require_relative "app"
+require_relative 'app'
 run App
 ```
 
@@ -445,8 +445,8 @@ Skyward API doesn't build CORS, compression or sessions, because Rack already ha
 ```ruby
 app.use Rack::Cors do
   allow do
-    origins "https://todos.example"
-    resource "*", headers: :any, methods: %i[get post delete]
+    origins 'https://todos.example'
+    resource '*', headers: :any, methods: %i[get post delete]
   end
 end
 ```
@@ -472,19 +472,19 @@ class CurrentUser
   # @rbs request: Request
   # @rbs return: User | Responses::Unauthorized
   def call(request)
-    @sessions.user_for(request.cookies["session"]) || Skyward.unauthorized("Sign in first")
+    @sessions.user_for(request.cookies['session']) || Skyward.unauthorized('Sign in first')
   end
 
 end
 
 App = Skyward.app do |app|
   app.provide :current_user, CurrentUser.new(sessions: Sessions.new)
-  app.mount TodosAPI.new(todos:), at: "/todos"
+  app.mount TodosAPI.new(todos:), at: '/todos'
 end
 ```
 
 ```ruby
-get "/", to: :index
+get '/', to: :index
 
 # @rbs current_user: User
 # @rbs return: Array[Todo]
@@ -509,7 +509,7 @@ Skyward::Core::BootError: TodosAPI#show (GET /todos/:id)
   The route has a path parameter :id, but the method has no `id:` keyword. Add `id:` to the method, or rename the path parameter.
 
     app/todos_api.rb:12
-    get "/:id", to: :show
+    get '/:id', to: :show
     ...
     def show(todo_id:)
              ^^^^^^^^
@@ -532,10 +532,10 @@ When your code raises at runtime, Skyward API responds with a 500 problem+json t
 To send exceptions to Sentry or a similar service, pass `on_error:`. It's called once per exception, after it's logged, with the exception and the Rack env, and takes anything that responds to `call(exception, env)`:
 
 ```ruby
-report = ->(exception, env) { Sentry.capture_exception(exception, tags: { request_id: env["skyward.request_id"] }) }
+report = ->(exception, env) { Sentry.capture_exception(exception, tags: { request_id: env['skyward.request_id'] }) }
 
 App = Skyward.app(on_error: report) do |app|
-  app.mount TodosAPI.new(todos:), at: "/todos"
+  app.mount TodosAPI.new(todos:), at: '/todos'
 end
 ```
 
@@ -564,14 +564,14 @@ There's no server or Rack in that test. The fake goes in through `initialize`.
 When you want the whole stack, including routing, coercion, providers and middleware, use the test client:
 
 ```ruby
-describe "POST /todos" do
+describe 'POST /todos' do
   let(:client) { Skyward::API::Test.client(App) }
 
   it "rejects a priority that doesn't exist" do
-    response = client.post "/todos", json: { title: "Ship it", priority: "urgent" }
+    response = client.post '/todos', json: { title: 'Ship it', priority: 'urgent' }
 
     assert_equal 422, response.status
-    assert_equal "body.priority", response.json[:errors].first[:at]
+    assert_equal 'body.priority', response.json[:errors].first[:at]
   end
 end
 ```
@@ -621,7 +621,7 @@ DELETE  /todos/:id           TodosAPI#destroy   (id: Integer) -> (Responses::NoC
 The executable comes with Skyward Core, which every Skyward gem depends on. It finds each gem's `lib/skyward/<gem>/commands.rb` with `Gem.find_files` and loads it, and that file registers the gem's commands:
 
 ```ruby
-Skyward::Core::CLI.register("routes", "List every route and the method that serves it") do |args|
+Skyward::Core::CLI.register('routes', 'List every route and the method that serves it') do |args|
   # ...
 end
 ```
@@ -641,8 +641,8 @@ It needs rbs-inline and Steep in the app's bundle, and a `Steepfile`:
 ```ruby
 # Gemfile
 group :development, :test do
-  gem "rbs-inline", require: false
-  gem "steep", require: false
+  gem 'rbs-inline', require: false
+  gem 'steep', require: false
 end
 ```
 

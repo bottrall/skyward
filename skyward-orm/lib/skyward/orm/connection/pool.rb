@@ -38,7 +38,7 @@ class Skyward::ORM::Connection::Pool
     take(@idle.pop(timeout: 0)) || open || take(@idle.pop(timeout: @timeout)) || raise(
       Skyward::ORM::PoolTimeout,
       "Skyward ORM waited #{@timeout} seconds for a database connection, but all #{@size} in its pool " \
-      "stayed in use. Pass Skyward.connect a larger pool:, or hold each connection for less time."
+      'stayed in use. Pass Skyward.connect a larger pool:, or hold each connection for less time.'
     )
   end
 
@@ -65,7 +65,7 @@ class Skyward::ORM::Connection::Pool
   def reusable?(connection)
     return true unless connection.transaction_active?
 
-    connection.execute("ROLLBACK")
+    connection.execute('ROLLBACK')
     !connection.transaction_active?
   rescue StandardError
     false

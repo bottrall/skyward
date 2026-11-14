@@ -12,7 +12,7 @@ module Bench::Groups
 
   # @rbs group: String
   # @rbs return: Array[Bench::Scenario]
-  def scenarios(group) = group == "api" ? Bench::Requests.scenarios : Bench::Queries.scenarios(group)
+  def scenarios(group) = group == 'api' ? Bench::Requests.scenarios : Bench::Queries.scenarios(group)
 
   # @rbs names: Array[String]
   # @rbs scenario_names: Array[String]
@@ -33,9 +33,9 @@ module Bench::Groups
   # @rbs postgres_url: String?
   # @rbs return: Hash[String, String]
   def skipped(groups, postgres_url)
-    return {} unless postgres_url.nil? && groups.include?("orm.postgresql")
+    return {} unless postgres_url.nil? && groups.include?('orm.postgresql')
 
-    { "orm.postgresql" => "TEST_POSTGRES_URL isn't set" }
+    { 'orm.postgresql' => "TEST_POSTGRES_URL isn't set" }
   end
 
   # @rbs scenarios: Array[Bench::Scenario]

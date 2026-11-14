@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-require "cgi/escape"
+require 'cgi/escape'
 
 module Skyward::API::OpenAPI::Docs
   extend self
 
-  PATH = "/docs" #: String
+  PATH = '/docs' #: String
 
-  HTML_TYPE = "text/html; charset=utf-8" #: String
+  HTML_TYPE = 'text/html; charset=utf-8' #: String
 
-  SCALAR_URL = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.1/dist/browser/standalone.js" #: String
+  SCALAR_URL = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.1/dist/browser/standalone.js' #: String
 
   # Recompute from the file whenever SCALAR_URL's version changes.
-  SCALAR_INTEGRITY = "sha384-G+2Q2i9l3PPfmYkk0b4BAIUrs7xb/DNaTL1wCYYab4c9dIKlCyiqzC0Qx3eq9Wf6" #: String
+  SCALAR_INTEGRITY = 'sha384-G+2Q2i9l3PPfmYkk0b4BAIUrs7xb/DNaTL1wCYYab4c9dIKlCyiqzC0Qx3eq9Wf6' #: String
 
   # @rbs title: String
   # @rbs scalar_url: String

@@ -5,11 +5,11 @@ module Skyward::ORM::CLI::Migration
 
   NAME = /\A[A-Za-z0-9_]+\z/ #: Regexp
 
-  EMPTY = "--empty" #: String
+  EMPTY = '--empty' #: String
 
   USAGE = "Usage: skyward migration [--empty] NAME\n" \
           "NAME is letters, digits and _, such as add_notes_to_todos.\n" \
-          "--empty writes an empty migration for SQL you write yourself." #: String
+          '--empty writes an empty migration for SQL you write yourself.' #: String
 
   NOTHING = "Every table matches its class. Nothing to write.\n" #: String
 
@@ -19,7 +19,7 @@ module Skyward::ORM::CLI::Migration
   #   session: Skyward::ORM::Connection::Session, discover: ^() -> Array[singleton(Skyward::ORM::Record)],
   #   generate: ^() -> String?) -> void
   def run(args, directory:, time:, input:, out:, kernel:, session:, discover:, generate:)
-    flags, names = args.partition { |arg| arg.start_with?("-") }
+    flags, names = args.partition { |arg| arg.start_with?('-') }
     name = names.fetch(0) if names.one?
     empty = flags == [EMPTY]
     return kernel.abort(USAGE) unless name&.match?(NAME) && (empty || flags.empty?)
@@ -98,14 +98,14 @@ module Skyward::ORM::CLI::Migration
   # @rbs renames: Array[String]
   # @rbs return: String
   def unasked(renames)
-    "skyward: did you rename #{renames.join(", or ")}? There's no terminal to ask, so nothing was written. " \
-      "Run `skyward migration` in a terminal to answer."
+    "skyward: did you rename #{renames.join(', or ')}? There's no terminal to ask, so nothing was written. " \
+      'Run `skyward migration` in a terminal to answer.'
   end
 
   # @rbs files: Array[String]
   # @rbs return: String
   def pending(files)
-    "skyward: #{files.join(", ")} #{files.one? ? "hasn't" : "haven't"} run yet. " \
-      "Run `skyward migrate` before writing the next migration."
+    "skyward: #{files.join(', ')} #{files.one? ? "hasn't" : "haven't"} run yet. " \
+      'Run `skyward migrate` before writing the next migration.'
   end
 end

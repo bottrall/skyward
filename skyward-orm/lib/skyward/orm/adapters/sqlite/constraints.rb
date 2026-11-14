@@ -25,11 +25,11 @@ module Skyward::ORM::Adapters::SQLite::Constraints
   TABLE_CONSTRAINTS = %w[CONSTRAINT PRIMARY UNIQUE CHECK FOREIGN].freeze #: Array[String]
 
   KINDS = {
-    "PRIMARY" => :primary_key,
-    "UNIQUE" => :unique,
-    "CHECK" => :check,
-    "FOREIGN" => :foreign_key,
-    "REFERENCES" => :foreign_key
+    'PRIMARY' => :primary_key,
+    'UNIQUE' => :unique,
+    'CHECK' => :check,
+    'FOREIGN' => :foreign_key,
+    'REFERENCES' => :foreign_key
   }.freeze #: Hash[String, Skyward::ORM::Catalog::constraint_kind]
 
   # The words that start a column's next constraint, or its default or collation.
@@ -53,7 +53,7 @@ module Skyward::ORM::Adapters::SQLite::Constraints
     definitions(sql).filter_map do |definition|
       tokens = definition.map(&:first)
       as = definition.each_index.find do |index|
-        index.positive? && definition.fetch(index).last.zero? && word(tokens.fetch(index)) == "AS"
+        index.positive? && definition.fetch(index).last.zero? && word(tokens.fetch(index)) == 'AS'
       end
       next unless as
 
@@ -89,12 +89,12 @@ module Skyward::ORM::Adapters::SQLite::Constraints
     case text
     when %r{\A(?:\s|--|/\*)} then nil
     when /\A"/ then [:name, text[1...-1].to_s.gsub('""', '"'), start, finish]
-    when /\A`/ then [:name, text[1...-1].to_s.gsub("``", "`"), start, finish]
+    when /\A`/ then [:name, text[1...-1].to_s.gsub('``', '`'), start, finish]
     when /\A\[/ then [:name, text[1...-1].to_s, start, finish]
     when /\A'/ then [:string, text, start, finish]
-    when "(" then [:open, text, start, finish]
-    when ")" then [:close, text, start, finish]
-    when "," then [:comma, text, start, finish]
+    when '(' then [:open, text, start, finish]
+    when ')' then [:close, text, start, finish]
+    when ',' then [:comma, text, start, finish]
     when /\A[\p{L}_]/ then [:word, text, start, finish]
     else [:other, text, start, finish]
     end
@@ -114,10 +114,10 @@ module Skyward::ORM::Adapters::SQLite::Constraints
     definition.each_with_index.filter_map do |(token, depth), index|
       kind = KINDS[word(token).to_s] if depth.zero?
       # A table's FOREIGN KEY is followed by its REFERENCES.
-      next if kind.nil? || (column.nil? && word(token) == "REFERENCES")
+      next if kind.nil? || (column.nil? && word(token) == 'REFERENCES')
 
       Skyward::ORM::Catalog::Constraint.new(
-        name: (tokens.fetch(index - 1)[1] if index > 1 && word(tokens.fetch(index - 2)) == "CONSTRAINT"),
+        name: (tokens.fetch(index - 1)[1] if index > 1 && word(tokens.fetch(index - 2)) == 'CONSTRAINT'),
         kind:,
         columns: column ? [column] : mentioned(first_parenthesized(definition.drop(index + 1)), columns),
         references: (referenced(tokens.drop(index)) if kind == :foreign_key),
@@ -154,8 +154,8 @@ module Skyward::ORM::Adapters::SQLite::Constraints
       clause = word(tokens.fetch(index))
       following = tokens[index + 1]
       COLUMN_CLAUSES.include?(clause.to_s) &&
-        !(SET_TO.include?(clause) && word(tokens.fetch(index - 1)) == "SET") &&
-        !(clause == "NOT" && following && word(following) == "DEFERRABLE")
+        !(SET_TO.include?(clause) && word(tokens.fetch(index - 1)) == 'SET') &&
+        !(clause == 'NOT' && following && word(following) == 'DEFERRABLE')
     end
     tokens.take(ending || tokens.size)
   end
@@ -186,5 +186,5 @@ module Skyward::ORM::Adapters::SQLite::Constraints
 
   # @rbs tokens: Array[token]
   # @rbs return: Symbol
-  def referenced(tokens) = tokens.drop_while { |token| word(token) != "REFERENCES" }.fetch(1)[1].to_sym
+  def referenced(tokens) = tokens.drop_while { |token| word(token) != 'REFERENCES' }.fetch(1)[1].to_sym
 end

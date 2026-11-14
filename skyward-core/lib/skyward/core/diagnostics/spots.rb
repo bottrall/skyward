@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "prism"
+require 'prism'
 
 module Skyward::Core::Diagnostics::Spots
   extend self
@@ -9,7 +9,7 @@ module Skyward::Core::Diagnostics::Spots
   # @rbs return: Skyward::Core::Diagnostics::Spot
   def rbs(location)
     line = location.start_line
-    text = location.buffer.lines.fetch(line - 1, "")
+    text = location.buffer.lines.fetch(line - 1, '')
     finish = location.end_line == line ? location.end_column : text.size
     spot(location.buffer.name.to_s, line, text, location.start_column...finish)
   end
@@ -77,9 +77,9 @@ module Skyward::Core::Diagnostics::Spots
       next unless call(result, line, :attr_reader)
 
       comment = result.comments.find do |found|
-        found.location.start_line == line && found.location.slice.start_with?("#:")
+        found.location.start_line == line && found.location.slice.start_with?('#:')
       end
-      within(comment.location, comment.location.slice.delete_prefix("#:").strip) if comment
+      within(comment.location, comment.location.slice.delete_prefix('#:').strip) if comment
     end
   end
 
@@ -107,7 +107,7 @@ module Skyward::Core::Diagnostics::Spots
     return unless location
 
     line = location.start_line
-    text = source.lines.fetch(line - 1, "").chomp
+    text = source.lines.fetch(line - 1, '').chomp
     finish = location.end_line == line ? location.end_character_column : text.size
     spot(path, line, text, location.start_character_column...finish)
   end

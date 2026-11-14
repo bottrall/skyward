@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 class Skyward::API::Assembly::Dispatcher
   # @rbs! type response = [Integer, Hash[String, String], Array[String]]
 
-  INPUT_TITLES = { 413 => "Content Too Large", 415 => "Unsupported Media Type" }.freeze #: Hash[Integer, String]
+  INPUT_TITLES = { 413 => 'Content Too Large', 415 => 'Unsupported Media Type' }.freeze #: Hash[Integer, String]
 
   Document = Data.define(
     :type, #: String
@@ -44,11 +44,11 @@ class Skyward::API::Assembly::Dispatcher
   # @rbs env: Hash[String, untyped]
   # @rbs return: Skyward::API::rack
   def route(env)
-    verb = env["REQUEST_METHOD"]
-    path = env["PATH_INFO"]
+    verb = env['REQUEST_METHOD']
+    path = env['PATH_INFO']
     # Boot refuses a route or a file at a document's path, but a path parameter can still match it, so it comes first.
     status, headers, body = served(verb, path) || routed(env, verb, path)
-    [status, headers, verb == "HEAD" ? dropped(body) : body]
+    [status, headers, verb == 'HEAD' ? dropped(body) : body]
   end
 
   # @rbs verb: String
@@ -58,7 +58,7 @@ class Skyward::API::Assembly::Dispatcher
     document = @documents[path]
     return unless document && %w[GET HEAD].include?(verb)
 
-    [200, { "content-type" => document.type }, [document.body]]
+    [200, { 'content-type' => document.type }, [document.body]]
   end
 
   # @rbs env: Hash[String, untyped]
@@ -78,7 +78,7 @@ class Skyward::API::Assembly::Dispatcher
     case inputs
     when Skyward::API::Inputs::Coercer::Ok then match.serializer.call(match.api.public_send(match.to, **inputs.value))
     when Skyward::API::Inputs::Coercer::Invalid
-      problem(422, "Unprocessable Content", errors: inputs.errors.map(&:to_h))
+      problem(422, 'Unprocessable Content', errors: inputs.errors.map(&:to_h))
     when :content_too_large then problem(413, INPUT_TITLES.fetch(413))
     when Array then inputs
     else problem(415, INPUT_TITLES.fetch(415))
@@ -97,10 +97,10 @@ class Skyward::API::Assembly::Dispatcher
   # @rbs allowed: Array[String]
   # @rbs return: response
   def unmatched(verb, allowed)
-    return problem(404, "Not Found") if allowed.empty?
+    return problem(404, 'Not Found') if allowed.empty?
 
-    allow = { "allow" => allowed.join(", ") }
-    verb == "OPTIONS" ? [204, allow, []] : problem(405, "Method Not Allowed", allow)
+    allow = { 'allow' => allowed.join(', ') }
+    verb == 'OPTIONS' ? [204, allow, []] : problem(405, 'Method Not Allowed', allow)
   end
 
   # @rbs status: Integer
@@ -109,8 +109,8 @@ class Skyward::API::Assembly::Dispatcher
   # @rbs **members: untyped
   # @rbs return: response
   def problem(status, title, headers = {}, **members)
-    body = { type: "about:blank", title:, status:, **members }
-    json(status, { "content-type" => "application/problem+json", **headers }, body)
+    body = { type: 'about:blank', title:, status:, **members }
+    json(status, { 'content-type' => 'application/problem+json', **headers }, body)
   end
 
   # @rbs status: Integer

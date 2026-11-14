@@ -10,11 +10,11 @@ module Skyward::API::CLI::Check
     :detail #: String
   )
 
-  PASSED = Outcome.new(passed: true, detail: "") #: Outcome
+  PASSED = Outcome.new(passed: true, detail: '') #: Outcome
 
   GENERATED = Skyward::Core::Signatures::Inline::OUTPUT #: String
 
-  STEEPFILE = "Steepfile" #: String
+  STEEPFILE = 'Steepfile' #: String
 
   # The strict boot's own Ruby runs it, so the forced strict mode, the app's
   # side effects and an exit or crash stay out of skyward check. The require
@@ -33,13 +33,13 @@ module Skyward::API::CLI::Check
   # @rbs (String directory, out: _Writer, capture: capture, rbs_inline: String?, steep: String?) -> Integer
   def run(directory, out:, capture:, rbs_inline:, steep:)
     checks = {
-      "Signatures" => -> { signatures(directory, capture:, rbs_inline:) },
-      "Strict boot" => -> { strict_boot(directory, capture:) },
-      "Steep" => -> { type_check(directory, capture:, steep:) }
+      'Signatures' => -> { signatures(directory, capture:, rbs_inline:) },
+      'Strict boot' => -> { strict_boot(directory, capture:) },
+      'Steep' => -> { type_check(directory, capture:, steep:) }
     }
     passed = checks.map do |name, check|
       outcome = check.call
-      out.write("#{name}: #{outcome.passed ? "passed" : "failed"}\n", outcome.detail)
+      out.write("#{name}: #{outcome.passed ? 'passed' : 'failed'}\n", outcome.detail)
       outcome.passed
     end
     passed.all? ? 0 : 1
@@ -54,7 +54,7 @@ module Skyward::API::CLI::Check
 
     inline = Skyward::Core::Signatures::Inline
     paths = inline.sources(directory)
-    generate = "bundle exec rbs-inline --output=#{GENERATED} #{paths.join(" ")}"
+    generate = "bundle exec rbs-inline --output=#{GENERATED} #{paths.join(' ')}"
     generated = File.join(directory, GENERATED)
     unless File.directory?(generated)
       return failed("There's no #{GENERATED}. Run `#{generate}` and commit the result.\n")
@@ -81,7 +81,7 @@ module Skyward::API::CLI::Check
   # @rbs capture: capture
   # @rbs return: Outcome
   def strict_boot(directory, capture:)
-    output, ok = capture.call({ "SKYWARD_STRICT" => "1" }, [Gem.ruby, "-e", BOOT], directory)
+    output, ok = capture.call({ 'SKYWARD_STRICT' => '1' }, [Gem.ruby, '-e', BOOT], directory)
     Outcome.new(passed: ok, detail: output)
   end
 
@@ -100,7 +100,7 @@ module Skyward::API::CLI::Check
 
     # Steep otherwise checks through any language server it finds running,
     # which can report stale results.
-    output, ok = capture.call({}, [Gem.ruby, steep, "check", "--no-daemon"], directory)
+    output, ok = capture.call({}, [Gem.ruby, steep, 'check', '--no-daemon'], directory)
     Outcome.new(passed: ok, detail: output)
   end
 

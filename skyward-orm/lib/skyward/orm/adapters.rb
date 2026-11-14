@@ -4,9 +4,9 @@ module Skyward::ORM::Adapters
   extend self
 
   SCHEMES = {
-    "postgres" => PostgreSQL,
-    "postgresql" => PostgreSQL,
-    "sqlite" => SQLite
+    'postgres' => PostgreSQL,
+    'postgresql' => PostgreSQL,
+    'sqlite' => SQLite
   }.freeze #: Hash[String, Skyward::ORM::_Adapter]
 
   # What comes before "://" is shown only when it's a scheme: in a malformed URL it can hold a password.
@@ -15,7 +15,7 @@ module Skyward::ORM::Adapters
   # @rbs (String url, schemes: Hash[String, Skyward::ORM::_Adapter], requirer: ^(String) -> void)
   #   -> [Skyward::ORM::_Adapter, String]
   def resolve(url, schemes:, requirer:)
-    scheme, location = url.split("://", 2)
+    scheme, location = url.split('://', 2)
     adapter = schemes[scheme.to_s] if location
     unless adapter && location
       raise Skyward::Core::BootError,
@@ -38,11 +38,11 @@ module Skyward::ORM::Adapters
   # The URL can hold a password, so only its scheme is shown.
   # @rbs (String? scheme, Hash[String, Skyward::ORM::_Adapter] schemes) -> String
   def unsupported(scheme, schemes)
-    url = scheme ? "a #{scheme}:// URL" : "a URL with no scheme"
+    url = scheme ? "a #{scheme}:// URL" : 'a URL with no scheme'
     suggestion = Skyward::Core::Diagnostics::Suggestion.closest(scheme, schemes.keys) if scheme
     hint = " Did you mean #{suggestion}://?" if suggestion
     "Skyward ORM can't connect to #{url}. It connects to #{schemes.keys.map do |key|
       "#{key}://"
-    end.join(", ")} URLs.#{hint}"
+    end.join(', ')} URLs.#{hint}"
   end
 end

@@ -18,7 +18,7 @@ module Bench::Environment
       ruby:,
       # Ruby adds +YJIT to its description once YJIT is on, however it was
       # turned on.
-      yjit: ruby.include?("+YJIT"),
+      yjit: ruby.include?('+YJIT'),
       cpu: cpuinfo&.slice(/^model name\s*:\s*(.+)$/, 1),
       sqlite: nil,
       postgresql: nil

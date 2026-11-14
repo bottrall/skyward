@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Skyward::API::Endpoints::Declarations do
   let(:api) { Class.new { extend Skyward::API::Endpoints::Declarations } }
@@ -19,105 +19,105 @@ describe Skyward::API::Endpoints::Declarations do
     e.message
   end
 
-  describe "#routes" do
-    it "is empty until a route is declared" do
+  describe '#routes' do
+    it 'is empty until a route is declared' do
       assert_empty api.routes
     end
   end
 
-  describe "#class_description" do
-    it "is nil until a description is declared" do
+  describe '#class_description' do
+    it 'is nil until a description is declared' do
       assert_nil api.class_description
     end
   end
 
-  describe "#description" do
-    it "refuses a second description" do
-      api.description "Things to do."
-      message = refusal { api.description "Things to avoid." }
+  describe '#description' do
+    it 'refuses a second description' do
+      api.description 'Things to do.'
+      message = refusal { api.description 'Things to avoid.' }
 
       assert_equal "#{api} already has a description", message
     end
 
     it "sets the class's description" do
-      api.description "Things to do."
+      api.description 'Things to do.'
 
-      assert_equal "Things to do.", api.class_description
+      assert_equal 'Things to do.', api.class_description
     end
 
-    it "keeps a frozen copy" do
-      api.description(+"Things to do.")
+    it 'keeps a frozen copy' do
+      api.description(+'Things to do.')
 
       assert_predicate api.class_description, :frozen?
     end
   end
 
-  describe "#clear_declarations" do
-    it "clears the routes and the description" do
-      api.description "Things to do."
-      api.get "/", to: :index
+  describe '#clear_declarations' do
+    it 'clears the routes and the description' do
+      api.description 'Things to do.'
+      api.get '/', to: :index
       api.clear_declarations
 
       assert_equal [[], nil], [api.routes, api.class_description]
     end
 
-    it "lets the class be described again" do
-      api.description "Things to do."
+    it 'lets the class be described again' do
+      api.description 'Things to do.'
       api.clear_declarations
-      api.description "Things to avoid."
+      api.description 'Things to avoid.'
 
-      assert_equal "Things to avoid.", api.class_description
+      assert_equal 'Things to avoid.', api.class_description
     end
   end
 
-  describe "#get" do
-    it "declares a GET route" do
-      api.get "/", to: :index
+  describe '#get' do
+    it 'declares a GET route' do
+      api.get '/', to: :index
 
-      assert_equal [route(:get, "/", :index)], declared(api)
+      assert_equal [route(:get, '/', :index)], declared(api)
     end
 
-    it "keeps the summary and description" do
-      api.get "/", to: :index, summary: "List todos.", description: "Newest first."
+    it 'keeps the summary and description' do
+      api.get '/', to: :index, summary: 'List todos.', description: 'Newest first.'
 
-      assert_equal [route(:get, "/", :index, summary: "List todos.", description: "Newest first.")], declared(api)
-    end
-  end
-
-  describe "#post" do
-    it "declares a POST route" do
-      api.post "/", to: :create
-
-      assert_equal [route(:post, "/", :create)], declared(api)
+      assert_equal [route(:get, '/', :index, summary: 'List todos.', description: 'Newest first.')], declared(api)
     end
   end
 
-  describe "#put" do
-    it "declares a PUT route" do
-      api.put "/:id", to: :replace
+  describe '#post' do
+    it 'declares a POST route' do
+      api.post '/', to: :create
 
-      assert_equal [route(:put, "/:id", :replace)], declared(api)
+      assert_equal [route(:post, '/', :create)], declared(api)
     end
   end
 
-  describe "#patch" do
-    it "declares a PATCH route" do
-      api.patch "/:id", to: :update
+  describe '#put' do
+    it 'declares a PUT route' do
+      api.put '/:id', to: :replace
 
-      assert_equal [route(:patch, "/:id", :update)], declared(api)
+      assert_equal [route(:put, '/:id', :replace)], declared(api)
     end
   end
 
-  describe "#delete" do
-    it "declares a DELETE route" do
-      api.delete "/:id", to: :destroy
+  describe '#patch' do
+    it 'declares a PATCH route' do
+      api.patch '/:id', to: :update
 
-      assert_equal [route(:delete, "/:id", :destroy)], declared(api)
+      assert_equal [route(:patch, '/:id', :update)], declared(api)
     end
   end
 
-  describe "inheriting" do
-    let(:parent) { api.tap { |parent| parent.get "/", to: :index } }
+  describe '#delete' do
+    it 'declares a DELETE route' do
+      api.delete '/:id', to: :destroy
+
+      assert_equal [route(:delete, '/:id', :destroy)], declared(api)
+    end
+  end
+
+  describe 'inheriting' do
+    let(:parent) { api.tap { |parent| parent.get '/', to: :index } }
 
     it "starts a subclass with its parent's routes" do
       assert_equal parent.routes, Class.new(parent).routes
@@ -125,78 +125,78 @@ describe Skyward::API::Endpoints::Declarations do
 
     it "adds a subclass's routes after its parent's" do
       child = Class.new(parent)
-      child.get "/:id", to: :show
+      child.get '/:id', to: :show
 
-      assert_equal [route(:get, "/", :index), route(:get, "/:id", :show)], declared(child)
+      assert_equal [route(:get, '/', :index), route(:get, '/:id', :show)], declared(child)
     end
 
     it "leaves the parent's routes alone" do
-      Class.new(parent).get "/:id", to: :show
+      Class.new(parent).get '/:id', to: :show
 
-      assert_equal [route(:get, "/", :index)], declared(parent)
+      assert_equal [route(:get, '/', :index)], declared(parent)
     end
 
-    it "starts a cleared subclass after the routes its cleared parent declares again" do
-      child = Class.new(parent) { get "/:id", to: :show }
+    it 'starts a cleared subclass after the routes its cleared parent declares again' do
+      child = Class.new(parent) { get '/:id', to: :show }
       [parent, child].each(&:clear_declarations)
-      parent.get "/done", to: :done
-      child.get "/:id", to: :show
+      parent.get '/done', to: :done
+      child.get '/:id', to: :show
 
-      assert_equal [route(:get, "/done", :done), route(:get, "/:id", :show)], declared(child)
+      assert_equal [route(:get, '/done', :done), route(:get, '/:id', :show)], declared(child)
     end
 
     it "doesn't pass on the parent's description" do
-      parent.description "Things to do."
+      parent.description 'Things to do.'
 
       assert_nil Class.new(parent).class_description
     end
 
     it "starts a redefined class without the old class's routes" do
       namespace = Module.new
-      namespace.const_set(:Todos, Class.new(parent) { get "/:id", to: :show })
+      namespace.const_set(:Todos, Class.new(parent) { get '/:id', to: :show })
       namespace.send(:remove_const, :Todos)
       namespace.const_set(:Todos, Class.new(parent))
 
-      assert_equal [route(:get, "/", :index)], declared(namespace::Todos)
+      assert_equal [route(:get, '/', :index)], declared(namespace::Todos)
     end
   end
 
-  describe "declaring" do
-    it "declares nothing when it refuses" do
-      refusal { api.get "todos", to: :index }
+  describe 'declaring' do
+    it 'declares nothing when it refuses' do
+      refusal { api.get 'todos', to: :index }
 
       assert_empty api.routes
     end
 
     it "records the file and line of the route's declaration" do
-      api.get "/", to: :index
+      api.get '/', to: :index
       line = __LINE__ - 1
 
       assert_equal({ file: __FILE__, line: }, api.routes.first.to_h.slice(:file, :line))
     end
 
     it "keeps routes in the order they're declared" do
-      api.post "/", to: :create
-      api.get "/", to: :index
+      api.post '/', to: :create
+      api.get '/', to: :index
 
-      assert_equal [route(:post, "/", :create), route(:get, "/", :index)], declared(api)
+      assert_equal [route(:post, '/', :create), route(:get, '/', :index)], declared(api)
     end
 
-    it "lets two routes name the same method" do
-      api.put "/:id", to: :update
-      api.patch "/:id", to: :update
+    it 'lets two routes name the same method' do
+      api.put '/:id', to: :update
+      api.patch '/:id', to: :update
 
-      assert_equal [route(:put, "/:id", :update), route(:patch, "/:id", :update)], declared(api)
+      assert_equal [route(:put, '/:id', :update), route(:patch, '/:id', :update)], declared(api)
     end
 
-    it "keeps frozen copies of the strings" do
-      api.get(+"/:id", to: :show, summary: +"Fetch a todo.", description: +"By its ID.")
+    it 'keeps frozen copies of the strings' do
+      api.get(+'/:id', to: :show, summary: +'Fetch a todo.', description: +'By its ID.')
 
       assert(api.routes.first.to_h.values.all?(&:frozen?))
     end
 
-    it "keeps the routes in a frozen array" do
-      api.get "/", to: :index
+    it 'keeps the routes in a frozen array' do
+      api.get '/', to: :index
 
       assert_predicate api.routes, :frozen?
     end
@@ -208,37 +208,37 @@ describe Skyward::API::Endpoints::Declarations do
     end
 
     it "refuses a path that doesn't start with /" do
-      message = refusal { api.get "todos", to: :index }
+      message = refusal { api.get 'todos', to: :index }
 
       assert_equal %(#{api} GET "todos": the path must be a String that starts with /), message
     end
 
-    it "accepts a path parameter with underscores and digits" do
-      api.get "/:_todo_id2", to: :show
+    it 'accepts a path parameter with underscores and digits' do
+      api.get '/:_todo_id2', to: :show
 
-      assert_equal [route(:get, "/:_todo_id2", :show)], declared(api)
+      assert_equal [route(:get, '/:_todo_id2', :show)], declared(api)
     end
 
     it "refuses a path parameter that isn't a valid keyword name" do
-      message = refusal { api.get "/:2nd", to: :show }
+      message = refusal { api.get '/:2nd', to: :show }
 
       assert_equal %(#{api} GET "/:2nd": path parameter "2nd" isn't a valid keyword name), message
     end
 
-    it "refuses a path parameter with no name" do
-      message = refusal { api.get "/:", to: :show }
+    it 'refuses a path parameter with no name' do
+      message = refusal { api.get '/:', to: :show }
 
       assert_equal %(#{api} GET "/:": path parameter "" isn't a valid keyword name), message
     end
 
-    it "refuses a path parameter used more than once" do
-      message = refusal { api.get "/:id/:id", to: :show }
+    it 'refuses a path parameter used more than once' do
+      message = refusal { api.get '/:id/:id', to: :show }
 
       assert_equal %(#{api} GET "/:id/:id": path parameter "id" is used more than once), message
     end
 
     it "refuses a method name that isn't a Symbol" do
-      message = refusal { api.get "/", to: "index" }
+      message = refusal { api.get '/', to: 'index' }
 
       assert_equal %(#{api} GET "/": to: must be a Symbol, got "index"), message
     end

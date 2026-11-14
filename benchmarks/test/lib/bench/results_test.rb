@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Bench::Results do
   results = Bench::Results
 
-  let(:get) { Bench::Result.new(name: "api.get", ips: 41_234.56, stddev: 824.69, unit: "requests", rate: 41_234.56, allocations: 37.0) }
-  let(:build) { Bench::Result.new(name: "orm.sqlite.build", ips: 1_000.0, stddev: 10.0, unit: nil, rate: nil, allocations: 12.5) }
+  let(:get) { Bench::Result.new(name: 'api.get', ips: 41_234.56, stddev: 824.69, unit: 'requests', rate: 41_234.56, allocations: 37.0) }
+  let(:build) { Bench::Result.new(name: 'orm.sqlite.build', ips: 1_000.0, stddev: 10.0, unit: nil, rate: nil, allocations: 12.5) }
   let(:environment) do
     {
-      skyward: "0.4.0",
-      commit: "abc123",
-      ruby: "ruby 4.0.0 +YJIT",
+      skyward: '0.4.0',
+      commit: 'abc123',
+      ruby: 'ruby 4.0.0 +YJIT',
       yjit: true,
       cpu: nil,
-      sqlite: "3.50.4",
+      sqlite: '3.50.4',
       postgresql: nil
     }
   end
@@ -22,14 +22,14 @@ describe Bench::Results do
     Bench::Report.new(
       environment:,
       results: [get, build],
-      skipped: { "orm.postgresql" => "TEST_POSTGRES_URL isn't set" }
+      skipped: { 'orm.postgresql' => "TEST_POSTGRES_URL isn't set" }
     )
   end
 
-  describe ".write" do
-    it "writes the report as JSON and as Markdown" do
+  describe '.write' do
+    it 'writes the report as JSON and as Markdown' do
       Dir.mktmpdir do |dir|
-        directory = File.join(dir, "tmp/bench")
+        directory = File.join(dir, 'tmp/bench')
         results.write(report, directory)
 
         assert_equal(
@@ -40,21 +40,21 @@ describe Bench::Results do
     end
   end
 
-  describe ".json" do
-    it "holds the environment, each result and each group skipped" do
+  describe '.json' do
+    it 'holds the environment, each result and each group skipped' do
       assert_equal(
         {
           environment: environment,
           results: [get.to_h, build.to_h],
-          skipped: { "orm.postgresql": "TEST_POSTGRES_URL isn't set" }
+          skipped: { 'orm.postgresql': "TEST_POSTGRES_URL isn't set" }
         },
         JSON.parse(results.json(report), symbolize_names: true)
       )
     end
   end
 
-  describe ".markdown" do
-    it "tables the results, says what was skipped, and tables the environment" do
+  describe '.markdown' do
+    it 'tables the results, says what was skipped, and tables the environment' do
       assert_equal <<~MARKDOWN, results.markdown(report)
         | Scenario | Iterations/s | ± | Rate | Objects/iteration |
         | --- | ---: | ---: | ---: | ---: |
@@ -75,50 +75,50 @@ describe Bench::Results do
       MARKDOWN
     end
 
-    it "says nothing was skipped when nothing was" do
-      refute_includes results.markdown(report.with(skipped: {})), "skipped"
+    it 'says nothing was skipped when nothing was' do
+      refute_includes results.markdown(report.with(skipped: {})), 'skipped'
     end
   end
 
-  describe ".row" do
+  describe '.row' do
     it "reports the rate in the scenario's unit" do
-      assert_includes results.row(get), "| 41,235 requests/s |"
+      assert_includes results.row(get), '| 41,235 requests/s |'
     end
 
-    it "reports no rate without a unit" do
-      assert_includes results.row(build), "| — |"
-    end
-  end
-
-  describe ".value" do
-    it "writes nothing known as a dash" do
-      assert_equal "—", results.value(nil)
-    end
-
-    it "writes true as on" do
-      assert_equal "on", results.value(true)
-    end
-
-    it "writes false as off" do
-      assert_equal "off", results.value(false)
-    end
-
-    it "writes anything else as it is" do
-      assert_equal "3.50.4", results.value("3.50.4")
+    it 'reports no rate without a unit' do
+      assert_includes results.row(build), '| — |'
     end
   end
 
-  describe ".number" do
-    it "groups the thousands" do
-      assert_equal "1,234,567.9", results.number(1_234_567.89, 1)
+  describe '.value' do
+    it 'writes nothing known as a dash' do
+      assert_equal '—', results.value(nil)
     end
 
-    it "rounds to the digits given" do
-      assert_equal "1,235", results.number(1_234.6, 0)
+    it 'writes true as on' do
+      assert_equal 'on', results.value(true)
     end
 
-    it "leaves a number under a thousand ungrouped" do
-      assert_equal "999.0", results.number(999.0, 1)
+    it 'writes false as off' do
+      assert_equal 'off', results.value(false)
+    end
+
+    it 'writes anything else as it is' do
+      assert_equal '3.50.4', results.value('3.50.4')
+    end
+  end
+
+  describe '.number' do
+    it 'groups the thousands' do
+      assert_equal '1,234,567.9', results.number(1_234_567.89, 1)
+    end
+
+    it 'rounds to the digits given' do
+      assert_equal '1,235', results.number(1_234.6, 0)
+    end
+
+    it 'leaves a number under a thousand ungrouped' do
+      assert_equal '999.0', results.number(999.0, 1)
     end
   end
 end

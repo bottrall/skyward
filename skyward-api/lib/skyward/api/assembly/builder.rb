@@ -41,7 +41,7 @@ class Skyward::API::Assembly::Builder
   # @rbs api: Skyward::API
   # @rbs at: String
   # @rbs return: void
-  def mount(api, at: "/")
+  def mount(api, at: '/')
     # Steep proves a typed caller passes an API, but an untyped one can pass anything.
     unless api.is_a?(Skyward::API) # steep:ignore UnreachableBranch
       raise Skyward::Core::BootError, "mount takes a Skyward::API instance, got #{api.inspect}"
@@ -72,7 +72,7 @@ class Skyward::API::Assembly::Builder
     if %i[body request].include?(name)
       raise Skyward::Core::BootError,
             "provide #{name.inspect}: Skyward API fills `#{name}:` itself, so it can't be provided. " \
-            "Provide another name."
+            'Provide another name.'
     end
     if @providers.key?(name)
       raise Skyward::Core::BootError, "provide #{name.inspect}: it's already provided. Provide each name once."

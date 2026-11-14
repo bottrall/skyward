@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Ruby run with --disable-did_you_mean doesn't load it.
-require "did_you_mean"
+require 'did_you_mean'
 
 module Skyward::Core::Diagnostics::Suggestion
   extend self

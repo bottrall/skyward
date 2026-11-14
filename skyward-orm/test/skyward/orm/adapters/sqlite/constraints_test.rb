@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require 'test_helper'
 
 describe Skyward::ORM::Adapters::SQLite::Constraints do
   def read(sql, columns) = Skyward::ORM::Adapters::SQLite::Constraints.read(sql, columns)
@@ -9,7 +9,7 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
     Skyward::ORM::Catalog::Constraint.new(name:, kind:, columns:, references:, definition:)
   end
 
-  describe ".read" do
+  describe '.read' do
     it "reads a column's own constraints, on that column, as the table constraints they're the same as" do
       sql = <<~SQL
         CREATE TABLE todos (
@@ -21,26 +21,26 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
       SQL
 
       assert_equal [
-        constraint(nil, :primary_key, [:id], "PRIMARY KEY (id)"),
+        constraint(nil, :primary_key, [:id], 'PRIMARY KEY (id)'),
         constraint(
           nil,
           :foreign_key,
           [:list_id],
-          "FOREIGN KEY (list_id) REFERENCES lists (id) ON DELETE CASCADE",
+          'FOREIGN KEY (list_id) REFERENCES lists (id) ON DELETE CASCADE',
           :lists
         ),
-        constraint(nil, :unique, [:code], "UNIQUE (code)"),
-        constraint(nil, :check, [:title], "CHECK (length(title) > 0)")
+        constraint(nil, :unique, [:code], 'UNIQUE (code)'),
+        constraint(nil, :check, [:title], 'CHECK (length(title) > 0)')
       ],
                    read(sql, %i[id list_id code title])
     end
 
-    it "names a constraint from its CONSTRAINT clause" do
-      sql = "CREATE TABLE todos (id INTEGER CONSTRAINT todos_pkey PRIMARY KEY, code TEXT CONSTRAINT todos_key UNIQUE)"
+    it 'names a constraint from its CONSTRAINT clause' do
+      sql = 'CREATE TABLE todos (id INTEGER CONSTRAINT todos_pkey PRIMARY KEY, code TEXT CONSTRAINT todos_key UNIQUE)'
 
       assert_equal [
-        constraint("todos_pkey", :primary_key, [:id], "PRIMARY KEY (id)"),
-        constraint("todos_key", :unique, [:code], "UNIQUE (code)")
+        constraint('todos_pkey', :primary_key, [:id], 'PRIMARY KEY (id)'),
+        constraint('todos_key', :unique, [:code], 'UNIQUE (code)')
       ],
                    read(sql, %i[id code])
     end
@@ -58,12 +58,12 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
           nil,
           :foreign_key,
           [:a],
-          "FOREIGN KEY (a) REFERENCES lists ON DELETE SET NULL NOT DEFERRABLE",
+          'FOREIGN KEY (a) REFERENCES lists ON DELETE SET NULL NOT DEFERRABLE',
           :lists
         ),
-        constraint(nil, :check, [:a], "CHECK (a > 0)"),
-        constraint("todos_b_check", :check, [:b], "CHECK (b > 0)"),
-        constraint("todos_b_fkey", :foreign_key, [:b], "FOREIGN KEY (b) REFERENCES lists ON UPDATE SET DEFAULT", :lists)
+        constraint(nil, :check, [:a], 'CHECK (a > 0)'),
+        constraint('todos_b_check', :check, [:b], 'CHECK (b > 0)'),
+        constraint('todos_b_fkey', :foreign_key, [:b], 'FOREIGN KEY (b) REFERENCES lists ON UPDATE SET DEFAULT', :lists)
       ],
                    read(sql, %i[a b])
     end
@@ -79,20 +79,20 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
       SQL
 
       assert_equal [
-        constraint(nil, :primary_key, %i[list_id position], "PRIMARY KEY (list_id, position)"),
-        constraint("todos_list_id_title_key", :unique, %i[list_id title], "UNIQUE (list_id, title COLLATE NOCASE)"),
+        constraint(nil, :primary_key, %i[list_id position], 'PRIMARY KEY (list_id, position)'),
+        constraint('todos_list_id_title_key', :unique, %i[list_id title], 'UNIQUE (list_id, title COLLATE NOCASE)'),
         constraint(
-          "todos_list_id_fkey",
+          'todos_list_id_fkey',
           :foreign_key,
           [:list_id],
-          "FOREIGN KEY (list_id) REFERENCES lists (id) ON DELETE CASCADE",
+          'FOREIGN KEY (list_id) REFERENCES lists (id) ON DELETE CASCADE',
           :lists
         )
       ],
                    read(sql, %i[list_id position title])
     end
 
-    it "reads a table check as on the columns its expression mentions" do
+    it 'reads a table check as on the columns its expression mentions' do
       sql = "CREATE TABLE todos (title TEXT, notes TEXT, CHECK (length(TITLE) > 0 AND notes <> 'title'))"
 
       assert_equal [constraint(nil, :check, %i[title notes], "CHECK (length(TITLE) > 0 AND notes <> 'title')")],
@@ -109,14 +109,14 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
       SQL
 
       assert_equal [
-        constraint("a \"b\" key", :unique, [:"or\"der"], "UNIQUE (or\"der)"),
-        constraint("c d", :unique, [:"gro`up"], "UNIQUE (gro`up)"),
-        constraint("e f", :foreign_key, [:user], "FOREIGN KEY (user) REFERENCES \"us\"\"ers\"", :"us\"ers")
+        constraint('a "b" key', :unique, [:'or"der'], 'UNIQUE (or"der)'),
+        constraint('c d', :unique, [:'gro`up'], 'UNIQUE (gro`up)'),
+        constraint('e f', :foreign_key, [:user], 'FOREIGN KEY (user) REFERENCES "us""ers"', :'us"ers')
       ],
                    read(sql, %i[or"der gro`up user])
     end
 
-    it "skips comments, and the commas and parentheses in strings and types" do
+    it 'skips comments, and the commas and parentheses in strings and types' do
       sql = <<~SQL
         CREATE TABLE todos ( -- the todos, (with, commas)
           /* a (comment), here */
@@ -124,15 +124,15 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
         ) STRICT
       SQL
 
-      assert_equal [constraint(nil, :check, [:price], "CHECK (price > 0)")], read(sql, [:price])
+      assert_equal [constraint(nil, :check, [:price], 'CHECK (price > 0)')], read(sql, [:price])
     end
 
-    it "reads no constraints from a table that has none" do
-      assert_empty read("CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)", %i[id title])
+    it 'reads no constraints from a table that has none' do
+      assert_empty read('CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)', %i[id title])
     end
   end
 
-  describe ".generated" do
+  describe '.generated' do
     def generated(sql) = Skyward::ORM::Adapters::SQLite::Constraints.generated(sql)
 
     it "reads each generated column's expression as written, stored or virtual, but not an AS inside an expression" do
@@ -144,11 +144,11 @@ describe Skyward::ORM::Adapters::SQLite::Constraints do
         )
       SQL
 
-      assert_equal({ search: "lower(title) || ' (' || id || ')'", length: "length(title)" }, generated(sql))
+      assert_equal({ search: "lower(title) || ' (' || id || ')'", length: 'length(title)' }, generated(sql))
     end
 
-    it "reads none from a table that has none" do
-      assert_empty generated("CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)")
+    it 'reads none from a table that has none' do
+      assert_empty generated('CREATE TABLE todos (id INTEGER, title TEXT NOT NULL COLLATE NOCASE)')
     end
   end
 end

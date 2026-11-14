@@ -7,6 +7,6 @@ sources = %r{
 
 guard :shell do
   watch(sources) do
-    system("bin/generate")
+    system('bin/generate')
   end
 end

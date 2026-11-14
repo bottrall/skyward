@@ -35,21 +35,21 @@ module Skyward::ORM::Migrations::Summary
   # @rbs return: [String, String, String]
   def line(edit, adapter)
     case edit
-    when Skyward::ORM::Migrations::AddColumn then ["+", edit.column.name.name, column(edit.column, adapter)]
+    when Skyward::ORM::Migrations::AddColumn then ['+', edit.column.name.name, column(edit.column, adapter)]
     when Skyward::ORM::Migrations::DropColumn
-      ["-", edit.column.name.name, "#{edit.column.type} #{edit.column.nullable ? "NULL" : "NOT NULL"}".lstrip]
-    when Skyward::ORM::Migrations::RenameColumn then ["~", edit.to.name, "renamed from #{edit.from}"]
-    when Skyward::ORM::Migrations::ChangeType then ["~", edit.column.name, "#{edit.to}, was #{edit.from}"]
+      ['-', edit.column.name.name, "#{edit.column.type} #{edit.column.nullable ? 'NULL' : 'NOT NULL'}".lstrip]
+    when Skyward::ORM::Migrations::RenameColumn then ['~', edit.to.name, "renamed from #{edit.from}"]
+    when Skyward::ORM::Migrations::ChangeType then ['~', edit.column.name, "#{edit.to}, was #{edit.from}"]
     when Skyward::ORM::Migrations::ChangeNullable
-      ["~", edit.column.name, edit.nullable ? "NULL, was NOT NULL" : "NOT NULL, was NULL"]
-    when Skyward::ORM::Migrations::ChangeDefault then ["~", edit.column.name,
+      ['~', edit.column.name, edit.nullable ? 'NULL, was NOT NULL' : 'NOT NULL, was NULL']
+    when Skyward::ORM::Migrations::ChangeDefault then ['~', edit.column.name,
                                                        "#{default(edit.to)}, was #{default(edit.from)}"]
-    when Skyward::ORM::Migrations::AddConstraint then ["+", edit.constraint.name.to_s, constraint(edit.constraint)]
-    when Skyward::ORM::Migrations::DropConstraint then ["-", edit.constraint.name || "unnamed",
+    when Skyward::ORM::Migrations::AddConstraint then ['+', edit.constraint.name.to_s, constraint(edit.constraint)]
+    when Skyward::ORM::Migrations::DropConstraint then ['-', edit.constraint.name || 'unnamed',
                                                         constraint(edit.constraint)]
-    when Skyward::ORM::Migrations::RenameConstraint then ["~", edit.to, "renamed from #{edit.from}"]
-    when Skyward::ORM::Migrations::AddIndex then ["+", edit.index.name, index(edit.index)]
-    else ["-", edit.index.name, index(edit.index)]
+    when Skyward::ORM::Migrations::RenameConstraint then ['~', edit.to, "renamed from #{edit.from}"]
+    when Skyward::ORM::Migrations::AddIndex then ['+', edit.index.name, index(edit.index)]
+    else ['-', edit.index.name, index(edit.index)]
     end
   end
 
@@ -58,15 +58,15 @@ module Skyward::ORM::Migrations::Summary
   def counts(change)
     schema = change.klass.schema
     declared = [
-      [schema.references.size, "reference", "references"],
-      [schema.checks.size + change.columns.count { |column| column.type == :enum }, "check", "checks"],
-      [schema.uniques.size, "unique", "uniques"],
-      [schema.indexes.size, "index", "indexes"]
+      [schema.references.size, 'reference', 'references'],
+      [schema.checks.size + change.columns.count { |column| column.type == :enum }, 'check', 'checks'],
+      [schema.uniques.size, 'unique', 'uniques'],
+      [schema.indexes.size, 'index', 'indexes']
     ] #: Array[[Integer, String, String]]
     [
-      count(change.columns.size, "column", "columns"),
+      count(change.columns.size, 'column', 'columns'),
       *declared.filter_map { |size, one, many| count(size, one, many) if size.positive? }
-    ].join(", ")
+    ].join(', ')
   end
 
   # @rbs size: Integer
@@ -80,19 +80,19 @@ module Skyward::ORM::Migrations::Summary
   # @rbs return: String
   def column(column, adapter)
     sql_type = adapter.sql_type(column)
-    return "needs a type" unless sql_type
+    return 'needs a type' unless sql_type
 
-    "#{sql_type} #{column.nullable ? "NULL" : "NOT NULL"}"
+    "#{sql_type} #{column.nullable ? 'NULL' : 'NOT NULL'}"
   end
 
   # @rbs default: String?
   # @rbs return: String
-  def default(default) = default ? "DEFAULT #{default}" : "no default"
+  def default(default) = default ? "DEFAULT #{default}" : 'no default'
 
   # @rbs constraint: Skyward::ORM::Catalog::Constraint
   # @rbs return: String
   def constraint(constraint)
-    columns = "(#{constraint.columns.join(", ")})"
+    columns = "(#{constraint.columns.join(', ')})"
     case constraint.kind
     when :primary_key then "primary key #{columns}"
     when :unique then "unique #{columns}"
@@ -103,5 +103,5 @@ module Skyward::ORM::Migrations::Summary
 
   # @rbs index: Skyward::ORM::Catalog::Index
   # @rbs return: String
-  def index(index) = "index (#{index.columns.join(", ")})"
+  def index(index) = "index (#{index.columns.join(', ')})"
 end

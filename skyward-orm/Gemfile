@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
 # Only this gem and the Skyward gems it depends on, so a test that reaches
 # for any other fails here.
 gemspec
 
-gem "skyward-core", path: "../skyward-core"
+gem 'skyward-core', path: '../skyward-core'
 
-gem "minitest", "~> 6.0"
-gem "rake", "~> 13.4"
+gem 'minitest', '~> 6.0'
+gem 'rake', '~> 13.4'
 
 # Test-only: each adapter requires its driver when it connects, so an app adds
 # the one it uses to its own Gemfile and the gemspec never depends on either.
-gem "pg", "~> 1.7"
-gem "sqlite3", "~> 2.10"
+gem 'pg', '~> 1.7'
+gem 'sqlite3', '~> 2.10'

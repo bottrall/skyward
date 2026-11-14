@@ -107,7 +107,7 @@ module Skyward::ORM::Statements
 
   # @rbs columns: Array[Symbol]
   # @rbs return: String
-  def returning(columns) = "RETURNING #{columns.map { |column| quote(column) }.join(", ")}"
+  def returning(columns) = "RETURNING #{columns.map { |column| quote(column) }.join(', ')}"
 
   # Quoted, so a column named order or user is still a column.
   # @rbs name: Symbol
@@ -129,11 +129,11 @@ module Skyward::ORM::Statements
   # @rbs return: [String, Array[untyped]]
   def inserting(adapter, column_types, table, columns, rows)
     tuples = Array.new(rows.size * columns.size) { |index| adapter.placeholder(index + 1) }
-                  .each_slice(columns.size).map { |placeholders| "(#{placeholders.join(", ")})" }
+                  .each_slice(columns.size).map { |placeholders| "(#{placeholders.join(', ')})" }
     named = by_name(column_types, table)
     [
-      "INSERT INTO #{quote(table.table_name)} (#{columns.map { |column| quote(column) }.join(", ")}) " \
-      "VALUES #{tuples.join(", ")}",
+      "INSERT INTO #{quote(table.table_name)} (#{columns.map { |column| quote(column) }.join(', ')}) " \
+      "VALUES #{tuples.join(', ')}",
       rows.flat_map { |row| columns.map { |column| encode(adapter, named.fetch(column), row.fetch(column)) } }
     ]
   end
@@ -203,7 +203,7 @@ module Skyward::ORM::Statements
     return if missing.empty?
 
     raise ArgumentError,
-          "#{subject} needs #{missing.join(", ")}: a column that can't be NULL and has no default needs a value"
+          "#{subject} needs #{missing.join(', ')}: a column that can't be NULL and has no default needs a value"
   end
 
   # Matched as sets, since each row's values are read in the first row's order.
@@ -212,12 +212,12 @@ module Skyward::ORM::Statements
   # @rbs given: Array[Symbol]
   # @rbs return: void
   def require_alike(subject, columns, given)
-    differences = { "has" => given - columns, "lacks" => columns - given }.reject { |_, names| names.empty? }
+    differences = { 'has' => given - columns, 'lacks' => columns - given }.reject { |_, names| names.empty? }
     return if differences.empty?
 
     raise ArgumentError,
-          "#{subject} #{differences.map { |verb, names| "#{verb} #{names.join(", ")}" }.join(" and ")}, " \
-          "unlike row 0: every row needs the same columns"
+          "#{subject} #{differences.map { |verb, names| "#{verb} #{names.join(', ')}" }.join(' and ')}, " \
+          'unlike row 0: every row needs the same columns'
   end
 
   # @rbs adapter: Skyward::ORM::_Adapter
@@ -233,6 +233,6 @@ module Skyward::ORM::Statements
     raise ArgumentError,
           "#{table}.insert_all binds #{binds} values, #{columns} for each of #{rows} rows, but the " \
           "database binds at most #{limit} in one statement. Split the rows, in a Skyward.transaction if they " \
-          "must land together."
+          'must land together.'
   end
 end

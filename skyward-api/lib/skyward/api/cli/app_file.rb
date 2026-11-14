@@ -3,9 +3,9 @@
 module Skyward::API::CLI::AppFile
   extend self
 
-  FILE = "app.rb" #: String
+  FILE = 'app.rb' #: String
 
-  ASSIGNMENT = "App = Skyward.app { ... }" #: String
+  ASSIGNMENT = 'App = Skyward.app { ... }' #: String
 
   # @rbs (String directory, out: _Writer, kernel: singleton(Kernel), generate: ^() -> String?)
   #   { (Skyward::API::Assembly::Application) -> String } -> void

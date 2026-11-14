@@ -4,10 +4,10 @@ D = Steep::Diagnostic
 
 # Each gem's directory, and the Skyward gems it depends on.
 GEMS = {
-  core: { dir: "skyward-core", depends_on: [] },
-  api: { dir: "skyward-api", depends_on: %i[core] },
-  orm: { dir: "skyward-orm", depends_on: %i[core] },
-  skyward: { dir: "skyward", depends_on: %i[core api orm] }
+  core: { dir: 'skyward-core', depends_on: [] },
+  api: { dir: 'skyward-api', depends_on: %i[core] },
+  orm: { dir: 'skyward-orm', depends_on: %i[core] },
+  skyward: { dir: 'skyward', depends_on: %i[core api orm] }
 }.freeze
 
 # Every target is unreferenced!, so its signatures stay private to it, and
@@ -23,13 +23,13 @@ GEMS.each do |name, gem|
 
     check "#{gem.fetch(:dir)}/lib"
 
-    collection_config "rbs_collection.yaml"
+    collection_config 'rbs_collection.yaml'
 
     configure_code_diagnostics(D::Ruby.all_error)
   end
 end
 
-{ todos: "examples/todos", todos_postgres: "examples/todos_postgres", benchmarks: "benchmarks" }.each do |name, dir|
+{ todos: 'examples/todos', todos_postgres: 'examples/todos_postgres', benchmarks: 'benchmarks' }.each do |name, dir|
   target name do
     unreferenced!
 
@@ -39,8 +39,8 @@ end
 
     # A library resolves its superclasses among the libraries alone, so orm's,
     # which subclass core's, need core's as a library too.
-    library "skyward-core", "skyward-api", "skyward-orm"
-    collection_config "rbs_collection.yaml"
+    library 'skyward-core', 'skyward-api', 'skyward-orm'
+    collection_config 'rbs_collection.yaml'
 
     configure_code_diagnostics(D::Ruby.all_error)
   end
@@ -51,12 +51,12 @@ end
 target :orm_writes do
   unreferenced!
 
-  signature "skyward-orm/test/fixtures/writes/sig"
+  signature 'skyward-orm/test/fixtures/writes/sig'
 
-  check "skyward-orm/test/fixtures/writes"
+  check 'skyward-orm/test/fixtures/writes'
 
-  library "skyward-core", "skyward-orm"
-  collection_config "rbs_collection.yaml"
+  library 'skyward-core', 'skyward-orm'
+  collection_config 'rbs_collection.yaml'
 
   configure_code_diagnostics(D::Ruby.all_error)
 end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 class Skyward::API::CLI::Serve::Reloader
   INTERVAL = 0.5 #: Float
@@ -82,7 +82,7 @@ class Skyward::API::CLI::Serve::Reloader
   # @rbs files: Hash[String, Time]
   # @rbs return: String?
   def generate(files)
-    sources = files.select { |file, _time| file.end_with?(".rb") }
+    sources = files.select { |file, _time| file.end_with?('.rb') }
     return @failure if sources == @sources
 
     @failure = @generate.call
@@ -105,14 +105,14 @@ class Skyward::API::CLI::Serve::Reloader
     # A message can quote a source line's bytes, and JSON.generate raises on invalid UTF-8.
     message = String.new(error.message, encoding: Encoding::UTF_8).scrub
     problem = {
-      type: "about:blank",
-      title: "Internal Server Error",
+      type: 'about:blank',
+      title: 'Internal Server Error',
       status: 500,
       detail: "#{error.class}: #{message}",
       # rbs-inline's failure is never raised, so has no backtrace.
       backtrace: error.backtrace || []
     }
-    body = env["REQUEST_METHOD"] == "HEAD" ? [] : [JSON.generate(problem)] #: Array[String]
-    [500, { "content-type" => "application/problem+json" }, body]
+    body = env['REQUEST_METHOD'] == 'HEAD' ? [] : [JSON.generate(problem)] #: Array[String]
+    [500, { 'content-type' => 'application/problem+json' }, body]
   end
 end

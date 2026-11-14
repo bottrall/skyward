@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 class Skyward::API::Serializer
-  JSON_TYPE = { "content-type" => "application/json" }.freeze #: Hash[String, String]
+  JSON_TYPE = { 'content-type' => 'application/json' }.freeze #: Hash[String, String]
 
   Problem = Data.define(
     :status, #: Integer
@@ -11,12 +11,12 @@ class Skyward::API::Serializer
   )
 
   PROBLEMS = {
-    Skyward::API::Responses::BadRequest => Problem.new(status: 400, title: "Bad Request"),
-    Skyward::API::Responses::Unauthorized => Problem.new(status: 401, title: "Unauthorized"),
-    Skyward::API::Responses::Forbidden => Problem.new(status: 403, title: "Forbidden"),
-    Skyward::API::Responses::NotFound => Problem.new(status: 404, title: "Not Found"),
-    Skyward::API::Responses::Conflict => Problem.new(status: 409, title: "Conflict"),
-    Skyward::API::Responses::Unprocessable => Problem.new(status: 422, title: "Unprocessable Content")
+    Skyward::API::Responses::BadRequest => Problem.new(status: 400, title: 'Bad Request'),
+    Skyward::API::Responses::Unauthorized => Problem.new(status: 401, title: 'Unauthorized'),
+    Skyward::API::Responses::Forbidden => Problem.new(status: 403, title: 'Forbidden'),
+    Skyward::API::Responses::NotFound => Problem.new(status: 404, title: 'Not Found'),
+    Skyward::API::Responses::Conflict => Problem.new(status: 409, title: 'Conflict'),
+    Skyward::API::Responses::Unprocessable => Problem.new(status: 422, title: 'Unprocessable Content')
   }.freeze #: Hash[Class, Problem]
 
   # Every response value but Skyward::API::Responses::Created, which carries a type of its own.
@@ -44,7 +44,7 @@ class Skyward::API::Serializer
   # @rbs value: untyped
   # @rbs return: Skyward::API::rack
   def call(value)
-    response = @writer.write.call(value, "")
+    response = @writer.write.call(value, '')
     case response
     when Writers::Misfit then raise Skyward::API::ReturnTypeError, message(response)
     else response
@@ -70,7 +70,7 @@ class Skyward::API::Serializer
   def untyped
     writer = Writers.writer(UNTYPED)
     responses = [created(writer), *RESPONSES.map { |klass| response(klass) }, untyped_rack, ok(writer)]
-    Writers.union(responses).with(name: "untyped")
+    Writers.union(responses).with(name: 'untyped')
   end
 
   # @rbs writer: Writers::Writer
@@ -97,7 +97,7 @@ class Skyward::API::Serializer
     problem = PROBLEMS.fetch(klass, nil)
     answer =
       if problem then ->(given, _) { problem_response(problem, given) }
-      elsif klass == Skyward::API::Responses::Redirect then ->(given, _) { [given.status, { "location" => given.to, **given.headers }, []] }
+      elsif klass == Skyward::API::Responses::Redirect then ->(given, _) { [given.status, { 'location' => given.to, **given.headers }, []] }
       else ->(given, _) { [204, given.headers.dup, []] }
       end #: ^(untyped, String) -> Skyward::API::Assembly::Dispatcher::response
     Writers.checked(klass.name.to_s, ->(given) { given.is_a?(klass) }, answer)
@@ -117,7 +117,7 @@ class Skyward::API::Serializer
   # @rbs fits: ^(untyped) -> bool
   # @rbs return: Writers::Writer
   def rack_writer(fits)
-    Writers.checked("Skyward::API::rack", fits, ->(given, _) { given })
+    Writers.checked('Skyward::API::rack', fits, ->(given, _) { given })
   end
 
   # @rbs given: untyped
@@ -134,8 +134,8 @@ class Skyward::API::Serializer
   # @rbs given: untyped
   # @rbs return: Skyward::API::Assembly::Dispatcher::response
   def problem_response(problem, given)
-    body = { type: "about:blank", title: problem.title, status: problem.status, detail: given.detail }.compact
-    [problem.status, { "content-type" => "application/problem+json", **given.headers }, [JSON.generate(body)]]
+    body = { type: 'about:blank', title: problem.title, status: problem.status, detail: given.detail }.compact
+    [problem.status, { 'content-type' => 'application/problem+json', **given.headers }, [JSON.generate(body)]]
   end
 
   # @rbs written: untyped
@@ -151,7 +151,7 @@ class Skyward::API::Serializer
   def message(misfit)
     return "#{@label} returned #{misfit.got}, which isn't #{misfit.expected}" if misfit.at.empty?
 
-    "#{@label} returned #{misfit.got} at #{misfit.at.delete_prefix(".")}, which isn't #{misfit.expected}, " \
+    "#{@label} returned #{misfit.got} at #{misfit.at.delete_prefix('.')}, which isn't #{misfit.expected}, " \
       "in its return type #{@writer.name}"
   end
 end

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "fileutils"
+require 'fileutils'
 
 module Skyward::ORM::Migrations::Directory
   extend self
 
-  PATH = "db/migrate" #: String
+  PATH = 'db/migrate' #: String
 
   # @rbs directory: String
   # @rbs name: String
@@ -26,7 +26,7 @@ module Skyward::ORM::Migrations::Directory
   # @rbs sql: String
   # @rbs return: String
   def write(directory, time, name, sql)
-    file = File.join(PATH, "#{time.getutc.strftime("%Y%m%d%H%M%S")}_#{name}.sql")
+    file = File.join(PATH, "#{time.getutc.strftime('%Y%m%d%H%M%S')}_#{name}.sql")
     FileUtils.mkdir_p(File.join(directory, PATH))
     File.write(File.join(directory, file), sql)
     file
@@ -34,11 +34,11 @@ module Skyward::ORM::Migrations::Directory
 
   # @rbs path: String
   # @rbs return: Array[String]
-  def sql_files(path) = Dir.glob("*.sql", base: path).sort
+  def sql_files(path) = Dir.glob('*.sql', base: path).sort
 
   # @rbs file: String
   # @rbs return: String
-  def version(file) = File.basename(file).split("_", 2).fetch(0)
+  def version(file) = File.basename(file).split('_', 2).fetch(0)
 
   private
 

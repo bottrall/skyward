@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require "stringio"
-require "test_helper"
-require "tmpdir"
+require 'stringio'
+require 'test_helper'
+require 'tmpdir'
 
 describe Skyward::API::Assembly::Dispatcher do
   let(:root) { Dir.mktmpdir }
   let(:todos) do
     Class.new(Skyward::API) do
-      def show(id:) = { id:, title: "Ship it" }
+      def show(id:) = { id:, title: 'Ship it' }
 
       def fail(id:) = raise("todo #{id} is secret")
 
@@ -27,20 +27,20 @@ describe Skyward::API::Assembly::Dispatcher do
     [Skyward::Core::Types::Record.new(fields: [id])]
   end
   let(:dispatcher) do
-    serializer = Skyward::API::Serializer.new(returns, label: "Todos#show")
+    serializer = Skyward::API::Serializer.new(returns, label: 'Todos#show')
     string = Skyward::Core::Types::Scalar.new(name: :string)
     id = Skyward::API::Routing::Router::Keyword.new(name: :id, source: :path, required: true, type: string)
     body = Skyward::API::Routing::Router::Keyword.new(name: :body, source: :body, required: true, type: string)
     endpoints = [
-      ["GET", [id], :id, :show],
-      ["DELETE", [id], :id, :destroy],
-      ["GET", [id], :id, "fail", :fail],
-      ["POST", [id], :id, "complete", :complete],
-      ["PUT", [id, body], :id, :rename]
+      ['GET', [id], :id, :show],
+      ['DELETE', [id], :id, :destroy],
+      ['GET', [id], :id, 'fail', :fail],
+      ['POST', [id], :id, 'complete', :complete],
+      ['PUT', [id, body], :id, :rename]
     ].map do |verb, keywords, *pattern, to|
       Skyward::API::Routing::Router::Endpoint.new(
         verb:,
-        pattern: ["", "todos", *pattern],
+        pattern: ['', 'todos', *pattern],
         api: todos,
         to:,
         label: "Todos##{to}",
@@ -49,48 +49,48 @@ describe Skyward::API::Assembly::Dispatcher do
         keywords:,
         providers: [],
         returns:,
-        signature: "(id: String) -> { id: String }",
+        signature: '(id: String) -> { id: String }',
         inputs: Skyward::API::Inputs.new(keywords, providers:, max_body_size: 10),
         serializer:
       )
     end
     static = Skyward::API::Assembly::Static.new(
-      [Skyward::API::Assembly::Builder::Static.new(prefix: "/", from: File.join(root, "public"))]
+      [Skyward::API::Assembly::Builder::Static.new(prefix: '/', from: File.join(root, 'public'))]
     )
     Skyward::API::Assembly::Dispatcher.new(Skyward::API::Routing::Router.new(endpoints), static, middleware, documents)
   end
 
   before do
-    FileUtils.mkdir_p(File.join(root, "public/todos/7"))
-    File.write(File.join(root, "public/todos/42"), "A static todo")
-    File.write(File.join(root, "public/todos/7/complete"), "Done")
-    File.write(File.join(root, "public/hello.txt"), "Hello")
-    File.write(File.join(root, "secret.txt"), "hunter2")
+    FileUtils.mkdir_p(File.join(root, 'public/todos/7'))
+    File.write(File.join(root, 'public/todos/42'), 'A static todo')
+    File.write(File.join(root, 'public/todos/7/complete'), 'Done')
+    File.write(File.join(root, 'public/hello.txt'), 'Hello')
+    File.write(File.join(root, 'secret.txt'), 'hunter2')
   end
 
   after { FileUtils.remove_entry(root) }
 
-  def request(method, path, body: nil, type: "application/json")
-    input = body ? { "CONTENT_TYPE" => type, "rack.input" => StringIO.new(body) } : {}
-    dispatcher.call({ "REQUEST_METHOD" => method, "PATH_INFO" => path, **input })
+  def request(method, path, body: nil, type: 'application/json')
+    input = body ? { 'CONTENT_TYPE' => type, 'rack.input' => StringIO.new(body) } : {}
+    dispatcher.call({ 'REQUEST_METHOD' => method, 'PATH_INFO' => path, **input })
   end
 
-  def problem(status, title, headers = {}, members = "")
+  def problem(status, title, headers = {}, members = '')
     body = %({"type":"about:blank","title":"#{title}","status":#{status}#{members}})
-    [status, { "content-type" => "application/problem+json", **headers }, [body]]
+    [status, { 'content-type' => 'application/problem+json', **headers }, [body]]
   end
 
-  it "is frozen" do
+  it 'is frozen' do
     assert_predicate dispatcher, :frozen?
   end
 
-  describe "#call" do
-    describe "with middleware" do
+  describe '#call' do
+    describe 'with middleware' do
       def use(middleware, *args, **kwargs, &block)
         Skyward::API::Assembly::Builder::Use.new(middleware:, args:, kwargs:, block:)
       end
 
-      describe "that passes the request on" do
+      describe 'that passes the request on' do
         let(:trail) { [] }
         let(:middleware) do
           tracer = Class.new do
@@ -105,17 +105,17 @@ describe Skyward::API::Assembly::Dispatcher do
               @app.call(env).tap { @trail << "#{@name} out" }
             end
           end
-          [use(tracer, "first", trail:), use(tracer, "second", trail:)]
+          [use(tracer, 'first', trail:), use(tracer, 'second', trail:)]
         end
 
-        it "runs it around the routes, the first outermost" do
-          status = request("GET", "/todos/42").first
+        it 'runs it around the routes, the first outermost' do
+          status = request('GET', '/todos/42').first
 
-          assert_equal [200, ["first in", "second in", "second out", "first out"]], [status, trail]
+          assert_equal [200, ['first in', 'second in', 'second out', 'first out']], [status, trail]
         end
       end
 
-      describe "that answers itself" do
+      describe 'that answers itself' do
         let(:middleware) do
           echo = Class.new do
             def initialize(_app, *args, **kwargs)
@@ -124,86 +124,86 @@ describe Skyward::API::Assembly::Dispatcher do
 
             def call(_env) = @answer
           end
-          [use(echo, "/assets", max_age: 60) { :configured }]
+          [use(echo, '/assets', max_age: 60) { :configured }]
         end
 
-        it "gives it the arguments and block it was used with" do
-          assert_equal [200, {}, [["/assets"], { max_age: 60 }, :configured]], request("GET", "/todos/42")
+        it 'gives it the arguments and block it was used with' do
+          assert_equal [200, {}, [['/assets'], { max_age: 60 }, :configured]], request('GET', '/todos/42')
         end
       end
     end
 
-    describe "with documents" do
+    describe 'with documents' do
       let(:openapi) { '{"openapi":"3.1.0"}' }
       let(:documents) do
         {
-          "/openapi.json" => Skyward::API::Assembly::Dispatcher::Document.new(type: "application/json", body: openapi),
-          "/docs" => Skyward::API::Assembly::Dispatcher::Document.new(
-            type: "text/html; charset=utf-8",
-            body: "<!doctype html>"
+          '/openapi.json' => Skyward::API::Assembly::Dispatcher::Document.new(type: 'application/json', body: openapi),
+          '/docs' => Skyward::API::Assembly::Dispatcher::Document.new(
+            type: 'text/html; charset=utf-8',
+            body: '<!doctype html>'
           )
         }
       end
 
-      it "serves each at its path with its content type" do
+      it 'serves each at its path with its content type' do
         expected = [
-          [200, { "content-type" => "application/json" }, [openapi]],
-          [200, { "content-type" => "text/html; charset=utf-8" }, ["<!doctype html>"]]
+          [200, { 'content-type' => 'application/json' }, [openapi]],
+          [200, { 'content-type' => 'text/html; charset=utf-8' }, ['<!doctype html>']]
         ]
 
-        assert_equal expected, [request("GET", "/openapi.json"), request("GET", "/docs")]
+        assert_equal expected, [request('GET', '/openapi.json'), request('GET', '/docs')]
       end
 
-      it "serves one before a static file at its path" do
-        File.write(File.join(root, "public/openapi.json"), "{}")
+      it 'serves one before a static file at its path' do
+        File.write(File.join(root, 'public/openapi.json'), '{}')
 
-        assert_equal [openapi], request("GET", "/openapi.json").last
+        assert_equal [openapi], request('GET', '/openapi.json').last
       end
 
-      it "answers HEAD with its status and headers and an empty body" do
-        assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/openapi.json")
+      it 'answers HEAD with its status and headers and an empty body' do
+        assert_equal [200, { 'content-type' => 'application/json' }, []], request('HEAD', '/openapi.json')
       end
 
-      it "answers a method other than GET or HEAD as if there were no document" do
-        assert_equal problem(404, "Not Found"), request("POST", "/openapi.json")
+      it 'answers a method other than GET or HEAD as if there were no document' do
+        assert_equal problem(404, 'Not Found'), request('POST', '/openapi.json')
       end
 
-      it "leaves every other path to the routes" do
-        assert_equal ['{"id":"42"}'], request("GET", "/todos/42").last
+      it 'leaves every other path to the routes' do
+        assert_equal ['{"id":"42"}'], request('GET', '/todos/42').last
       end
     end
 
-    it "serves no document without one" do
-      assert_equal problem(404, "Not Found"), request("GET", "/openapi.json")
+    it 'serves no document without one' do
+      assert_equal problem(404, 'Not Found'), request('GET', '/openapi.json')
     end
 
     it "calls the matched method with the path parameters and answers with its serializer's response" do
-      expected = [200, { "content-type" => "application/json" }, ['{"id":"42"}']]
+      expected = [200, { 'content-type' => 'application/json' }, ['{"id":"42"}']]
 
-      assert_equal expected, request("GET", "/todos/42")
+      assert_equal expected, request('GET', '/todos/42')
     end
 
-    it "calls the method with its inputs" do
-      expected = [200, { "content-type" => "application/json" }, ['{"id":"42: Done"}']]
+    it 'calls the method with its inputs' do
+      expected = [200, { 'content-type' => 'application/json' }, ['{"id":"42: Done"}']]
 
-      assert_equal expected, request("PUT", "/todos/42", body: '"Done"')
+      assert_equal expected, request('PUT', '/todos/42', body: '"Done"')
     end
 
     it "answers inputs that don't fit with a 422 problem listing every error" do
       errors = ',"errors":[{"at":"body","message":"expected String, got 1"}]'
 
-      assert_equal problem(422, "Unprocessable Content", {}, errors), request("PUT", "/todos/42", body: "1")
+      assert_equal problem(422, 'Unprocessable Content', {}, errors), request('PUT', '/todos/42', body: '1')
     end
 
-    it "answers a body over the limit with a 413 problem" do
-      assert_equal problem(413, "Content Too Large"), request("PUT", "/todos/42", body: '"Ship it now"')
+    it 'answers a body over the limit with a 413 problem' do
+      assert_equal problem(413, 'Content Too Large'), request('PUT', '/todos/42', body: '"Ship it now"')
     end
 
-    describe "when a provider answers" do
+    describe 'when a provider answers' do
       let(:providers) do
         responses = [Skyward::API::Routing::Router::Response.new(klass: Skyward::API::Responses::Unauthorized)]
-        serializer = Skyward::API::Serializer.new(responses, label: "The :current_user provider")
-        callable = ->(_request) { Skyward.unauthorized("Sign in first") }
+        serializer = Skyward::API::Serializer.new(responses, label: 'The :current_user provider')
+        callable = ->(_request) { Skyward.unauthorized('Sign in first') }
         [Skyward::API::Routing::Router::Provider.new(
           name: :current_user,
           callable:,
@@ -213,88 +213,88 @@ describe Skyward::API::Assembly::Dispatcher do
         )]
       end
 
-      it "answers with its response instead of calling the method" do
+      it 'answers with its response instead of calling the method' do
         detail = ',"detail":"Sign in first"'
-        env = { "REQUEST_METHOD" => "GET", "PATH_INFO" => "/todos/42", "skyward.request_id" => "abc" }
+        env = { 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/todos/42', 'skyward.request_id' => 'abc' }
 
-        assert_equal problem(401, "Unauthorized", {}, detail), dispatcher.call(env)
+        assert_equal problem(401, 'Unauthorized', {}, detail), dispatcher.call(env)
       end
     end
 
     it "answers a body that isn't JSON with a 415 problem" do
-      assert_equal problem(415, "Unsupported Media Type"), request("PUT", "/todos/42", body: "Done", type: "text/plain")
+      assert_equal problem(415, 'Unsupported Media Type'), request('PUT', '/todos/42', body: 'Done', type: 'text/plain')
     end
 
-    it "leaves an exception from the method to the layers outside it" do
-      error = assert_raises(RuntimeError) { request("GET", "/todos/42/fail") }
+    it 'leaves an exception from the method to the layers outside it' do
+      error = assert_raises(RuntimeError) { request('GET', '/todos/42/fail') }
 
-      assert_equal "todo 42 is secret", error.message
+      assert_equal 'todo 42 is secret', error.message
     end
 
-    it "serves a static file when no route matches" do
-      assert_equal ["Hello"], request("GET", "/hello.txt").last
+    it 'serves a static file when no route matches' do
+      assert_equal ['Hello'], request('GET', '/hello.txt').last
     end
 
-    it "lets a route take precedence over a static file" do
-      assert_equal ['{"id":"42"}'], request("GET", "/todos/42").last
+    it 'lets a route take precedence over a static file' do
+      assert_equal ['{"id":"42"}'], request('GET', '/todos/42').last
     end
 
-    it "serves a static file at a path routed only under other methods" do
-      assert_equal ["Done"], request("GET", "/todos/7/complete").last
+    it 'serves a static file at a path routed only under other methods' do
+      assert_equal ['Done'], request('GET', '/todos/7/complete').last
     end
 
-    it "answers a path that climbs out of a static directory with a 404 problem" do
-      responses = ["/../secret.txt", "/%2e%2e/secret.txt"].map { |path| request("GET", path) }
+    it 'answers a path that climbs out of a static directory with a 404 problem' do
+      responses = ['/../secret.txt', '/%2e%2e/secret.txt'].map { |path| request('GET', path) }
 
-      assert_equal [problem(404, "Not Found")] * 2, responses
+      assert_equal [problem(404, 'Not Found')] * 2, responses
     end
 
-    it "answers a request no route or file matches with a 404 problem" do
-      assert_equal problem(404, "Not Found"), request("GET", "/todos")
+    it 'answers a request no route or file matches with a 404 problem' do
+      assert_equal problem(404, 'Not Found'), request('GET', '/todos')
     end
 
-    it "answers OPTIONS on a path no route matches with a 404 problem" do
-      assert_equal problem(404, "Not Found"), request("OPTIONS", "/todos")
+    it 'answers OPTIONS on a path no route matches with a 404 problem' do
+      assert_equal problem(404, 'Not Found'), request('OPTIONS', '/todos')
     end
 
-    it "answers OPTIONS on a routed path with a 204 that lists its methods in allow" do
-      assert_equal [204, { "allow" => "GET, HEAD, PUT, DELETE, OPTIONS" }, []], request("OPTIONS", "/todos/42")
+    it 'answers OPTIONS on a routed path with a 204 that lists its methods in allow' do
+      assert_equal [204, { 'allow' => 'GET, HEAD, PUT, DELETE, OPTIONS' }, []], request('OPTIONS', '/todos/42')
     end
 
-    it "answers a path routed only under other methods with a 405 problem that lists them in allow" do
-      assert_equal problem(405, "Method Not Allowed", "allow" => "POST, OPTIONS"), request("GET", "/todos/42/complete")
+    it 'answers a path routed only under other methods with a 405 problem that lists them in allow' do
+      assert_equal problem(405, 'Method Not Allowed', 'allow' => 'POST, OPTIONS'), request('GET', '/todos/42/complete')
     end
 
     it "answers a method other than GET or HEAD on a static file's path as if there were no file" do
-      assert_equal problem(405, "Method Not Allowed", "allow" => "POST, OPTIONS"), request("PUT", "/todos/7/complete")
+      assert_equal problem(405, 'Method Not Allowed', 'allow' => 'POST, OPTIONS'), request('PUT', '/todos/7/complete')
     end
 
     it "answers HEAD with the GET route's status and headers and an empty body" do
-      assert_equal [200, { "content-type" => "application/json" }, []], request("HEAD", "/todos/42")
+      assert_equal [200, { 'content-type' => 'application/json' }, []], request('HEAD', '/todos/42')
     end
 
-    it "answers HEAD on a static file with its status and headers and an empty body" do
-      status, headers, body = request("HEAD", "/hello.txt")
+    it 'answers HEAD on a static file with its status and headers and an empty body' do
+      status, headers, body = request('HEAD', '/hello.txt')
 
-      assert_equal [200, "5", []], [status, headers["content-length"], body]
+      assert_equal [200, '5', []], [status, headers['content-length'], body]
     end
 
-    it "answers HEAD on a path no route matches with a 404 and an empty body" do
-      assert_equal [404, { "content-type" => "application/problem+json" }, []], request("HEAD", "/todos")
+    it 'answers HEAD on a path no route matches with a 404 and an empty body' do
+      assert_equal [404, { 'content-type' => 'application/problem+json' }, []], request('HEAD', '/todos')
     end
 
-    it "answers HEAD on a path routed only under other methods with a 405 and an empty body" do
-      expected = [405, { "content-type" => "application/problem+json", "allow" => "POST, OPTIONS" }, []]
+    it 'answers HEAD on a path routed only under other methods with a 405 and an empty body' do
+      expected = [405, { 'content-type' => 'application/problem+json', 'allow' => 'POST, OPTIONS' }, []]
 
-      assert_equal expected, request("HEAD", "/todos/42/complete")
+      assert_equal expected, request('HEAD', '/todos/42/complete')
     end
 
-    describe "when the method returns a Rack triple" do
+    describe 'when the method returns a Rack triple' do
       let(:body) do
         Class.new do
           attr_reader :closed
 
-          def each = yield("Hello")
+          def each = yield('Hello')
 
           def close
             @closed = true
@@ -303,16 +303,16 @@ describe Skyward::API::Assembly::Dispatcher do
       end
       let(:todos) do
         sent = body
-        Class.new(Skyward::API) { define_method(:show) { |id:| [200, { "x-todo" => id }, sent] } }.new
+        Class.new(Skyward::API) { define_method(:show) { |id:| [200, { 'x-todo' => id }, sent] } }.new
       end
       let(:returns) { [Skyward::API::Routing::Router::Rack.new] }
 
-      it "answers it with its body untouched" do
-        assert_equal [200, { "x-todo" => "42" }, body], request("GET", "/todos/42")
+      it 'answers it with its body untouched' do
+        assert_equal [200, { 'x-todo' => '42' }, body], request('GET', '/todos/42')
       end
 
-      it "closes the body it drops for HEAD" do
-        response = request("HEAD", "/todos/42")
+      it 'closes the body it drops for HEAD' do
+        response = request('HEAD', '/todos/42')
 
         assert_equal [[], true], [response.last, body.closed]
       end

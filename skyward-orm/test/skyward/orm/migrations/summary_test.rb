@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "test_helper"
-require_relative "../../../fixtures/migrations/migrations_fixtures"
-require_relative "../../../fixtures/tables/tables_fixtures"
+require 'test_helper'
+require_relative '../../../fixtures/migrations/migrations_fixtures'
+require_relative '../../../fixtures/tables/tables_fixtures'
 
 describe Skyward::ORM::Migrations::Summary do
   fixtures = MigrationsFixtures
@@ -11,13 +11,13 @@ describe Skyward::ORM::Migrations::Summary do
   sqlite = Skyward::ORM::Adapters::SQLite
   postgres = Skyward::ORM::Adapters::PostgreSQL
   rework_todos = MigrationsFixtures.rework_todos
-  readme = File.read(File.expand_path("../../../../README.md", __dir__))
+  readme = File.read(File.expand_path('../../../../README.md', __dir__))
   readers = %w[migrations tables].to_h do |name|
     signatures = File.expand_path("../../../fixtures/#{name}/sig", __dir__)
     [name, Skyward::Core::Types::Reader.new(Skyward::Core::Signatures.load(signatures))]
   end
 
-  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("migrations")) }
+  let(:column_types) { Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('migrations')) }
 
   def create(klass) = Skyward::ORM::Migrations::CreateTable.new(klass:, columns: column_types.columns(klass))
 
@@ -39,16 +39,16 @@ describe Skyward::ORM::Migrations::Summary do
   # The README's examples name the class Todo, and each ends with the line that names the file.
   def example(readme, command) = readme[/^\$ skyward migration #{command}\n(.*?)^Wrote /m, 1]
 
-  describe ".text" do
+  describe '.text' do
     it "counts what a new table has, as the README's create_todos does" do
       todo = TablesFixtures::Todo
-      columns = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch("tables")).columns(todo)
+      columns = Skyward::ORM::Tables::ColumnTypes.new(readers.fetch('tables')).columns(todo)
       summary = text([migrations::CreateTable.new(klass: todo, columns:)], postgres)
 
-      assert_equal example(readme, "create_todos"), summary.sub("TablesFixtures::", "")
+      assert_equal example(readme, 'create_todos'), summary.sub('TablesFixtures::', '')
     end
 
-    it "counts only what a new table declares, one or many" do
+    it 'counts only what a new table declares, one or many' do
       single = Class.new(Skyward::ORM::Record) do
         table :tags
         attr_reader :name
@@ -69,7 +69,7 @@ describe Skyward::ORM::Migrations::Summary do
       notes = column_types.columns(fixtures::NotedTodo).select { |column| column.name == :notes }
       summary = text([alter(fixtures::NotedTodo, notes.map { |column| migrations::AddColumn.new(column:) })], postgres)
 
-      assert_equal example(readme, "add_notes_to_todos"), summary.sub("MigrationsFixtures::Noted", "")
+      assert_equal example(readme, 'add_notes_to_todos'), summary.sub('MigrationsFixtures::Noted', '')
     end
 
     it "lines up each column's type and nullability, or says it needs a type" do
@@ -96,37 +96,37 @@ describe Skyward::ORM::Migrations::Summary do
 
     it "marks what changes in a table, as the README's rework_todos does, after the question it asked" do
       summary = text([alter(TablesFixtures::Todo, rework_todos)], postgres)
-      asked = example(readme, "rework_todos").sub(/\ADid you rename .*\n/, "")
+      asked = example(readme, 'rework_todos').sub(/\ADid you rename .*\n/, '')
 
-      assert_equal asked, summary.sub("TablesFixtures::", "")
+      assert_equal asked, summary.sub('TablesFixtures::', '')
     end
 
-    it "marks each kind of change, + for added, - for dropped and ~ for changed" do
-      note = catalog::Column.new(name: :note, type: "text", nullable: true, default: nil, generated: nil)
+    it 'marks each kind of change, + for added, - for dropped and ~ for changed' do
+      note = catalog::Column.new(name: :note, type: 'text', nullable: true, default: nil, generated: nil)
       check = catalog::Constraint.new(
-        name: "todos_title_check",
+        name: 'todos_title_check',
         kind: :check,
         columns: [:title],
         references: nil,
-        definition: ""
+        definition: ''
       )
       edits = [
         migrations::DropIndex.new(
-          index: catalog::Index.new(name: "todos_slug_index", columns: [:slug], unique: false, definition: "")
+          index: catalog::Index.new(name: 'todos_slug_index', columns: [:slug], unique: false, definition: '')
         ),
         migrations::DropConstraint.new(constraint: check.with(name: nil, kind: :unique, columns: %i[list_id title])),
-        migrations::DropConstraint.new(constraint: check.with(name: "todos_pkey", kind: :primary_key, columns: [:id])),
+        migrations::DropConstraint.new(constraint: check.with(name: 'todos_pkey', kind: :primary_key, columns: [:id])),
         migrations::DropColumn.new(column: note),
-        migrations::DropColumn.new(column: note.with(name: :raw, type: "", nullable: false)),
-        migrations::RenameConstraint.new(from: "fk_rails_0123456789", to: "todos_list_id_fkey"),
-        migrations::ChangeType.new(column: :rank, from: "integer", to: "text"),
+        migrations::DropColumn.new(column: note.with(name: :raw, type: '', nullable: false)),
+        migrations::RenameConstraint.new(from: 'fk_rails_0123456789', to: 'todos_list_id_fkey'),
+        migrations::ChangeType.new(column: :rank, from: 'integer', to: 'text'),
         migrations::ChangeNullable.new(column: :title, nullable: true),
-        migrations::ChangeDefault.new(column: :done, from: nil, to: "false"),
+        migrations::ChangeDefault.new(column: :done, from: nil, to: 'false'),
         migrations::ChangeDefault.new(column: :priority, from: "'low'", to: nil),
         migrations::AddConstraint.new(constraint: check),
         migrations::AddConstraint.new(
           constraint: check.with(
-            name: "todos_list_id_fkey",
+            name: 'todos_list_id_fkey',
             kind: :foreign_key,
             columns: [:list_id],
             references: :lists
