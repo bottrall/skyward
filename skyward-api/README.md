@@ -630,7 +630,7 @@ Skyward API's commands run in your app's directory. `skyward serve` runs `config
 
 ### `skyward check` in CI
 
-Run `skyward check` as a required CI step in every Skyward app. Skyward API reads signatures at boot, and `rbs` stays one of its runtime dependencies through 0.x, so a deploy with stale signatures quietly validates requests against the old contract. `check` is what catches it. It checks three things, in order, and checks all three even after one fails, then exits 1 if any failed:
+Run `skyward check` as a required CI step in every Skyward app. Skyward API reads the signatures you deployed at every boot, and `rbs` stays one of its runtime dependencies in 1.0, as [Skyward Core](../skyward-core/README.md#what-it-owns) explains, so a deploy with stale signatures quietly validates requests against the old contract. `check` is what catches it. It checks three things, in order, and checks all three even after one fails, then exits 1 if any failed:
 
 1. **Signatures.** It runs rbs-inline over the app's Ruby, outside `test/`, `spec/`, `vendor/`, `tmp/` and hidden directories, and fails if the result differs from `sig/generated`, listing the files that differ and the command that regenerates them.
 2. **Strict boot.** It loads `app.rb` with `SKYWARD_STRICT=1`, so an untyped endpoint, or any other boot error, fails it.

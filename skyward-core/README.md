@@ -9,7 +9,7 @@ The plumbing that [Skyward API](../skyward-api/README.md) and [Skyward ORM](../s
 
 - **The `Skyward` namespace.** Skyward Core opens it, and every Skyward gem's Zeitwerk loader extends it. Each gem's names live in that gem's own namespace there: `Skyward::Core`, `Skyward::API` and `Skyward::ORM`.
 - **The `skyward` command.** It comes with Skyward Core, so it's there whichever Skyward gems you install. Each gem adds its own commands to it.
-- **Loading RBS signatures.** One loader finds your app's signatures and those of the gems it uses, for every Skyward gem.
+- **Loading RBS signatures.** One loader finds your app's signatures and those of the gems it uses, for every Skyward gem. It reads them when your app boots, every boot, from the `sig/` you deployed, and loads each signatures directory once, for Skyward API and Skyward ORM to share. So `rbs` is a runtime dependency and your app ships its `sig/`: production doesn't boot from types compiled at deploy time. A process pays for the load once, and what boots is what you deployed.
 - **Keeping `sig/generated` current.** One function regenerates your app's `sig/generated` from its Ruby with rbs-inline, and the Skyward commands that read types call it first, so you never run rbs-inline by hand. `skyward check` only checks it's current, for CI.
 - **Reading RBS types.** One reader turns a signature into values that Skyward API and Skyward ORM each build their own mappings on, so a `Todo` read from the database and a `Todo` sent as JSON are the same thing.
 - **`Skyward::Core::BootError`**, which every Skyward gem raises when your app can't boot, saying why.
