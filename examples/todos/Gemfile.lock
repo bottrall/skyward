@@ -1,15 +1,15 @@
 PATH
   remote: ../../skyward-api
   specs:
-    skyward-api (0.3.0)
+    skyward-api (0.4.0)
       bigdecimal (>= 3.1)
-      skyward-core (= 0.3.0)
+      skyward-core (= 0.4.0)
       zeitwerk (~> 2.8)
 
 PATH
   remote: ../../skyward-core
   specs:
-    skyward-core (0.3.0)
+    skyward-core (0.4.0)
       prism (>= 1.6)
       rbs (~> 4.2)
       zeitwerk (~> 2.8)
@@ -17,9 +17,9 @@ PATH
 PATH
   remote: ../../skyward-orm
   specs:
-    skyward-orm (0.3.0)
+    skyward-orm (0.4.0)
       bigdecimal (>= 3.1)
-      skyward-core (= 0.3.0)
+      skyward-core (= 0.4.0)
       zeitwerk (~> 2.8)
 
 GEM
@@ -276,9 +276,9 @@ CHECKSUMS
   rbs-inline (0.14.0) sha256=eaf47b46690d63acddab1f6804c9cc205a4bc78e637cfc421a0b1239874ef51c
   samovar (2.5.1) sha256=8a9fc41eb8868084f0321eb41678c485cfbc7d282fb306c0be67c3284b1d2394
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
-  skyward-api (0.3.0)
-  skyward-core (0.3.0)
-  skyward-orm (0.3.0)
+  skyward-api (0.4.0)
+  skyward-core (0.4.0)
+  skyward-orm (0.4.0)
   sqlite3 (2.10.2) sha256=f1ea68cd3287f8a49f39a088ac9e4bd0ef4e7f394c3d4a60dd4c7e44b0566964
   sqlite3 (2.10.2-aarch64-linux-gnu) sha256=e9aea2c2b3476fc875dd8a89313a9a2862818519c0186bfb5b56d6f57bb08d98
   sqlite3 (2.10.2-aarch64-linux-musl) sha256=4986fc40cdf21342362b72a941df28e95cfe0e644f3ad2532d948b157c39dbee
