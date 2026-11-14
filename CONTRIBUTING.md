@@ -10,20 +10,20 @@ You need the Ruby in `.ruby-version` for development. Skyward itself supports ev
 bin/setup
 ```
 
-That installs the dev bundle, each gem's and example's own bundle, and the gem signatures Steep uses.
-
 ## Day to day
 
-| Script         | Does                                                                      |
-| -------------- | ------------------------------------------------------------------------- |
-| `bin/test`     | runs every gem's and example's tests, each in its own bundle; pass files to run only those |
-| `bin/lint`     | runs RuboCop; `bin/lint -a` autocorrects                                  |
-| `bin/rbs`      | regenerates each gem's and example's `sig/generated` from its inline annotations       |
-| `bin/rbs-watch` | regenerates them on every change                                          |
-| `bin/typecheck` | checks the signatures are current, then runs Steep on every gem and example        |
-| `bin/ci`       | everything CI runs, including building and installing the gems, and running the `bin/ci` of the app `skyward new` writes with them |
+Everything runs through `bin/`, never a tool directly.
 
-Run `bin/ci` before you push.
+| Script                     | Does                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `bin/setup`                | installs the dev bundle, each gem's and example's own bundle, and the gem signatures Steep uses                                       |
+| `bin/test [paths]`         | runs every gem's and example's tests, each in its own bundle, and the release tooling's; pass files or directories to run only those |
+| `bin/lint [--fix] [paths]` | runs RuboCop; `--fix` autocorrects what it can                                                                                        |
+| `bin/typecheck`            | checks the signatures and the RBS collection are current, then runs Steep on every gem and example                                    |
+| `bin/generate [--watch]`   | regenerates each gem's and example's `sig/generated` from its inline annotations; `--watch` regenerates them on every change          |
+| `bin/build`                | builds the gems into `pkg/`, installs and loads them, and runs the `bin/ci` of the app `skyward new` writes with them                 |
+| `bin/check`                | `bin/lint --fix`, then `bin/typecheck`, then `bin/test`: run it before calling a change done                                          |
+| `bin/ci`                   | runs exactly what CI runs, without fixing anything: run it before you push                                                            |
 
 ## PostgreSQL
 

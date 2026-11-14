@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
-# Installs the dev bundle and each gem's and example's own bundle, then
-# delegates to rake, which isn't available until then.
-set -e
-bundle install "$@"
-for gem in skyward-core skyward-api skyward-orm skyward examples/todos examples/todos_postgres; do
-  (cd "$gem" && bundle install "$@")
-done
-exec bundle exec rake rbs:collection_install
+# Installs dependencies on a fresh checkout: the bundle then `rake setup`, and the pnpm packages.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+# shellcheck source=lib/stack.sh
+source bin/lib/stack.sh
+
+parse_args no-paths -- "$@"
+select_stacks "" # no paths, so no router
+
+# Runner flags go to `bundle install`; rake isn't installed until it has run.
+run_ruby() {
+  bundle install ${FLAGS[@]+"${FLAGS[@]}"}
+  bundle exec rake setup
+}
+
+run_ts() {
+  pnpm install ${FLAGS[@]+"${FLAGS[@]}"}
+}
+
+run_stacks "${STACKS[@]}"

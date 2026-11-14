@@ -6,6 +6,13 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -16,19 +23,21 @@ jobs:
       matrix:
         include:
           - name: lint
-            run: bundle exec rake lint
+            run: bin/lint
           - name: typecheck
-            run: bundle exec rake rbs:collection_install typecheck
+            run: bin/typecheck
           - name: tooling
-            run: bundle exec rake test:tooling
+            run: bin/test tooling/test
           # Builds every gem, installs them into an empty GEM_HOME, loads them
           # and runs skyward, which catches a file the gemspec leaves out, then
           # runs skyward new and the new app's own bin/ci with them.
           - name: package
-            run: bundle exec rake package:check
+            run: bin/build
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
@@ -48,22 +57,33 @@ jobs:
         gem: [skyward-core, skyward-api, examples/todos]
         # Every Ruby that isn't end-of-life.
         ruby: ["3.3", "3.4", "4.0", head]
+        include:
+          - gem: skyward-core
+            run: bin/test skyward-core/test
+          - gem: skyward-api
+            run: bin/test skyward-api/test
+          - gem: examples/todos
+            run: bin/test examples/todos/test
 
     # Each gem's tests run in its own bundle, which holds only the gem and the
-    # Skyward gems it depends on. The SQLite example's run in its own bundle
-    # too, on an in-memory database of their own.
-    defaults:
-      run:
-        working-directory: ${{ matrix.gem }}
-
+    # Skyward gems it depends on, so both bundles are installed: the dev
+    # bundle bin/test's rake runs in, and the gem's, which it runs the tests
+    # in. The SQLite example's run in its own bundle too, on an in-memory
+    # database of their own.
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           working-directory: ${{ matrix.gem }}
-      - run: bundle exec rake test
+      - run: ${{ matrix.run }}
 
   # The suites that use a database, the ORM's and the skyward gem's, run on
   # each database Skyward ORM supports, one after the other in one job, so the
@@ -81,6 +101,11 @@ jobs:
       matrix:
         gem: [skyward-orm, skyward]
         ruby: ["3.3", "3.4", "4.0", head]
+        include:
+          - gem: skyward-orm
+            run: bin/test skyward-orm/test
+          - gem: skyward
+            run: bin/test skyward/test
 
     services:
       postgres:
@@ -98,25 +123,27 @@ jobs:
     env:
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
-    defaults:
-      run:
-        working-directory: ${{ matrix.gem }}
-
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           working-directory: ${{ matrix.gem }}
       - name: test on SQLite
-        run: bundle exec rake test
+        run: ${{ matrix.run }}
         env:
           TEST_DATABASE: sqlite
       # Runs even when SQLite failed, so one push shows both.
       - name: test on PostgreSQL
         if: ${{ !cancelled() }}
-        run: bundle exec rake test
+        run: ${{ matrix.run }}
         env:
           TEST_DATABASE: postgresql
 
@@ -133,6 +160,8 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ["3.3", "3.4", "4.0", head]
+        include:
+          - run: bin/test examples/todos_postgres/test
 
     services:
       postgres:
@@ -147,25 +176,31 @@ jobs:
           --health-timeout 5s
           --health-retries 15
 
+    # bin/test empties the database TEST_POSTGRES_URL names, then runs the
+    # example's tests on it.
     env:
-      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-
-    defaults:
-      run:
-        working-directory: examples/todos_postgres
+      TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           working-directory: examples/todos_postgres
-      - run: bundle exec rake test
+      - run: ${{ matrix.run }}
 
   # Every Skyward app runs skyward check in CI, and so does each example. Its
   # Steep reads the repository's RBS collection, and its strict boot connects,
-  # so it needs its database migrated.
+  # so it needs its database migrated. These run the example's own commands in
+  # its own bundle, as an app's CI does, so they aren't bin/ scripts and bin/ci
+  # leaves them out.
   check-todos:
     runs-on: ubuntu-latest
     name: skyward check examples/todos
@@ -177,6 +212,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0"
@@ -213,6 +250,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0"
