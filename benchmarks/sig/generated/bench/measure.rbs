@@ -1,0 +1,30 @@
+# Generated from lib/bench/measure.rb with RBS::Inline
+
+module Bench::Measure
+  ALLOCATION_ITERATIONS: Integer
+
+  # Runs each scenario once, so a benchmark never times a 500 or an empty
+  # result.
+  # @rbs scenarios: Array[Bench::Scenario]
+  # @rbs return: Array[String]
+  def failures: (Array[Bench::Scenario] scenarios) -> Array[String]
+
+  # benchmark-ips prints its report as it goes, unless quiet.
+  # @rbs scenarios: Array[Bench::Scenario]
+  # @rbs time: Numeric
+  # @rbs warmup: Numeric
+  # @rbs quiet: bool
+  # @rbs return: Array[Bench::Result]
+  def results: (Array[Bench::Scenario] scenarios, ?time: Numeric, ?warmup: Numeric, ?quiet: bool) -> Array[Bench::Result]
+
+  # @rbs scenario: Bench::Scenario
+  # @rbs entry: Benchmark::IPS::Report::Entry
+  # @rbs return: Bench::Result
+  def result: (Bench::Scenario scenario, Benchmark::IPS::Report::Entry entry) -> Bench::Result
+
+  # Counted after benchmark-ips has warmed the scenario up, so what its first
+  # run allocates once, such as a cached statement, isn't counted.
+  # @rbs run: ^() -> untyped
+  # @rbs return: Float
+  def allocations: (^() -> untyped run) -> Float
+end

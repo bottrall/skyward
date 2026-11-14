@@ -14,16 +14,17 @@ bin/setup
 
 Everything runs through `bin/`, never a tool directly.
 
-| Script                     | Does                                                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `bin/setup`                | installs the dev bundle, each gem's and example's own bundle, and the gem signatures Steep uses                                       |
-| `bin/test [paths]`         | runs every gem's and example's tests, each in its own bundle, and the release tooling's; pass files or directories to run only those |
-| `bin/lint [--fix] [paths]` | runs RuboCop; `--fix` autocorrects what it can                                                                                        |
-| `bin/typecheck`            | checks the signatures and the RBS collection are current, then runs Steep on every gem and example                                    |
-| `bin/generate [--watch]`   | regenerates each gem's and example's `sig/generated` from its inline annotations; `--watch` regenerates them on every change          |
-| `bin/build`                | builds the gems into `pkg/`, installs and loads them, and runs the `bin/ci` of the app `skyward new` writes with them                 |
-| `bin/check`                | `bin/lint --fix`, then `bin/typecheck`, then `bin/test`: run it before calling a change done                                          |
-| `bin/ci`                   | runs exactly what CI runs, without fixing anything: run it before you push                                                            |
+| Script                     | Does                                                                                                                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bin/setup`                | installs the dev bundle, each gem's and example's own bundle and the benchmarks', and the gem signatures Steep uses                                                                                   |
+| `bin/test [paths]`         | runs every gem's and example's tests and the benchmarks', each in its own bundle, and the release tooling's; pass files or directories to run only those                                              |
+| `bin/lint [--fix] [paths]` | runs RuboCop; `--fix` autocorrects what it can                                                                                                                                                        |
+| `bin/typecheck`            | checks the signatures and the RBS collection are current, then runs Steep on every gem and example, and the benchmarks                                                                                |
+| `bin/generate [--watch]`   | regenerates each gem's and example's `sig/generated`, and the benchmarks', from its inline annotations; `--watch` regenerates them on every change                                                    |
+| `bin/build`                | builds the gems into `pkg/`, installs and loads them, and runs the `bin/ci` of the app `skyward new` writes with them                                                                                 |
+| `bin/bench [names]`        | times requests through Skyward API and rows through Skyward ORM; `bin/bench api` runs only the benchmarks whose names start with `api`. [`benchmarks/`](benchmarks/README.md) says what each measures |
+| `bin/check`                | `bin/lint --fix`, then `bin/typecheck`, then `bin/test`: run it before calling a change done                                                                                                          |
+| `bin/ci`                   | runs exactly what CI runs, without fixing anything: run it before you push                                                                                                                            |
 
 ## PostgreSQL
 

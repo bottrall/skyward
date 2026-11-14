@@ -1,0 +1,3 @@
+module Bench::Requests::Discard
+  extend ::Bench::Requests::Discard
+end

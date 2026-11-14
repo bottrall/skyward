@@ -1,0 +1,3 @@
+module Bench::Groups
+  extend ::Bench::Groups
+end

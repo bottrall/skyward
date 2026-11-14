@@ -1,0 +1,21 @@
+# Generated from lib/bench/routes_api.rb with RBS::Inline
+
+# The app has no docs, so routes can share their methods.
+class Bench::RoutesAPI < Skyward::API
+  # @rbs return: Array[{ id: Integer }]
+  def list: () -> Array[{ id: Integer }]
+
+  # @rbs id: Integer
+  # @rbs return: { id: Integer }
+  def show: (id: Integer) -> { id: Integer }
+
+  # @rbs id: Integer
+  # @rbs part_id: Integer
+  # @rbs return: { id: Integer, part_id: Integer }
+  def part: (id: Integer, part_id: Integer) -> { id: Integer, part_id: Integer }
+
+  # @rbs id: Integer
+  # @rbs line_id: Integer
+  # @rbs return: { id: Integer, line_id: Integer }
+  def line: (id: Integer, line_id: Integer) -> { id: Integer, line_id: Integer }
+end

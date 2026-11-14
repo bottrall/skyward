@@ -1,0 +1,27 @@
+# Generated from lib/bench/scenario.rb with RBS::Inline
+
+module Bench
+  # The answer is worked out from a run's result outside the timed loop, so
+  # checking a scenario adds nothing to its numbers. A scenario with a unit
+  # reports its rate in it: per_iteration of them each iteration.
+  class Scenario < Data
+    attr_reader name(): String
+
+    attr_reader run(): ^() -> untyped
+
+    attr_reader answer(): ^(untyped) -> Hash[Symbol, untyped]
+
+    attr_reader expected(): Hash[Symbol, untyped]
+
+    attr_reader unit(): String?
+
+    attr_reader per_iteration(): Integer
+
+    def self.new: (String name, ^() -> untyped run, ^(untyped) -> Hash[Symbol, untyped] answer, Hash[Symbol, untyped] expected, String? unit, Integer per_iteration) -> instance
+                | (name: String, run: ^() -> untyped, answer: ^(untyped) -> Hash[Symbol, untyped], expected: Hash[Symbol, untyped], unit: String?, per_iteration: Integer) -> instance
+
+    def self.members: () -> [ :name, :run, :answer, :expected, :unit, :per_iteration ]
+
+    def members: () -> [ :name, :run, :answer, :expected, :unit, :per_iteration ]
+  end
+end

@@ -196,6 +196,46 @@ jobs:
           working-directory: examples/todos_postgres
       - run: ${{ matrix.run }}
 
+  # Checks each benchmark's answer once, on SQLite and PostgreSQL, and tests
+  # the results writer, so the benchmarks don't rot. Nothing is timed: shared
+  # runners are too noisy to pass or fail on speed. The numbers compare
+  # Skyward with itself, so the benchmarks run on the newest Ruby alone.
+  test-benchmarks:
+    runs-on: ubuntu-latest
+    name: test benchmarks
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          working-directory: benchmarks
+      - run: bin/test benchmarks/test
+
   # Every Skyward app runs skyward check in CI, and so does each example. Its
   # Steep reads the repository's RBS collection, and its strict boot connects,
   # so it needs its database migrated. These run the example's own commands in

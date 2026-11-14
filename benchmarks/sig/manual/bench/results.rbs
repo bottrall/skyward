@@ -1,0 +1,3 @@
+module Bench::Results
+  extend ::Bench::Results
+end

@@ -1,0 +1,26 @@
+# Generated from lib/bench/result.rb with RBS::Inline
+
+module Bench
+  # ips and stddev are iterations per second. rate is ips in the scenario's
+  # unit, when it has one, and allocations are objects per iteration.
+  class Result < Data
+    attr_reader name(): String
+
+    attr_reader ips(): Float
+
+    attr_reader stddev(): Float
+
+    attr_reader unit(): String?
+
+    attr_reader rate(): Float?
+
+    attr_reader allocations(): Float
+
+    def self.new: (String name, Float ips, Float stddev, String? unit, Float? rate, Float allocations) -> instance
+                | (name: String, ips: Float, stddev: Float, unit: String?, rate: Float?, allocations: Float) -> instance
+
+    def self.members: () -> [ :name, :ips, :stddev, :unit, :rate, :allocations ]
+
+    def members: () -> [ :name, :ips, :stddev, :unit, :rate, :allocations ]
+  end
+end
