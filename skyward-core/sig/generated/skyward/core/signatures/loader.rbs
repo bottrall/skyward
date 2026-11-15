@@ -3,6 +3,10 @@
 class Skyward::Core::Signatures::Loader
   @gems: Array[String]
 
+  @key: Hash[String, Hash[String, String]]?
+
+  @builder: WeakRef?
+
   # @rbs return: void
   def initialize: () -> void
 
@@ -15,6 +19,10 @@ class Skyward::Core::Signatures::Loader
   def load: (String directory) -> RBS::DefinitionBuilder
 
   private
+
+  # @rbs directory: String
+  # @rbs return: Hash[String, Hash[String, String]]
+  def contents: (String directory) -> Hash[String, Hash[String, String]]
 
   # @rbs decl: RBS::DuplicatedDeclarationError::declaration
   # @rbs return: RBS::Location[untyped, untyped]?

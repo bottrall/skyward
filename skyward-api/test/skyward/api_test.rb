@@ -73,6 +73,23 @@ describe Skyward do
       assert_equal 200, app.call({ 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/ruby' }).first
     end
 
+    it 'returns an app that keeps no reader, so the signatures it loaded can be collected' do
+      # A directory of its own, so no other test's app shares the signatures it loads.
+      Dir.mktmpdir do |directory|
+        FileUtils.cp(File.join(signatures, 'boot_fixtures.rbs'), directory)
+        # While anything holds the builder the app loaded, a load returns it.
+        # Nothing holds what a thread's stack held once the thread ends, and an
+        # object_id is never reused.
+        _app, loaded = Thread.new do
+          app = Skyward.app(signatures: directory, logger: nil) { |builder| builder.mount hello }
+          [app, Skyward::Core::Signatures.load(directory).object_id]
+        end.value
+        GC.start
+
+        refute_equal loaded, Skyward::Core::Signatures.load(directory).object_id
+      end
+    end
+
     it "boots the README's opening example, which has no signatures directory, and answers it" do
       response = nil
       capture_io do
