@@ -6,32 +6,26 @@ Four gems: `skyward-core/` (the namespace, the `skyward` command and RBS loading
 
 Everything runs through its `bin/` script, never a tool directly (`rake`, `rubocop`, `steep`, `vitest`, `oxlint`, `tsc`, `vite`, `playwright`).
 
-| Script                        | What it does                                                                  |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| `bin/setup`                   | Install dependencies on a fresh checkout                                      |
-| `bin/test [paths]`            | Run the tests; pass files to run only those                                   |
-| `bin/lint [--fix] [paths]`    | Check lint and formatting; `--fix` fixes what it can                          |
-| `bin/typecheck`               | Type-check the code                                                           |
-| `bin/generate [--watch]`      | Regenerate the generated files; `--watch` keeps them current                  |
-| `bin/build`                   | Build what the repo ships                                                     |
-| `bin/bench [names]`           | Run the benchmarks; pass names to run only those whose names start with one   |
+| Script                        | What it does                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------- |
+| `bin/setup`                   | Install dependencies on a fresh checkout                                        |
+| `bin/test [paths]`            | Run the tests; pass files to run only those                                     |
+| `bin/lint [--fix] [paths]`    | Check lint and formatting; `--fix` fixes what it can                            |
+| `bin/typecheck`               | Type-check the code                                                             |
+| `bin/generate [--watch]`      | Regenerate the generated files; `--watch` keeps them current                    |
+| `bin/build`                   | Build what the repo ships                                                       |
+| `bin/bench [names]`           | Run the benchmarks; pass names to run only those whose names start with one     |
 | `bin/check`                   | `bin/lint --fix`, `bin/typecheck`, `bin/test`: run before calling a change done |
-| `bin/ci`                      | Run exactly what CI runs, without fixes: run before pushing                   |
+| `bin/ci`                      | Run exactly what CI runs, without fixes: run before pushing                     |
 
-## Workflow
-
-- `bin/test` and `bin/typecheck`, and so `bin/check` and `bin/ci`, need a PostgreSQL at `TEST_POSTGRES_URL`; [CONTRIBUTING.md](CONTRIBUTING.md#postgresql) says how to run one.
-- `bin/typecheck` fails when any gem's, example's or the benchmarks' `sig/generated` is out of date with its Ruby. It also runs each example's `skyward check` in the example's own bundle, as an app's CI does.
-- PR titles are Conventional Commits with a scope naming the gem (`feat(api): ...`, `fix(orm): ...`, `core`, `skyward`), and become the squash commit on `main`. release-please builds the changelog from them.
-- Build each gem only as far as its README specifies. The gems never require a Skyward gem they don't depend on: `skyward-api` and `skyward-orm` depend on `skyward-core` only, and never on each other.
-- Work headless: never open a browser window or GUI app. Start a server on a non-default port, and stop it when you're done.
-
-## Code layout
+## Layout
 
 - Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Routing::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first.
 - Tests are Minitest spec style (`describe`/`it`) and mirror the code they test. Each gem's tests run in that gem's own bundle (its `Gemfile`), so they can't load a gem it doesn't depend on.
+- Each gem, each example and the benchmarks has its own `sig/`: `sig/generated` from `bin/generate`, `sig/manual` mirroring where its Ruby is (`lib/` in a gem and the benchmarks; an example's root, which holds its `lib/` and `modules/`), and `sig/_private` for other gems' gaps. `rbs:lint_manual`, part of `bin/typecheck`, fails on a `sig/manual` file with no Ruby counterpart.
+- Each gem ships a copy of the root `LICENSE`; `bin/build` fails when one no longer matches it.
 
-## Where a module goes
+### Where a module goes
 
 - **Public names.** `Skyward` holds no constant but the gems' namespaces (`Skyward::Core`, `Skyward::API`, `Skyward::ORM`, and `Skyward::Generator`, the `skyward` gem's) and the `skyward` gem's `VERSION`. A constant the gem's README tells apps to write is public. It lives directly in its gem's namespace (`Skyward::API::Request`), or in a public namespace there when it belongs to a family (`Skyward::API::Responses::NotFound`).
 - **The `@rbs use` convention.** An app's file that names a gem's types in RBS starts with `# @rbs use Skyward::API::*` (one line per gem) and writes them relative to it (`Responses::NotFound`, `Request`), because RBS doesn't resolve names through the superclass. Docs and examples do the same. Their Ruby code outside RBS annotations writes public names in full, and so does a `#:` after an expression, which Steep reads as Ruby.
@@ -65,19 +59,26 @@ Everything runs through its `bin/` script, never a tool directly (`rake`, `ruboc
 | orm | `Skyward::ORM::CLI` | what the `skyward` commands run; `commands.rb` only registers them |
 | skyward | `Skyward::Generator::CLI` | what `skyward new` runs, and the app it writes; `commands.rb` only registers it |
 
+## Workflow
+
+- `bin/test` and `bin/typecheck`, and so `bin/check` and `bin/ci`, need a PostgreSQL at `TEST_POSTGRES_URL`; [CONTRIBUTING.md](CONTRIBUTING.md#postgresql) says how to run one.
+- `bin/typecheck` fails when any gem's, example's or the benchmarks' `sig/generated` is out of date with its Ruby. It also runs each example's `skyward check` in the example's own bundle, as an app's CI does.
+- PR titles are Conventional Commits with a scope naming the gem (`feat(api): ...`, `fix(orm): ...`, `core`, `skyward`), and become the squash commit on `main`. release-please builds the changelog from them.
+- Build each gem only as far as its README specifies. The gems never require a Skyward gem they don't depend on: `skyward-api` and `skyward-orm` depend on `skyward-core` only, and never on each other.
+- Work headless: never open a browser window or GUI app. Start a server on a non-default port, and stop it when you're done.
+
+## Releasing
+
+- The gems release in lockstep: one version, and each pins the others exactly.
+- release-please keeps a release PR open that bumps every gem's version, adds the changelog section and updates the lockfiles. Merging it tags the release. `release.yml` then builds the gems once, in an unprivileged job, and publishes exactly those files from the `release` environment with RubyGems trusted publishing; it doesn't re-run CI. Never edit a version or `CHANGELOG.md` by hand.
+
 ## Ruby
 
 - Skyward supports every Ruby that isn't end-of-life, and CI tests each one. Use only what the oldest supported Ruby has: until Ruby 3.3 reaches end-of-life on 31 March 2027, that means no `it` block parameter, so name block parameters.
 - Expected outcomes are returned as values (the row, or a symbol naming what went wrong) and matched with `case`/`when`. Steep 2.1 can't type-check `case`/`in`.
 - Each gem is its own Steep target, which sees only its own signatures and those of the Skyward gems it depends on.
-- A generic method, or a parameter typed with an interface whose name starts with `_`, takes the whole-method `# @rbs [T] (T value) -> Array[T]` form, which the per-parameter tags can't express.
 - Declare instance variables with `# @rbs @name: Type` at the top of the class, not with a private reader.
 - The `extend self` re-declaration in `sig/manual/` is `module X; extend ::X; end`.
-
-## Releasing
-
-- The gems release in lockstep: one version, and each pins the others exactly.
-- release-please keeps a release PR open that bumps every gem's version, adds the changelog section and updates the lockfiles. Merging it tags the release, and `release.yml` publishes the gems with RubyGems trusted publishing. Never bump a version by hand.
 
 ## Differences from blueprint
 
@@ -86,6 +87,7 @@ Deliberate, so a check against blueprint's `SETUP.md` shouldn't undo them:
 - `.github/workflows/deps.yml` passes `safe-paths` to the shared fix workflow, widening its defaults to every gem's and example's `Gemfile.lock` and `sig/`, since each has its own bundle and signatures.
 - `SECURITY.md` asks which gem a report affects, and says the four gems release together, so upgrading means upgrading all four.
 - `skyward-orm/sig/manual/pg.rbs` and `sqlite3.rbs` are stubs for other gems' gaps, yet they live in `sig/manual`, not `sig/_private`. skyward-orm's shipped signatures (its adapters' connections) name `PG` and `SQLite3` types, and RBS skips `sig/_private` when an app loads the gem, so the stubs have to ship for the app's Steep to resolve those names. `rbs:lint_manual` lists them in `SHIPPED_STUBS` and lets them through.
+- The `## Commands` table adds a `bin/bench` row: `bin/bench` runs the benchmarks, which no blueprint script covers, and `release.yml` attaches a run of it to each release.
 
 ## Code style
 
@@ -117,7 +119,7 @@ Don't construct or reach for collaborators inside a function or class — accept
 ## Ruby typing
 
 - Steep runs `D::Ruby.all_error`: every diagnostic is an error. Fix the annotation or the code; never disable a diagnostic in the Steepfile. The only escape is a targeted inline suppression with a comment saying why.
-- Annotate every method in `lib/` with rbs-inline doc style: one `# @rbs name: Type` per param plus `# @rbs return: Type`, never the one-line method-type or `#:` method form. Constants and `attr_reader`s rbs-inline can't infer take a trailing `#: Type` on the same line; one on the line above is ignored.
+- Annotate every method in `lib/` with rbs-inline doc style: one `# @rbs name: Type` per param plus `# @rbs return: Type`, never the one-line method-type or `#:` method form. The exception is a generic method, or one with a parameter typed by an interface (a `_`-prefixed name): it takes the whole-method `# @rbs [T] (T value) -> Array[T]` form, which the per-parameter tags can't express. Constants and `attr_reader`s rbs-inline can't infer take a trailing `#: Type` on the same line; one on the line above is ignored.
 - An `attr_reader`/`attr_writer` needs a `# @dynamic name` line directly above it, or Steep reports `MethodDefinitionMissing`.
 - Declare an interface only when different objects satisfy it — two or more implementers, or a contract a consumer implements — or when a boundary forbids naming the one class. When only one class is ever passed, annotate that class; a test fake is not a second implementer.
 - A record with fields and no behaviour is a `Data.define` when its fields don't change after it's built. Assign it to a bare constant inside its owner's body (`module Shop::Orders; Line = Data.define(...)`), each member with a trailing `#: Type` on its line: rbs-inline emits no signature for the compact `Owner::Name = Data.define(...)` form. Once it needs a method, a default or a field that changes, it's a class with typed accessors and a typed `initialize`, frozen when nothing changes: Steep can't see methods defined in a `Data.define` block, and `Data` has no keyword defaults. Mutation is fine where it fits, just never in a `Struct`: rbs-inline marks every `Struct.new` argument optional while typing each member as non-nil, so Steep accepts `Point.new(1).y + 1`, which raises at runtime.
