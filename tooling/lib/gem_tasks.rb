@@ -12,5 +12,3 @@ Rake::TestTask.new do |t|
   t.test_files = requested || FileList['test/**/*_test.rb']
   t.warning = false
 end
-
-task default: :test

@@ -39,6 +39,14 @@ end
 # A gem's Ruby is under lib/; an example's is also in modules/ and beside its app.rb, where its boot.rb loads it from.
 def ruby_sources(dir) = Dir.glob(%w[lib/**/*.rb modules/**/*.rb *.rb], base: dir)
 
+# sig/manual mirrors where a bundle's Ruby is: lib/ in a gem and the
+# benchmarks, and an example's own root, which holds its lib/ and modules/.
+def manual_root(dir) = EXAMPLES.include?(dir) ? dir : File.join(dir, 'lib')
+
+# Third-party stubs that stay in sig/manual rather than sig/_private, because
+# skyward-orm's shipped signatures name their types; AGENTS.md says more.
+SHIPPED_STUBS = %w[skyward-orm/sig/manual/pg.rbs skyward-orm/sig/manual/sqlite3.rbs].freeze
+
 def write_signatures(dir, output)
   sources = ruby_sources(dir)
   # Starting empty drops a deleted file's signatures.
@@ -178,6 +186,18 @@ namespace :rbs do
       end
     end
   end
+
+  desc "Fail if a sig/manual file has no counterpart in its bundle's Ruby (a file or a Zeitwerk namespace directory)"
+  task :lint_manual do
+    stale = BUNDLES.flat_map do |dir|
+      orphans = Dir.glob('sig/manual/**/*.rbs', base: dir).reject do |file|
+        source = File.join(manual_root(dir), file.delete_prefix('sig/manual/').delete_suffix('.rbs'))
+        File.exist?("#{source}.rb") || Dir.exist?(source)
+      end
+      orphans.map { |file| File.join(dir, file) }
+    end - SHIPPED_STUBS
+    abort "sig/manual files without a Ruby counterpart: #{stale.join(', ')}" unless stale.empty?
+  end
 end
 
 namespace :steep do
@@ -205,7 +225,7 @@ namespace :examples do
 end
 
 desc "Check the RBS signatures and collection are current, run Steep, then run each example's skyward check"
-task typecheck: %w[rbs:check rbs:collection_check steep:check examples:check]
+task typecheck: %w[rbs:check rbs:collection_check rbs:lint_manual steep:check examples:check]
 
 desc "Build every gem into #{PKG}/, install them into an empty GEM_HOME, load them and run skyward, then check " \
      'the app skyward new writes passes its own bin/ci, as a user would'

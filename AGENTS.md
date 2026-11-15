@@ -85,6 +85,7 @@ Deliberate, so a check against blueprint's `SETUP.md` shouldn't undo them:
 
 - `.github/workflows/deps.yml` passes `safe-paths` to the shared fix workflow, widening its defaults to every gem's and example's `Gemfile.lock` and `sig/`, since each has its own bundle and signatures.
 - `SECURITY.md` asks which gem a report affects, and says the four gems release together, so upgrading means upgrading all four.
+- `skyward-orm/sig/manual/pg.rbs` and `sqlite3.rbs` are stubs for other gems' gaps, yet they live in `sig/manual`, not `sig/_private`. skyward-orm's shipped signatures (its adapters' connections) name `PG` and `SQLite3` types, and RBS skips `sig/_private` when an app loads the gem, so the stubs have to ship for the app's Steep to resolve those names. `rbs:lint_manual` lists them in `SHIPPED_STUBS` and lets them through.
 
 ## Code style
 
