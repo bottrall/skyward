@@ -18,7 +18,7 @@ GEMS.each do |name, gem|
   target name do
     unreferenced!
 
-    signature "#{gem.fetch(:dir)}/sig"
+    signature "#{gem.fetch(:dir)}/sig/generated", "#{gem.fetch(:dir)}/sig/manual", "#{gem.fetch(:dir)}/sig/_private"
     library(*gem.fetch(:depends_on).map { |part| GEMS.fetch(part).fetch(:dir) })
 
     check "#{gem.fetch(:dir)}/lib"
@@ -33,7 +33,7 @@ end
   target name do
     unreferenced!
 
-    signature "#{dir}/sig"
+    signature "#{dir}/sig/generated", "#{dir}/sig/manual", "#{dir}/sig/_private"
 
     check "#{dir}/*.rb", "#{dir}/lib", "#{dir}/modules"
 
