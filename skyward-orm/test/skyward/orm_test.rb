@@ -172,11 +172,12 @@ describe Skyward do
       end
 
       it 'refuses anything without call, before it connects' do
-        error = assert_raises(Skyward::Core::BootError) { Skyward.connect('nowhere://', instrument: :log) }
+        expected = "Skyward.connect's instrument: takes something that responds to call, such as a lambda, " \
+                   'not a Symbol'
 
-        assert_equal "Skyward.connect's instrument: takes something that responds to call, such as a lambda, " \
-                     'not a Symbol',
-                     error.message
+        assert_raises_with_message(Skyward::Core::BootError, expected) do
+          Skyward.connect('nowhere://', instrument: :log)
+        end
       end
 
       it 'reports the schema reads at connect, each with its duration as a Float' do
@@ -341,13 +342,24 @@ describe Skyward do
       assert_equal [[false, true], true], seen
     end
 
-    it "keeps the database's writes when a transaction around the block rolls back" do
+    it 'raises the error that rolls back a transaction around the block' do
       assert_raises(IOError) do
+        Skyward.transaction do
+          Skyward.using(switched) { list.insert(name: 'Work') }
+          raise IOError
+        end
+      end
+    end
+
+    it "keeps the database's writes when a transaction around the block rolls back" do
+      begin
         Skyward.transaction do
           Skyward.using(switched) { list.insert(name: 'Work') }
           list.insert(name: 'Home')
           raise IOError
         end
+      rescue IOError
+        nil
       end
 
       assert_equal [['Work'], []], [Skyward.using(switched) { list.all.map(&:name) }, list.all.map(&:name)]
@@ -371,15 +383,18 @@ describe Skyward do
     end
 
     it 'refuses anything but a database' do
-      error = assert_raises(ArgumentError) { Skyward.using(second.url) { nil } }
-
-      assert_equal 'Skyward.using takes a database Skyward.connect returned, not a String', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'Skyward.using takes a database Skyward.connect returned, not a String'
+      ) do
+        Skyward.using(second.url) { nil }
+      end
     end
 
     it 'refuses no block' do
-      error = assert_raises(ArgumentError) { Skyward.using(switched) }
-
-      assert_equal 'Skyward.using takes a block to run on the database', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.using takes a block to run on the database') do
+        Skyward.using(switched)
+      end
     end
   end
 
@@ -427,9 +442,9 @@ describe Skyward do
     end
 
     it 'refuses anything else first' do
-      error = assert_raises(ArgumentError) { Skyward.query(:todos, 'SELECT 1') }
-
-      assert_equal 'Skyward.query takes a row class or the SQL as its first argument', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.query takes a row class or the SQL as its first argument') do
+        Skyward.query(:todos, 'SELECT 1')
+      end
     end
   end
 
@@ -483,15 +498,14 @@ describe Skyward do
       Dir.mktmpdir do |directory|
         File.write(File.join(directory, '20261001000000_broken.sql'), "INSERT INTO nowhere VALUES (1);\n")
         Skyward.connect(empty.url, signatures: File.expand_path('missing', __dir__), check: false)
-        error = assert_raises(Skyward::ORM::MigrationError) { Skyward.migrate(directory) }
-
-        assert_equal Skyward::ORM::Migrations::Runner.message(
+        expected = Skyward::ORM::Migrations::Runner.message(
           Skyward::ORM::Migrations::Runner::Failed.new(
             file: '20261001000000_broken.sql',
             message: empty.error("INSERT INTO nowhere VALUES (1);\n")
           )
-        ),
-                     error.message
+        )
+
+        assert_raises_with_message(Skyward::ORM::MigrationError, expected) { Skyward.migrate(directory) }
       end
     end
   end
@@ -506,9 +520,7 @@ describe Skyward do
     end
 
     it 'refuses anything but a String' do
-      error = assert_raises(ArgumentError) { Skyward.sql(:now) }
-
-      assert_equal 'Skyward.sql takes the SQL as a String, not :now', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.sql takes the SQL as a String, not :now') { Skyward.sql(:now) }
     end
   end
 end

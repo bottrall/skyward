@@ -159,16 +159,29 @@ describe Skyward::ORM::Migrations::Runner do
         assert_equal ['20261003000000'], migrate(create_b, create_c)
       end
 
-      it "raises when it can't make schema_migrations, and leaves no transaction open" do
-        broken_on = adapter
-        broken = Module.new do
-          extend broken_on
+      describe "when it can't make schema_migrations" do
+        let(:broken) do
+          broken_on = adapter
+          Module.new do
+            extend broken_on
 
-          def self.sql_type(_column) = '('
+            def self.sql_type(_column) = '('
+          end
         end
 
-        assert_raises(StandardError) { runner.run(broken, connection, [create_a]) }
-        assert_equal [true, []], [idle?, tables]
+        it 'raises' do
+          assert_raises(StandardError) { runner.run(broken, connection, [create_a]) }
+        end
+
+        it 'leaves no transaction open' do
+          begin
+            runner.run(broken, connection, [create_a])
+          rescue StandardError
+            nil
+          end
+
+          assert_equal [true, []], [idle?, tables]
+        end
       end
 
       it 'runs each migration in order and returns their versions' do

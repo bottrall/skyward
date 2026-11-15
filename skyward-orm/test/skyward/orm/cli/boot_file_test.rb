@@ -19,9 +19,12 @@ describe Skyward::ORM::CLI::BootFile do
   describe '.load' do
     it "says where to run skyward when there's no boot.rb, regenerating nothing" do
       app(nil) do |directory|
-        assert_equal "skyward: no boot.rb in #{directory}. Run skyward where your app's boot.rb loads its table " \
-                     'classes and calls Skyward.connect.',
-                     Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION, -> { flunk })
+        regenerated = []
+        said = Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::SESSION, -> { regenerated << 1 })
+
+        assert_equal ["skyward: no boot.rb in #{directory}. Run skyward where your app's boot.rb loads its table " \
+                      'classes and calls Skyward.connect.', []],
+                     [said, regenerated]
       end
     end
 
@@ -51,11 +54,11 @@ describe Skyward::ORM::CLI::BootFile do
 
     it "raises the session's error when boot.rb doesn't connect" do
       app("# Connects to nothing.\n") do |directory|
-        error = assert_raises(Skyward::Core::BootError) do
+        assert_raises_with_message(
+          Skyward::Core::BootError, "Skyward ORM isn't connected. Call Skyward.connect(url) where your app boots."
+        ) do
           Skyward::ORM::CLI::BootFile.load(directory, Skyward::ORM::Connection::Session.new, -> {})
         end
-
-        assert_equal "Skyward ORM isn't connected. Call Skyward.connect(url) where your app boots.", error.message
       end
     end
   end
@@ -98,9 +101,10 @@ describe Skyward::ORM::CLI::BootFile do
 
     it 'fails with only the message of a boot error from booting' do
       app("raise Skyward::Core::BootError, \"Skyward ORM can't connect to a URL with no scheme.\"\n") do |directory|
-        Skyward::ORM::CLI::BootFile.boot(directory, Skyward::ORM::Connection::SESSION, kernel, -> {}) { flunk }
+        ran = false
+        Skyward::ORM::CLI::BootFile.boot(directory, Skyward::ORM::Connection::SESSION, kernel, -> {}) { ran = true }
 
-        assert_equal "Skyward ORM can't connect to a URL with no scheme.", kernel.aborted
+        assert_equal ["Skyward ORM can't connect to a URL with no scheme.", false], [kernel.aborted, ran]
       end
     end
 

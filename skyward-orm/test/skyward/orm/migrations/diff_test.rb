@@ -117,16 +117,13 @@ describe Skyward::ORM::Migrations::Diff do
         attr_reader :id
       end
 
-      error = assert_raises(Skyward::Core::BootError) { changes([broken]) }
+      expected = "#{broken} has no column missing, which its index names. " \
+                 'Add `attr_reader :missing`, or fix the name.'
 
-      assert_equal "#{broken} has no column missing, which its index names. " \
-                   'Add `attr_reader :missing`, or fix the name.',
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { changes([broken]) }
     end
 
     it 'refuses classes that share a table' do
-      error = assert_raises(Skyward::Core::BootError) { changes([fixtures::Todo, fixtures::List, fixtures::NotedTodo]) }
-
       expected = <<~MESSAGE.chomp
         MigrationsFixtures::NotedTodo and MigrationsFixtures::Todo each declare table :todos. Give each table one class.
 
@@ -138,7 +135,9 @@ describe Skyward::ORM::Migrations::Diff do
                   ^^^^^^
       MESSAGE
 
-      assert_equal expected, error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) do
+        changes([fixtures::Todo, fixtures::List, fixtures::NotedTodo])
+      end
     end
 
     it "creates each table the database doesn't have, with its class's typed columns" do

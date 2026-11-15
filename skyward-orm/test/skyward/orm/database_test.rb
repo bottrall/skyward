@@ -146,11 +146,9 @@ describe Skyward::ORM::Database do
     end
 
     it 'refuses a child fiber the transaction it inherited' do
-      error = assert_raises(FiberError) do
+      assert_raises_with_message(FiberError, foreign) do
         database.transaction { Fiber.new { database.connection { nil } }.resume }
       end
-
-      assert_equal foreign, error.message
     end
 
     it 'refuses a thread the transaction it inherited' do
@@ -224,47 +222,80 @@ describe Skyward::ORM::Database do
                    sent.map(&:first)
     end
 
-    it 'rolls back when interrupted just after its BEGIN reached the database' do
-      interrupted = faulty.new(connection:, statement: 'BEGIN')
-      error = assert_raises(IOError) { pooled(-> { interrupted }).transaction { :begun } }
+    describe 'when interrupted just after its BEGIN reached the database' do
+      let(:interrupted) { faulty.new(connection:, statement: 'BEGIN') }
 
-      assert_equal ['raised at BEGIN', false], [error.message, connection.transaction_active?]
+      it 'raises the interruption' do
+        assert_raises_with_message(IOError, 'raised at BEGIN') { pooled(-> { interrupted }).transaction { :begun } }
+      end
+
+      it 'rolls back' do
+        begin
+          pooled(-> { interrupted }).transaction { :begun }
+        rescue IOError
+          nil
+        end
+
+        refute_predicate connection, :transaction_active?
+      end
     end
 
-    it 'rolls a nested one back when interrupted just after its savepoint reached the database' do
-      sent = []
-      interrupted = faulty.new(
-        connection: TestDatabase::Recording.new(connection:, sent:),
-        statement: 'SAVEPOINT skyward_1'
-      )
-      database = pooled(-> { interrupted })
-      error = database.transaction { assert_raises(IOError) { database.transaction { :begun } } }
+    describe 'a nested one, when interrupted just after its savepoint reached the database' do
+      let(:sent) { [] }
+      let(:interrupted) do
+        faulty.new(connection: TestDatabase::Recording.new(connection:, sent:), statement: 'SAVEPOINT skyward_1')
+      end
+      let(:database) { pooled(-> { interrupted }) }
 
-      assert_equal ['raised at SAVEPOINT skyward_1',
-                    ['BEGIN', 'SAVEPOINT skyward_1', 'ROLLBACK TO SAVEPOINT skyward_1', 'RELEASE SAVEPOINT skyward_1',
-                     'COMMIT']],
-                   [error.message, sent.map(&:first)]
+      it 'raises the interruption' do
+        database.transaction do
+          assert_raises_with_message(IOError, 'raised at SAVEPOINT skyward_1') { database.transaction { :begun } }
+        end
+      end
+
+      it 'rolls back' do
+        database.transaction do
+          database.transaction { :begun }
+        rescue IOError
+          nil
+        end
+
+        assert_equal ['BEGIN', 'SAVEPOINT skyward_1', 'ROLLBACK TO SAVEPOINT skyward_1', 'RELEASE SAVEPOINT skyward_1',
+                      'COMMIT'],
+                     sent.map(&:first)
+      end
     end
 
     it "raises the start's own error when it never reached the database, which then refuses to roll back" do
       interrupted = faulty.new(connection:, statement: 'BEGIN', reached: false)
-      error = assert_raises(IOError) { pooled(-> { interrupted }).transaction { :begun } }
-
-      assert_equal 'raised at BEGIN', error.message
+      assert_raises_with_message(IOError, 'raised at BEGIN') { pooled(-> { interrupted }).transaction { :begun } }
     end
 
-    it "keeps the enclosing savepoint's writes, and raises the start's own error, when a savepoint never reached " \
-       'the database' do
+    it "keeps the enclosing savepoint's writes when a savepoint never reached the database" do
       database = pooled(-> { faulty.new(connection:, statement: 'SAVEPOINT skyward_3', reached: false) })
-      error = database.transaction do
+      database.transaction do
         database.transaction do
           insert(database, 'Work')
           # Rescued two levels up, so the level between rolls back what PostgreSQL's refused rollback aborted.
-          assert_raises(IOError) { database.transaction { database.transaction { :begun } } }
+          database.transaction { database.transaction { :begun } }
+        rescue IOError
+          nil
         end
       end
 
-      assert_equal ['raised at SAVEPOINT skyward_3', [['Home'], ['Work']]], [error.message, names(database)]
+      assert_equal [['Home'], ['Work']], names(database)
+    end
+
+    it "raises the start's own error when a savepoint never reached the database" do
+      database = pooled(-> { faulty.new(connection:, statement: 'SAVEPOINT skyward_3', reached: false) })
+      database.transaction do
+        database.transaction do
+          insert(database, 'Work')
+          assert_raises_with_message(IOError, 'raised at SAVEPOINT skyward_3') do
+            database.transaction { database.transaction { :begun } }
+          end
+        end
+      end
     end
 
     it "commits, and returns the block's value" do
@@ -276,15 +307,27 @@ describe Skyward::ORM::Database do
       assert_equal [:done, [['Home'], ['Work']]], [value, names]
     end
 
-    it 'rolls back and raises again when the block raises' do
-      assert_raises(RuntimeError) do
+    describe 'when the block raises' do
+      def write_and_fail(database)
         database.transaction do
           insert(database, 'Work')
           raise 'failed'
         end
       end
 
-      assert_equal [['Home']], names
+      it 'raises again' do
+        assert_raises(RuntimeError) { write_and_fail(database) }
+      end
+
+      it 'rolls back' do
+        begin
+          write_and_fail(database)
+        rescue RuntimeError
+          nil
+        end
+
+        assert_equal [['Home']], names
+      end
     end
 
     it 'rolls back and returns a violation the block returns' do
@@ -296,11 +339,14 @@ describe Skyward::ORM::Database do
       assert_equal [refused, [['Home']]], [value, names]
     end
 
-    it 'rolls back when the commit fails, so its connection goes back with no transaction open' do
-      database.connection do |connection|
-        connection.execute('CREATE TABLE shares (list_id INTEGER REFERENCES lists DEFERRABLE INITIALLY DEFERRED)')
+    describe 'when the commit fails' do
+      before do
+        database.connection do |connection|
+          connection.execute('CREATE TABLE shares (list_id INTEGER REFERENCES lists DEFERRABLE INITIALLY DEFERRED)')
+        end
       end
-      error = assert_raises(StandardError) do
+
+      def commit_deferred_violation(database)
         database.transaction do
           database.connection do |connection|
             connection.execute('INSERT INTO shares VALUES (9)')
@@ -308,18 +354,42 @@ describe Skyward::ORM::Database do
         end
       end
 
-      assert_equal %i[foreign_key begun], [database.violation(error, :shares)&.kind, database.transaction { :begun }]
+      it "raises the database's error" do
+        assert_raises(StandardError) { commit_deferred_violation(database) }
+      end
+
+      it 'raises the violation the commit found' do
+        error = begin
+          commit_deferred_violation(database)
+        rescue StandardError => e
+          e
+        end
+
+        assert_equal :foreign_key, database.violation(error, :shares)&.kind
+      end
+
+      it 'rolls back, so its connection goes back with no transaction open' do
+        begin
+          commit_deferred_violation(database)
+        rescue StandardError
+          nil
+        end
+
+        assert_equal(:begun, database.transaction { :begun })
+      end
     end
 
     it 'raises a rollback that fails once the transaction has begun' do
       lost = faulty.new(connection:, statement: 'ROLLBACK')
-      error = assert_raises(IOError) { pooled(-> { lost }).transaction { raise 'failed' } }
-
-      assert_equal 'raised at ROLLBACK', error.message
+      assert_raises_with_message(IOError, 'raised at ROLLBACK') { pooled(-> { lost }).transaction { raise 'failed' } }
     end
 
     it 'leaves the fiber outside a transaction afterwards, even when the block raises' do
-      assert_raises(RuntimeError) { database.transaction { raise 'failed' } }
+      begin
+        database.transaction { raise 'failed' }
+      rescue RuntimeError
+        nil
+      end
 
       refute_predicate database, :transaction?
     end
@@ -421,9 +491,8 @@ describe Skyward::ORM::Database do
 
     it 'refuses a child fiber the connection it holds' do
       database.hold
-      error = assert_raises(FiberError) { Fiber.new { database.connection { nil } }.resume }
 
-      assert_equal foreign, error.message
+      assert_raises_with_message(FiberError, foreign) { Fiber.new { database.connection { nil } }.resume }
     ensure
       database.release
     end
@@ -475,15 +544,29 @@ describe Skyward::ORM::Database do
       assert_same(connection, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
     end
 
-    it 'returns the connection even when its rollback raises' do
-      lost = faulty.new(connection:, statement: 'ROLLBACK')
-      database = Skyward::ORM::Database.new(
-        adapter, Skyward::ORM::Connection::Pool.new(1, -> { lost }), column_types, [], check: false
-      )
-      database.hold
-      assert_raises(IOError) { database.release }
+    describe 'when its rollback raises' do
+      let(:lost) { faulty.new(connection:, statement: 'ROLLBACK') }
+      let(:database) do
+        Skyward::ORM::Database.new(
+          adapter, Skyward::ORM::Connection::Pool.new(1, -> { lost }), column_types, [], check: false
+        )
+      end
 
-      assert_same(lost, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
+      before { database.hold }
+
+      it 'raises its error' do
+        assert_raises(IOError) { database.release }
+      end
+
+      it 'returns the connection even so' do
+        begin
+          database.release
+        rescue IOError
+          nil
+        end
+
+        assert_same(lost, Fiber.new { database.connection { |checked_out| checked_out } }.resume)
+      end
     end
 
     it 'asks its connection to keep neither the BEGIN #hold sent nor its ROLLBACK' do
@@ -545,10 +628,12 @@ describe Skyward::ORM::Database do
         index :done
         attr_reader :id
       end
-      error = assert_raises(Skyward::Core::BootError) { database.check([invalid]) }
-
-      assert_equal "#{invalid} has no column done, which its index names. Add `attr_reader :done`, or fix the name.",
-                   error.message
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        "#{invalid} has no column done, which its index names. Add `attr_reader :done`, or fix the name."
+      ) do
+        database.check([invalid])
+      end
     end
 
     it "raises SchemaMismatch with a block for each class that doesn't match" do
@@ -556,9 +641,9 @@ describe Skyward::ORM::Database do
         table :notes
         attr_reader :id
       end
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.check([todo, list, missing]) }
-
-      assert_equal "#{mismatch(list)}\n\n#{mismatch(missing)}", error.message
+      assert_raises_with_message(Skyward::ORM::SchemaMismatch, "#{mismatch(list)}\n\n#{mismatch(missing)}") do
+        database.check([todo, list, missing])
+      end
     end
 
     describe 'with an adapter that counts comparisons' do
@@ -572,12 +657,26 @@ describe Skyward::ORM::Database do
         assert_equal comparisons, adapter.comparisons
       end
 
-      it "checks a class that doesn't match again" do
-        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
-        comparisons = adapter.comparisons
-        assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+      describe "a class that doesn't match" do
+        def check_list(database, list)
+          database.check([list])
+        rescue Skyward::ORM::SchemaMismatch
+          nil
+        end
 
-        assert_equal comparisons * 2, adapter.comparisons
+        it 'raises again on the next check' do
+          check_list(database, list)
+
+          assert_raises(Skyward::ORM::SchemaMismatch) { database.check([list]) }
+        end
+
+        it 'checks it again' do
+          check_list(database, list)
+          comparisons = adapter.comparisons
+          check_list(database, list)
+
+          assert_equal comparisons * 2, adapter.comparisons
+        end
       end
     end
   end
@@ -605,9 +704,7 @@ describe Skyward::ORM::Database do
     end
 
     it 'checks its table class first' do
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.decoder(list, list, []) }
-
-      assert_equal mismatch(list), error.message
+      assert_raises_with_message(Skyward::ORM::SchemaMismatch, mismatch(list)) { database.decoder(list, list, []) }
     end
 
     it "reads each value by its table's column type, into a row" do
@@ -675,8 +772,16 @@ describe Skyward::ORM::Database do
       assert_same cached, database.cached_sql([:select]) { 'SELECT 2' }
     end
 
-    it 'caches nothing when rendering raises, so it renders again' do
+    it 'raises what rendering raises' do
       assert_raises(ArgumentError) { database.cached_sql([:select]) { raise ArgumentError } }
+    end
+
+    it 'caches nothing when rendering raises, so it renders again' do
+      begin
+        database.cached_sql([:select]) { raise ArgumentError }
+      rescue ArgumentError
+        nil
+      end
 
       assert_equal 'SELECT 2', database.cached_sql([:select]) { 'SELECT 2' }
     end
@@ -708,9 +813,7 @@ describe Skyward::ORM::Database do
 
   describe '#prepare' do
     it 'checks the table class' do
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.prepare(list) }
-
-      assert_equal mismatch(list), error.message
+      assert_raises_with_message(Skyward::ORM::SchemaMismatch, mismatch(list)) { database.prepare(list) }
     end
 
     describe "with another class's check holding the lock" do
@@ -775,10 +878,24 @@ describe Skyward::ORM::Database do
                    database.hashes('SELECT ? AS done, ? AS due_on', [true, Date.new(2026, 10, 1)])
     end
 
-    it "refuses a count of ? that doesn't match the values, on every call" do
-      errors = Array.new(2) { assert_raises(ArgumentError) { database.hashes('SELECT ?', []) }.message }
+    describe "a count of ? that doesn't match the values" do
+      it 'refuses it' do
+        assert_raises_with_message(ArgumentError, 'The SQL has 1 ?, each taking one value, but was given 0') do
+          database.hashes('SELECT ?', [])
+        end
+      end
 
-      assert_equal ['The SQL has 1 ?, each taking one value, but was given 0'] * 2, errors
+      it 'refuses it again on the next call' do
+        begin
+          database.hashes('SELECT ?', [])
+        rescue ArgumentError
+          nil
+        end
+
+        assert_raises_with_message(ArgumentError, 'The SQL has 1 ?, each taking one value, but was given 0') do
+          database.hashes('SELECT ?', [])
+        end
+      end
     end
 
     describe 'with a connection that records what it sends' do
@@ -802,16 +919,16 @@ describe Skyward::ORM::Database do
     end
 
     it 'refuses an Array, which the driver would spread across several ?, naming its position' do
-      error = assert_raises(ArgumentError) { database.hashes('SELECT ?', [[1, 2]]) }
-
-      assert_equal 'Skyward.query binds one value to each ?, but value 1 is an Array', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.query binds one value to each ?, but value 1 is an Array') do
+        database.hashes('SELECT ?', [[1, 2]])
+      end
     end
 
     it 'refuses an Array for SQL whose ? it has rewritten before' do
       database.hashes('SELECT ? AS id', [1])
-      error = assert_raises(ArgumentError) { database.hashes('SELECT ? AS id', [[1, 2]]) }
-
-      assert_equal 'Skyward.query binds one value to each ?, but value 1 is an Array', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.query binds one value to each ?, but value 1 is an Array') do
+        database.hashes('SELECT ? AS id', [[1, 2]])
+      end
     end
 
     it 'refuses an empty Array, which the driver would bind to no ?' do
@@ -819,9 +936,9 @@ describe Skyward::ORM::Database do
     end
 
     it 'refuses a Hash, naming its position' do
-      error = assert_raises(ArgumentError) { database.hashes('SELECT ?, ?', [1, {}]) }
-
-      assert_equal 'Skyward.query binds one value to each ?, but value 2 is a Hash', error.message
+      assert_raises_with_message(ArgumentError, 'Skyward.query binds one value to each ?, but value 2 is a Hash') do
+        database.hashes('SELECT ?, ?', [1, {}])
+      end
     end
 
     it 'refuses values that would move the ones after them to other ?' do
@@ -841,15 +958,29 @@ describe Skyward::ORM::Database do
     end
 
     it 'raises a violation the SQL causes' do
-      error = assert_raises(Skyward::ORM::ViolationError) do
+      assert_raises(Skyward::ORM::ViolationError) { database.hashes('INSERT INTO lists (name) VALUES (?)', ['Home']) }
+    end
+
+    it 'names the kind and constraint of the violation it raises' do
+      error = begin
         database.hashes('INSERT INTO lists (name) VALUES (?)', ['Home'])
+      rescue Skyward::ORM::ViolationError => e
+        e
       end
 
       assert_equal [:unique, 'lists_name_key'], [error.violation.kind, error.violation.constraint]
     end
 
+    it 'raises any other error' do
+      assert_raises(StandardError) { database.hashes('SELECT * FROM missing', []) }
+    end
+
     it 'raises any other error as it is' do
-      error = assert_raises(StandardError) { database.hashes('SELECT * FROM missing', []) }
+      error = begin
+        database.hashes('SELECT * FROM missing', [])
+      rescue StandardError => e
+        e
+      end
 
       refute_kind_of Skyward::ORM::ViolationError, error
     end
@@ -888,19 +1019,18 @@ describe Skyward::ORM::Database do
     end
 
     it 'refuses a column the row class has no member for, naming it' do
-      error = assert_raises(ArgumentError) do
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::Overdue has no member for id, done, which the SQL returns'
+      ) do
         database.rows(overdue, 'SELECT name AS title, 3 AS days_late, id, 1 AS done FROM lists', [])
       end
-
-      assert_equal 'TablesFixtures::Overdue has no member for id, done, which the SQL returns', error.message
     end
 
     it 'refuses a member the SQL returns no column for, naming it, even with no rows' do
-      error = assert_raises(ArgumentError) do
+      assert_raises_with_message(ArgumentError, 'The SQL returns no days_late for TablesFixtures::Overdue') do
         database.rows(overdue, 'SELECT name AS title FROM lists WHERE id = 0', [])
       end
-
-      assert_equal 'The SQL returns no days_late for TablesFixtures::Overdue', error.message
     end
 
     it 'asks its connection to keep one statement for rows that differ only in their values' do
@@ -966,9 +1096,7 @@ describe Skyward::ORM::Database do
     it 'checks a class again against the schema it migrated to, though it matched before' do
       database.check([todo])
       database.migrate([runner.parse('20261001000000_drop_title.sql', "ALTER TABLE todos DROP COLUMN title;\n")])
-      error = assert_raises(Skyward::ORM::SchemaMismatch) { database.check([todo]) }
-
-      assert_equal mismatch(todo), error.message
+      assert_raises_with_message(Skyward::ORM::SchemaMismatch, mismatch(todo)) { database.check([todo]) }
     end
   end
 
@@ -1029,8 +1157,16 @@ describe Skyward::ORM::Database do
         assert_equal expected, written
       end
 
+      it 'raises any other error' do
+        assert_raises(StandardError) { database.write(list, 'DELETE FROM missing', []) }
+      end
+
       it 'raises any other error as it is' do
-        error = assert_raises(StandardError) { database.write(list, 'DELETE FROM missing', []) }
+        error = begin
+          database.write(list, 'DELETE FROM missing', [])
+        rescue StandardError => e
+          e
+        end
 
         refute_kind_of Skyward::ORM::ViolationError, error
       end
@@ -1077,9 +1213,17 @@ describe Skyward::ORM::Database do
         assert_equal expected, written
       end
 
-      it 'raises any other error as it is' do
-        error = assert_raises(StandardError) do
+      it 'raises any other error' do
+        assert_raises(StandardError) do
           database.write_returning(list, list, 'DELETE FROM missing RETURNING id, name', [])
+        end
+      end
+
+      it 'raises any other error as it is' do
+        error = begin
+          database.write_returning(list, list, 'DELETE FROM missing RETURNING id, name', [])
+        rescue StandardError => e
+          e
         end
 
         refute_kind_of Skyward::ORM::ViolationError, error

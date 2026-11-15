@@ -79,11 +79,10 @@ describe Skyward::ORM::Adapters::PostgreSQL do
     end
 
     it 'refuses one without, which pg built against libpq before 17 has' do
-      error = assert_raises(Skyward::Core::BootError) { postgresql.require_close_prepared(Class.new) }
+      expected = 'Skyward ORM needs the pg gem 1.6 or later, built against libpq 17 or later, for ' \
+                 "PG::Connection#close_prepared. Update the pg gem, or the libpq it's built against."
 
-      assert_equal 'Skyward ORM needs the pg gem 1.6 or later, built against libpq 17 or later, for ' \
-                   "PG::Connection#close_prepared. Update the pg gem, or the libpq it's built against.",
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { postgresql.require_close_prepared(Class.new) }
     end
   end
 
