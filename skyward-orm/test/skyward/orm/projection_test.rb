@@ -110,53 +110,62 @@ describe Skyward::ORM::Projection do
     end
 
     it "checks its values as a table class's insert does" do
-      error = assert_raises(ArgumentError) { all.into(title).insert(list_id: 1, title: 'Buy milk', dnoe: true) }
-
-      assert_equal 'TablesFixtures::Todo has no column dnoe. Did you mean done?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column dnoe. Did you mean done?') do
+        all.into(title).insert(list_id: 1, title: 'Buy milk', dnoe: true)
+      end
     end
 
-    it 'refuses a query with conditions, before any SQL runs' do
-      projected = query.where(id: 1).into(title)
-      error = nil
-      statements = traced { error = assert_raises(ArgumentError) { projected.insert(**milk.to_h) } }
+    describe 'a query with conditions' do
+      conditions = "TablesFixtures::Todo can't insert through a query with conditions. " \
+                   'Start from TablesFixtures::Todo.into, with nothing else on it.'
 
-      assert_equal ["TablesFixtures::Todo can't insert through a query with conditions. " \
-                    'Start from TablesFixtures::Todo.into, with nothing else on it.', []],
-                   [error.message, statements]
-    end
+      let(:projected) { query.where(id: 1).into(title) }
 
-    it 'refuses a query merged with a narrowed one' do
-      assert_equal "TablesFixtures::Todo can't insert through a query with conditions. " \
-                   'Start from TablesFixtures::Todo.into, with nothing else on it.',
-                   assert_raises(ArgumentError) { query.into(title).merge(query.exclude).insert(**milk.to_h) }.message
-    end
-
-    it 'refuses an exclude, or a where given nothing, which leave no conditions but narrow the query' do
-      errors = [all.exclude.into(title), all.where.into(title)].map do |projected|
-        assert_raises(ArgumentError) { projected.insert(**milk.to_h) }.message
+      it 'refuses it' do
+        assert_raises_with_message(ArgumentError, conditions) { projected.insert(**milk.to_h) }
       end
 
-      assert_equal ["TablesFixtures::Todo can't insert through a query with conditions. " \
-                    'Start from TablesFixtures::Todo.into, with nothing else on it.'] * 2,
-                   errors
+      it 'refuses it before any SQL runs' do
+        statements = traced do
+          projected.insert(**milk.to_h)
+        rescue ArgumentError
+          nil
+        end
+
+        assert_empty statements
+      end
+
+      it 'refuses a query merged with a narrowed one' do
+        assert_raises_with_message(ArgumentError, conditions) do
+          query.into(title).merge(query.exclude).insert(**milk.to_h)
+        end
+      end
+
+      it 'refuses an exclude, which leaves no conditions but narrows the query' do
+        assert_raises_with_message(ArgumentError, conditions) { all.exclude.into(title).insert(**milk.to_h) }
+      end
+
+      it 'refuses a where given nothing, which leaves no conditions but narrows the query' do
+        assert_raises_with_message(ArgumentError, conditions) { all.where.into(title).insert(**milk.to_h) }
+      end
     end
 
     it 'refuses into expressions, a join, order, group, limit or offset, naming each' do
       projected = all.join(list, list_id: :id).order(:id).group(:id).limit(1).offset(1)
                      .into(title, title: 'upper(title)')
-      error = assert_raises(ArgumentError) { projected.insert(**milk.to_h) }
+      expected = "TablesFixtures::Todo can't insert through a query with into expressions, join, order, group, " \
+                 'limit or offset. Start from TablesFixtures::Todo.into, with nothing else on it.'
 
-      assert_equal "TablesFixtures::Todo can't insert through a query with into expressions, join, order, group, " \
-                   'limit or offset. Start from TablesFixtures::Todo.into, with nothing else on it.',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { projected.insert(**milk.to_h) }
     end
 
     it 'refuses a left join' do
-      error = assert_raises(ArgumentError) { all.left_join(list, list_id: :id).into(title).insert(**milk.to_h) }
+      expected = "TablesFixtures::Todo can't insert through a query with join. " \
+                 'Start from TablesFixtures::Todo.into, with nothing else on it.'
 
-      assert_equal "TablesFixtures::Todo can't insert through a query with join. " \
-                   'Start from TablesFixtures::Todo.into, with nothing else on it.',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) do
+        all.left_join(list, list_id: :id).into(title).insert(**milk.to_h)
+      end
     end
 
     it "returns a violation, with the database's message" do
@@ -173,9 +182,8 @@ describe Skyward::ORM::Projection do
 
     it 'raises the violation insert returns' do
       lists = Skyward::ORM::Query.new(list, session, scope: :all).into(list)
-      error = assert_raises(Skyward::ORM::ViolationError) { lists.insert!(id: 3, name: 'Home') }
 
-      assert_equal empty.violated(*unique), error.violation
+      assert_raises_with_violation(empty.violated(*unique)) { lists.insert!(id: 3, name: 'Home') }
     end
   end
 
@@ -207,21 +215,18 @@ describe Skyward::ORM::Projection do
     end
 
     it "checks its rows as a table class's insert_all does" do
-      error = assert_raises(ArgumentError) do
+      expected = 'TablesFixtures::Todo.insert_all row 0: TablesFixtures::Todo has no column dnoe. Did you mean done?'
+
+      assert_raises_with_message(ArgumentError, expected) do
         all.into(title).insert_all([{ list_id: 1, title: 'Buy milk', dnoe: true }])
       end
-
-      assert_equal 'TablesFixtures::Todo.insert_all row 0: TablesFixtures::Todo has no column dnoe. ' \
-                   'Did you mean done?',
-                   error.message
     end
 
     it 'refuses what insert refuses, even given no rows' do
-      error = assert_raises(ArgumentError) { query.where(id: 1).into(title).insert_all([]) }
+      expected = "TablesFixtures::Todo can't insert through a query with conditions. " \
+                 'Start from TablesFixtures::Todo.into, with nothing else on it.'
 
-      assert_equal "TablesFixtures::Todo can't insert through a query with conditions. " \
-                   'Start from TablesFixtures::Todo.into, with nothing else on it.',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { query.where(id: 1).into(title).insert_all([]) }
     end
 
     it "returns a violation, with the database's message, inserting no row" do
@@ -239,9 +244,8 @@ describe Skyward::ORM::Projection do
 
     it 'raises the violation insert_all returns' do
       lists = Skyward::ORM::Query.new(list, session, scope: :all).into(list)
-      error = assert_raises(Skyward::ORM::ViolationError) { lists.insert_all!([{ id: 3, name: 'Home' }]) }
 
-      assert_equal empty.violated(*unique), error.violation
+      assert_raises_with_violation(empty.violated(*unique)) { lists.insert_all!([{ id: 3, name: 'Home' }]) }
     end
   end
 
@@ -285,21 +289,19 @@ describe Skyward::ORM::Projection do
     end
 
     it "refuses what a query's update refuses" do
-      error = assert_raises(ArgumentError) { query.into(title).update(done: true) }
+      expected = "TablesFixtures::Todo can't update a query with no conditions, which would change every row. " \
+                 'Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row.'
 
-      assert_equal "TablesFixtures::Todo can't update a query with no conditions, which would change every row. " \
-                   'Narrow it with where or exclude, or start from TablesFixtures::Todo.all to change every row.',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { query.into(title).update(done: true) }
     end
 
     it 'refuses into expressions, which mean nothing portable in RETURNING' do
-      error = assert_raises(ArgumentError) do
+      expected = "TablesFixtures::Todo can't update a query with into expressions, " \
+                 "which PostgreSQL and SQLite don't both support"
+
+      assert_raises_with_message(ArgumentError, expected) do
         query.where(id: 1).into(TablesFixtures::OpenCount, open: 'count(*)').update(done: true)
       end
-
-      assert_equal "TablesFixtures::Todo can't update a query with into expressions, " \
-                   "which PostgreSQL and SQLite don't both support",
-                   error.message
     end
 
     it "returns a violation, with the database's message" do
@@ -315,9 +317,7 @@ describe Skyward::ORM::Projection do
     end
 
     it 'raises the violation update returns' do
-      error = assert_raises(Skyward::ORM::ViolationError) { query.where(id: 2).into(title).update!(title: '') }
-
-      assert_equal empty.violated(*check), error.violation
+      assert_raises_with_violation(empty.violated(*check)) { query.where(id: 2).into(title).update!(title: '') }
     end
   end
 
@@ -349,15 +349,13 @@ describe Skyward::ORM::Projection do
     end
 
     it "refuses every row of a query merged with an explicit all, which isn't one itself" do
-      assert_match(/no conditions/, assert_raises(ArgumentError) { query.into(title).merge(all).delete }.message)
+      assert_raises_with_message(ArgumentError, /no conditions/) { query.into(title).merge(all).delete }
     end
 
     it "refuses what a query's delete refuses" do
-      error = assert_raises(ArgumentError) { query.where(id: 1).limit(1).into(title).delete }
+      expected = "TablesFixtures::Todo can't delete a query with limit, which PostgreSQL and SQLite don't both support"
 
-      assert_equal "TablesFixtures::Todo can't delete a query with limit, " \
-                   "which PostgreSQL and SQLite don't both support",
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { query.where(id: 1).limit(1).into(title).delete }
     end
 
     it "returns a violation, with the database's message" do
@@ -376,9 +374,8 @@ describe Skyward::ORM::Projection do
 
     it 'raises the violation delete returns' do
       lists = Skyward::ORM::Query.new(list, session)
-      error = assert_raises(Skyward::ORM::ViolationError) { lists.where(id: 1).into(list).delete! }
 
-      assert_equal empty.violated(*restricted), error.violation
+      assert_raises_with_violation(empty.violated(*restricted)) { lists.where(id: 1).into(list).delete! }
     end
   end
 end

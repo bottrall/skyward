@@ -32,15 +32,15 @@ describe Skyward::ORM::Statements::Placeholders do
     end
 
     it 'refuses fewer values than ?' do
-      error = assert_raises(ArgumentError) { numbered('SELECT ?, ?', 1) }
-
-      assert_equal 'The SQL has 2 ?, each taking one value, but was given 1', error.message
+      assert_raises_with_message(ArgumentError, 'The SQL has 2 ?, each taking one value, but was given 1') do
+        numbered('SELECT ?, ?', 1)
+      end
     end
 
     it 'refuses more values than ?' do
-      error = assert_raises(ArgumentError) { numbered("SELECT 'why?'", 1) }
-
-      assert_equal 'The SQL has 0 ?, each taking one value, but was given 1', error.message
+      assert_raises_with_message(ArgumentError, 'The SQL has 0 ?, each taking one value, but was given 1') do
+        numbered("SELECT 'why?'", 1)
+      end
     end
   end
 
@@ -50,15 +50,15 @@ describe Skyward::ORM::Statements::Placeholders do
     end
 
     it 'refuses an Array, naming its position' do
-      error = assert_raises(ArgumentError) { Skyward::ORM::Statements::Placeholders.require_scalars([1, [2, 3]], 'The SQL') }
-
-      assert_equal 'The SQL binds one value to each ?, but value 2 is an Array', error.message
+      assert_raises_with_message(ArgumentError, 'The SQL binds one value to each ?, but value 2 is an Array') do
+        Skyward::ORM::Statements::Placeholders.require_scalars([1, [2, 3]], 'The SQL')
+      end
     end
 
     it 'refuses a Hash, naming its position' do
-      error = assert_raises(ArgumentError) { Skyward::ORM::Statements::Placeholders.require_scalars([{ a: 1 }], 'The SQL') }
-
-      assert_equal 'The SQL binds one value to each ?, but value 1 is a Hash', error.message
+      assert_raises_with_message(ArgumentError, 'The SQL binds one value to each ?, but value 1 is a Hash') do
+        Skyward::ORM::Statements::Placeholders.require_scalars([{ a: 1 }], 'The SQL')
+      end
     end
   end
 end

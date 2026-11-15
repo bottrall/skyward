@@ -200,55 +200,61 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses something that isn't a class" do
-      error = assert_raises(ArgumentError) { query.join(:lists, list_id: :id) }
-
-      assert_equal "TablesFixtures::Todo can't join :lists, which isn't a table class", error.message
+      assert_raises_with_message(ArgumentError, "TablesFixtures::Todo can't join :lists, which isn't a table class") do
+        query.join(:lists, list_id: :id)
+      end
     end
 
     it "refuses a class that isn't a Record" do
-      error = assert_raises(ArgumentError) { query.join(String, id: :id) }
-
-      assert_equal "TablesFixtures::Todo can't join String, which isn't a table class", error.message
+      assert_raises_with_message(ArgumentError, "TablesFixtures::Todo can't join String, which isn't a table class") do
+        query.join(String, id: :id)
+      end
     end
 
     it 'refuses a Record with no table' do
-      error = assert_raises(ArgumentError) { query.join(TablesFixtures::Typed, id: :integer) }
-
-      assert_equal "TablesFixtures::Todo can't join TablesFixtures::Typed, which isn't a table class", error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't join TablesFixtures::Typed, which isn't a table class"
+      ) do
+        query.join(TablesFixtures::Typed, id: :integer)
+      end
     end
 
     it 'refuses the table it started from' do
-      error = assert_raises(ArgumentError) { query.join(todo, id: :id) }
-
-      assert_equal "TablesFixtures::Todo can't join TablesFixtures::Todo, since todos is already in the query",
-                   error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't join TablesFixtures::Todo, since todos is already in the query"
+      ) do
+        query.join(todo, id: :id)
+      end
     end
 
     it 'refuses a table it already joins' do
-      error = assert_raises(ArgumentError) { query.join(list, list_id: :id).left_join(list, list_id: :id) }
-
-      assert_equal "TablesFixtures::Todo can't join TablesFixtures::List, since lists is already in the query",
-                   error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't join TablesFixtures::List, since lists is already in the query"
+      ) do
+        query.join(list, list_id: :id).left_join(list, list_id: :id)
+      end
     end
 
     it 'refuses nothing to join on' do
-      error = assert_raises(ArgumentError) { query.join(list) }
+      expected = "TablesFixtures::Todo can't join TablesFixtures::List on nothing. Give it columns, such as " \
+                 'list_id: :id'
 
-      assert_equal "TablesFixtures::Todo can't join TablesFixtures::List on nothing. Give it columns, such as " \
-                   'list_id: :id',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { query.join(list) }
     end
 
     it "refuses a column the starting table doesn't have" do
-      error = assert_raises(ArgumentError) { query.join(list, lsit_id: :id) }
-
-      assert_equal 'TablesFixtures::Todo has no column lsit_id. Did you mean list_id?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column lsit_id. Did you mean list_id?') do
+        query.join(list, lsit_id: :id)
+      end
     end
 
     it "refuses a column the joined table doesn't have" do
-      error = assert_raises(ArgumentError) { query.join(list, list_id: :nmae) }
-
-      assert_equal 'TablesFixtures::List has no column nmae. Did you mean name?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::List has no column nmae. Did you mean name?') do
+        query.join(list, list_id: :nmae)
+      end
     end
   end
 
@@ -293,13 +299,22 @@ describe Skyward::ORM::Queries::Clauses do
                    query.where(priority: %i[high normal]).to_sql
     end
 
-    it 'matches an Array column only to nil, refusing an Array, which could mean IN or the whole Array' do
-      arrays = Skyward::ORM::Query.new(TablesFixtures::Arrayed, session)
-      error = assert_raises(ArgumentError) { arrays.where(tags: %w[milk]) }
+    describe 'on an Array column' do
+      let(:arrays) { Skyward::ORM::Query.new(TablesFixtures::Arrayed, session) }
 
-      assert_equal [%(WHERE "tags" IS NULL), 'TablesFixtures::Arrayed.tags is an Array column, which where matches ' \
-                                             'only to nil. Match its contents with an SQL string.'],
-                   [arrays.where(tags: nil).to_sql.first[/WHERE.*/], error.message]
+      it 'matches it to nil' do
+        assert_equal %(WHERE "tags" IS NULL), arrays.where(tags: nil).to_sql.first[/WHERE.*/]
+      end
+
+      it 'refuses an Array, which could mean IN or the whole Array' do
+        assert_raises_with_message(
+          ArgumentError,
+          'TablesFixtures::Arrayed.tags is an Array column, which where matches only to nil. ' \
+          'Match its contents with an SQL string.'
+        ) do
+          arrays.where(tags: %w[milk])
+        end
+      end
     end
 
     it 'matches nothing with an empty array, without IN ()' do
@@ -360,15 +375,18 @@ describe Skyward::ORM::Queries::Clauses do
       end
 
       it "refuses an end its column's type doesn't take" do
-        error = assert_raises(ArgumentError) { query.where(due_on: '2026-10-25'..) }
-
-        assert_equal %(TablesFixtures::Todo.due_on is Date?, not "2026-10-25" (String)), error.message
+        assert_raises_with_message(ArgumentError, %(TablesFixtures::Todo.due_on is Date?, not "2026-10-25" (String))) do
+          query.where(due_on: '2026-10-25'..)
+        end
       end
 
       it 'refuses a range with neither end' do
-        error = assert_raises(ArgumentError) { query.where(due_on: nil..nil) }
-
-        assert_equal "TablesFixtures::Todo can't match due_on to nil..nil, a range with neither end", error.message
+        assert_raises_with_message(
+          ArgumentError,
+          "TablesFixtures::Todo can't match due_on to nil..nil, a range with neither end"
+        ) do
+          query.where(due_on: nil..nil)
+        end
       end
     end
 
@@ -417,9 +435,12 @@ describe Skyward::ORM::Queries::Clauses do
       end
 
       it 'refuses an Array value, which the driver would spread across several ?' do
-        error = assert_raises(ArgumentError) { query.where('id IN (?) AND title = ?', [1, 2], 'Buy milk').to_sql }
-
-        assert_equal 'An SQL condition binds one value to each ?, but value 1 is an Array', error.message
+        assert_raises_with_message(
+          ArgumentError,
+          'An SQL condition binds one value to each ?, but value 1 is an Array'
+        ) do
+          query.where('id IN (?) AND title = ?', [1, 2], 'Buy milk').to_sql
+        end
       end
     end
 
@@ -441,15 +462,15 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses a column the table doesn't have, suggesting the nearest" do
-      error = assert_raises(ArgumentError) { query.where(dnoe: false) }
-
-      assert_equal 'TablesFixtures::Todo has no column dnoe. Did you mean done?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column dnoe. Did you mean done?') do
+        query.where(dnoe: false)
+      end
     end
 
     it "refuses a value its column's type doesn't take" do
-      error = assert_raises(ArgumentError) { query.where(done: 'yes') }
-
-      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+      assert_raises_with_message(ArgumentError, %(TablesFixtures::Todo.done is bool, not "yes" (String))) do
+        query.where(done: 'yes')
+      end
     end
   end
 
@@ -462,11 +483,16 @@ describe Skyward::ORM::Queries::Clauses do
       assert_equal [%(#{select} WHERE NOT ("due_on" IS NULL)), []], query.exclude(due_on: nil).to_sql
     end
 
-    it 'takes only nil for an Array column, as where does' do
-      arrays = Skyward::ORM::Query.new(TablesFixtures::Arrayed, session)
+    describe 'on an Array column, as where does' do
+      let(:arrays) { Skyward::ORM::Query.new(TablesFixtures::Arrayed, session) }
 
-      assert_equal %(WHERE NOT ("tags" IS NULL)), arrays.exclude(tags: nil).to_sql.first[/WHERE.*/]
-      assert_raises(ArgumentError) { arrays.exclude(tags: []) }
+      it 'takes nil' do
+        assert_equal %(WHERE NOT ("tags" IS NULL)), arrays.exclude(tags: nil).to_sql.first[/WHERE.*/]
+      end
+
+      it 'refuses anything else' do
+        assert_raises(ArgumentError) { arrays.exclude(tags: []) }
+      end
     end
 
     it 'negates several conditions together, joined with AND to the conditions before it' do
@@ -528,15 +554,15 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses a column the table doesn't have" do
-      error = assert_raises(ArgumentError) { query.exclude(dnoe: true) }
-
-      assert_equal 'TablesFixtures::Todo has no column dnoe. Did you mean done?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column dnoe. Did you mean done?') do
+        query.exclude(dnoe: true)
+      end
     end
 
     it "refuses a value its column's type doesn't take" do
-      error = assert_raises(ArgumentError) { query.exclude(done: 'yes') }
-
-      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+      assert_raises_with_message(ArgumentError, %(TablesFixtures::Todo.done is bool, not "yes" (String))) do
+        query.exclude(done: 'yes')
+      end
     end
   end
 
@@ -591,21 +617,27 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it 'refuses a query with no conditions to or with' do
-      error = assert_raises(ArgumentError) { query.or(done: true) }
-
-      assert_equal 'TablesFixtures::Todo has no conditions to or with. Start with where or exclude.', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::Todo has no conditions to or with. Start with where or exclude.'
+      ) do
+        query.or(done: true)
+      end
     end
 
     it "refuses a value its column's type doesn't take" do
-      error = assert_raises(ArgumentError) { query.where(done: true).or(done: 'yes') }
-
-      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+      assert_raises_with_message(ArgumentError, %(TablesFixtures::Todo.done is bool, not "yes" (String))) do
+        query.where(done: true).or(done: 'yes')
+      end
     end
 
     it 'refuses nothing to or with' do
-      error = assert_raises(ArgumentError) { query.where(done: true).or }
-
-      assert_equal 'TablesFixtures::Todo has nothing to or with. Give or conditions or SQL.', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::Todo has nothing to or with. Give or conditions or SQL.'
+      ) do
+        query.where(done: true).or
+      end
     end
   end
 
@@ -627,15 +659,15 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses a column the table doesn't have" do
-      error = assert_raises(ArgumentError) { query.order(titel: :desc) }
-
-      assert_equal 'TablesFixtures::Todo has no column titel. Did you mean title?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column titel. Did you mean title?') do
+        query.order(titel: :desc)
+      end
     end
 
     it 'refuses a direction other than :asc or :desc' do
-      error = assert_raises(ArgumentError) { query.order(title: :up) }
-
-      assert_equal "TablesFixtures::Todo can't order title by :up, only :asc or :desc", error.message
+      assert_raises_with_message(ArgumentError, "TablesFixtures::Todo can't order title by :up, only :asc or :desc") do
+        query.order(title: :up)
+      end
     end
   end
 
@@ -645,9 +677,9 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses a column the table doesn't have" do
-      error = assert_raises(ArgumentError) { query.group(:lsit_id) }
-
-      assert_equal 'TablesFixtures::Todo has no column lsit_id. Did you mean list_id?', error.message
+      assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column lsit_id. Did you mean list_id?') do
+        query.group(:lsit_id)
+      end
     end
   end
 
@@ -667,15 +699,21 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it 'refuses a negative count' do
-      error = assert_raises(ArgumentError) { query.limit(-1) }
-
-      assert_equal "TablesFixtures::Todo can't limit by -1, only by a non-negative Integer", error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't limit by -1, only by a non-negative Integer"
+      ) do
+        query.limit(-1)
+      end
     end
 
     it 'refuses anything but an Integer' do
-      error = assert_raises(ArgumentError) { query.limit(2.5) }
-
-      assert_equal "TablesFixtures::Todo can't limit by 2.5, only by a non-negative Integer", error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't limit by 2.5, only by a non-negative Integer"
+      ) do
+        query.limit(2.5)
+      end
     end
   end
 
@@ -726,9 +764,12 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it 'refuses a negative count' do
-      error = assert_raises(ArgumentError) { query.offset(-1) }
-
-      assert_equal "TablesFixtures::Todo can't offset by -1, only by a non-negative Integer", error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't offset by -1, only by a non-negative Integer"
+      ) do
+        query.offset(-1)
+      end
     end
   end
 
@@ -763,24 +804,25 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it 'refuses a projection, whose row class would have nowhere to go' do
-      error = assert_raises(ArgumentError) { query.merge(query.into(title)) }
+      expected = "TablesFixtures::Todo can't merge a projection, whose row class and expressions would have " \
+                 'nowhere to go. Merge the query before its into.'
 
-      assert_equal "TablesFixtures::Todo can't merge a projection, whose row class and expressions would have " \
-                   'nowhere to go. Merge the query before its into.',
-                   error.message
+      assert_raises_with_message(ArgumentError, expected) { query.merge(query.into(title)) }
     end
 
     it "refuses anything that isn't a query" do
-      error = assert_raises(ArgumentError) { query.merge(:open) }
-
-      assert_equal "TablesFixtures::Todo can't merge :open, which isn't a query", error.message
+      assert_raises_with_message(ArgumentError, "TablesFixtures::Todo can't merge :open, which isn't a query") do
+        query.merge(:open)
+      end
     end
 
     it 'refuses a query of a different table class, naming both' do
-      error = assert_raises(ArgumentError) { query.merge(Skyward::ORM::Query.new(list, session)) }
-
-      assert_equal "TablesFixtures::Todo can't merge a query of TablesFixtures::List, a different table class",
-                   error.message
+      assert_raises_with_message(
+        ArgumentError,
+        "TablesFixtures::Todo can't merge a query of TablesFixtures::List, a different table class"
+      ) do
+        query.merge(Skyward::ORM::Query.new(list, session))
+      end
     end
 
     it "adds the other's joins after its own, qualifying the other's columns" do
@@ -795,14 +837,21 @@ describe Skyward::ORM::Queries::Clauses do
       assert_equal [joined, []], query.join(list, list_id: :id).merge(query.join(list, list_id: :id)).to_sql
     end
 
-    it 'refuses a different join of a table already in the query' do
-      errors = [query.left_join(list, list_id: :id), query.join(list, title: :name)].map do |other|
-        assert_raises(ArgumentError) { query.join(list, list_id: :id).merge(other) }.message
+    describe 'a different join of a table already in the query' do
+      different = "TablesFixtures::Todo can't merge a different join of TablesFixtures::List, " \
+                  'since lists is already in the query'
+
+      it 'refuses one of another kind' do
+        assert_raises_with_message(ArgumentError, different) do
+          query.join(list, list_id: :id).merge(query.left_join(list, list_id: :id))
+        end
       end
 
-      assert_equal ["TablesFixtures::Todo can't merge a different join of TablesFixtures::List, " \
-                    'since lists is already in the query'] * 2,
-                   errors
+      it 'refuses one on other columns' do
+        assert_raises_with_message(ArgumentError, different) do
+          query.join(list, list_id: :id).merge(query.join(list, title: :name))
+        end
+      end
     end
 
     it "joins the other's conditions with AND, after its own" do
@@ -913,19 +962,26 @@ describe Skyward::ORM::Queries::Clauses do
                    query.into(open_count, open: 'count(*)').into(title).to_sql
     end
 
-    it "leaves where, order and group naming the table's columns, not the row class's members" do
-      counts = query.into(open_count, open: 'count(*)')
-      errors = [-> { counts.where(open: 1) }, -> { counts.order(:open) }, -> { counts.group(:open) }].map do |call|
-        assert_raises(ArgumentError, &call).message
+    describe "leaves naming the table's columns, not the row class's members" do
+      let(:counts) { query.into(open_count, open: 'count(*)') }
+
+      it 'to where' do
+        assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column open.') { counts.where(open: 1) }
       end
 
-      assert_equal ['TablesFixtures::Todo has no column open.'] * 3, errors
+      it 'to order' do
+        assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column open.') { counts.order(:open) }
+      end
+
+      it 'to group' do
+        assert_raises_with_message(ArgumentError, 'TablesFixtures::Todo has no column open.') { counts.group(:open) }
+      end
     end
 
     it "leaves where checking its values against the table's column types" do
-      error = assert_raises(ArgumentError) { query.into(title).where(done: 'yes') }
-
-      assert_equal %(TablesFixtures::Todo.done is bool, not "yes" (String)), error.message
+      assert_raises_with_message(ArgumentError, %(TablesFixtures::Todo.done is bool, not "yes" (String))) do
+        query.into(title).where(done: 'yes')
+      end
     end
 
     it "decodes an expressed member as the expression, not as the column it's named like" do
@@ -938,16 +994,21 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses an expression for a name that isn't a member" do
-      error = assert_raises(ArgumentError) { query.into(title, total: 'count(*)') }
-
-      assert_equal 'TablesFixtures::TodoTitle has no member total to take an expression', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::TodoTitle has no member total to take an expression'
+      ) do
+        query.into(title, total: 'count(*)')
+      end
     end
 
     it "refuses a member that's neither a column nor given an expression" do
-      error = assert_raises(ArgumentError) { query.into(open_count) }
-
-      assert_equal 'TablesFixtures::Todo has no column open, so TablesFixtures::OpenCount needs an expression for it',
-                   error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::Todo has no column open, so TablesFixtures::OpenCount needs an expression for it'
+      ) do
+        query.into(open_count)
+      end
     end
   end
 
@@ -1009,9 +1070,12 @@ describe Skyward::ORM::Queries::Clauses do
     end
 
     it "refuses a value its column's type doesn't take" do
-      error = assert_raises(ArgumentError) { query.find_by(priority: :urgent) }
-
-      assert_equal 'TablesFixtures::Todo.priority is :low | :normal | :high, not :urgent (Symbol)', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'TablesFixtures::Todo.priority is :low | :normal | :high, not :urgent (Symbol)'
+      ) do
+        query.find_by(priority: :urgent)
+      end
     end
   end
 
@@ -1088,11 +1152,9 @@ describe Skyward::ORM::Queries::Clauses do
       end
 
       it 'checks each table class it joins before counting' do
-        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+        assert_raises_with_message(Skyward::ORM::SchemaMismatch, /The database has no table notes\./) do
           Skyward::ORM::Query.new(list, session).join(notes, id: :id).count
         end
-
-        assert_includes error.message, 'The database has no table notes.'
       end
     end
   end
@@ -1151,11 +1213,9 @@ describe Skyward::ORM::Queries::Clauses do
       end
 
       it 'checks each table class it joins before running the query' do
-        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+        assert_raises_with_message(Skyward::ORM::SchemaMismatch, /The database has no table notes\./) do
           Skyward::ORM::Query.new(list, session).join(notes, id: :id).exists?
         end
-
-        assert_includes error.message, 'The database has no table notes.'
       end
     end
   end
@@ -1206,11 +1266,9 @@ describe Skyward::ORM::Queries::Clauses do
       end
 
       it 'checks each table class it joins before running the query' do
-        error = assert_raises(Skyward::ORM::SchemaMismatch) do
+        assert_raises_with_message(Skyward::ORM::SchemaMismatch, /The database has no table notes\./) do
           Skyward::ORM::Query.new(list, session).join(notes, id: :id).to_a
         end
-
-        assert_includes error.message, 'The database has no table notes.'
       end
     end
   end
@@ -1230,15 +1288,32 @@ describe Skyward::ORM::Queries::Clauses do
 
     it 'refuses an Array value for an SQL string whose shape it has rendered' do
       query.where('id = ?', 1).to_sql
-      error = assert_raises(ArgumentError) { query.where('id = ?', [1, 2]).to_sql }
-
-      assert_equal 'An SQL condition binds one value to each ?, but value 1 is an Array', error.message
+      assert_raises_with_message(
+        ArgumentError,
+        'An SQL condition binds one value to each ?, but value 1 is an Array'
+      ) do
+        query.where('id = ?', [1, 2]).to_sql
+      end
     end
 
-    it "refuses a count of ? that doesn't match an SQL string's values, on every call" do
-      errors = Array.new(2) { assert_raises(ArgumentError) { query.where('id = ?').to_sql }.message }
+    describe "a count of ? that doesn't match an SQL string's values" do
+      it 'refuses it' do
+        assert_raises_with_message(ArgumentError, 'The SQL has 1 ?, each taking one value, but was given 0') do
+          query.where('id = ?').to_sql
+        end
+      end
 
-      assert_equal ['The SQL has 1 ?, each taking one value, but was given 0'] * 2, errors
+      it 'refuses it again on the next call' do
+        begin
+          query.where('id = ?').to_sql
+        rescue ArgumentError
+          nil
+        end
+
+        assert_raises_with_message(ArgumentError, 'The SQL has 1 ?, each taking one value, but was given 0') do
+          query.where('id = ?').to_sql
+        end
+      end
     end
 
     describe 'after rendering a query of another shape' do

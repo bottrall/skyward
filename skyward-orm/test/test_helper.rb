@@ -5,6 +5,7 @@ require 'minitest/autorun'
 require 'skyward/orm'
 require 'tmpdir'
 require 'uri'
+require_relative 'assertions'
 
 # The database the suite's tests of behaviour every database shares run on.
 # TEST_DATABASE picks it: sqlite, the default, or postgresql, at
