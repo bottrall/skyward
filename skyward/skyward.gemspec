@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
 
   # The .tt files are the app skyward new writes, and FNM_DOTMATCH keeps its
   # .gitignore and .keep files.
-  spec.files = Dir.glob(['lib/**/*.{rb,tt}', 'sig/**/*.rbs', 'README.md'], File::FNM_DOTMATCH)
+  spec.files = Dir.glob(['lib/**/*.{rb,tt}', 'sig/**/*.rbs', 'README.md', 'LICENSE'], File::FNM_DOTMATCH)
   spec.require_paths = ['lib']
 
   # The Skyward gems release in lockstep, so each pins the others exactly.

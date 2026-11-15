@@ -230,6 +230,11 @@ task typecheck: %w[rbs:check rbs:collection_check rbs:lint_manual steep:check ex
 desc "Build every gem into #{PKG}/, install them into an empty GEM_HOME, load them and run skyward, then check " \
      'the app skyward new writes passes its own bin/ci, as a user would'
 task :build do
+  # Each gem ships its own copy of the root LICENSE, since a gem can't package
+  # a file outside its directory.
+  stale = GEMS.reject { |gem| FileUtils.identical?('LICENSE', "#{gem}/LICENSE") }
+  abort "#{stale.map { |gem| "#{gem}/LICENSE" }.join(', ')}: out of date with LICENSE; copy it over" unless stale.empty?
+
   FileUtils.rm_rf(PKG)
   FileUtils.mkdir_p(PKG)
   GEMS.each do |gem|
