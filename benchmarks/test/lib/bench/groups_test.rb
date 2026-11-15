@@ -10,13 +10,16 @@ describe Bench::Groups do
   end
 
   describe '.scenarios' do
-    it "builds each group's scenarios, whose names start with the group's" do
-      Bench::Groups::ALL.each do |group|
-        names = groups.scenarios(group).map(&:name)
+    it 'builds scenarios for each group' do
+      assert_empty(Bench::Groups::ALL.select { |group| groups.scenarios(group).empty? })
+    end
 
-        refute_empty names
-        assert(names.all? { |name| name.start_with?("#{group}.") }, "#{group}: #{names}")
+    it "starts each scenario's name with its group's" do
+      misnamed = Bench::Groups::ALL.flat_map do |group|
+        groups.scenarios(group).map(&:name).reject { |name| name.start_with?("#{group}.") }
       end
+
+      assert_empty misnamed
     end
   end
 

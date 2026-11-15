@@ -80,7 +80,7 @@ describe "Skyward's types" do
         [received.pop(true), TypesFixtures::Everything.find_by(id:)]
       end
 
-      it 'is the row the database holds, with its nullable columns filled' do
+      describe 'with its nullable columns filled' do
         nullables = {
           nullable_count: 0,
           nullable_ratio: -2.5e-8,
@@ -93,17 +93,32 @@ describe "Skyward's types" do
           nullable_settings: {},
           nullable_titles: []
         }
-        got, row = round_trip(values.merge(nullables))
 
-        assert_equal row, got
-        assert_equal nullables, got.to_h.slice(*nullables.keys)
+        let(:trip) { round_trip(values.merge(nullables)) }
+
+        it 'is the row the database holds' do
+          got, row = trip
+
+          assert_equal row, got
+        end
+
+        it 'keeps each nullable value' do
+          assert_equal nullables, trip.first.to_h.slice(*nullables.keys)
+        end
       end
 
-      it 'is the row the database holds, with its nullable columns nil' do
-        got, row = round_trip(values.merge(done: false))
+      describe 'with its nullable columns nil' do
+        let(:trip) { round_trip(values.merge(done: false)) }
 
-        assert_equal row, got
-        assert_equal due_at, got.due_at
+        it 'is the row the database holds' do
+          got, row = trip
+
+          assert_equal row, got
+        end
+
+        it 'keeps the time and its offset' do
+          assert_equal due_at, trip.first.due_at
+        end
       end
     end
 
@@ -120,9 +135,10 @@ describe "Skyward's types" do
         json: { type: 'object', additionalProperties: {} }
       }
 
+      let(:component) { client.get('/openapi.json').json.dig(:components, :schemas, :'TypesFixtures.Everything') }
+      let(:columns) { database.column_types.columns(TypesFixtures::Everything) }
+
       it "agrees with the ORM's columns on each name, type, nullability and enum" do
-        component = client.get('/openapi.json').json.dig(:components, :schemas, :'TypesFixtures.Everything')
-        columns = database.column_types.columns(TypesFixtures::Everything)
         enum = ->(column) { { type: 'string', enum: column.symbols.map(&:name) } }
         expected = columns.to_h do |column|
           type = if column.type == :array
@@ -138,6 +154,9 @@ describe "Skyward's types" do
         end
 
         assert_equal expected, component.fetch(:properties)
+      end
+
+      it "requires each column that isn't nullable" do
         assert_equal columns.reject(&:nullable).map { |column| column.name.name }, component.fetch(:required)
       end
     end

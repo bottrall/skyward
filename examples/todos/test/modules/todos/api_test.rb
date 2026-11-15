@@ -47,14 +47,17 @@ describe Todos::API do
   end
 
   describe '#create' do
-    it 'answers the new todo, created' do
-      list = Lists::Record.into(Lists::Record).insert!(name: 'Home')
-      response = api.create(body: new_todo(title: 'Buy milk', due_on: Date.new(2026, 12, 1), list_id: list.id))
+    let(:list) { Lists::Record.into(Lists::Record).insert!(name: 'Home') }
+    let(:created) { api.create(body: new_todo(title: 'Buy milk', due_on: Date.new(2026, 12, 1), list_id: list.id)) }
 
-      assert_instance_of Skyward::API::Responses::Created, response
+    it 'answers created' do
+      assert_instance_of Skyward::API::Responses::Created, created
+    end
+
+    it 'answers the new todo' do
       assert_equal(
         { list_id: list.id, title: 'Buy milk', priority: :high, due_on: Date.new(2026, 12, 1), done: false },
-        response.value.to_h.except(:id)
+        created.value.to_h.except(:id)
       )
     end
 

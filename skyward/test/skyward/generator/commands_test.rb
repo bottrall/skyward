@@ -35,8 +35,7 @@ describe 'skyward/generator/commands.rb' do
         }
         output, status = skyward('new', 'todos', chdir: directory, env:)
 
-        assert_equal 0, status
-        assert_includes output, "bundle install sees BUNDLE_GEMFILE=\n"
+        assert_equal [0, true], [status, output.include?("bundle install sees BUNDLE_GEMFILE=\n")]
       end
     end
 
@@ -44,8 +43,7 @@ describe 'skyward/generator/commands.rb' do
       Dir.mktmpdir do |directory|
         output, status = skyward('new', chdir: directory)
 
-        assert_equal 1, status
-        assert_includes output, 'skyward: new takes one NAME'
+        assert_equal [1, true], [status, output.include?('skyward: new takes one NAME')]
       end
     end
   end
