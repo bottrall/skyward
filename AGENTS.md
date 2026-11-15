@@ -79,6 +79,13 @@ Everything runs through its `bin/` script, never a tool directly (`rake`, `ruboc
 - The gems release in lockstep: one version, and each pins the others exactly.
 - release-please keeps a release PR open that bumps every gem's version, adds the changelog section and updates the lockfiles. Merging it tags the release, and `release.yml` publishes the gems with RubyGems trusted publishing. Never bump a version by hand.
 
+## Differences from blueprint
+
+Deliberate, so a check against blueprint's `SETUP.md` shouldn't undo them:
+
+- `.github/workflows/deps.yml` passes `safe-paths` to the shared fix workflow, widening its defaults to every gem's and example's `Gemfile.lock` and `sig/`, since each has its own bundle and signatures.
+- `SECURITY.md` asks which gem a report affects, and says the four gems release together, so upgrading means upgrading all four.
+
 ## Code style
 
 - Prefer functional style: enumerable / array methods (`map`, `filter`, `reduce`) over manual loops.

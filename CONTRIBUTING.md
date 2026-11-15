@@ -1,6 +1,6 @@
 # Contributing
 
-Skyward is four gems in one repository. Each gem's `README.md` is its spec, and [`AGENTS.md`](AGENTS.md) holds the conventions for the code, for people and agents alike.
+Skyward is four gems in one repository. Each gem's `README.md` is its spec, and [`AGENTS.md`](AGENTS.md) holds the conventions for the code, for people and agents alike. By taking part you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Setup
 
