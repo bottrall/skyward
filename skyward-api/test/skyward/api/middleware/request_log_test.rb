@@ -28,10 +28,14 @@ describe Skyward::API::Middleware::RequestLog do
   end
 
   describe '#call' do
-    it "returns the app's response and logs it as one JSON line" do
-      response = [200, { 'content-type' => 'application/json' }, ['{"id":"42"}']]
+    let(:response) { [200, { 'content-type' => 'application/json' }, ['{"id":"42"}']] }
 
+    it "returns the app's response" do
       assert_equal response, request(->(_env) { response })
+    end
+
+    it 'logs it as one JSON line' do
+      request(->(_env) { response })
       expected = {
         time: '2026-11-07T13:04:05.678Z',
         method: 'GET',
@@ -44,11 +48,16 @@ describe Skyward::API::Middleware::RequestLog do
       assert_equal [expected], logged
     end
 
-    it 'logs the path with the prefix the app is mounted under and without the query string' do
-      request(->(_env) { [200, {}, []] }, 'SCRIPT_NAME' => '/api', 'QUERY_STRING' => 'token=secret')
+    describe 'under a prefix, with a query string' do
+      before { request(->(_env) { [200, {}, []] }, 'SCRIPT_NAME' => '/api', 'QUERY_STRING' => 'token=secret') }
 
-      assert_equal '/api/todos/42', logged.first[:path]
-      refute_includes lines.first, 'secret'
+      it 'logs the path with the prefix the app is mounted under' do
+        assert_equal '/api/todos/42', logged.first[:path]
+      end
+
+      it 'logs the path without the query string' do
+        refute_includes lines.first, 'secret'
+      end
     end
 
     it 'logs the method and path the request arrived with, even if the app rewrites them' do
@@ -62,11 +71,18 @@ describe Skyward::API::Middleware::RequestLog do
       assert_equal({ method: 'GET', path: '/todos/42' }, logged.first.slice(:method, :path))
     end
 
-    it "logs a path that isn't valid UTF-8 with the invalid bytes replaced" do
-      response = [404, {}, []]
+    describe "with a path that isn't valid UTF-8" do
+      let(:response) { [404, {}, []] }
 
-      assert_equal response, request(->(_env) { response }, 'PATH_INFO' => "/caf\xE9".b)
-      assert_equal '/caf�', logged.first[:path]
+      it "returns the app's response" do
+        assert_equal response, request(->(_env) { response }, 'PATH_INFO' => "/caf\xE9".b)
+      end
+
+      it 'logs the path with the invalid bytes replaced' do
+        request(->(_env) { response }, 'PATH_INFO' => "/caf\xE9".b)
+
+        assert_equal '/caf�', logged.first[:path]
+      end
     end
 
     it 'logs a 404' do
@@ -76,7 +92,7 @@ describe Skyward::API::Middleware::RequestLog do
     end
 
     it 'logs a request answered by middleware that never reaches an endpoint' do
-      endpoint = ->(_env) { flunk 'the middleware let the request through' }
+      endpoint = ->(_env) { [200, {}, []] }
       middleware = ->(env) { env.key?('HTTP_AUTHORIZATION') ? endpoint.call(env) : [401, {}, []] }
       request(middleware, 'REQUEST_METHOD' => 'DELETE')
 

@@ -19,8 +19,7 @@ describe 'skyward/api/commands.rb' do
       Dir.mktmpdir do |directory|
         output, status = skyward('serve', chdir: directory)
 
-        assert_equal 1, status
-        assert_includes output, "no config.ru in #{File.realpath(directory)}."
+        assert_equal [1, true], [status, output.include?("no config.ru in #{File.realpath(directory)}.")], output
       end
     end
 
@@ -29,8 +28,7 @@ describe 'skyward/api/commands.rb' do
         File.write(File.join(directory, 'config.ru'), "run ->(_env) { [200, {}, []] }\n")
         output, status = skyward('serve', chdir: directory)
 
-        assert_equal 1, status
-        assert_includes output, "Falcon isn't installed."
+        assert_equal [1, true], [status, output.include?("Falcon isn't installed.")], output
       end
     end
   end

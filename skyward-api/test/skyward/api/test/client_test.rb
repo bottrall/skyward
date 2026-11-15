@@ -133,12 +133,24 @@ describe Skyward::API::Test::Client do
       assert body.closed
     end
 
-    it 'closes the body even when reading it raises' do
-      body = closable.new
-      def body.each = raise('connection reset')
-      assert_raises(RuntimeError) { response(body:) }
+    describe 'when reading the body raises' do
+      let(:body) do
+        closable.new.tap { |body| def body.each = raise('connection reset') }
+      end
 
-      assert body.closed
+      it 'lets the error through' do
+        assert_raises_with_message(RuntimeError, 'connection reset') { response(body:) }
+      end
+
+      it 'closes the body even so' do
+        begin
+          response(body:)
+        rescue RuntimeError
+          nil
+        end
+
+        assert body.closed
+      end
     end
   end
 

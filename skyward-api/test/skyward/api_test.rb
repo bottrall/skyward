@@ -31,9 +31,7 @@ describe Skyward do
     let(:not_found) { { 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/' } }
 
     it 'requires a block' do
-      error = assert_raises(ArgumentError) { Skyward.app }
-
-      assert_equal "Skyward.app needs a block that mounts the app's APIs", error.message
+      assert_raises_with_message(ArgumentError, "Skyward.app needs a block that mounts the app's APIs") { Skyward.app }
     end
 
     it 'returns an app that serves what the block mounts' do
@@ -101,19 +99,18 @@ describe Skyward do
     end
 
     it "refuses to boot a route that doesn't fit its method" do
-      error = assert_raises(Skyward::Core::BootError) do
+      assert_raises_with_message(Skyward::Core::BootError, %r{\ABootFixtures::Positional#show \(GET /:id\)\n}) do
         Skyward.app(signatures:, logger: nil) { |builder| builder.mount BootFixtures::Positional.new }
       end
-
-      assert_match(%r{\ABootFixtures::Positional#show \(GET /:id\)\n}, error.message)
     end
 
     it 'refuses to boot an untyped endpoint with strict: true' do
-      error = assert_raises(Skyward::Core::BootError) do
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        %r{\ABootFixtures::Unsigned#greet \(GET /:name\)\n  It has no RBS signature}
+      ) do
         Skyward.app(signatures:, logger: nil, strict: true) { |builder| builder.mount BootFixtures::Unsigned.new }
       end
-
-      assert_match(%r{\ABootFixtures::Unsigned#greet \(GET /:name\)\n  It has no RBS signature}, error.message)
     end
 
     describe 'SKYWARD_STRICT' do
@@ -187,14 +184,15 @@ describe Skyward do
       end
 
       it 'refuses to boot an app whose document has a problem' do
-        error = assert_raises(Skyward::Core::BootError) do
+        assert_raises_with_message(
+          Skyward::Core::BootError,
+          /Its OpenAPI operation ID, BootFixtures\.Hello_greet, is/
+        ) do
           Skyward.app(signatures:, logger: nil, docs: true) do |builder|
             builder.mount hello, at: '/hello'
             builder.mount hello, at: '/hi'
           end
         end
-
-        assert_match(/Its OpenAPI operation ID, BootFixtures\.Hello_greet, is/, error.message)
       end
 
       it 'builds the document when asked, without docs: true, from the same options' do
@@ -361,44 +359,77 @@ describe Skyward do
       end
     end
 
-    it 'runs the app inside the middleware the block uses, inside the request ID' do
-      app = Skyward.app(signatures:, logger: nil) do |builder|
-        builder.use Rack::Cors do
-          allow do
-            origins 'https://example.com'
-            resource '*', methods: %i[get]
+    describe 'with middleware the block uses' do
+      let(:response) do
+        app = Skyward.app(signatures:, logger: nil) do |builder|
+          builder.use Rack::Cors do
+            allow do
+              origins 'https://example.com'
+              resource '*', methods: %i[get]
+            end
+          end
+          builder.mount hello, at: '/hello'
+        end
+        headers = { 'Origin' => 'https://example.com', 'Access-Control-Request-Method' => 'GET' }
+        Skyward::API::Test.client(app).options('/hello/ruby', headers:)
+      end
+
+      it 'runs the app inside the middleware' do
+        assert_equal [200, 'https://example.com'], [response.status, response.headers['access-control-allow-origin']]
+      end
+
+      it 'runs the middleware inside the request ID' do
+        assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, response.headers['x-request-id'])
+      end
+    end
+
+    describe 'logging to standard output by default' do
+      let(:logged) do
+        responses = nil
+        out, = capture_io do
+          app = Skyward.app(signatures:) { |builder| builder.mount hello, at: '/hello' }
+          responses = ['/hello/ruby', '/ruby'].map do |path|
+            app.call({ 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => path })
           end
         end
-        builder.mount hello, at: '/hello'
+        {
+          lines: out.lines.map { |line| JSON.parse(line, symbolize_names: true) },
+          ids: responses.map { |(_status, headers)| headers['x-request-id'] }
+        }
       end
-      headers = { 'Origin' => 'https://example.com', 'Access-Control-Request-Method' => 'GET' }
-      response = Skyward::API::Test.client(app).options('/hello/ruby', headers:)
 
-      assert_equal [200, 'https://example.com'], [response.status, response.headers['access-control-allow-origin']]
-      assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, response.headers['x-request-id'])
+      it 'logs each request as a JSON line with its request ID' do
+        ids = logged[:ids]
+        expected = [[200, '/hello/ruby', ids[0]], [404, '/ruby', ids[1]]]
+
+        assert_equal(expected, logged[:lines].map { |line| line.values_at(:status, :path, :request_id) })
+      end
+
+      it 'logs the time in UTC to the millisecond' do
+        assert_match(/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\z/, logged[:lines].first[:time])
+      end
+
+      it 'logs the duration as a Float' do
+        assert_kind_of Float, logged[:lines].first[:duration_ms]
+      end
     end
 
-    it 'logs each request to standard output by default, as a JSON line with its request ID' do
-      responses = nil
-      out, = capture_io do
-        app = Skyward.app(signatures:) { |builder| builder.mount hello, at: '/hello' }
-        responses = ['/hello/ruby', '/ruby'].map { |path| app.call({ 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => path }) }
+    describe 'given a logger' do
+      let(:logger) { Struct.new(:lines) { def info(message) = lines << message }.new([]) }
+
+      def served
+        capture_io { Skyward.app(signatures:, logger:) { |builder| builder.mount hello }.call(not_found) }.first
       end
-      lines = out.lines.map { |line| JSON.parse(line, symbolize_names: true) }
-      ids = responses.map { |(_status, headers)| headers['x-request-id'] }
-      expected = [[200, '/hello/ruby', ids[0]], [404, '/ruby', ids[1]]]
 
-      assert_equal(expected, lines.map { |line| line.values_at(:status, :path, :request_id) })
-      assert_match(/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\z/, lines.first[:time])
-      assert_kind_of Float, lines.first[:duration_ms]
-    end
+      it 'writes nothing to standard output' do
+        assert_empty served
+      end
 
-    it "logs to the logger it's given instead" do
-      logger = Struct.new(:lines) { def info(message) = lines << message }.new([])
-      out, = capture_io { Skyward.app(signatures:, logger:) { |builder| builder.mount hello }.call(not_found) }
+      it "logs to the logger it's given instead" do
+        served
 
-      assert_empty out
-      assert_equal([404], logger.lines.map { |line| JSON.parse(line).fetch('status') })
+        assert_equal([404], logger.lines.map { |line| JSON.parse(line).fetch('status') })
+      end
     end
 
     it 'logs nothing given a nil logger' do
@@ -425,12 +456,19 @@ describe Skyward do
       assert_equal({ method: 'OPTIONS', path: '/hello/ruby', status: 200 }, line.slice(:method, :path, :status))
     end
 
-    it 'answers even a 404 with a random UUID request ID' do
-      app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello, at: '/hello' }
-      status, headers, _body = app.call({ 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/ruby' })
+    describe 'for a path no route matches' do
+      let(:answered) do
+        app = Skyward.app(signatures:, logger: nil) { |builder| builder.mount hello, at: '/hello' }
+        app.call({ 'REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/ruby' })
+      end
 
-      assert_equal 404, status
-      assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, headers['x-request-id'])
+      it 'answers a 404' do
+        assert_equal 404, answered[0]
+      end
+
+      it 'answers even a 404 with a random UUID request ID' do
+        assert_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/, answered[1]['x-request-id'])
+      end
     end
 
     describe 'when something raises' do
@@ -530,19 +568,20 @@ describe Skyward do
 
     describe '.redirect' do
       it "raises for a status that isn't a redirect's" do
-        error = assert_raises(ArgumentError) { Skyward.redirect('/todos', status: 200) }
-
-        assert_equal "A redirect's status must be one of 301, 302, 303, 307, 308, not 200", error.message
+        assert_raises_with_message(
+          ArgumentError,
+          "A redirect's status must be one of 301, 302, 303, 307, 308, not 200"
+        ) do
+          Skyward.redirect('/todos', status: 200)
+        end
       end
 
-      it 'raises for a location with a carriage return or a line feed' do
-        messages = ["/\rx", "/\nx"].map { |to| assert_raises(ArgumentError) { Skyward.redirect(to) }.message }
-
-        assert_equal(
-          ["A redirect's location can't contain a line break: \"/\\rx\"",
-           "A redirect's location can't contain a line break: \"/\\nx\""],
-          messages
-        )
+      { 'carriage return' => ["/\rx", '"/\\rx"'], 'line feed' => ["/\nx", '"/\\nx"'] }.each do |name, (to, shown)|
+        it "raises for a location with a #{name}" do
+          assert_raises_with_message(ArgumentError, "A redirect's location can't contain a line break: #{shown}") do
+            Skyward.redirect(to)
+          end
+        end
       end
 
       it "makes a frozen Redirect, with a 303 unless it's given a status" do

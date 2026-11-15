@@ -226,9 +226,7 @@ describe Skyward::API::Assembly::Dispatcher do
     end
 
     it 'leaves an exception from the method to the layers outside it' do
-      error = assert_raises(RuntimeError) { request('GET', '/todos/42/fail') }
-
-      assert_equal 'todo 42 is secret', error.message
+      assert_raises_with_message(RuntimeError, 'todo 42 is secret') { request('GET', '/todos/42/fail') }
     end
 
     it 'serves a static file when no route matches' do
