@@ -250,9 +250,9 @@ describe Skyward::API::Inputs do
 
       it 'lets an exception from its provider through' do
         failing = provider(:current_user, ->(_request) { raise 'sessions are down' })
-        error = assert_raises(RuntimeError) { inputs(providers: [failing]).call(requested, {}) }
-
-        assert_equal 'sessions are down', error.message
+        assert_raises_with_message(RuntimeError, 'sessions are down') do
+          inputs(providers: [failing]).call(requested, {})
+        end
       end
     end
 

@@ -14,9 +14,13 @@ describe Skyward::API::Assembly::Builder do
   describe '#mount' do
     it 'raises a BootError for anything but an API object' do
       api_class = Class.new(Skyward::API)
-      error = assert_raises(Skyward::Core::BootError) { builder.mount api_class }
 
-      assert_equal "mount takes a Skyward::API instance, got #{api_class.inspect}", error.message
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        "mount takes a Skyward::API instance, got #{api_class.inspect}"
+      ) do
+        builder.mount api_class
+      end
     end
 
     it 'mounts at / by default' do
@@ -93,9 +97,10 @@ describe Skyward::API::Assembly::Builder do
 
     it "raises a BootError when the directory doesn't exist" do
       missing = File.join(root, 'missing')
-      error = assert_raises(Skyward::Core::BootError) { builder.static '/', from: missing }
 
-      assert_equal %(static "/": no directory at #{missing}), error.message
+      assert_raises_with_message(Skyward::Core::BootError, %(static "/": no directory at #{missing})) do
+        builder.static '/', from: missing
+      end
     end
 
     it "keeps statics in the order they're declared" do
@@ -116,22 +121,24 @@ describe Skyward::API::Assembly::Builder do
     let(:current_user) { ->(_request) { :ada } }
     let(:tenant) { ->(_request) { 'acme' } }
 
-    it 'raises a BootError for body and request, which Skyward API fills itself' do
-      messages = %i[body request].map do |name|
-        assert_raises(Skyward::Core::BootError) { builder.provide name, current_user }.message
-      end
-      expected = %i[body request].map do |name|
-        "provide :#{name}: Skyward API fills `#{name}:` itself, so it can't be provided. Provide another name."
-      end
+    %i[body request].each do |name|
+      it "raises a BootError for #{name}, which Skyward API fills itself" do
+        expected = "provide :#{name}: Skyward API fills `#{name}:` itself, so it can't be provided. " \
+                   'Provide another name.'
 
-      assert_equal expected, messages
+        assert_raises_with_message(Skyward::Core::BootError, expected) { builder.provide name, current_user }
+      end
     end
 
     it "raises a BootError for a name that's already provided" do
       builder.provide :current_user, current_user
-      error = assert_raises(Skyward::Core::BootError) { builder.provide :current_user, tenant }
 
-      assert_equal "provide :current_user: it's already provided. Provide each name once.", error.message
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        "provide :current_user: it's already provided. Provide each name once."
+      ) do
+        builder.provide :current_user, tenant
+      end
     end
 
     it 'keeps each provider by its name' do

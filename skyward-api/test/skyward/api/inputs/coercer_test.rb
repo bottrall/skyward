@@ -654,8 +654,7 @@ describe Skyward::API::Inputs::Coercer do
         max = Skyward::API::Inputs::Coercer::MAX_ERRORS
         messages = coerce(types::ArrayOf.new(type: records), Array.new(max, 1)).errors.map(&:message)
 
-        assert_equal max, messages.size
-        assert_empty messages.grep_v(/\Aexpected \{ .{197}…, got 1\z/)
+        assert_equal [max, []], [messages.size, messages.grep_v(/\Aexpected \{ .{197}…, got 1\z/)]
       end
 
       it 'cut a large record' do

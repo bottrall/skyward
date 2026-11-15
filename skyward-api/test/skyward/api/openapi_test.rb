@@ -684,11 +684,12 @@ describe Skyward::API::OpenAPI do
     end
 
     it "refuses a document it can't build, such as one with two operations of one ID" do
-      error = assert_raises(Skyward::Core::BootError) do
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        /Its OpenAPI operation ID, OpenAPIFixtures\.Todos_index, is/
+      ) do
         built(endpoint(:index), endpoint(:index, path: ['', 'todos', 'done']))
       end
-
-      assert_match(/Its OpenAPI operation ID, OpenAPIFixtures\.Todos_index, is/, error.message)
     end
   end
 end

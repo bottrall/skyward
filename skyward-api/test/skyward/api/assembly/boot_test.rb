@@ -126,23 +126,21 @@ describe Skyward::API::Assembly::Boot do
 
     describe 'providers' do
       it "refuses a provider that's a module" do
-        error = assert_raises(Skyward::Core::BootError) do
+        expected = "The :current_user provider's `call` is defined on a single object, such as a module or a " \
+                   "class, and Skyward API can't read the signature of those. Provide an instance of a class."
+
+        assert_raises_with_message(Skyward::Core::BootError, expected) do
           provided(authenticated, :me, current_user: BootFixtures::ModuleProvider)
         end
-
-        assert_equal "The :current_user provider's `call` is defined on a single object, such as a module or a " \
-                     "class, and Skyward API can't read the signature of those. Provide an instance of a class.",
-                     error.message
       end
 
       it "refuses a provider that's a class with a class-level call" do
-        error = assert_raises(Skyward::Core::BootError) do
+        expected = "The :current_user provider's `call` is defined on a single object, such as a module or a " \
+                   "class, and Skyward API can't read the signature of those. Provide an instance of a class."
+
+        assert_raises_with_message(Skyward::Core::BootError, expected) do
           provided(authenticated, :me, current_user: BootFixtures::ClassProvider)
         end
-
-        assert_equal "The :current_user provider's `call` is defined on a single object, such as a module or a " \
-                     "class, and Skyward API can't read the signature of those. Provide an instance of a class.",
-                     error.message
       end
 
       it 'reads nothing from a provider with no signature' do
@@ -172,10 +170,13 @@ describe Skyward::API::Assembly::Boot do
 
       it "compiles a serializer for the provider's response values, whose errors name the provider" do
         serializer = provided(authenticated, :me, current_user:).first.serializer
-        error = assert_raises(Skyward::API::ReturnTypeError) { serializer.call(Skyward.forbidden('Admins only')) }
 
-        assert_equal "The :current_user provider returned Skyward::API::Responses::Forbidden, which isn't Skyward::API::Responses::Unauthorized",
-                     error.message
+        assert_raises_with_message(
+          Skyward::API::ReturnTypeError,
+          "The :current_user provider returned Skyward::API::Responses::Forbidden, which isn't Skyward::API::Responses::Unauthorized"
+        ) do
+          serializer.call(Skyward.forbidden('Admins only'))
+        end
       end
 
       it 'reads the signature of a call inherited from a parent class' do
@@ -846,10 +847,12 @@ describe Skyward::API::Assembly::Boot do
     end
 
     it "compiles a serializer for the return type, whose errors start with the route's label" do
-      error = assert_raises(Skyward::API::ReturnTypeError) { endpoint(boot([todos, '/']), :show).serializer.call(nil) }
-
-      assert_equal "BootFixtures::Todos#show (GET /:id) returned nil, which isn't BootFixtures::Todo | :gone",
-                   error.message
+      assert_raises_with_message(
+        Skyward::API::ReturnTypeError,
+        "BootFixtures::Todos#show (GET /:id) returned nil, which isn't BootFixtures::Todo | :gone"
+      ) do
+        endpoint(boot([todos, '/']), :show).serializer.call(nil)
+      end
     end
 
     describe 'strict:' do

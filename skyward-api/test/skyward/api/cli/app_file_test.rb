@@ -63,8 +63,8 @@ describe Skyward::API::CLI::AppFile do
       directory(%(App = Skyward.app(logger: nil) { |app| app.mount Object.new }\n)) do |path|
         run_in(path) { 'unused' }
 
-        assert_match(/\Amount takes a Skyward::API instance, got #<Object:\S+>\z/, kernel.aborted)
-        assert_empty out.string
+        assert_equal ['mount takes a Skyward::API instance, got #<Object>', ''],
+                     [kernel.aborted&.sub(/#<Object:\S+>\z/, '#<Object>'), out.string]
       end
     end
 
