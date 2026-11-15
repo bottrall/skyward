@@ -108,11 +108,10 @@ describe Skyward::Core::Types::Reader do
     end
 
     it 'raises BootError for an alias that refers to itself' do
-      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::tree') }
+      expected = "Can't read ReaderFixtures::tree: it refers to itself through " \
+                 'ReaderFixtures::tree -> ReaderFixtures::tree'
 
-      assert_equal "Can't read ReaderFixtures::tree: it refers to itself through " \
-                   'ReaderFixtures::tree -> ReaderFixtures::tree',
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { read('::ReaderFixtures::tree') }
     end
 
     describe 'with refinements' do
@@ -263,15 +262,13 @@ describe Skyward::Core::Types::Reader do
     end
 
     it 'raises BootError for a class with no Ruby class loaded, with an excerpt of its declaration' do
-      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Orphan') }
-
       expected = ['ReaderFixtures::Orphan has an RBS signature, but no Ruby class is loaded with that name',
                   '',
                   "    #{others}:#{line_of.call('class Orphan')}",
                   '    class Orphan',
                   '          ^^^^^^'].join("\n")
 
-      assert_equal expected, error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { read('::ReaderFixtures::Orphan') }
     end
 
     it "raises BootError for a class whose Ruby constant isn't a class" do
@@ -279,19 +276,17 @@ describe Skyward::Core::Types::Reader do
     end
 
     it 'raises BootError for a class that refers to itself' do
-      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Node') }
+      expected = "Can't read ReaderFixtures::Node: it refers to itself through " \
+                 'ReaderFixtures::Node -> ReaderFixtures::Node'
 
-      assert_equal "Can't read ReaderFixtures::Node: it refers to itself through " \
-                   'ReaderFixtures::Node -> ReaderFixtures::Node',
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { read('::ReaderFixtures::Node') }
     end
 
     it 'raises BootError for a class that refers to itself through another' do
-      error = assert_raises(Skyward::Core::BootError) { read('::ReaderFixtures::Parent') }
+      expected = "Can't read ReaderFixtures::Parent: it refers to itself through " \
+                 'ReaderFixtures::Parent -> ReaderFixtures::Child -> ReaderFixtures::Parent'
 
-      assert_equal "Can't read ReaderFixtures::Parent: it refers to itself through " \
-                   'ReaderFixtures::Parent -> ReaderFixtures::Child -> ReaderFixtures::Parent',
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { read('::ReaderFixtures::Parent') }
     end
 
     describe 'a class with typed readers' do
@@ -397,10 +392,6 @@ describe Skyward::Core::Types::Reader do
     end
 
     it "raises BootError with an excerpt and a suggestion for a type name RBS can't find" do
-      error = assert_raises(Skyward::Core::BootError) do
-        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Unknown'), :show)
-      end
-
       expected = ["Can't read the RBS signatures: Could not find Integr",
                   '',
                   "    #{others}:#{line_of.call('-> Integr')}",
@@ -408,29 +399,27 @@ describe Skyward::Core::Types::Reader do
                   '                    ^^^^^^',
                   'Did you mean Integer?'].join("\n")
 
-      assert_equal expected, error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) do
+        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Unknown'), :show)
+      end
     end
 
     it 'raises BootError with an excerpt and no suggestion for any other RBS error with a location' do
-      error = assert_raises(Skyward::Core::BootError) do
-        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Stray'), :show)
-      end
-
       expected = ["Can't read the RBS signatures: Could not find super class: Absent",
                   '',
                   "    #{others}:#{line_of.call('class Stray')}",
                   '    class Stray < Absent',
                   '    ^^^^^^^^^^^^^^^^^^^^'].join("\n")
 
-      assert_equal expected, error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) do
+        reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Stray'), :show)
+      end
     end
 
     it "raises BootError with RBS's message when its error has no location" do
-      error = assert_raises(Skyward::Core::BootError) do
+      assert_raises_with_message(Skyward::Core::BootError, /\ACan't read the RBS signatures: .*Superclass mismatch/) do
         reader.method_type(RBS::TypeName.parse('::ReaderFixtures::Mismatched'), :to_s)
       end
-
-      assert_match(/\ACan't read the RBS signatures: .*Superclass mismatch/, error.message)
     end
   end
 end

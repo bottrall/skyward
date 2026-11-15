@@ -9,8 +9,9 @@ describe Skyward::Core::CLI::Registry do
     it 'raises naming a command registered twice' do
       registry.register('routes', 'List every route') { |_args| nil }
 
-      error = assert_raises(ArgumentError) { registry.register('routes', 'Something else') { |_args| nil } }
-      assert_equal 'a command named routes is already registered', error.message
+      assert_raises_with_message(ArgumentError, 'a command named routes is already registered') do
+        registry.register('routes', 'Something else') { |_args| nil }
+      end
     end
 
     it 'adds a command under its name' do

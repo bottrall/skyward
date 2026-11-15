@@ -111,21 +111,19 @@ describe Skyward::Core::Signatures::Loader do
     end
 
     it "raises BootError with an excerpt under the token that doesn't parse" do
-      error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, 'broken')) }
-
-      assert_equal <<~MESSAGE.chomp, error.message
+      expected = <<~MESSAGE.chomp
         Can't load the RBS signatures: Syntax error: unexpected token for simple type.
 
             #{relative}/broken/broken.rbs:3
             end
             ^^^
       MESSAGE
+
+      assert_raises_with_message(Skyward::Core::BootError, expected) { loader.load(File.join(fixtures, 'broken')) }
     end
 
     it 'raises BootError with an excerpt under each name of a duplicated declaration' do
-      error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, 'duplicated')) }
-
-      assert_equal <<~MESSAGE.chomp, error.message
+      expected = <<~MESSAGE.chomp
         Can't load the RBS signatures: id is declared twice.
 
             #{relative}/duplicated/b.rbs:1
@@ -136,12 +134,12 @@ describe Skyward::Core::Signatures::Loader do
             type id = Integer
                  ^^
       MESSAGE
+
+      assert_raises_with_message(Skyward::Core::BootError, expected) { loader.load(File.join(fixtures, 'duplicated')) }
     end
 
     it 'raises BootError with an excerpt under the new name of a duplicated class alias' do
-      error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, 'duplicated_alias')) }
-
-      assert_equal <<~MESSAGE.chomp, error.message
+      expected = <<~MESSAGE.chomp
         Can't load the RBS signatures: Foo is declared twice.
 
             #{relative}/duplicated_alias/foo.rbs:1
@@ -151,18 +149,22 @@ describe Skyward::Core::Signatures::Loader do
             class Foo
                   ^^^
       MESSAGE
+
+      assert_raises_with_message(Skyward::Core::BootError, expected) do
+        loader.load(File.join(fixtures, 'duplicated_alias'))
+      end
     end
 
     it 'raises BootError with an excerpt under the declaration whose generic parameters mismatch' do
-      error = assert_raises(Skyward::Core::BootError) { loader.load(File.join(fixtures, 'generic')) }
-
-      assert_equal <<~MESSAGE.chomp, error.message
+      expected = <<~MESSAGE.chomp
         Can't load the RBS signatures: Generic parameters mismatch: ::Box
 
             #{relative}/generic/b.rbs:1
             class Box[T, U]
                   ^^^
       MESSAGE
+
+      assert_raises_with_message(Skyward::Core::BootError, expected) { loader.load(File.join(fixtures, 'generic')) }
     end
 
     it 'raises again on the next load of signatures that failed' do
