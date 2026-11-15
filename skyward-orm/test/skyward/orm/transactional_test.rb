@@ -48,7 +48,7 @@ describe Skyward::ORM::Transactional do
         define_method(:example) do
           insert.call('Work')
 
-          flunk
+          raise Minitest::Assertion, 'failed'
         end
       end
 

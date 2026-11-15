@@ -53,9 +53,12 @@ describe Skyward::ORM::Connection::Session do
     end
 
     it 'says to connect when nothing has' do
-      error = assert_raises(Skyward::Core::BootError) { session.database }
-
-      assert_equal "Skyward ORM isn't connected. Call Skyward.connect(url) where your app boots.", error.message
+      assert_raises_with_message(
+        Skyward::Core::BootError,
+        "Skyward ORM isn't connected. Call Skyward.connect(url) where your app boots."
+      ) do
+        session.database
+      end
     end
   end
 
@@ -78,8 +81,16 @@ describe Skyward::ORM::Connection::Session do
       assert_same database, session.database
     end
 
-    it 'makes the previous one current again when the block raises' do
+    it "raises the block's error" do
       assert_raises(IOError) { session.using(other) { raise IOError } }
+    end
+
+    it 'makes the previous one current again when the block raises' do
+      begin
+        session.using(other) { raise IOError }
+      rescue IOError
+        nil
+      end
 
       assert_same database, session.database
     end
@@ -172,14 +183,25 @@ describe Skyward::ORM::Connection::Session do
       assert_equal ['Home'], names(other)
     end
 
-    it 'keeps a database whose hold raises, for #release' do
-      failing = recording.new(calls: [], raises: :hold)
-      session.connect(failing)
+    describe 'a database whose hold raises' do
+      let(:failing) { recording.new(calls: [], raises: :hold) }
 
-      assert_raises(IOError) { session.hold }
-      session.release
+      before { session.connect(failing) }
 
-      assert_equal %i[hold release], failing.calls
+      it 'raises its error' do
+        assert_raises(IOError) { session.hold }
+      end
+
+      it 'is kept for #release' do
+        begin
+          session.hold
+        rescue IOError
+          nil
+        end
+        session.release
+
+        assert_equal %i[hold release], failing.calls
+      end
     end
   end
 
@@ -188,15 +210,29 @@ describe Skyward::ORM::Connection::Session do
       assert_nil session.release
     end
 
-    it "releases every database it holds, even when one's release raises" do
-      failing = recording.new(calls: [], raises: :release)
-      session.connect(database)
-      session.hold
-      session.using(failing) { nil }
-      session.using(other) { insert(other, 'Home') }
+    describe "when one database's release raises" do
+      let(:failing) { recording.new(calls: [], raises: :release) }
 
-      assert_raises(IOError) { session.release }
-      assert_equal [[], %i[hold release]], [names(other), failing.calls]
+      before do
+        session.connect(database)
+        session.hold
+        session.using(failing) { nil }
+        session.using(other) { insert(other, 'Home') }
+      end
+
+      it 'raises its error' do
+        assert_raises(IOError) { session.release }
+      end
+
+      it 'releases every database it holds' do
+        begin
+          session.release
+        rescue IOError
+          nil
+        end
+
+        assert_equal [[], %i[hold release]], [names(other), failing.calls]
+      end
     end
 
     it 'leaves nothing held afterwards' do
@@ -230,8 +266,16 @@ describe Skyward::ORM::Connection::Session do
       assert_predicate session, :check?
     end
 
-    it 'turns it back on when the block raises' do
+    it "raises the block's error" do
       assert_raises(Skyward::Core::BootError) { session.without_check { raise Skyward::Core::BootError } }
+    end
+
+    it 'turns it back on when the block raises' do
+      begin
+        session.without_check { raise Skyward::Core::BootError }
+      rescue Skyward::Core::BootError
+        nil
+      end
 
       assert_predicate session, :check?
     end

@@ -100,17 +100,23 @@ describe Skyward::ORM::Connection::Instrumented do
   end
 
   describe 'the instrument' do
-    it "can't change the statement it's given, which runs as sent" do
-      sql = +empty.shown('INSERT INTO lists (name) VALUES (?)', ['Home']).fetch(0)
-      binds = ['Home']
-      instrument = lambda do |execution, &run|
-        assert_raises(FrozenError) { execution.sql.replace('DELETE FROM lists') }
-        assert_raises(FrozenError) { execution.binds.replace(['Work']) }
-        run.call
-      end
-      wrap(instrument).execute(sql, binds)
+    describe "the statement it's given" do
+      let(:sql) { +empty.shown('INSERT INTO lists (name) VALUES (?)', ['Home']).fetch(0) }
+      let(:binds) { ['Home'] }
 
-      assert_equal [[['Home']], false, false], [names, sql.frozen?, binds.frozen?]
+      before { wrap(passing).execute(sql, binds) }
+
+      it "can't change its SQL" do
+        assert_raises(FrozenError) { executions.fetch(0).sql.replace('DELETE FROM lists') }
+      end
+
+      it "can't change its binds" do
+        assert_raises(FrozenError) { executions.fetch(0).binds.replace(['Work']) }
+      end
+
+      it "runs as sent, leaving the caller's SQL and binds unfrozen" do
+        assert_equal [[['Home']], false, false], [names, sql.frozen?, binds.frozen?]
+      end
     end
 
     it "is given the statement's duration in milliseconds, read from the clock before and after it" do
@@ -131,52 +137,108 @@ describe Skyward::ORM::Connection::Instrumented do
       assert_equal [Fiber.current], fibers
     end
 
-    it 'sees the error of a statement that fails, which raises through it' do
-      seen = []
-      instrument = lambda do |_execution, &run|
-        run.call
-      rescue StandardError => e
-        seen << e
-        raise
-      end
-      error = assert_raises(StandardError) { wrap(instrument).execute('SELECT * FROM missing') }
-
-      assert_equal [error], seen
-    end
-
-    it 'runs nothing when it raises before calling its block' do
-      instrument = ->(_execution) { raise IOError, 'refused' }
-      error = assert_raises(IOError) { wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')") }
-
-      assert_equal ['refused', []], [error.message, names]
-    end
-
-    it 'keeps what the statement did when it raises after calling its block' do
-      instrument = lambda do |_execution, &run|
-        run.call
-        raise IOError, 'refused'
-      end
-      assert_raises(IOError) { wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')") }
-
-      assert_equal [['Home']], names
-    end
-
-    it 'raises at a second call of its block, which runs nothing' do
-      instrument = lambda do |_execution, &run|
-        run.call
-        run.call
-      end
-      error = assert_raises(RuntimeError) { wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')") }
-
-      assert_equal [instrumented::ONCE, [['Home']]], [error.message, names]
-    end
-
-    it 'raises without running the statement when it never calls its block' do
-      error = assert_raises(RuntimeError) do
-        wrap(->(_execution) {}).execute("INSERT INTO lists (name) VALUES ('Home')")
+    describe 'a statement that fails' do
+      let(:seen) { [] }
+      let(:instrument) do
+        lambda do |_execution, &run|
+          run.call
+        rescue StandardError => e
+          seen << e
+          raise
+        end
       end
 
-      assert_equal [instrumented::ONCE, []], [error.message, names]
+      it 'raises its error through it' do
+        assert_raises(StandardError) { wrap(instrument).execute('SELECT * FROM missing') }
+      end
+
+      it 'sees the error it raises' do
+        error = begin
+          wrap(instrument).execute('SELECT * FROM missing')
+        rescue StandardError => e
+          e
+        end
+
+        assert_equal [error], seen
+      end
+    end
+
+    def insert_home(instrument, error_class)
+      wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')")
+    rescue error_class
+      nil
+    end
+
+    describe 'when it raises before calling its block' do
+      let(:instrument) { ->(_execution) { raise IOError, 'refused' } }
+
+      it 'raises its error' do
+        assert_raises_with_message(IOError, 'refused') do
+          wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')")
+        end
+      end
+
+      it 'runs nothing' do
+        insert_home(instrument, IOError)
+
+        assert_empty names
+      end
+    end
+
+    describe 'when it raises after calling its block' do
+      let(:instrument) do
+        lambda do |_execution, &run|
+          run.call
+          raise IOError, 'refused'
+        end
+      end
+
+      it 'raises its error' do
+        assert_raises(IOError) { wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')") }
+      end
+
+      it 'keeps what the statement did' do
+        insert_home(instrument, IOError)
+
+        assert_equal [['Home']], names
+      end
+    end
+
+    describe 'when it calls its block a second time' do
+      let(:instrument) do
+        lambda do |_execution, &run|
+          run.call
+          run.call
+        end
+      end
+
+      it 'raises' do
+        assert_raises_with_message(RuntimeError, instrumented::ONCE) do
+          wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')")
+        end
+      end
+
+      it 'runs nothing the second time' do
+        insert_home(instrument, RuntimeError)
+
+        assert_equal [['Home']], names
+      end
+    end
+
+    describe 'when it never calls its block' do
+      let(:instrument) { ->(_execution) {} }
+
+      it 'raises' do
+        assert_raises_with_message(RuntimeError, instrumented::ONCE) do
+          wrap(instrument).execute("INSERT INTO lists (name) VALUES ('Home')")
+        end
+      end
+
+      it "doesn't run the statement" do
+        insert_home(instrument, RuntimeError)
+
+        assert_empty names
+      end
     end
   end
 end

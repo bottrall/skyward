@@ -81,13 +81,12 @@ describe Skyward::ORM::Tables::Declarations do
     end
 
     it "says to declare a table when there isn't one" do
-      error = assert_raises(Skyward::Core::BootError) { table.table_name }
-
-      assert_equal "#{table} has no table. Add `table :name` to its body.", error.message
+      assert_raises_with_message(Skyward::Core::BootError, "#{table} has no table. Add `table :name` to its body.") do
+        table.table_name
+      end
     end
 
     it "points at the class's name" do
-      error = assert_raises(Skyward::Core::BootError) { TablesFixtures::Typed.table_name }
       expected = <<~MESSAGE.chomp
         TablesFixtures::Typed has no table. Add `table :name` to its body.
 
@@ -96,7 +95,7 @@ describe Skyward::ORM::Tables::Declarations do
                   ^^^^^
       MESSAGE
 
-      assert_equal expected, error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { TablesFixtures::Typed.table_name }
     end
   end
 

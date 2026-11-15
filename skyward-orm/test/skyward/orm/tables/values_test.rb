@@ -56,18 +56,27 @@ describe Skyward::ORM::Tables::Values do
       end
     end
 
-    it 'checks each element of an array' do
+    it 'takes an array whose every element fits' do
       assert_nil mismatch(column(:integer), [1, 2])
+    end
+
+    it "names an array's element that doesn't fit" do
       assert_equal "#{todo}.value is Integer, not \"2\" (String)", mismatch(column(:integer), [1, '2'])
     end
 
-    it 'checks each end of a range' do
+    it 'takes a range whose both ends fit' do
       assert_nil mismatch(column(:integer), 1..5)
+    end
+
+    it "names a range's end that doesn't fit" do
       assert_equal "#{todo}.value is Integer, not 5.5 (Float)", mismatch(column(:integer), 1..5.5)
     end
 
     it "leaves an open end of a range unchecked, even on a column that isn't nullable" do
       assert_nil mismatch(column(:integer), 1..)
+    end
+
+    it "leaves an open start of a range unchecked, even on a column that isn't nullable" do
       assert_nil mismatch(column(:integer), ..5)
     end
 
@@ -107,8 +116,11 @@ describe Skyward::ORM::Tables::Values do
       assert_equal "#{todo}.value is Integer, not nil (NilClass)", mismatch(column(:integer), nil)
     end
 
-    it "checks nil in an array against the column's nullability" do
+    it 'takes nil in an array on a nullable column' do
       assert_nil mismatch(column(:integer, nullable: true), [1, nil])
+    end
+
+    it "refuses nil in an array on a column that isn't nullable" do
       assert_equal "#{todo}.value is Integer, not nil (NilClass)", mismatch(column(:integer), [1, nil])
     end
 

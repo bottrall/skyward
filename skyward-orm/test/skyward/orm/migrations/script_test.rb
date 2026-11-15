@@ -567,14 +567,14 @@ describe Skyward::ORM::Migrations::Script do
             name: 'scraps_pkey', kind: :primary_key, columns: [:id], references: nil, definition: 'PRIMARY KEY (id)'
           )
         )
-        error = assert_raises(Skyward::Core::BootError) do
-          write([alter(fixtures::Scrap, [keyed], table: scraps), alter(fixtures::Scrap, [keyed], table: both)])
-        end
-
-        assert_equal <<~MESSAGE.chomp, error.message
+        expected = <<~MESSAGE.chomp
           Changing table :scraps rebuilds it, which would lose its generated column low. Write this migration yourself with `skyward migration --empty`.
           Changing table :scraps rebuilds it, which would lose its generated columns low, up. Write this migration yourself with `skyward migration --empty`.
         MESSAGE
+
+        assert_raises_with_message(Skyward::Core::BootError, expected) do
+          write([alter(fixtures::Scrap, [keyed], table: scraps), alter(fixtures::Scrap, [keyed], table: both)])
+        end
       end
 
       it "alters a table with a generated column in place, where it doesn't rebuild it" do

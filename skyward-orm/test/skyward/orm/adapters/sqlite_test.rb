@@ -94,11 +94,10 @@ describe Skyward::ORM::Adapters::SQLite do
     end
 
     it 'refuses an older SQLite' do
-      error = assert_raises(Skyward::Core::BootError) { sqlite.require_version('3.34.1') }
+      expected = 'Skyward ORM needs SQLite 3.35 or later, for RETURNING, but the sqlite3 gem loaded SQLite 3.34.1. ' \
+                 "Update the sqlite3 gem, or the SQLite it's built against."
 
-      assert_equal 'Skyward ORM needs SQLite 3.35 or later, for RETURNING, but the sqlite3 gem loaded SQLite 3.34.1. ' \
-                   "Update the sqlite3 gem, or the SQLite it's built against.",
-                   error.message
+      assert_raises_with_message(Skyward::Core::BootError, expected) { sqlite.require_version('3.34.1') }
     end
   end
 
@@ -378,9 +377,7 @@ describe Skyward::ORM::Adapters::SQLite do
 
     it "refuses JSON that isn't an array for an Array column, naming it" do
       decode = decoder(TestDatabase.column(:array, element: :integer))
-      error = assert_raises(TypeError) { decode.call(['{"a":1}']) }
-
-      assert_equal '{"a":1} isn\'t a JSON array', error.message
+      assert_raises_with_message(TypeError, '{"a":1} isn\'t a JSON array') { decode.call(['{"a":1}']) }
     end
   end
 

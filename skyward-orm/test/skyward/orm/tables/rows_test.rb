@@ -32,15 +32,13 @@ describe Skyward::ORM::Tables::Rows do
     end
 
     it 'raises naming the columns left out' do
-      error = assert_raises(ArgumentError) { row(todo, id: 1) }
-
-      assert_equal "#{todo} is missing title", error.message
+      assert_raises_with_message(ArgumentError, "#{todo} is missing title") { row(todo, id: 1) }
     end
 
     it "raises naming the columns it doesn't have" do
-      error = assert_raises(ArgumentError) { row(todo, id: 1, title: 'Buy milk', done: false) }
-
-      assert_equal "#{todo} has no column done", error.message
+      assert_raises_with_message(ArgumentError, "#{todo} has no column done") do
+        row(todo, id: 1, title: 'Buy milk', done: false)
+      end
     end
 
     it "keeps a row's columns private to it" do

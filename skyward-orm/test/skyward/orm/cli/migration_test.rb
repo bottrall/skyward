@@ -141,11 +141,12 @@ describe Skyward::ORM::CLI::Migration do
 
     it 'writes an empty migration, without regenerating or booting an app that has no boot.rb yet, and says where' do
       Dir.mktmpdir do |directory|
-        run_in(directory, '--empty', 'backfill_priorities', generate: -> { flunk })
+        regenerated = []
+        run_in(directory, '--empty', 'backfill_priorities', generate: -> { regenerated << 1 })
         file = 'db/migrate/20261018093000_backfill_priorities.sql'
 
-        assert_equal ["Wrote #{file}. Add your SQL, then run `skyward migrate`.\n", "\n-- down\n", nil],
-                     [out.string, File.read(File.join(directory, file)), kernel.aborted]
+        assert_equal ["Wrote #{file}. Add your SQL, then run `skyward migrate`.\n", "\n-- down\n", nil, []],
+                     [out.string, File.read(File.join(directory, file)), kernel.aborted, regenerated]
       end
     end
 

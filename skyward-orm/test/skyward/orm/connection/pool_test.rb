@@ -39,11 +39,22 @@ describe Skyward::ORM::Connection::Pool do
       assert_equal [:done, opened.first], value
     end
 
-    it 'takes a connection back when the block raises' do
-      pool = pool_class.new(1, opener, timeout: 0.01)
-      assert_raises(RuntimeError) { pool.with { raise 'failed' } }
+    describe 'when the block raises' do
+      let(:pool) { pool_class.new(1, opener, timeout: 0.01) }
 
-      assert_same(opened.first, pool.with { |connection| connection })
+      it 'raises its error' do
+        assert_raises(RuntimeError) { pool.with { raise 'failed' } }
+      end
+
+      it 'takes the connection back' do
+        begin
+          pool.with { raise 'failed' }
+        rescue RuntimeError
+          nil
+        end
+
+        assert_same(opened.first, pool.with { |connection| connection })
+      end
     end
 
     it 'reuses a connection that has come back rather than opening another' do
@@ -81,20 +92,30 @@ describe Skyward::ORM::Connection::Pool do
 
     it 'gives up after its timeout, saying how long it waited for how many' do
       pool = pool_class.new(1, opener, timeout: 0.01)
-      error = assert_raises(Skyward::ORM::PoolTimeout) { pool.with { pool.with { nil } } }
+      expected = 'Skyward ORM waited 0.01 seconds for a database connection, but all 1 in its pool stayed ' \
+                 'in use. Pass Skyward.connect a larger pool:, or hold each connection for less time.'
 
-      assert_equal 'Skyward ORM waited 0.01 seconds for a database connection, but all 1 in its pool stayed ' \
-                   'in use. Pass Skyward.connect a larger pool:, or hold each connection for less time.',
-                   error.message
+      assert_raises_with_message(Skyward::ORM::PoolTimeout, expected) { pool.with { pool.with { nil } } }
     end
 
-    it 'keeps no place for a connection that failed to open' do
-      failures = [RuntimeError.new('refused')]
-      pool = pool_class.new(1, -> { failures.empty? ? opener.call : raise(failures.pop) }, timeout: 0.01)
-      assert_raises(RuntimeError) { pool.with { nil } }
-      connection = pool.with { |opened_now| opened_now }
+    describe 'a connection that fails to open' do
+      let(:refusals) { [RuntimeError.new('refused')] }
+      let(:pool) { pool_class.new(1, -> { refusals.empty? ? opener.call : raise(refusals.pop) }, timeout: 0.01) }
 
-      assert_same opened.first, connection
+      it 'raises its error' do
+        assert_raises(RuntimeError) { pool.with { nil } }
+      end
+
+      it 'keeps no place for it' do
+        begin
+          pool.with { nil }
+        rescue RuntimeError
+          nil
+        end
+        connection = pool.with { |opened_now| opened_now }
+
+        assert_same opened.first, connection
+      end
     end
   end
 
@@ -107,15 +128,29 @@ describe Skyward::ORM::Connection::Pool do
       assert_same opened.fetch(1), connection
     end
 
-    it 'leaves the vacancy when the connection for it fails to open' do
-      failures = []
-      pool = pool_class.new(1, -> { failures.empty? ? opener.call : raise(failures.pop) }, timeout: 0.01)
-      pool.checkin(lose(pool.checkout))
-      failures << RuntimeError.new('refused')
-      assert_raises(RuntimeError) { pool.checkout }
-      connection = pool.checkout
+    describe 'when the connection for a vacancy fails to open' do
+      let(:refusals) { [] }
+      let(:pool) { pool_class.new(1, -> { refusals.empty? ? opener.call : raise(refusals.pop) }, timeout: 0.01) }
 
-      assert_same opened.last, connection
+      before do
+        pool.checkin(lose(pool.checkout))
+        refusals << RuntimeError.new('refused')
+      end
+
+      it 'raises its error' do
+        assert_raises(RuntimeError) { pool.checkout }
+      end
+
+      it 'leaves the vacancy' do
+        begin
+          pool.checkout
+        rescue RuntimeError
+          nil
+        end
+        connection = pool.checkout
+
+        assert_same opened.last, connection
+      end
     end
 
     it 'wakes a checkout waiting for a connection with a vacancy, and opens one in its place' do
