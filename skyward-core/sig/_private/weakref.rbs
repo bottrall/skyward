@@ -1,0 +1,7 @@
+class WeakRef
+  def initialize: (untyped orig) -> void
+
+  def __getobj__: () -> untyped
+
+  def weakref_alive?: () -> boolish
+end

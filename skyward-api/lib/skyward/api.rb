@@ -47,11 +47,11 @@ module Skyward
     builder = API::Assembly::Builder.new
     yield builder
     builder.freeze
-    reader = Core::Types::Reader.new(Core::Signatures.load(signatures))
     endpoints = API::Assembly::Boot.endpoints(
       builder.mounts,
       providers: builder.providers,
-      reader:,
+      # Not a local, which every lambda built here would close over, keeping the signatures loaded.
+      reader: Core::Types::Reader.new(Core::Signatures.load(signatures)),
       max_body_size:,
       strict: strict || ENV.fetch('SKYWARD_STRICT', nil) == '1'
     )

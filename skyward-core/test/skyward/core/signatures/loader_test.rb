@@ -28,6 +28,55 @@ describe Skyward::Core::Signatures::Loader do
   end
 
   describe '#load' do
+    it 'returns the builder it last returned for signatures that are unchanged' do
+      assert_same loader.load(app), loader.load(app)
+    end
+
+    it "returns it for the same directory, however it's spelled" do
+      assert_same loader.load(app), loader.load(File.join(app, '..', 'app'))
+    end
+
+    it 'loads again for another directory' do
+      refute_same loader.load(app), loader.load(gem_sig)
+    end
+
+    it 'loads again once a gem registers' do
+      first = loader.load(app)
+      loader.register(gem_sig)
+
+      refute_same first, loader.load(app)
+    end
+
+    it "loads again when a file's contents change" do
+      Dir.mktmpdir do |directory|
+        path = File.join(directory, 'todo.rbs')
+        File.write(path, 'class Todo end')
+        first = loader.load(directory)
+        File.write(path, 'class Tod end')
+
+        refute_same first, loader.load(directory)
+      end
+    end
+
+    it 'loads again when a file moves' do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, 'todo.rbs'), 'class Todo end')
+        first = loader.load(directory)
+        File.rename(File.join(directory, 'todo.rbs'), File.join(directory, 'todos.rbs'))
+
+        refute_same first, loader.load(directory)
+      end
+    end
+
+    it 'loads again once nothing holds the builder it returned' do
+      # Nothing holds what a thread's stack held once the thread ends, and an
+      # object_id is never reused.
+      first = Thread.new { loader.load(app).object_id }.value
+      GC.start
+
+      refute_equal first, loader.load(app).object_id
+    end
+
     it 'loads every .rbs file under the directory, however deep' do
       env = loader.load(app).env
 
@@ -52,6 +101,13 @@ describe Skyward::Core::Signatures::Loader do
 
     it 'includes the bigdecimal library' do
       assert loader.load(app).env.class_decl?(RBS::TypeName.parse('::BigDecimal'))
+    end
+
+    it 'keeps only the builder it last returned' do
+      first = loader.load(app)
+      loader.load(gem_sig)
+
+      refute_same first, loader.load(app)
     end
 
     it "raises BootError with an excerpt under the token that doesn't parse" do
@@ -109,8 +165,15 @@ describe Skyward::Core::Signatures::Loader do
       MESSAGE
     end
 
-    it 'builds a fresh environment on every call' do
-      refute_same loader.load(app).env, loader.load(app).env
+    it 'raises again on the next load of signatures that failed' do
+      broken = File.join(fixtures, 'broken')
+      begin
+        loader.load(broken)
+      rescue Skyward::Core::BootError
+        # The tests above pin the first load's error.
+      end
+
+      assert_raises(Skyward::Core::BootError) { loader.load(broken) }
     end
   end
 end
