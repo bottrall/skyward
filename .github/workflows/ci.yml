@@ -1,3 +1,6 @@
+# bin/ci runs every `run: bin/...` line here, so a check added to CI runs
+# locally too.
+
 name: ci
 
 on:
@@ -24,24 +27,57 @@ jobs:
         include:
           - name: lint
             run: bin/lint
-          - name: typecheck
-            run: bin/typecheck
           - name: tooling
             run: bin/test tooling/test
           # Builds every gem, installs them into an empty GEM_HOME, loads them
           # and runs skyward, which catches a file the gemspec leaves out, then
           # runs skyward new and the new app's own bin/ci with them.
-          - name: package
+          - name: build
             run: bin/build
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: true
       - run: ${{ matrix.run }}
+
+  # Besides Steep, bin/typecheck runs skyward check in each example's own
+  # bundle, as an app's CI does. Its strict boot connects, so
+  # examples/todos_postgres needs a PostgreSQL to migrate and boot against.
+  typecheck:
+    runs-on: ubuntu-latest
+    name: typecheck
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+      # Installs each example's own bundle, which skyward check runs in.
+      - run: bin/setup
+      - run: bin/typecheck
 
   test:
     runs-on: ubuntu-latest
@@ -71,14 +107,14 @@ jobs:
     # in. The SQLite example's run in its own bundle too, on an in-memory
     # database of their own.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -124,14 +160,14 @@ jobs:
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -182,14 +218,14 @@ jobs:
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -221,82 +257,14 @@ jobs:
     env:
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
+    # The benchmarks run on the Ruby in .ruby-version, which setup-ruby reads
+    # from the root, so bin/setup installs their bundle.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
-          ruby-version: "4.0"
           bundler-cache: true
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "4.0"
-          bundler-cache: true
-          working-directory: benchmarks
+      - run: bin/setup
       - run: bin/test benchmarks/test
-
-  # Every Skyward app runs skyward check in CI, and so does each example. Its
-  # Steep reads the repository's RBS collection, and its strict boot connects,
-  # so it needs its database migrated. These run the example's own commands in
-  # its own bundle, as an app's CI does, so they aren't bin/ scripts and bin/ci
-  # leaves them out.
-  check-todos:
-    runs-on: ubuntu-latest
-    name: skyward check examples/todos
-    timeout-minutes: 10
-
-    defaults:
-      run:
-        working-directory: examples/todos
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "4.0"
-          bundler-cache: true
-          working-directory: examples/todos
-      - run: bundle exec rbs collection install --frozen
-      - run: bundle exec skyward migrate
-      - run: bundle exec skyward check
-
-  check-todos-postgres:
-    runs-on: ubuntu-latest
-    name: skyward check examples/todos_postgres
-    timeout-minutes: 10
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 15
-
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-
-    defaults:
-      run:
-        working-directory: examples/todos_postgres
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "4.0"
-          bundler-cache: true
-          working-directory: examples/todos_postgres
-      - run: bundle exec rbs collection install --frozen
-      - run: bundle exec skyward migrate
-      - run: bundle exec skyward check

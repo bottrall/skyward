@@ -49,12 +49,10 @@ def write_signatures(dir, output)
   sh 'rbs-inline', '--opt-out', "--output=#{output}", *sources, chdir: dir, verbose: false
 end
 
-# examples/todos_postgres's tests run on TEST_POSTGRES_URL, the database
-# Skyward ORM's PostgreSQL tests use. Those leave their tables behind, todos
-# among them, so it's emptied first, in the example's bundle, which has pg.
-def prepare_test_database(dir)
-  return {} unless dir == 'examples/todos_postgres'
-
+# examples/todos_postgres runs on TEST_POSTGRES_URL, the database Skyward
+# ORM's PostgreSQL tests use. Those leave their tables behind, todos among
+# them, so it's emptied first, in the example's bundle, which has pg.
+def empty_test_postgres(dir)
   url = ENV.fetch('TEST_POSTGRES_URL') do
     abort 'Set TEST_POSTGRES_URL to a PostgreSQL database the tests can empty. CONTRIBUTING.md says how.'
   end
@@ -64,7 +62,24 @@ def prepare_test_database(dir)
     require "pg"
     PG.connect(ARGV.fetch(0)).exec("SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public")
   RUBY
-  { 'TEST_DATABASE_URL' => url }
+  url
+end
+
+def prepare_test_database(dir)
+  return {} unless dir == 'examples/todos_postgres'
+
+  { 'TEST_DATABASE_URL' => empty_test_postgres(dir) }
+end
+
+# The database an example's skyward check migrates and boots against: an empty
+# PostgreSQL for examples/todos_postgres, and a new SQLite file for the rest.
+def check_database_url(dir)
+  return empty_test_postgres(dir) if dir == 'examples/todos_postgres'
+
+  file = File.expand_path("tmp/#{File.basename(dir)}.sqlite3")
+  FileUtils.mkdir_p(File.dirname(file))
+  FileUtils.rm_f(file)
+  "sqlite://#{file}"
 end
 
 # Each gem's tests run in that gem's own bundle, which holds only the gem and
@@ -175,8 +190,22 @@ namespace :steep do
   end
 end
 
-desc 'Check the RBS signatures and collection are current, then run Steep'
-task typecheck: %w[rbs:check rbs:collection_check steep:check]
+namespace :examples do
+  desc "Run skyward check in each example's own bundle, on a migrated database, as an app's CI does"
+  task :check do
+    Bundler.with_unbundled_env do
+      EXAMPLES.each do |dir|
+        env = { 'DATABASE_URL' => check_database_url(dir) }
+        sh 'bundle', 'exec', 'rbs', 'collection', 'install', '--frozen', chdir: dir
+        sh env, 'bundle', 'exec', 'skyward', 'migrate', chdir: dir
+        sh env, 'bundle', 'exec', 'skyward', 'check', chdir: dir
+      end
+    end
+  end
+end
+
+desc "Check the RBS signatures and collection are current, run Steep, then run each example's skyward check"
+task typecheck: %w[rbs:check rbs:collection_check steep:check examples:check]
 
 desc "Build every gem into #{PKG}/, install them into an empty GEM_HOME, load them and run skyward, then check " \
      'the app skyward new writes passes its own bin/ci, as a user would'

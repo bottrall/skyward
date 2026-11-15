@@ -1,6 +1,7 @@
 # Each push to main updates release-please's release PR. Merging that PR
-# creates the vX.Y.Z release, and this workflow then publishes every gem and
-# attaches a run of bin/bench to the release.
+# creates the vX.Y.Z release, and this workflow then builds and publishes every
+# gem and attaches a run of bin/bench to the release. It doesn't re-run CI: the
+# release PR's checks already passed.
 # Publishing lives here rather than on a `release` event because releases
 # created with the default GITHUB_TOKEN don't trigger other workflows. Each
 # gem's RubyGems trusted publisher is pinned to this file name and the
@@ -28,7 +29,7 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       pr: ${{ steps.release.outputs.pr }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
 
   # release-please bumps every version.rb, but each lockfile records the
@@ -41,10 +42,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
       - run: |
           for dir in . skyward-core skyward-api skyward-orm skyward examples/todos examples/todos_postgres benchmarks; do
             (cd "$dir" && bundle lock)
@@ -57,8 +58,8 @@ jobs:
           git push
 
   # The publish job can mint a RubyGems API key, so it runs none of the dev
-  # bundle's gems: the checks that need them run here, unprivileged, and
-  # publish then builds the gems itself with plain RubyGems.
+  # bundle's gems: the version check and the build run here, unprivileged,
+  # and publish pushes the gem files this job built.
   verify:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
@@ -69,14 +70,19 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: true
       - run: bundle exec rake "release:verify[${TAG}]"
       - run: bin/build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gems
+          path: pkg/*.gem
+          if-no-files-found: error
 
   publish:
     needs: [release-please, verify]
@@ -90,28 +96,16 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: false
-      # Mirrors rake release:verify, which can't run here: the Rakefile loads
-      # the dev bundle.
-      - run: |
-          ruby -r ./tooling/lib/release - "$TAG" <<'RUBY'
-            tag = ARGV.fetch(0)
-            shared = Release.shared(Release::VERSION_FILES.map { |file| File.read(file) })
-            abort "The gems' versions disagree: #{Release::VERSION_FILES.join(", ")}" unless shared
-            abort "#{tag} doesn't match the gems' version, #{shared}" unless tag == "v#{shared}"
-          RUBY
-      # Mirrors the gem build in rake build.
-      - run: |
-          mkdir pkg
-          for gem in skyward-core skyward-api skyward-orm skyward; do
-            (cd "$gem" && gem build --quiet "${gem}.gemspec")
-            mv "$gem/$gem"-[0-9]*.gem pkg/
-          done
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: gems
+          path: pkg
       # RubyGems lets trusted publishing create a new gem only when the token
       # exchange names the account that will own it, and no release of
       # rubygems/configure-rubygems-credentials sends that `owner` yet.
@@ -134,9 +128,16 @@ jobs:
           echo "::add-mask::${key}"
           echo "GEM_HOST_API_KEY=${key}" >> "$GITHUB_ENV"
       # In dependency order, so each gem's exact pins resolve once it's live.
+      # The file names carry the version each gemspec built, so a tag that
+      # doesn't match fails before any gem is pushed.
       - run: |
+          gems=()
           for gem in skyward-core skyward-api skyward-orm skyward; do
-            gem push "pkg/${gem}-${TAG#v}.gem"
+            gems+=("pkg/${gem}-${TAG#v}.gem")
+          done
+          ls "${gems[@]}"
+          for file in "${gems[@]}"; do
+            gem push "$file"
           done
 
   # Runs bin/bench on the code the release tagged. It runs the benchmarks'
@@ -168,21 +169,16 @@ jobs:
       TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
-          ruby-version: "4.0"
           bundler-cache: true
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "4.0"
-          bundler-cache: true
-          working-directory: benchmarks
+      - run: bin/setup
       - run: bin/bench
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmarks
           path: tmp/bench/
@@ -199,7 +195,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: benchmarks
           path: bench
