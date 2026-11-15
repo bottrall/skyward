@@ -12,9 +12,9 @@ module Release
     skyward/lib/skyward/version.rb
   ].freeze
 
-  ASSIGNMENT = /VERSION = "([^"]*)"/
+  ASSIGNMENT = /VERSION = (['"])(.*?)\1/
 
-  def version(source) = source[ASSIGNMENT, 1]
+  def version(source) = source[ASSIGNMENT, 2]
 
   # The version every source agrees on, or nil when they disagree.
   def shared(sources)
