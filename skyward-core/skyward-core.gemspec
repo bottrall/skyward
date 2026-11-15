@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
   spec.metadata['bug_tracker_uri'] = "#{spec.homepage}/issues"
   spec.metadata['rubygems_mfa_required'] = 'true'
 
-  spec.files = Dir['lib/**/*.rb', 'sig/**/*.rbs', 'exe/*', 'README.md']
+  spec.files = Dir['lib/**/*.rb', 'sig/**/*.rbs', 'exe/*', 'README.md', 'LICENSE']
   spec.bindir = 'exe'
   spec.executables = ['skyward']
   spec.require_paths = ['lib']
