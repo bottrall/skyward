@@ -28,7 +28,7 @@ Everything runs through its `bin/` script, never a tool directly (`rake`, `ruboc
 
 ## Code layout
 
-- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Routing::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first. A `Data.define` constant also nests inside its compact-style owner (`module Skyward::API::Endpoints; Route = Data.define(...)`), because rbs-inline only types one assigned to a bare constant name.
+- Zeitwerk loads every gem, so file paths match constant names, in compact style (`class Skyward::API::Routing::Router`). Each gem's `version.rb` is the exception: it nests because the gemspec loads it first.
 - Tests are Minitest spec style (`describe`/`it`) and mirror the code they test. Each gem's tests run in that gem's own bundle (its `Gemfile`), so they can't load a gem it doesn't depend on.
 
 ## Where a module goes
@@ -71,7 +71,6 @@ Everything runs through its `bin/` script, never a tool directly (`rake`, `ruboc
 - Expected outcomes are returned as values (the row, or a symbol naming what went wrong) and matched with `case`/`when`. Steep 2.1 can't type-check `case`/`in`.
 - Each gem is its own Steep target, which sees only its own signatures and those of the Skyward gems it depends on.
 - A generic method, or a parameter typed with an interface whose name starts with `_`, takes the whole-method `# @rbs [T] (T value) -> Array[T]` form, which the per-parameter tags can't express.
-- `Data.define` members take a trailing `#: Type` on the same line, like constants and `attr_reader`s.
 - Declare instance variables with `# @rbs @name: Type` at the top of the class, not with a private reader.
 - The `extend self` re-declaration in `sig/manual/` is `module X; extend ::X; end`.
 
@@ -113,6 +112,7 @@ Don't construct or reach for collaborators inside a function or class — accept
 - Annotate every method in `lib/` with rbs-inline doc style: one `# @rbs name: Type` per param plus `# @rbs return: Type`, never the one-line method-type or `#:` method form. Constants and `attr_reader`s rbs-inline can't infer take a trailing `#: Type` on the same line; one on the line above is ignored.
 - An `attr_reader`/`attr_writer` needs a `# @dynamic name` line directly above it, or Steep reports `MethodDefinitionMissing`.
 - Declare an interface only when different objects satisfy it — two or more implementers, or a contract a consumer implements — or when a boundary forbids naming the one class. When only one class is ever passed, annotate that class; a test fake is not a second implementer.
+- A record with fields and no behaviour is a `Data.define` when its fields don't change after it's built. Assign it to a bare constant inside its owner's body (`module Shop::Orders; Line = Data.define(...)`), each member with a trailing `#: Type` on its line: rbs-inline emits no signature for the compact `Owner::Name = Data.define(...)` form. Once it needs a method, a default or a field that changes, it's a class with typed accessors and a typed `initialize`, frozen when nothing changes: Steep can't see methods defined in a `Data.define` block, and `Data` has no keyword defaults. Mutation is fine where it fits, just never in a `Struct`: rbs-inline marks every `Struct.new` argument optional while typing each member as non-nil, so Steep accepts `Point.new(1).y + 1`, which raises at runtime.
 - `sig/generated/` is written by `bin/generate` from the inline annotations: never hand-edit it, and commit it with the `lib/` change that moved it.
 - `sig/manual/` mirrors `lib/` for hand-written signatures rbs-inline can't generate: interfaces, and the `extend self` re-declaration every `extend self` module needs (rbs-inline drops `extend self`). A type alias may instead be declared inline with `# @rbs!` beside the code that uses it.
 - `sig/_private/` holds stubs for gaps in stdlib and third-party signatures, one file per gem or library (`open3.rbs`). Check the gem's own RBS and gem_rbs_collection before writing one, and delete the stub once real signatures exist. RBS skips `_`-prefixed directories in library mode, so the stubs never reach projects that install this one.
